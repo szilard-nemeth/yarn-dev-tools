@@ -3,9 +3,9 @@ import os
 from typing import List
 
 from git import Repo, RemoteProgress, GitCommandError, Commit
-from yarndevfunc.constants import ORIGIN
+from yarndevtools.constants import ORIGIN
 
-from yarndevfunc.constants import HEAD, COMMIT_FIELD_SEPARATOR
+from yarndevtools.constants import HEAD, COMMIT_FIELD_SEPARATOR
 
 FORMAT_CODE_HASH = "%H"
 FORMAT_CODE_COMMIT_MSG = "%s"

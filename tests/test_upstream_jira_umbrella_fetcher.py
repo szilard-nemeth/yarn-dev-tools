@@ -3,8 +3,8 @@ import unittest
 
 from pythoncommons.file_utils import FileUtils
 
-from yarndevfunc.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevfunc.constants import TRUNK
+from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
+from yarndevtools.constants import TRUNK
 from tests.test_utilities import TestUtilities, Object
 
 # Umbrella: OrgQueue for easy CapacityScheduler queue configuration management

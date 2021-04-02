@@ -1,7 +1,7 @@
 import logging
 import sys
 from enum import Enum
-from yarndevfunc.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME
+from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME
 
 LOG = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class CommandType(Enum):
 
 class ArgParser:
     @staticmethod
-    def parse_args(yarn_functions):
+    def parse_args(yarn_dev_tools):
         """This function parses and return arguments passed in"""
 
         # Top-level parser
@@ -50,16 +50,16 @@ class ArgParser:
             required=True,
             dest="command",
         )
-        ArgParser.add_save_patch_parser(subparsers, yarn_functions)
-        ArgParser.add_create_review_branch_parser(subparsers, yarn_functions)
-        ArgParser.add_backport_c6_parser(subparsers, yarn_functions)
-        ArgParser.add_upstream_pull_request_fetcher(subparsers, yarn_functions)
-        ArgParser.add_save_diff_as_patches(subparsers, yarn_functions)
-        ArgParser.diff_patches_of_jira(subparsers, yarn_functions)
-        ArgParser.add_fetch_jira_umbrella_data(subparsers, yarn_functions)
-        ArgParser.add_compare_branches(subparsers, yarn_functions)
-        ArgParser.add_zip_latest_command_data(subparsers, yarn_functions)
-        ArgParser.add_send_latest_command_data(subparsers, yarn_functions)
+        ArgParser.add_save_patch_parser(subparsers, yarn_dev_tools)
+        ArgParser.add_create_review_branch_parser(subparsers, yarn_dev_tools)
+        ArgParser.add_backport_c6_parser(subparsers, yarn_dev_tools)
+        ArgParser.add_upstream_pull_request_fetcher(subparsers, yarn_dev_tools)
+        ArgParser.add_save_diff_as_patches(subparsers, yarn_dev_tools)
+        ArgParser.diff_patches_of_jira(subparsers, yarn_dev_tools)
+        ArgParser.add_fetch_jira_umbrella_data(subparsers, yarn_dev_tools)
+        ArgParser.add_compare_branches(subparsers, yarn_dev_tools)
+        ArgParser.add_zip_latest_command_data(subparsers, yarn_dev_tools)
+        ArgParser.add_send_latest_command_data(subparsers, yarn_dev_tools)
 
         # Normal arguments
         parser.add_argument(
@@ -87,22 +87,22 @@ class ArgParser:
         return args
 
     @staticmethod
-    def add_save_patch_parser(subparsers, yarn_functions):
+    def add_save_patch_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.SAVE_PATCH.value, help="Saves patch from upstream repository to yarn patches dir"
         )
-        parser.set_defaults(func=yarn_functions.save_patch)
+        parser.set_defaults(func=yarn_dev_tools.save_patch)
 
     @staticmethod
-    def add_create_review_branch_parser(subparsers, yarn_functions):
+    def add_create_review_branch_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.CREATE_REVIEW_BRANCH.value, help="Creates review branch from upstream patch file"
         )
         parser.add_argument("patch_file", type=str, help="Path to patch file")
-        parser.set_defaults(func=yarn_functions.create_review_branch)
+        parser.set_defaults(func=yarn_dev_tools.create_review_branch)
 
     @staticmethod
-    def add_backport_c6_parser(subparsers, yarn_functions):
+    def add_backport_c6_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.BACKPORT_C6.value,
             help="Backports upstream commit to C6 branch, " "Example usage: <command> YARN-7948 CDH-64201 cdh6.x",
@@ -117,10 +117,10 @@ class ArgParser:
         parser.add_argument(
             "--cdh_base_ref", type=str, required=False, help="Downstream commit to base the new downstream branch on"
         )
-        parser.set_defaults(func=yarn_functions.backport_c6)
+        parser.set_defaults(func=yarn_dev_tools.backport_c6)
 
     @staticmethod
-    def add_upstream_pull_request_fetcher(subparsers, yarn_functions):
+    def add_upstream_pull_request_fetcher(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.UPSTREAM_PR_FETCH.value,
             help="Fetches upstream changes from a repo then cherry-picks single commit."
@@ -128,10 +128,10 @@ class ArgParser:
         )
         parser.add_argument("github_username", type=str, help="Github username")
         parser.add_argument("remote_branch", type=str, help="Name of the remote branch.")
-        parser.set_defaults(func=yarn_functions.upstream_pr_fetch)
+        parser.set_defaults(func=yarn_dev_tools.upstream_pr_fetch)
 
     @staticmethod
-    def add_save_diff_as_patches(subparsers, yarn_functions):
+    def add_save_diff_as_patches(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.SAVE_DIFF_AS_PATCHES.value,
             help="Diffs branches and creates patch files with "
@@ -142,10 +142,10 @@ class ArgParser:
         parser.add_argument("other_refspec", type=str, help="Git other refspec to diff with.")
         parser.add_argument("dest_basedir", type=str, help="Destination basedir.")
         parser.add_argument("dest_dir_prefix", type=str, help="Directory as prefix to export the patch files to.")
-        parser.set_defaults(func=yarn_functions.save_patches)
+        parser.set_defaults(func=yarn_dev_tools.save_patches)
 
     @staticmethod
-    def diff_patches_of_jira(subparsers, yarn_functions):
+    def diff_patches_of_jira(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.DIFF_PATCHES_OF_JIRA.value,
             help="Diffs patches of a particular jira, for the provided branches."
@@ -153,10 +153,10 @@ class ArgParser:
         )
         parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
         parser.add_argument("branches", type=str, nargs="+", help="Check all patches on theese branches.")
-        parser.set_defaults(func=yarn_functions.diff_patches_of_jira)
+        parser.set_defaults(func=yarn_dev_tools.diff_patches_of_jira)
 
     @staticmethod
-    def add_fetch_jira_umbrella_data(subparsers, yarn_functions):
+    def add_fetch_jira_umbrella_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.FETCH_JIRA_UMBRELLA_DATA.value,
             help="Fetches jira umbrella data for a provided Jira ID." "Example: fetch_jira_umbrella_data YARN-5734",
@@ -171,10 +171,10 @@ class ArgParser:
         parser.add_argument(
             "--branches", required=False, type=str, nargs="+", help="Check backports againtst these branches"
         )
-        parser.set_defaults(func=yarn_functions.fetch_jira_umbrella_data)
+        parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)
 
     @staticmethod
-    def add_compare_branches(subparsers, yarn_functions):
+    def add_compare_branches(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.COMPARE_BRANCHES.value,
             help="Compares branches." "Example: CDH-7.1-maint cdpd-master",
@@ -192,10 +192,10 @@ class ArgParser:
             action="store_true",
             help="Console mode: Instead of writing output files, print everything to the console",
         )
-        parser.set_defaults(func=yarn_functions.compare_branches)
+        parser.set_defaults(func=yarn_dev_tools.compare_branches)
 
     @staticmethod
-    def add_zip_latest_command_data(subparsers, yarn_functions):
+    def add_zip_latest_command_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.ZIP_LATEST_COMMAND_DATA.value,
             help="Zip latest command data." "Example: --dest_dir /tmp",
@@ -204,10 +204,10 @@ class ArgParser:
         parser.add_argument(
             "--dest_filename", required=False, type=str, default=DEFAULT_COMMAND_DATA_FILE_NAME, help="Zip filename"
         )
-        parser.set_defaults(func=yarn_functions.zip_latest_command_results)
+        parser.set_defaults(func=yarn_dev_tools.zip_latest_command_results)
 
     @staticmethod
-    def add_send_latest_command_data(subparsers, yarn_functions):
+    def add_send_latest_command_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.SEND_LATEST_COMMAND_DATA.value,
             help="Sends latest command data in email." "Example: --dest_dir /tmp",
@@ -219,4 +219,4 @@ class ArgParser:
         parser.add_argument("--subject", required=True, type=str, help="Subject of the email")
         parser.add_argument("--sender", required=True, type=str, help="Sender of the email [From]")
         parser.add_argument("--recipients", required=True, type=str, nargs="+", help="List of email recipients [To]")
-        parser.set_defaults(func=yarn_functions.send_latest_command_results)
+        parser.set_defaults(func=yarn_dev_tools.send_latest_command_results)

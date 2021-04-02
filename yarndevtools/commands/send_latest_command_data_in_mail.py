@@ -4,7 +4,7 @@ import os
 from pythoncommons.email import EmailConfig, EmailAccount, EmailService
 from pythoncommons.file_utils import FileUtils
 
-from yarndevfunc.utils import FileUtils2
+from yarndevtools.utils import FileUtils2
 
 LOG = logging.getLogger(__name__)
 

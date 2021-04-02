@@ -4,7 +4,7 @@ from os.path import expanduser
 from git import InvalidGitRepositoryError
 from pythoncommons.file_utils import FileUtils
 
-from yarndevfunc.git_wrapper import GitWrapper
+from yarndevtools.git_wrapper import GitWrapper
 
 LOG = logging.getLogger(__name__)
 

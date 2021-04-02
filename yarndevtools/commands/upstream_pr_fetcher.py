@@ -1,7 +1,7 @@
 import logging
 
-from yarndevfunc.constants import FETCH_HEAD
-from yarndevfunc.utils import StringUtils
+from yarndevtools.constants import FETCH_HEAD
+from yarndevtools.utils import StringUtils
 
 LOG = logging.getLogger(__name__)
 

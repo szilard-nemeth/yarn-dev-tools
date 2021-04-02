@@ -3,10 +3,10 @@ import unittest
 
 from pythoncommons.file_utils import FileUtils
 
-from yarndevfunc.commands.review_branch_creator import ReviewBranchCreator
-from yarndevfunc.constants import TRUNK, ORIGIN_TRUNK
+from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
+from yarndevtools.constants import TRUNK, ORIGIN_TRUNK
 from tests.test_utilities import TestUtilities, Object
-from yarndevfunc.yarn_dev_func import YarnDevFunc
+from yarndevtools.yarn_dev_tools import YarnDevTools
 
 LOG = logging.getLogger(__name__)
 COMMIT_MSG_TEMPLATE = "patch file: {file}"
@@ -92,20 +92,20 @@ class TestReviewBranchCreator(unittest.TestCase):
         self.utils.verify_commit_message_of_branch(REVIEW_BRANCH, COMMIT_MSG_TEMPLATE.format(file=patch_file))
         self.utils.verify_commit_message_of_branch(branch_2, COMMIT_MSG_TEMPLATE.format(file=patch_file))
 
-    def test_with_normal_patch_from_yarn_dev_func(self):
+    def test_with_normal_patch_from_yarn_dev_tools(self):
         self.cleanup_and_checkout_branch()
         self.utils.add_some_file_changes(commit=False)
 
         self.utils.set_env_vars(self.utils.sandbox_repo_path, self.utils.sandbox_repo_path)
-        yarn_functions = YarnDevFunc()
-        yarn_functions.upstream_repo = self.repo_wrapper
+        yarn_dev_tools = YarnDevTools()
+        yarn_dev_tools.upstream_repo = self.repo_wrapper
 
         args = Object()
         patch_file = FileUtils.join_path(self.dummy_patches_dir, PATCH_FILENAME)
         self.utils.add_file_changes_and_save_to_patch(patch_file)
         args.patch_file = patch_file
 
-        yarn_functions.create_review_branch(args)
+        yarn_dev_tools.create_review_branch(args)
 
         self.assertTrue(REVIEW_BRANCH in self.repo.heads, f"Review branch does not exist: {REVIEW_BRANCH}")
         self.utils.verify_commit_message_of_branch(REVIEW_BRANCH, COMMIT_MSG_TEMPLATE.format(file=patch_file))

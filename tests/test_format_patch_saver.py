@@ -4,8 +4,8 @@ import unittest
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 
-from yarndevfunc.commands.format_patch_saver import FormatPatchSaver
-from yarndevfunc.constants import TRUNK, DEST_DIR_PREFIX
+from yarndevtools.commands.format_patch_saver import FormatPatchSaver
+from yarndevtools.constants import TRUNK, DEST_DIR_PREFIX
 from tests.test_utilities import TestUtilities, Object
 
 DEFAULT_BASE_BRANCH = TRUNK

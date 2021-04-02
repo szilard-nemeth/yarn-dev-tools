@@ -1,7 +1,7 @@
 import logging
 
-from yarndevfunc.constants import ORIGIN, HEAD
-from yarndevfunc.git_wrapper import GitWrapper
+from yarndevtools.constants import ORIGIN, HEAD
+from yarndevtools.git_wrapper import GitWrapper
 
 LOG = logging.getLogger(__name__)
 

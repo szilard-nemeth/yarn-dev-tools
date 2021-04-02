@@ -12,19 +12,19 @@ from logging.handlers import TimedRotatingFileHandler
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 
-from yarndevfunc.commands.branch_comparator import BranchComparator
-from yarndevfunc.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
-from yarndevfunc.commands.zip_latest_command_data import ZipLatestCommandData
-from yarndevfunc.utils import FileUtils2
-from yarndevfunc.argparser import ArgParser, CommandType
-from yarndevfunc.commands.backporter import Backporter
-from yarndevfunc.commands.format_patch_saver import FormatPatchSaver
-from yarndevfunc.commands.patch_saver import PatchSaver
-from yarndevfunc.commands.review_branch_creator import ReviewBranchCreator
-from yarndevfunc.commands.upstream_jira_patch_differ import UpstreamJiraPatchDiffer
-from yarndevfunc.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevfunc.commands.upstream_pr_fetcher import UpstreamPRFetcher
-from yarndevfunc.constants import (
+from yarndevtools.commands.branch_comparator import BranchComparator
+from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
+from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
+from yarndevtools.utils import FileUtils2
+from yarndevtools.argparser import ArgParser, CommandType
+from yarndevtools.commands.backporter import Backporter
+from yarndevtools.commands.format_patch_saver import FormatPatchSaver
+from yarndevtools.commands.patch_saver import PatchSaver
+from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
+from yarndevtools.commands.upstream_jira_patch_differ import UpstreamJiraPatchDiffer
+from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
+from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
+from yarndevtools.constants import (
     PROJECT_NAME,
     ENV_HADOOP_DEV_DIR,
     ENV_CLOUDERA_HADOOP_ROOT,
@@ -38,7 +38,7 @@ from yarndevfunc.constants import (
     LATEST_SESSION,
     LATEST_DATA_ZIP,
 )
-from yarndevfunc.git_wrapper import GitWrapper
+from yarndevtools.git_wrapper import GitWrapper
 
 DEFAULT_BASE_BRANCH = TRUNK
 
@@ -89,7 +89,7 @@ class Setup:
         return log_file
 
 
-class YarnDevFunc:
+class YarnDevTools:
     def __init__(self):
         self.env = {}
         self.downstream_repo = None
@@ -208,11 +208,11 @@ class YarnDevFunc:
         branch_comparator.run()
 
     def zip_latest_command_results(self, args):
-        zip_latest_cmd_data = ZipLatestCommandData(args, yarn_functions.project_out_root)
+        zip_latest_cmd_data = ZipLatestCommandData(args, yarn_dev_tools.project_out_root)
         zip_latest_cmd_data.run()
 
     def send_latest_command_results(self, args):
-        file_to_send = FileUtils.join_path(yarn_functions.project_out_root, LATEST_DATA_ZIP)
+        file_to_send = FileUtils.join_path(yarn_dev_tools.project_out_root, LATEST_DATA_ZIP)
         send_latest_cmd_data = SendLatestCommandDataInEmail(args, file_to_send)
         send_latest_cmd_data.run()
 
@@ -222,20 +222,20 @@ if __name__ == "__main__":
 
     # TODO Revisit all exception handling: ValueError vs. exit() calls
     # Methods should throw exceptions, exit should be handled in this method
-    yarn_functions = YarnDevFunc()
+    yarn_dev_tools = YarnDevTools()
 
-    # Parse args, commands will be mapped to YarnDevFunc functions in ArgParser.parse_args
-    args = ArgParser.parse_args(yarn_functions)
+    # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
+    args = ArgParser.parse_args(yarn_dev_tools)
     log_file = Setup.init_logger(
-        yarn_functions.log_dir,
+        yarn_dev_tools.log_dir,
         console_debug=args.debug,
         postfix=args.command,
-        repos=[yarn_functions.upstream_repo.repo, yarn_functions.downstream_repo.repo],
+        repos=[yarn_dev_tools.upstream_repo.repo, yarn_dev_tools.downstream_repo.repo],
         verbose=args.verbose,
     )
 
     if CommandType.from_str(args.command) not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        FileUtils2.create_symlink(LATEST_LOG, log_file, yarn_functions.project_out_root)
+        FileUtils2.create_symlink(LATEST_LOG, log_file, yarn_dev_tools.project_out_root)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 

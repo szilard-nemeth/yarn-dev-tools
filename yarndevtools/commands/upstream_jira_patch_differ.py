@@ -4,7 +4,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.string_utils import auto_str
 
-from yarndevfunc.git_wrapper import GitWrapper
+from yarndevtools.git_wrapper import GitWrapper
 
 LOG = logging.getLogger(__name__)
 

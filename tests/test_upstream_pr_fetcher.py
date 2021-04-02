@@ -1,8 +1,8 @@
 import logging
 import unittest
 
-from yarndevfunc.commands.upstream_pr_fetcher import UpstreamPRFetcher
-from yarndevfunc.constants import APACHE, TRUNK, HADOOP_REPO_TEMPLATE
+from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
+from yarndevtools.constants import APACHE, TRUNK, HADOOP_REPO_TEMPLATE
 from tests.test_utilities import TestUtilities, Object
 
 DEFAULT_BRANCH = TRUNK

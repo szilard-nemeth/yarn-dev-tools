@@ -7,8 +7,8 @@ from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.string_utils import StringUtils, auto_str
 
-from yarndevfunc.command_runner import CommandRunner
-from yarndevfunc.constants import (
+from yarndevtools.command_runner import CommandRunner
+from yarndevtools.constants import (
     HEAD,
     COMMIT_FIELD_SEPARATOR,
     REVERT,
@@ -17,7 +17,7 @@ from yarndevfunc.constants import (
     ORIGIN_TRUNK,
     YARN_JIRA_ID_PATTERN,
 )
-from yarndevfunc.utils import ResultPrinter
+from yarndevtools.utils import ResultPrinter
 from enum import Enum
 from colr import color
 

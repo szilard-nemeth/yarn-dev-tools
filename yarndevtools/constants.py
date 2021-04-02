@@ -22,7 +22,7 @@ DEFAULT_COMMAND_DATA_FILE_NAME = "command_data.zip"
 # Do not leak bad ENV variable namings into the python code
 LOADED_ENV_UPSTREAM_DIR = "upstream-hadoop-dir"
 LOADED_ENV_DOWNSTREAM_DIR = "downstream-hadoop-dir"
-PROJECT_NAME = "yarn_dev_func"
+PROJECT_NAME = "yarn_dev_tools"
 DEST_DIR_PREFIX = "test"
 HADOOP_REPO_TEMPLATE = "https://github.com/{user}/hadoop.git"
 HADOOP_REPO_APACHE = HADOOP_REPO_TEMPLATE.format(user=APACHE)

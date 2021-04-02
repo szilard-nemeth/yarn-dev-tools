@@ -16,11 +16,11 @@ with open("LICENSE") as f:
     license = f.read()
 
 setup(
-    name="yarn-dev-func",
+    name="yarn-dev-tools",
     version=version,
     author="Szilard Nemeth",
     author_email="szilard.nemeth88@gmail.com",
-    description="YARN and git developer functions / helper scripts",
+    description="YARN and git developer tools / helper scripts",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/szilard-nemeth/yarn-dev-tools",

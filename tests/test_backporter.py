@@ -2,9 +2,9 @@ import logging
 import unittest
 
 from tests.test_utilities import TestUtilities, Object
-from yarndevfunc.commands.backporter import Backporter
-from yarndevfunc.constants import TRUNK, BRANCH_3_1, ORIGIN
-from yarndevfunc.yarn_dev_func import DEFAULT_BASE_BRANCH
+from yarndevtools.commands.backporter import Backporter
+from yarndevtools.constants import TRUNK, BRANCH_3_1, ORIGIN
+from yarndevtools.yarn_dev_tools import DEFAULT_BASE_BRANCH
 
 UPSTREAM_JIRA_ID = "YARN-123456: "
 CDH_BRANCH = "cdh6x"
