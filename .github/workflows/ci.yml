@@ -1,4 +1,4 @@
-name: CI for cloudera/yarn/python [yarndevfunc] (pip)
+name: CI for YARN dev tools (pip)
 on: [push]
 
 defaults:

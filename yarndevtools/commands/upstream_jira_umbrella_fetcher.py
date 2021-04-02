@@ -433,7 +433,7 @@ class UpstreamJiraUmbrellaFetcher:
     def find_upstream_commits_and_save_to_file(self):
         # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
         git_log_result = self.upstream_repo.log(ORIGIN_TRUNK, oneline_with_date=True)
-        output = CommandRunner.egrep_with_cli(git_log_result, self.intermediate_results_file, self.data.piped_jira_ids)
+        cmd, output = CommandRunner.egrep_with_cli(git_log_result, self.intermediate_results_file, self.data.piped_jira_ids)
         normal_commit_lines = output.split("\n")
         modified_log_lines = self._find_missing_upstream_commits_by_message(git_log_result, normal_commit_lines)
         self.data.matched_upstream_commit_list = normal_commit_lines + modified_log_lines
@@ -462,7 +462,7 @@ class UpstreamJiraUmbrellaFetcher:
         LOG.debug("Found jira ids in git log: %s", found_jira_ids)
         LOG.debug("Not found jira ids in git log: %s", not_found_jira_ids)
         LOG.debug("Trying to find commits by jira titles from git log: %s", not_found_jira_titles)
-        output = CommandRunner.egrep_with_cli(
+        cmd, output = CommandRunner.egrep_with_cli(
             git_log_result, self.intermediate_results_file, "|".join(not_found_jira_titles)
         )
         output_lines2 = output.split("\n")
@@ -530,7 +530,7 @@ class UpstreamJiraUmbrellaFetcher:
         for branch in self.downstream_branches:
             git_log_result = self.downstream_repo.log(branch, oneline_with_date=True)
             # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-            output = CommandRunner.egrep_with_cli(
+            cmd, output = CommandRunner.egrep_with_cli(
                 git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
             )
             matched_downstream_commit_list = output.split("\n")
@@ -611,7 +611,7 @@ class UpstreamJiraUmbrellaFetcher:
                 f'egrep "{self.data.piped_jira_ids}"'
             )
             LOG.info("[%d / %d] CLI command: %s", idx + 1, len(self.data.list_of_changed_files), cli_command)
-            output = CommandRunner.run_cli_command(
+            cmd, output = CommandRunner.run_cli_command(
                 cli_command, fail_on_empty_output=False, print_command=False, fail_on_error=False
             )
 

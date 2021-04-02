@@ -74,7 +74,7 @@ class TestBackporter(unittest.TestCase):
         args = self.setup_args()
 
         backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF, YARN_TEST_BRANCH
+            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
         )
         self.assertRaises(ValueError, backporter.run)
 
@@ -84,7 +84,7 @@ class TestBackporter(unittest.TestCase):
         args = self.setup_args()
 
         backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF, YARN_TEST_BRANCH
+            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
         )
         self.assertRaises(ValueError, backporter.run)
 
@@ -97,7 +97,7 @@ class TestBackporter(unittest.TestCase):
         self.downstream_utils.remove_remote(UPSTREAM_REMOTE_NAME)
 
         backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF, YARN_TEST_BRANCH
+            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
         )
         self.assertRaises(ValueError, backporter.run)
 
@@ -107,7 +107,7 @@ class TestBackporter(unittest.TestCase):
         args = self.setup_args()
 
         backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF, YARN_TEST_BRANCH
+            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
         )
         backporter.run()
 
@@ -127,7 +127,7 @@ class TestBackporter(unittest.TestCase):
         args.upstream_branch = BRANCH_3_1
 
         backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF, BRANCH_3_1
+            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
         )
         backporter.run()
 
