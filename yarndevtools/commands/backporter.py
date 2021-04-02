@@ -52,7 +52,9 @@ class Backporter:
         6. Print post-commit guidance.
     """
 
-    def __init__(self, args, upstream_repo, downstream_repo, cherry_pick_base_ref, post_commit_messages: List[str] = None):
+    def __init__(
+        self, args, upstream_repo, downstream_repo, cherry_pick_base_ref, post_commit_messages: List[str] = None
+    ):
         self.args = args
         # Parsed from args
         self.downstream_jira_id = self.args.cdh_jira_id
@@ -63,7 +65,7 @@ class Backporter:
         self.upstream_repo = upstream_repo
         self.downstream_repo = downstream_repo
         self.cherry_pick_base_ref = cherry_pick_base_ref
-        if not isinstance(post_commit_messages, list):
+        if post_commit_messages and not isinstance(post_commit_messages, list):
             raise ValueError("Parameter 'post_commit_messages' should be a list of str objects!")
         self.post_commit_messages = post_commit_messages
 
