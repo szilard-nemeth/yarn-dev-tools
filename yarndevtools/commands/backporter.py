@@ -1,8 +1,8 @@
 import logging
 from typing import List
 
-from yarndevtools.constants import ORIGIN, HEAD
-from yarndevtools.git_wrapper import GitWrapper
+from pythoncommons.git_constants import ORIGIN, HEAD
+from pythoncommons.git_wrapper import GitWrapper
 
 LOG = logging.getLogger(__name__)
 

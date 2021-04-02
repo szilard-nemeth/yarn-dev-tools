@@ -4,7 +4,8 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.string_utils import RegexUtils
 
-from yarndevtools.constants import YARN_PATCH_FILENAME_REGEX, ORIGIN
+from pythoncommons.git_constants import ORIGIN
+from yarndevtools.constants import YARN_PATCH_FILENAME_REGEX
 
 BRANCH_PREFIX = "review-"
 

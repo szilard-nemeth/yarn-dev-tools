@@ -7,8 +7,9 @@ from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 
-from yarndevtools.constants import HADOOP_REPO_APACHE, HEAD, TRUNK, PROJECT_NAME, DEST_DIR_PREFIX
-from yarndevtools.git_wrapper import GitWrapper, ProgressPrinter
+from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME, DEST_DIR_PREFIX
+from pythoncommons.git_constants import HEAD
+from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 from yarndevtools.yarn_dev_tools import Setup
 
 DUMMYFILE_1 = "dummyfile1"

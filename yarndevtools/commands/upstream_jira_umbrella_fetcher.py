@@ -8,15 +8,18 @@ from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.command_runner import CommandRunner
-from yarndevtools.constants import (
+from pythoncommons.git_constants import (
     HEAD,
     COMMIT_FIELD_SEPARATOR,
     REVERT,
     SHORT_SHA_LENGTH,
     ORIGIN,
+)
+from yarndevtools.constants import (
     ORIGIN_TRUNK,
     YARN_JIRA_ID_PATTERN,
 )
+
 from yarndevtools.utils import ResultPrinter
 from enum import Enum
 from colr import color
@@ -433,7 +436,9 @@ class UpstreamJiraUmbrellaFetcher:
     def find_upstream_commits_and_save_to_file(self):
         # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
         git_log_result = self.upstream_repo.log(ORIGIN_TRUNK, oneline_with_date=True)
-        cmd, output = CommandRunner.egrep_with_cli(git_log_result, self.intermediate_results_file, self.data.piped_jira_ids)
+        cmd, output = CommandRunner.egrep_with_cli(
+            git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
+        )
         normal_commit_lines = output.split("\n")
         modified_log_lines = self._find_missing_upstream_commits_by_message(git_log_result, normal_commit_lines)
         self.data.matched_upstream_commit_list = normal_commit_lines + modified_log_lines

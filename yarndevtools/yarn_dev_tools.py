@@ -38,7 +38,7 @@ from yarndevtools.constants import (
     LATEST_SESSION,
     LATEST_DATA_ZIP,
 )
-from yarndevtools.git_wrapper import GitWrapper
+from pythoncommons.git_wrapper import GitWrapper
 
 DEFAULT_BASE_BRANCH = TRUNK
 

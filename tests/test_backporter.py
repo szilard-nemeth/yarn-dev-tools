@@ -3,7 +3,8 @@ import unittest
 
 from tests.test_utilities import TestUtilities, Object
 from yarndevtools.commands.backporter import Backporter
-from yarndevtools.constants import TRUNK, BRANCH_3_1, ORIGIN
+from pythoncommons.git_constants import ORIGIN
+from yarndevtools.constants import TRUNK, BRANCH_3_1
 from yarndevtools.yarn_dev_tools import DEFAULT_BASE_BRANCH
 
 UPSTREAM_JIRA_ID = "YARN-123456: "
@@ -73,9 +74,7 @@ class TestBackporter(unittest.TestCase):
         self.upstream_utils.add_some_file_changes(commit=False)
         args = self.setup_args()
 
-        backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
-        )
+        backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         self.assertRaises(ValueError, backporter.run)
 
     def test_with_committed_with_wrong_message_should_raise_error(self):
@@ -83,9 +82,7 @@ class TestBackporter(unittest.TestCase):
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix="dummy")
         args = self.setup_args()
 
-        backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
-        )
+        backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         self.assertRaises(ValueError, backporter.run)
 
     def test_with_committed_with_good_message_remote_to_upstream_does_not_exist(self):
@@ -96,9 +93,7 @@ class TestBackporter(unittest.TestCase):
         # Intentionally remove remote
         self.downstream_utils.remove_remote(UPSTREAM_REMOTE_NAME)
 
-        backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
-        )
+        backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         self.assertRaises(ValueError, backporter.run)
 
     def test_with_committed_with_good_message(self):
@@ -106,9 +101,7 @@ class TestBackporter(unittest.TestCase):
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
         args = self.setup_args()
 
-        backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
-        )
+        backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         backporter.run()
 
         expected_commit_msg = f"{CDH_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"
@@ -126,9 +119,7 @@ class TestBackporter(unittest.TestCase):
         args = self.setup_args()
         args.upstream_branch = BRANCH_3_1
 
-        backporter = Backporter(
-            args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF
-        )
+        backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         backporter.run()
 
         expected_commit_msg = f"{CDH_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"

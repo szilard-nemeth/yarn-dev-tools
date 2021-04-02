@@ -3,7 +3,8 @@ import logging
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 
-from yarndevtools.constants import ORIGIN, PATCH_FILE_REGEX, PATCH_EXTENSION, FIRST_PATCH_NUMBER
+from pythoncommons.git_constants import ORIGIN
+from yarndevtools.constants import PATCH_FILE_REGEX, PATCH_EXTENSION, FIRST_PATCH_NUMBER
 
 LOG = logging.getLogger(__name__)
 

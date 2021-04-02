@@ -9,7 +9,7 @@ from pythoncommons.string_utils import StringUtils
 from yarndevtools.command_runner import CommandRunner
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN
-from yarndevtools.git_wrapper import GitWrapper
+from pythoncommons.git_wrapper import GitWrapper
 from yarndevtools.utils import (
     ResultPrinter,
     BoolConversionConfig,
