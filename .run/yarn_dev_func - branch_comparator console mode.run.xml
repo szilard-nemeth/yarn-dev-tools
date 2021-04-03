@@ -1,0 +1,26 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="yarn_dev_func - branch_comparator console mode" type="PythonConfigurationType" factoryName="Python">
+    <module name="linux_env" />
+    <option name="INTERPRETER_OPTIONS" value="" />
+    <option name="PARENT_ENVS" value="true" />
+    <envs>
+      <env name="PYTHONUNBUFFERED" value="1 PYTHONUNBUFFERED=1 " />
+      <env name="HADOOP_DEV_DIR" value="$PROJECT_DIR$/../../apache/hadoop/" />
+      <env name="CLOUDERA_HADOOP_ROOT" value="$PROJECT_DIR$/../../cloudera//hadoop/" />
+    </envs>
+    <option name="SDK_HOME" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/workplace-specific/cloudera/scripts/yarn/python" />
+    <option name="IS_MODULE_SDK" value="true" />
+    <option name="ADD_CONTENT_ROOTS" value="true" />
+    <option name="ADD_SOURCE_ROOTS" value="true" />
+    <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/workplace-specific/cloudera/scripts/yarn/python/yarndevfunc/yarn_dev_func.py" />
+    <option name="PARAMETERS" value="--debug compare_branches --console-mode origin/CDH-7.1-maint origin/cdpd-master --commit_author_exceptions &quot;rel-eng@cloudera.com&quot;" />
+    <option name="SHOW_COMMAND_LINE" value="false" />
+    <option name="EMULATE_TERMINAL" value="false" />
+    <option name="MODULE_MODE" value="false" />
+    <option name="REDIRECT_INPUT" value="false" />
+    <option name="INPUT_FILE" value="" />
+    <method v="2" />
+  </configuration>
+</component>
