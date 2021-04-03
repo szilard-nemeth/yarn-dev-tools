@@ -117,8 +117,9 @@ class YarnDevTools:
     def ensure_required_env_vars_are_present(self):
         import os
 
-        upstream_hadoop_dir = os.environ[ENV_HADOOP_DEV_DIR]
-        downstream_hadoop_dir = os.environ[ENV_CLOUDERA_HADOOP_ROOT]
+        # TODO move env checker to Pythoncommons
+        upstream_hadoop_dir = os.environ[ENV_HADOOP_DEV_DIR] if ENV_HADOOP_DEV_DIR in os.environ else None
+        downstream_hadoop_dir = os.environ[ENV_CLOUDERA_HADOOP_ROOT] if ENV_CLOUDERA_HADOOP_ROOT in os.environ else None
 
         if not upstream_hadoop_dir:
             raise ValueError(f"Upstream Hadoop dir (env var: {ENV_HADOOP_DEV_DIR}) is not set!")
