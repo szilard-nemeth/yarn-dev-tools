@@ -6,8 +6,9 @@ from os.path import expanduser
 from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
+from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME, DEST_DIR_PREFIX
+from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME
 from pythoncommons.git_constants import HEAD
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 from yarndevtools.yarn_dev_tools import Setup
@@ -67,21 +68,16 @@ class TestUtilities:
         self.checkout_trunk()
 
     def setup_dirs(self, repo_postfix):
-        self.project_out_root = FileUtils.join_path(expanduser("~"), PROJECT_NAME, DEST_DIR_PREFIX)
-        self.log_dir = FileUtils.join_path(self.project_out_root, "logs")
+        self.test_out_root = ProjectUtils.get_test_output_basedir(PROJECT_NAME)
+        self.log_dir = ProjectUtils.get_test_logs_dir()
 
         if not repo_postfix:
             repo_postfix = ""
-        self.sandbox_repo_path = FileUtils.join_path(self.project_out_root, "sandbox_repo" + repo_postfix)
-        self.saved_patches_dir = FileUtils.join_path(self.project_out_root, "saved-patches")
-        self.dummy_patches_dir = FileUtils.join_path(self.project_out_root, "dummy-patches")
-        self.jira_umbrella_data_dir = FileUtils.join_path(self.project_out_root, "jira-umbrella-data")
-        FileUtils.ensure_dir_created(self.project_out_root)
-        FileUtils.ensure_dir_created(self.sandbox_repo_path)
-        FileUtils.ensure_dir_created(self.jira_umbrella_data_dir)
-        FileUtils.ensure_dir_created(self.dummy_patches_dir)
-        FileUtils.ensure_dir_created(self.saved_patches_dir)
-        FileUtils.ensure_dir_created(self.log_dir)
+        # TODO put these dirs into a dict of enum, dirname
+        self.sandbox_repo_path = ProjectUtils.get_test_output_child_dir("sandbox_repo" + repo_postfix)
+        self.saved_patches_dir = ProjectUtils.get_test_output_child_dir("saved-patches")
+        self.dummy_patches_dir = ProjectUtils.get_test_output_child_dir("dummy-patches")
+        self.jira_umbrella_data_dir = ProjectUtils.get_test_output_child_dir("jira-umbrella-data")
 
     def checkout_trunk(self):
         default_branch = "trunk"

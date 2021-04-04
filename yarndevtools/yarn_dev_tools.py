@@ -3,14 +3,13 @@
 import sys
 import logging
 import os
-
-from os.path import expanduser
 import datetime
 import time
 from logging.handlers import TimedRotatingFileHandler
 
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.branch_comparator import BranchComparator
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
@@ -37,6 +36,10 @@ from yarndevtools.constants import (
     LATEST_LOG,
     LATEST_SESSION,
     LATEST_DATA_ZIP,
+    YARN_TASKS,
+    JIRA_UMBRELLA_DATA,
+    JIRA_PATCH_DIFFER,
+    BRANCH_COMPARATOR,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -101,18 +104,13 @@ class YarnDevTools:
         self.init_repos()
 
     def setup_dirs(self):
-        home = expanduser("~")
-        self.project_out_root = FileUtils.join_path(home, PROJECT_NAME)
-        self.log_dir = FileUtils.join_path(self.project_out_root, "logs")
-        self.yarn_patch_dir = FileUtils.join_path(home, "yarn-tasks")
-        self.jira_umbrella_data_dir = FileUtils.join_path(self.project_out_root, "jira-umbrella-data")
-        self.jira_patch_differ_dir = FileUtils.join_path(self.project_out_root, "jira-patch-differ")
-        self.branch_comparator_output_dir = FileUtils.join_path(self.project_out_root, "branch-comparator")
-        FileUtils.ensure_dir_created(self.project_out_root)
-        FileUtils.ensure_dir_created(self.log_dir)
-        FileUtils.ensure_dir_created(self.yarn_patch_dir)
-        FileUtils.ensure_dir_created(self.jira_umbrella_data_dir)
-        FileUtils.ensure_dir_created(self.branch_comparator_output_dir)
+        self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
+        self.log_dir = ProjectUtils.get_logs_dir()
+        # TODO put these dirs into a dict of enum, dirname
+        self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
+        self.jira_umbrella_data_dir = ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
+        self.jira_patch_differ_dir = ProjectUtils.get_output_child_dir(JIRA_PATCH_DIFFER)
+        self.branch_comparator_output_dir = ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
 
     def ensure_required_env_vars_are_present(self):
         import os

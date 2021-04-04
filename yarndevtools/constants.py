@@ -20,6 +20,7 @@ DEFAULT_COMMAND_DATA_FILE_NAME = "command_data.zip"
 LOADED_ENV_UPSTREAM_DIR = "upstream-hadoop-dir"
 LOADED_ENV_DOWNSTREAM_DIR = "downstream-hadoop-dir"
 PROJECT_NAME = "yarn_dev_tools"
+# TODO remove later
 DEST_DIR_PREFIX = "test"
 HADOOP_REPO_TEMPLATE = "https://github.com/{user}/hadoop.git"
 HADOOP_REPO_APACHE = HADOOP_REPO_TEMPLATE.format(user=APACHE)
@@ -29,3 +30,9 @@ YARN_PATCH_FILENAME_REGEX = ".*(YARN-[0-9]+).*\\.patch"
 PATCH_FILE_REGEX = "\\.\\d.*\\.patch$"
 PATCH_EXTENSION = ".patch"
 FIRST_PATCH_NUMBER = "001"
+
+# TODO REMOVE THESE CONSTANTS LATER
+YARN_TASKS = "yarn-tasks"
+JIRA_UMBRELLA_DATA = "jira-umbrella-data"
+JIRA_PATCH_DIFFER = "jira-patch-differ"
+BRANCH_COMPARATOR = "branch-comparator"
