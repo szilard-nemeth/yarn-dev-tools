@@ -118,13 +118,16 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         output_dir = FileUtils.join_path(self.utils.jira_umbrella_data_dir, UPSTREAM_JIRA_ID)
         original_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
 
-        # Verify files and mod dates
-        for out_file in ALL_OUTPUT_FILES:
-            self.utils.assert_file_not_empty(FileUtils.join_path(output_dir, out_file))
+        self._verify_files_and_mod_dates(output_dir)
 
         # Since we are using non-force mode (cached mode), we expect the files untouched
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
         self.assertDictEqual(original_mod_dates, new_mod_dates)
+
+    def _verify_files_and_mod_dates(self, output_dir):
+        # Verify files and mod dates
+        for out_file in ALL_OUTPUT_FILES:
+            self.utils.assert_file_not_empty(FileUtils.join_path(output_dir, out_file))
 
     def test_fetch_with_upstream_umbrella_force_mode(self):
         self.utils.checkout_trunk()
@@ -139,9 +142,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         )
         umbrella_fetcher.run()
 
-        # Verify files and mod dates
-        for out_file in ALL_OUTPUT_FILES:
-            self.utils.assert_file_not_empty(FileUtils.join_path(output_dir, out_file))
+        self._verify_files_and_mod_dates()
 
         # Since we are using force-mode (non cached mode), we expect all files have a newer mod date
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)

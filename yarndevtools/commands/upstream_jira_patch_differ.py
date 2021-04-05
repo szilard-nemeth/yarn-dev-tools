@@ -40,8 +40,6 @@ class UpstreamJiraPatchDiffer:
         self.basedir = basedir
 
     def run(self):
-        FileUtils.ensure_dir_created(self.basedir)
-
         branch_results = {}
         for branch in self.branches:
             LOG.info("Processing branch: %s", branch)
@@ -58,9 +56,9 @@ class UpstreamJiraPatchDiffer:
                 # TODO create diff_with_parent helper method to GitWrapper
                 diff = self.upstream_repo.diff_between_refs(commit_hash + "^", commit_hash)
                 branch_result.git_diff = diff
-
-                diff_filename = f"{self.jira_id}-{branch}.diff"
-                PatchUtils.save_diff_to_patch_file(diff, FileUtils.join_path(self.basedir, diff_filename))
+                PatchUtils.save_diff_to_patch_file(
+                    diff, FileUtils.join_path(self.basedir, f"{self.jira_id}-{branch}.diff")
+                )
 
         # Validate results
         branch_does_not_exist = [b_res.branch_name for br, b_res in branch_results.items() if not b_res.exists]

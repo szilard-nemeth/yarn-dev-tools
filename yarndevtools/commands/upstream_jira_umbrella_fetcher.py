@@ -361,8 +361,8 @@ class UpstreamJiraUmbrellaFetcher:
                         "Please verify the provided branch names!"
                     )
 
+        self.result_basedir = FileUtils.join_path(self.basedir, self.jira_id)
         self.log_current_branch()
-        self.set_file_fields()
         self.upstream_repo.fetch(all=True)
         self.downstream_repo.fetch(all=True)
         if self.force_mode:
@@ -375,6 +375,34 @@ class UpstreamJiraUmbrellaFetcher:
             else:
                 LOG.info("Loaded pickled data from: %s", self.pickled_data_file)
                 self.print_summary()
+
+    @property
+    def jira_html_file(self):
+        return FileUtils.join_path(self.result_basedir, "jira.html")
+
+    @property
+    def jira_list_file(self):
+        return FileUtils.join_path(self.result_basedir, "jira-list.txt")
+
+    @property
+    def commits_file(self):
+        return FileUtils.join_path(self.result_basedir, "commit-hashes.txt")
+
+    @property
+    def changed_files_file(self):
+        return FileUtils.join_path(self.result_basedir, "changed-files.txt")
+
+    @property
+    def summary_file(self):
+        return FileUtils.join_path(self.result_basedir, "summary.txt")
+
+    @property
+    def intermediate_results_file(self):
+        return FileUtils.join_path(self.result_basedir, "intermediate-results.txt")
+
+    @property
+    def pickled_data_file(self):
+        return FileUtils.join_path(self.result_basedir, PICKLED_DATA_FILENAME)
 
     def do_fetch(self):
         LOG.info("Fetching jira umbrella data...")
@@ -408,16 +436,6 @@ class UpstreamJiraUmbrellaFetcher:
         LOG.info("Current branch: %s", curr_branch)
         if curr_branch != self.upstream_base_branch:
             raise ValueError(f"Current branch is not {self.upstream_base_branch}. Exiting!")
-
-    def set_file_fields(self):
-        self.result_basedir = FileUtils.join_path(self.basedir, self.jira_id)
-        self.jira_html_file = FileUtils.join_path(self.result_basedir, "jira.html")
-        self.jira_list_file = FileUtils.join_path(self.result_basedir, "jira-list.txt")
-        self.commits_file = FileUtils.join_path(self.result_basedir, "commit-hashes.txt")
-        self.changed_files_file = FileUtils.join_path(self.result_basedir, "changed-files.txt")
-        self.summary_file = FileUtils.join_path(self.result_basedir, "summary.txt")
-        self.intermediate_results_file = FileUtils.join_path(self.result_basedir, "intermediate-results.txt")
-        self.pickled_data_file = FileUtils.join_path(self.result_basedir, PICKLED_DATA_FILENAME)
 
     def fetch_jira_ids(self):
         LOG.info("Fetching HTML of jira: %s", self.jira_id)

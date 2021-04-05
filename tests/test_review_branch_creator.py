@@ -56,7 +56,7 @@ class TestReviewBranchCreator(unittest.TestCase):
         self.assertRaises(ValueError, review_branch_creator.run)
 
     def test_with_bad_patch_content(self):
-        patch_file = FileUtils.join_path(self.dummy_patches_dir, "YARN-12345.001.patch")
+        patch_file = FileUtils.join_path(self.dummy_patches_dir, PATCH_FILENAME)
         FileUtils.save_to_file(patch_file, "dummycontents")
         args = Object()
         args.patch_file = patch_file

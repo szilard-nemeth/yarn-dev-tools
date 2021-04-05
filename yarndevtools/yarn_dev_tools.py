@@ -53,15 +53,15 @@ IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 
 class Setup:
     @staticmethod
-    def init_logger(execution_mode: ExecutionMode, console_debug=False, repos=None, verbose=False):
+    def init_logger(execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose=False):
         # get root logger
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
 
         if execution_mode == ExecutionMode.PRODUCTION:
-            log_file = ProjectUtils.get_default_log_file(PROJECT_NAME)
+            log_file = ProjectUtils.get_default_log_file(PROJECT_NAME, postfix=postfix)
         elif execution_mode == ExecutionMode.TEST:
-            log_file = ProjectUtils.get_default_test_log_file(PROJECT_NAME)
+            log_file = ProjectUtils.get_default_test_log_file(PROJECT_NAME, postfix=postfix)
         else:
             raise ValueError(f"Unknown execution mode: {execution_mode}")
 

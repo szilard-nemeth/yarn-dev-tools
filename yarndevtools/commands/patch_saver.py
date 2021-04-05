@@ -97,7 +97,7 @@ class PatchSaver:
 
         # Double-check new filename vs. putting it altogether manually
         new_patch_filename_sanity = FileUtils.join_path(
-            self.patch_basedir, self.patch_branch, self.patch_branch + "." + str(new_patch_num) + PATCH_EXTENSION
+            self.patch_basedir, self.patch_branch, f"{self.patch_branch}.{str(new_patch_num)}{PATCH_EXTENSION}"
         )
 
         # If this is a new patch, use the appended name,
