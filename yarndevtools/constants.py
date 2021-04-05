@@ -1,4 +1,11 @@
 import re
+from enum import Enum
+
+
+class ExecutionMode(Enum):
+    PRODUCTION = "prod"
+    TEST = "test"
+
 
 APACHE = "apache"
 ORIGIN_TRUNK = "origin/trunk"

@@ -6,7 +6,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME, JIRA_UMBRELLA_DATA
+from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME, JIRA_UMBRELLA_DATA, ExecutionMode
 from pythoncommons.git_constants import HEAD
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 from yarndevtools.yarn_dev_tools import Setup
@@ -32,7 +32,6 @@ class Object(object):
 
 class TestUtilities:
     repo = None
-    log_dir = None
     sandbox_repo_path = None
     base_branch = TRUNK
 
@@ -68,7 +67,7 @@ class TestUtilities:
         try:
             self.setup_repo()
             if init_logging:
-                Setup.init_logger(self.log_dir, console_debug=False, postfix="TEST", repos=[self.repo])
+                Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=False, repos=[self.repo])
             self.reset_and_checkout_trunk()
         except InvalidGitRepositoryError:
             LOG.info("Cloning repo '%s' for the first time...", HADOOP_REPO_APACHE)

@@ -195,6 +195,7 @@ class BranchComparatorConfig:
         self.console_mode = True if "console_mode" in args and args.console_mode else False
         self.fail_on_missing_jira_id = False
 
+        # TODO migrate to pythoncommons
         workplace_specific_dir = FileUtils.find_repo_root_dir(__file__, "workplace-specific")
         cloudera_dir = FileUtils.join_path(workplace_specific_dir, "cloudera")
         self.git_compare_script = BranchComparatorConfig.find_git_compare_script(cloudera_dir)

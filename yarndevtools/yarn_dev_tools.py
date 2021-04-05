@@ -3,7 +3,6 @@
 import sys
 import logging
 import os
-import datetime
 import time
 from logging.handlers import TimedRotatingFileHandler
 
@@ -40,6 +39,7 @@ from yarndevtools.constants import (
     JIRA_UMBRELLA_DATA,
     JIRA_PATCH_DIFFER,
     BRANCH_COMPARATOR,
+    ExecutionMode,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -53,17 +53,19 @@ IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 
 class Setup:
     @staticmethod
-    def init_logger(log_dir, console_debug=False, postfix="", repos=None, verbose=False):
+    def init_logger(execution_mode: ExecutionMode, console_debug=False, repos=None, verbose=False):
         # get root logger
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
 
-        # create file handler which logs even debug messages
-        # TODO Migrate log file creation to pythoncommons
-        prefix = f"{PROJECT_NAME}-{postfix}-"
-        logfilename = datetime.datetime.now().strftime(prefix + "%Y_%m_%d_%H%M%S.log")
+        if execution_mode == ExecutionMode.PRODUCTION:
+            log_file = ProjectUtils.get_default_log_file(PROJECT_NAME)
+        elif execution_mode == ExecutionMode.TEST:
+            log_file = ProjectUtils.get_default_test_log_file(PROJECT_NAME)
+        else:
+            raise ValueError(f"Unknown execution mode: {execution_mode}")
 
-        log_file = FileUtils.join_path(log_dir, logfilename)
+        # create file handler which logs even debug messages
         fh = TimedRotatingFileHandler(log_file, when="midnight")
         fh.suffix = "%Y_%m_%d.log"
         fh.setLevel(logging.DEBUG)
@@ -99,14 +101,12 @@ class YarnDevTools:
         self.downstream_repo = None
         self.upstream_repo = None
         self.project_out_root = None
-        self.log_dir = None
         self.yarn_patch_dir = None
         self.setup_dirs()
         self.init_repos()
 
     def setup_dirs(self):
         self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
-        self.log_dir = ProjectUtils.get_logs_dir()
         # TODO put these dirs into a dict of enum, dirname
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
         ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args = ArgParser.parse_args(yarn_dev_tools)
     log_file = Setup.init_logger(
-        yarn_dev_tools.log_dir,
+        execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
         postfix=args.command,
         repos=[yarn_dev_tools.upstream_repo.repo, yarn_dev_tools.downstream_repo.repo],
