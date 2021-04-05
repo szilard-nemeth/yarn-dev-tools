@@ -59,6 +59,7 @@ class Setup:
         logger.setLevel(logging.DEBUG)
 
         # create file handler which logs even debug messages
+        # TODO Migrate log file creation to pythoncommons
         prefix = f"{PROJECT_NAME}-{postfix}-"
         logfilename = datetime.datetime.now().strftime(prefix + "%Y_%m_%d_%H%M%S.log")
 
@@ -108,9 +109,21 @@ class YarnDevTools:
         self.log_dir = ProjectUtils.get_logs_dir()
         # TODO put these dirs into a dict of enum, dirname
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
-        self.jira_umbrella_data_dir = ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
-        self.jira_patch_differ_dir = ProjectUtils.get_output_child_dir(JIRA_PATCH_DIFFER)
-        self.branch_comparator_output_dir = ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
+        ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
+        ProjectUtils.get_output_child_dir(JIRA_PATCH_DIFFER)
+        ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
+
+    @property
+    def jira_umbrella_data_dir(self):
+        return ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
+
+    @property
+    def jira_patch_differ_dir(self):
+        return ProjectUtils.get_output_child_dir(JIRA_PATCH_DIFFER)
+
+    @property
+    def branch_comparator_output_dir(self):
+        return ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
 
     def ensure_required_env_vars_are_present(self):
         import os

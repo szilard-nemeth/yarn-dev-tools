@@ -1,17 +1,19 @@
 import logging
 import os
 import unittest
-from os.path import expanduser
-
 from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME
+from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME, JIRA_UMBRELLA_DATA
 from pythoncommons.git_constants import HEAD
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 from yarndevtools.yarn_dev_tools import Setup
+
+SANDBOX_REPO = "sandbox_repo"
+DUMMY_PATCHES = "dummy-patches"
+SAVED_PATCHES = "saved-patches"
 
 DUMMYFILE_1 = "dummyfile1"
 DUMMYFILE_2 = "dummyfile2"
@@ -37,14 +39,32 @@ class TestUtilities:
     def __init__(self, test_instance, test_branch):
         self.test_instance = test_instance
         self.test_branch = test_branch
-        self.saved_patches_dir = None
+        self.repo_postfix = ""
+
+    @property
+    def sandbox_repo_path(self):
+        return ProjectUtils.get_test_output_child_dir(SANDBOX_REPO + self.repo_postfix)
+
+    @property
+    def saved_patches_dir(self):
+        return ProjectUtils.get_test_output_child_dir(SAVED_PATCHES)
+
+    @property
+    def dummy_patches_dir(self):
+        return ProjectUtils.get_test_output_child_dir(DUMMY_PATCHES)
+
+    @property
+    def jira_umbrella_data_dir(self):
+        return ProjectUtils.get_test_output_child_dir(JIRA_UMBRELLA_DATA)
 
     def set_env_vars(self, upstream_repo, downstream_repo):
         os.environ["HADOOP_DEV_DIR"] = upstream_repo
         os.environ["CLOUDERA_HADOOP_ROOT"] = downstream_repo
 
     def setUpClass(self, repo_postfix=None, init_logging=True):
-        self.setup_dirs(repo_postfix=repo_postfix)
+        if repo_postfix:
+            self.repo_postfix = repo_postfix
+        self.setup_dirs()
         try:
             self.setup_repo()
             if init_logging:
@@ -67,17 +87,8 @@ class TestUtilities:
         self.reset_changes()
         self.checkout_trunk()
 
-    def setup_dirs(self, repo_postfix):
-        self.test_out_root = ProjectUtils.get_test_output_basedir(PROJECT_NAME)
-        self.log_dir = ProjectUtils.get_test_logs_dir()
-
-        if not repo_postfix:
-            repo_postfix = ""
-        # TODO put these dirs into a dict of enum, dirname
-        self.sandbox_repo_path = ProjectUtils.get_test_output_child_dir("sandbox_repo" + repo_postfix)
-        self.saved_patches_dir = ProjectUtils.get_test_output_child_dir("saved-patches")
-        self.dummy_patches_dir = ProjectUtils.get_test_output_child_dir("dummy-patches")
-        self.jira_umbrella_data_dir = ProjectUtils.get_test_output_child_dir("jira-umbrella-data")
+    def setup_dirs(self):
+        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
 
     def checkout_trunk(self):
         default_branch = "trunk"
