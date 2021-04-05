@@ -27,7 +27,6 @@ DEFAULT_COMMAND_DATA_FILE_NAME = "command_data.zip"
 LOADED_ENV_UPSTREAM_DIR = "upstream-hadoop-dir"
 LOADED_ENV_DOWNSTREAM_DIR = "downstream-hadoop-dir"
 PROJECT_NAME = "yarn_dev_tools"
-# TODO remove later
 DEST_DIR_PREFIX = "test"
 HADOOP_REPO_TEMPLATE = "https://github.com/{user}/hadoop.git"
 HADOOP_REPO_APACHE = HADOOP_REPO_TEMPLATE.format(user=APACHE)
