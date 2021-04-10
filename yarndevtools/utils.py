@@ -83,11 +83,14 @@ class FileUtils2:
     def _add_dir_to_zip(src_dir, zip_file):
         # Iterate over all the files in directory
         LOG.debug(f"Adding directory '{src_dir}' to zip file '${zip_file.filename}'")
-        for folderName, subfolders, filenames in os.walk(src_dir):
+        for dirpath, dirnames, filenames in os.walk(src_dir):
+            LOG.debug(f"dirpath: {dirpath}, dirnames: {dirnames}, filenames: {filenames}")
             for filename in filenames:
+                LOG.debug(f"filename: {filename}")
                 # create complete filepath of file in directory
-                file_path = os.path.join(folderName, filename)
+                file_path = os.path.join(dirpath, filename)
                 # Add file to zip
+                LOG.debug(f"Writing to zip. File path: {file_path}, basename: {FileUtils.basename(file_path)}")
                 zip_file.write(file_path, FileUtils.basename(file_path))
 
 
