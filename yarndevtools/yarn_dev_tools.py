@@ -32,9 +32,9 @@ from yarndevtools.constants import (
     ORIGIN_TRUNK,
     GERRIT_REVIEWER_LIST,
     HADOOP_REPO_TEMPLATE,
-    LATEST_LOG,
-    LATEST_SESSION,
-    LATEST_DATA_ZIP,
+    LATEST_LOG_LINK_NAME,
+    LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME,
+    LATEST_DATA_ZIP_LINK_NAME,
     YARN_TASKS,
     JIRA_UMBRELLA_DATA,
     JIRA_PATCH_DIFFER,
@@ -51,6 +51,7 @@ __author__ = "Szilard Nemeth"
 IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 
 
+# TODO Migrate to python-commons
 class Setup:
     @staticmethod
     def init_logger(execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose=False):
@@ -216,7 +217,9 @@ class YarnDevTools:
 
     def compare_branches(self, args):
         branch_comparator = BranchComparator(args, self.downstream_repo, self.branch_comparator_output_dir)
-        FileUtils2.create_symlink(LATEST_SESSION, branch_comparator.config.output_dir, self.project_out_root)
+        FileUtils2.create_symlink(
+            LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME, branch_comparator.config.output_dir, self.project_out_root
+        )
         branch_comparator.run()
 
     def zip_latest_command_results(self, args):
@@ -224,7 +227,7 @@ class YarnDevTools:
         zip_latest_cmd_data.run()
 
     def send_latest_command_results(self, args):
-        file_to_send = FileUtils.join_path(yarn_dev_tools.project_out_root, LATEST_DATA_ZIP)
+        file_to_send = FileUtils.join_path(yarn_dev_tools.project_out_root, LATEST_DATA_ZIP_LINK_NAME)
         send_latest_cmd_data = SendLatestCommandDataInEmail(args, file_to_send)
         send_latest_cmd_data.run()
 
@@ -247,7 +250,7 @@ if __name__ == "__main__":
     )
 
     if CommandType.from_str(args.command) not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        FileUtils2.create_symlink(LATEST_LOG, log_file, yarn_dev_tools.project_out_root)
+        FileUtils2.create_symlink(LATEST_LOG_LINK_NAME, log_file, yarn_dev_tools.project_out_root)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 

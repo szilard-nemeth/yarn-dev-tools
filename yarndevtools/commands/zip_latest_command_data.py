@@ -1,7 +1,11 @@
 import logging
 from typing import List
 from pythoncommons.file_utils import FileUtils
-from yarndevtools.constants import LATEST_SESSION, LATEST_LOG, LATEST_DATA_ZIP
+from yarndevtools.constants import (
+    LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME,
+    LATEST_LOG_LINK_NAME,
+    LATEST_DATA_ZIP_LINK_NAME,
+)
 from yarndevtools.utils import FileUtils2
 
 LOG = logging.getLogger(__name__)
@@ -17,7 +21,7 @@ class Config:
 
 class ZipLatestCommandData:
     def __init__(self, args, project_basedir: str):
-        self.zip_these_files = [LATEST_LOG, LATEST_SESSION]
+        self.zip_these_files = [LATEST_LOG_LINK_NAME, LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME]
         self.input_files = self._validate(self.zip_these_files, project_basedir)
         self.config = Config(args, self.input_files, project_basedir)
 
@@ -52,4 +56,4 @@ class ZipLatestCommandData:
         else:
             zip_file = FileUtils2.create_zip_as_tmp_file(self.config.input_files, self.config.dest_filename)
         LOG.info(f"Finished writing command data to zip file: {zip_file.name}")
-        FileUtils2.create_symlink(LATEST_DATA_ZIP, zip_file.name, self.config.project_out_root)
+        FileUtils2.create_symlink(LATEST_DATA_ZIP_LINK_NAME, zip_file.name, self.config.project_out_root)
