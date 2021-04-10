@@ -7,6 +7,7 @@ class ExecutionMode(Enum):
     TEST = "test"
 
 
+REPO_ROOT_DIRNAME = "yarn-dev-tools"
 APACHE = "apache"
 ORIGIN_TRUNK = "origin/trunk"
 TRUNK = "trunk"

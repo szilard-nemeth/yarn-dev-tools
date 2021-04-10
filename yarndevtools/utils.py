@@ -13,10 +13,8 @@ from tabulate import tabulate
 
 LOG = logging.getLogger(__name__)
 
+
 # TODO Move all of these classes to python-commons lib
-
-
-# TODO move to python-commons / file utils
 class FileUtils2:
     @staticmethod
     def create_symlink(link_name, linked_path, dest_dir, remove_if_exists=True):

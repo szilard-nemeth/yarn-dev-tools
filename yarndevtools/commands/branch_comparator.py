@@ -8,7 +8,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.string_utils import StringUtils
 from yarndevtools.command_runner import CommandRunner
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData
-from yarndevtools.constants import ANY_JIRA_ID_PATTERN
+from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 from pythoncommons.git_wrapper import GitWrapper
 from yarndevtools.utils import (
     ResultPrinter,
@@ -194,18 +194,12 @@ class BranchComparatorConfig:
         self.commit_author_exceptions = args.commit_author_exceptions
         self.console_mode = True if "console_mode" in args and args.console_mode else False
         self.fail_on_missing_jira_id = False
-
-        # TODO migrate to pythoncommons
-        workplace_specific_dir = FileUtils.find_repo_root_dir(__file__, "workplace-specific")
-        cloudera_dir = FileUtils.join_path(workplace_specific_dir, "cloudera")
-        self.git_compare_script = BranchComparatorConfig.find_git_compare_script(cloudera_dir)
+        self.git_compare_script = BranchComparatorConfig.find_git_compare_script()
 
     @staticmethod
-    def find_git_compare_script(parent_dir):
-        script = FileUtils.search_files(parent_dir, "git_compare.sh")
-        if not script:
-            raise ValueError(f"Expected to find file: {script}")
-        return script[0]
+    def find_git_compare_script():
+        repo_root_dir = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME)
+        return FileUtils.join_path(repo_root_dir, "legacy-scripts", "branch-comparator", "git_compare.sh")
 
 
 class Branches:
