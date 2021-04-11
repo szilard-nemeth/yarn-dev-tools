@@ -630,19 +630,22 @@ class BranchComparator:
         self.branches.compare(self.config.commit_author_exceptions)
 
     def print_and_save_summary(self):
-        printable_summary_str, writable_summary_str = BranchComparator.render_summary_string(self.branches.summary)
+        printable_summary_str, writable_summary_str = BranchComparator.render_summary_tables_and_string(
+            self.branches.summary
+        )
         LOG.info(printable_summary_str)
         filename = FileUtils.join_path(self.config.output_dir, "summary.txt")
         LOG.info(f"Saving summary to file: {filename}")
         FileUtils.save_to_file(filename, writable_summary_str)
 
     @staticmethod
-    def render_summary_string(summary_data: SummaryData):
+    def render_summary_tables_and_string(summary_data: SummaryData):
         # Generate tables first, in order to know the length of the header rows
+        result_files_data = sorted(FileUtils.find_files(summary_data.output_dir, regex=".*", full_path_result=True))
         result_files_table = TableWithHeader(
             "RESULT FILES",
             ResultPrinter.print_table(
-                sorted(FileUtils.find_files(summary_data.output_dir, regex=".*", full_path_result=True)),
+                result_files_data,
                 lambda file: (file, len(FileUtils.read_file(file).splitlines())),
                 header=["Row", "File", "# of lines"],
                 print_result=False,
