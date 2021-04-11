@@ -18,7 +18,6 @@ from yarndevtools.utils import (
     MatchType,
     Color,
     EvaluationMethod,
-    StringUtils2,
 )
 
 
@@ -460,7 +459,7 @@ class Branches:
             LOG.debug(
                 f"Found {br_data.type.value} commits after merge-base with empty Jira ID "
                 f"(after applied author filter: {commit_author_exceptions}): "
-                f"{StringUtils2.list_to_multiline_string(self.summary.commits_with_missing_jira_id_filtered[br_data.type])}"
+                f"{StringUtils.list_to_multiline_string(self.summary.commits_with_missing_jira_id_filtered[br_data.type])}"
             )
         for br_data in branches:
             self.write_to_file_or_console(
@@ -482,7 +481,7 @@ class Branches:
             LOG.debug(
                 f"Found {br_data.type.value} "
                 f"commits after merge-base with empty Jira ID: "
-                f"{StringUtils2.list_to_multiline_string(self.summary.commits_with_missing_jira_id[br_data.type])}"
+                f"{StringUtils.list_to_multiline_string(self.summary.commits_with_missing_jira_id[br_data.type])}"
             )
         for br_data in branches:
             self.write_to_file_or_console(
@@ -510,7 +509,7 @@ class Branches:
         return result
 
     def write_to_file_or_console(self, output_type: str, branch: BranchData, commits: List[CommitData]):
-        contents = StringUtils2.list_to_multiline_string([c.as_oneline_string() for c in commits])
+        contents = StringUtils.list_to_multiline_string([c.as_oneline_string() for c in commits])
         if self.conf.console_mode:
             LOG.info(f"Printing {output_type} for branch {branch.type.name}: {contents}")
         else:
@@ -520,7 +519,7 @@ class Branches:
             FileUtils.save_to_file(f, contents)
 
     def write_commit_list_to_file_or_console(self, output_type: str, commits: List[CommitData], add_sep_to_end=True):
-        contents = StringUtils2.list_to_multiline_string([c.as_oneline_string() for c in commits])
+        contents = StringUtils.list_to_multiline_string([c.as_oneline_string() for c in commits])
         if self.conf.console_mode:
             LOG.info(f"Printing {output_type}: {contents}")
         else:

@@ -8,19 +8,6 @@ from tabulate import tabulate
 LOG = logging.getLogger(__name__)
 
 
-class StringUtils2:
-
-    # TODO copied from python-commons, remove later
-    @staticmethod
-    def list_to_multiline_string(list):
-        return "\n".join(str(x) for x in list)
-
-    # TODO copied from python-commons, remove later
-    @staticmethod
-    def dict_to_multiline_string(dict):
-        return "\n".join([f"{k}: {v}" for k, v in dict.items()])
-
-
 class Color(Enum):
     GREEN = "green"
     RED = "red"
