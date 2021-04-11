@@ -2,7 +2,6 @@ flake8
 pytest>=3.6
 pytest-cov
 setuptools
-tabulate
 pre-commit
 git+https://github.com/szilard-nemeth/python-commons.git
 requests

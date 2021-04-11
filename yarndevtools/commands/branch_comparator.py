@@ -5,20 +5,20 @@ from typing import Dict, List, Tuple, Set
 from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.result_printer import (
+    ResultPrinter,
+    ColorizeConfig,
+    ColorDescriptor,
+    Color,
+    MatchType,
+    EvaluationMethod,
+    BoolConversionConfig,
+)
 from pythoncommons.string_utils import StringUtils
 from yarndevtools.command_runner import CommandRunner
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 from pythoncommons.git_wrapper import GitWrapper
-from yarndevtools.utils import (
-    ResultPrinter,
-    BoolConversionConfig,
-    ColorizeConfig,
-    ColorDescriptor,
-    MatchType,
-    Color,
-    EvaluationMethod,
-)
 
 
 LOG = logging.getLogger(__name__)

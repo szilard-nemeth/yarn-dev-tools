@@ -5,6 +5,7 @@ import sys
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.pickle_utils import PickleUtils
+from pythoncommons.result_printer import ResultPrinter
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.command_runner import CommandRunner
@@ -20,7 +21,6 @@ from yarndevtools.constants import (
     YARN_JIRA_ID_PATTERN,
 )
 
-from yarndevtools.utils import ResultPrinter
 from enum import Enum
 from colr import color
 

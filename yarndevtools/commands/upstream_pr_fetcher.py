@@ -1,7 +1,7 @@
 import logging
 
 from pythoncommons.git_constants import FETCH_HEAD
-from yarndevtools.utils import StringUtils
+from pythoncommons.string_utils import StringUtils
 
 LOG = logging.getLogger(__name__)
 
