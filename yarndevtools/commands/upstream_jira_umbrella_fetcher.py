@@ -22,7 +22,6 @@ from yarndevtools.constants import (
 )
 
 from enum import Enum
-from colr import color
 
 LOG = logging.getLogger(__name__)
 PICKLED_DATA_FILENAME = "pickled_umbrella_data.obj"
@@ -140,7 +139,7 @@ class JiraUmbrellaData:
                         backport_present_list.append(branch in all_branches)
                     curr_row = [bjira.jira_id]
                     curr_row.extend(backport_present_list)
-                    curr_row = self.colorize_row(curr_row, convert_bools=True)
+                    curr_row = ResultPrinter.colorize_row(curr_row, convert_bools=True)
                     backports_list.append(curr_row)
 
                 header = ["Row", "Jira ID"]
@@ -195,35 +194,6 @@ class JiraUmbrellaData:
         summary_str += backport_header_line
         summary_str += backport_table
         return summary_str
-
-    # TODO move this to python-commons
-    def colorize_row(
-        self,
-        curr_row,
-        convert_bools=False,
-        char_if_present="X",
-        char_if_not_present="-",
-        color_if_okay="green",
-        color_if_not_okay="red",
-    ):
-        res = []
-        missing_backport = False
-        if not all(curr_row[1:]):
-            missing_backport = True
-
-        # Mark first cell with red if any of the backports are missing
-        # Mark first cell with green if all backports are present
-        # Mark any bool cell with green if True, red if False
-        for idx, cell in enumerate(curr_row):
-            if (isinstance(cell, bool) and cell) or not missing_backport:
-                if convert_bools and isinstance(cell, bool):
-                    cell = char_if_present if cell else char_if_not_present
-                res.append(color(cell, fore=color_if_okay))
-            else:
-                if convert_bools and isinstance(cell, bool):
-                    cell = char_if_present if cell else char_if_not_present
-                res.append(color(cell, fore=color_if_not_okay))
-        return res
 
     @staticmethod
     def filter_branches(backport_remote_filter, branches):
