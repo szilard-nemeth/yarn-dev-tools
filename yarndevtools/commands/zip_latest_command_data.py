@@ -1,6 +1,8 @@
 import logging
 from typing import List
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.zip_utils import ZipFileUtils
+
 from yarndevtools.constants import (
     LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME,
     LATEST_LOG_LINK_NAME,
@@ -52,8 +54,8 @@ class ZipLatestCommandData:
         )
         if self.config.output_dir:
             dest_filepath = FileUtils.join_path(self.config.output_dir, self.config.dest_filename)
-            zip_file = FileUtils2.create_zip_file(self.config.input_files, dest_filepath)
+            zip_file = ZipFileUtils.create_zip_file(self.config.input_files, dest_filepath)
         else:
-            zip_file = FileUtils2.create_zip_as_tmp_file(self.config.input_files, self.config.dest_filename)
+            zip_file = ZipFileUtils.create_zip_as_tmp_file(self.config.input_files, self.config.dest_filename)
         LOG.info(f"Finished writing command data to zip file: {zip_file.name}")
         FileUtils2.create_symlink(LATEST_DATA_ZIP_LINK_NAME, zip_file.name, self.config.project_out_root)
