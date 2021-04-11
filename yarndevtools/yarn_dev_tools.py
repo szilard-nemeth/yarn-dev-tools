@@ -108,11 +108,7 @@ class YarnDevTools:
 
     def setup_dirs(self):
         self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
-        # TODO put these dirs into a dict of enum, dirname
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
-        ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
-        ProjectUtils.get_output_child_dir(JIRA_PATCH_DIFFER)
-        ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
 
     @property
     def jira_umbrella_data_dir(self):

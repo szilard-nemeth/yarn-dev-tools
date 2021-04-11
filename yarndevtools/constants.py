@@ -38,7 +38,6 @@ PATCH_FILE_REGEX = "\\.\\d.*\\.patch$"
 PATCH_EXTENSION = ".patch"
 FIRST_PATCH_NUMBER = "001"
 
-# TODO REMOVE THESE CONSTANTS LATER
 YARN_TASKS = "yarn-tasks"
 JIRA_UMBRELLA_DATA = "jira-umbrella-data"
 JIRA_PATCH_DIFFER = "jira-patch-differ"
