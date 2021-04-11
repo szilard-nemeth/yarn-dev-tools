@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/workplace-specific/cloudera/scripts/yarn/python/yarndevfunc/yarn_dev_func.py" />
-    <option name="PARAMETERS" value="backport_c6 YARN-10579 COMPX-5036 CDH-7.1-maint --cdh_base_ref relationchain-71maint" />
+    <option name="PARAMETERS" value="backport_c6 YARN-10579 COMPX-5036 CDH-7.1-maint --downstream_base_ref relationchain-71maint" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

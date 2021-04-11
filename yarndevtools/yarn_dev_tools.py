@@ -165,13 +165,13 @@ class YarnDevTools:
         )
         gerrit_push_cmd = (
             "Run this command to push to gerrit: "
-            f"git push cauldron HEAD:refs/for/{args.cdh_branch}%{GERRIT_REVIEWER_LIST}"
+            f"git push cauldron HEAD:refs/for/{args.downstream_branch}%{GERRIT_REVIEWER_LIST}"
         )
         post_commit_messages = [build_cmd, gerrit_push_cmd]
 
-        downstream_base_ref = f"cauldron/{args.cdh_branch}"
-        if "cdh_base_ref" in args and args.cdh_base_ref is not None:
-            downstream_base_ref = args.cdh_base_ref
+        downstream_base_ref = f"cauldron/{args.downstream_branch}"
+        if "downstream_base_ref" in args and args.downstream_base_ref is not None:
+            downstream_base_ref = args.downstream_base_ref
         backporter = Backporter(
             args,
             self.upstream_repo,

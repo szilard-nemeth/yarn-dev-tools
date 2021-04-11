@@ -57,8 +57,8 @@ class Backporter:
     ):
         self.args = args
         # Parsed from args
-        self.downstream_jira_id = self.args.cdh_jira_id
-        self.downstream_branch = self.args.cdh_branch
+        self.downstream_jira_id = self.args.downstream_jira_id
+        self.downstream_branch = self.args.downstream_branch
         self.upstream_jira_id = self.args.upstream_jira_id
         self.upstream_branch = self.args.upstream_branch
 

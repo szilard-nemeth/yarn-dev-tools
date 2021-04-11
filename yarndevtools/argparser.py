@@ -110,12 +110,13 @@ class ArgParser:
         parser.add_argument("upstream_jira_id", type=str, help="Upstream jira id. Example: YARN-4567")
         parser.add_argument("--upstream_branch", type=str, required=False, default=TRUNK, help="Upstream branch name")
 
-        # TODO rename this to downstream
-        parser.add_argument("cdh_jira_id", type=str, help="Downstream jira id. Example: CDH-4111")
-        # TODO rename this to downstream
-        parser.add_argument("cdh_branch", type=str, help="Downstream branch name")
+        parser.add_argument("downstream_jira_id", type=str, help="Downstream jira id. Example: CDH-4111")
+        parser.add_argument("downstream_branch", type=str, help="Downstream branch name")
         parser.add_argument(
-            "--cdh_base_ref", type=str, required=False, help="Downstream commit to base the new downstream branch on"
+            "--downstream_base_ref",
+            type=str,
+            required=False,
+            help="Downstream commit to base the new downstream branch on",
         )
         parser.set_defaults(func=yarn_dev_tools.backport_c6)
 

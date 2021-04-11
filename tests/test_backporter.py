@@ -8,8 +8,8 @@ from yarndevtools.constants import TRUNK, BRANCH_3_1
 from yarndevtools.yarn_dev_tools import DEFAULT_BASE_BRANCH
 
 UPSTREAM_JIRA_ID = "YARN-123456: "
-CDH_BRANCH = "cdh6x"
-CDH_JIRA_ID = "CDH-1234"
+DOWNSTREAM_BRANCH = "cdh6x"
+DOWNSTREAM_JIRA_ID = "CDH-1234"
 UPSTREAM_REMOTE_NAME = "upstream"
 
 LOG = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class TestBackporter(unittest.TestCase):
         cls.downstream_repo = cls.downstream_utils.repo
         cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
 
-        cls.full_cdh_branch = f"{CDH_JIRA_ID}-{CDH_BRANCH}"
+        cls.full_ds_branch = f"{DOWNSTREAM_JIRA_ID}-{DOWNSTREAM_BRANCH}"
 
         # Setup committer config
         cls.downstream_utils.prepare_git_config("downstream_user", "downstream_email")
@@ -52,14 +52,14 @@ class TestBackporter(unittest.TestCase):
         # THIS IS A MUST HAVE!
         # Set up remote of upstream in the downstream repo
         self.downstream_utils.add_remote(UPSTREAM_REMOTE_NAME, self.upstream_repo.git_dir)
-        self.downstream_utils.remove_branch(self.full_cdh_branch)
+        self.downstream_utils.remove_branch(self.full_ds_branch)
 
     def setup_args(self):
         args = Object()
         args.upstream_jira_id = UPSTREAM_JIRA_ID
         args.upstream_branch = DEFAULT_BASE_BRANCH
-        args.cdh_jira_id = CDH_JIRA_ID
-        args.cdh_branch = CDH_BRANCH
+        args.downstream_jira_id = DOWNSTREAM_JIRA_ID
+        args.downstream_branch = DOWNSTREAM_BRANCH
         return args
 
     def cleanup_and_checkout_branch(self, branch=None, checkout_from=None):
@@ -104,13 +104,13 @@ class TestBackporter(unittest.TestCase):
         backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         backporter.run()
 
-        expected_commit_msg = f"{CDH_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"
+        expected_commit_msg = f"{DOWNSTREAM_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"
         self.assertTrue(
-            self.full_cdh_branch in self.downstream_repo.heads,
-            f"Created downstream branch does not exist: {self.full_cdh_branch}",
+            self.full_ds_branch in self.downstream_repo.heads,
+            f"Created downstream branch does not exist: {self.full_ds_branch}",
         )
         self.downstream_utils.verify_commit_message_of_branch(
-            self.full_cdh_branch, expected_commit_msg, verify_cherry_picked_from=True
+            self.full_ds_branch, expected_commit_msg, verify_cherry_picked_from=True
         )
 
     def test_backport_from_branch31(self):
@@ -122,11 +122,11 @@ class TestBackporter(unittest.TestCase):
         backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         backporter.run()
 
-        expected_commit_msg = f"{CDH_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"
+        expected_commit_msg = f"{DOWNSTREAM_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"
         self.assertTrue(
-            self.full_cdh_branch in self.downstream_repo.heads,
-            f"Created downstream branch does not exist: {self.full_cdh_branch}",
+            self.full_ds_branch in self.downstream_repo.heads,
+            f"Created downstream branch does not exist: {self.full_ds_branch}",
         )
         self.downstream_utils.verify_commit_message_of_branch(
-            self.full_cdh_branch, expected_commit_msg, verify_cherry_picked_from=True
+            self.full_ds_branch, expected_commit_msg, verify_cherry_picked_from=True
         )
