@@ -1,25 +1,11 @@
-import errno
 import logging
-import os
 from enum import Enum
 from typing import Tuple, List
-
 from colr import color
-from pythoncommons.file_utils import FileUtils
 from pythoncommons.string_utils import StringUtils, auto_str
 from tabulate import tabulate
 
 LOG = logging.getLogger(__name__)
-
-
-class FileUtils2:
-    @staticmethod
-    def create_symlink(link_name, linked_path, dest_dir, remove_if_exists=True):
-        link_src = linked_path
-        link_dest = FileUtils.join_path(dest_dir, link_name)
-        if remove_if_exists and os.path.exists(link_dest):
-            os.remove(link_dest)
-        FileUtils.create_symlink(link_src, link_dest)
 
 
 class StringUtils2:
