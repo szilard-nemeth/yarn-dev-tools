@@ -1,12 +1,18 @@
+from enum import Enum
+
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
     REVERT,
 )
 from pythoncommons.string_utils import auto_str
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import GitLogLineFormat
 from yarndevtools.constants import (
     YARN_JIRA_ID_PATTERN,
 )
+
+
+class GitLogLineFormat(Enum):
+    ONELINE_WITH_DATE = 0
+    ONELINE_WITH_DATE_AND_AUTHOR = 1
 
 
 @auto_str

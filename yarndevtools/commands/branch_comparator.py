@@ -16,8 +16,7 @@ from pythoncommons.result_printer import (
     BoolConversionConfig,
 )
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import GitLogLineFormat
-from yarndevtools.commands_common import CommitData
+from yarndevtools.commands_common import CommitData, GitLogLineFormat
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -469,6 +468,7 @@ class Branches:
 
     def _handle_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # TODO write these to file
+        # TODO also write commits with multiple jira IDs
         for br_data in branches:
             self.summary.commits_with_missing_jira_id[br_data.type]: List[CommitData] = list(
                 filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
@@ -577,13 +577,12 @@ class BranchComparator:
             f"Console mode: {self.config.console_mode}\n "
         )
         self.validate_branches()
-        # TODO DO NOT FETCH FOR NOW, Uncomment if finished with testing
+        # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
         print_stats = self.config.console_mode
         save_to_file = not self.config.console_mode
         self.compare(print_stats=print_stats, save_to_file=save_to_file)
         self._run_legacy_git_compare_script()
-        # Finally, print summary
         self.print_and_save_summary()
 
     def _run_legacy_git_compare_script(self):

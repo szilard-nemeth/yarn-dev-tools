@@ -16,7 +16,7 @@ from pythoncommons.git_constants import (
     ORIGIN,
 )
 
-from yarndevtools.commands_common import CommitData
+from yarndevtools.commands_common import CommitData, GitLogLineFormat
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
 )
@@ -202,11 +202,6 @@ class JiraUmbrellaData:
         else:
             res_branches = branches
         return res_branches
-
-
-class GitLogLineFormat(Enum):
-    ONELINE_WITH_DATE = 0
-    ONELINE_WITH_DATE_AND_AUTHOR = 1
 
 
 @auto_str
