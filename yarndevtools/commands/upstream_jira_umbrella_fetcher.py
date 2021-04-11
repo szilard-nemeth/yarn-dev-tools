@@ -197,6 +197,7 @@ class JiraUmbrellaData:
         return summary_str
 
     # TODO X / - characters should be parameters
+    # TODO move this to python-commons
     def colorize_row(self, curr_row, convert_bools=False):
         res = []
         missing_backport = False
@@ -326,13 +327,6 @@ class UpstreamJiraUmbrellaFetcher:
         # These fields will be assigned when data is fetched
         self.data: JiraUmbrellaData = None
         self.result_basedir = None
-        self.jira_html_file = None
-        self.jira_list_file = None
-        self.commits_file = None
-        self.changed_files_file = None
-        self.summary_file = None
-        self.intermediate_results_file = None
-        self.pickled_data_file = None
 
     def run(self):
         LOG.info(

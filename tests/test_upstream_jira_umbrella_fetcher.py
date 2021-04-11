@@ -63,7 +63,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         # self.repo.head.ref would raise: TypeError: HEAD is a detached symbolic reference as it points to
         self.assertNotEqual(self.utils.get_hash_of_commit(self.base_branch), self.repo.head.commit.hexsha)
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(), self.repo_wrapper, self.repo_wrapper, self.repo_wrapper, self.base_branch
+            self.setup_args(), self.repo_wrapper, self.repo_wrapper, self.utils.jira_umbrella_data_dir, self.base_branch
         )
         self.assertRaises(ValueError, umbrella_fetcher.run)
 
