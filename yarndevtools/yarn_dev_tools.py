@@ -8,6 +8,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.branch_comparator import BranchComparator
@@ -126,12 +127,8 @@ class YarnDevTools:
         return ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
 
     def ensure_required_env_vars_are_present(self):
-        import os
-
-        # TODO move env checker to Pythoncommons
-        upstream_hadoop_dir = os.environ[ENV_HADOOP_DEV_DIR] if ENV_HADOOP_DEV_DIR in os.environ else None
-        downstream_hadoop_dir = os.environ[ENV_CLOUDERA_HADOOP_ROOT] if ENV_CLOUDERA_HADOOP_ROOT in os.environ else None
-
+        upstream_hadoop_dir = OsUtils.get_env_value(ENV_HADOOP_DEV_DIR, None)
+        downstream_hadoop_dir = OsUtils.get_env_value(ENV_CLOUDERA_HADOOP_ROOT, None)
         if not upstream_hadoop_dir:
             raise ValueError(f"Upstream Hadoop dir (env var: {ENV_HADOOP_DEV_DIR}) is not set!")
         if not downstream_hadoop_dir:
