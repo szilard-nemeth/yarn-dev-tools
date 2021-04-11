@@ -196,9 +196,16 @@ class JiraUmbrellaData:
         summary_str += backport_table
         return summary_str
 
-    # TODO X / - characters should be parameters
     # TODO move this to python-commons
-    def colorize_row(self, curr_row, convert_bools=False):
+    def colorize_row(
+        self,
+        curr_row,
+        convert_bools=False,
+        char_if_present="X",
+        char_if_not_present="-",
+        color_if_okay="green",
+        color_if_not_okay="red",
+    ):
         res = []
         missing_backport = False
         if not all(curr_row[1:]):
@@ -210,12 +217,12 @@ class JiraUmbrellaData:
         for idx, cell in enumerate(curr_row):
             if (isinstance(cell, bool) and cell) or not missing_backport:
                 if convert_bools and isinstance(cell, bool):
-                    cell = "X" if cell else "-"
-                res.append(color(cell, fore="green"))
+                    cell = char_if_present if cell else char_if_not_present
+                res.append(color(cell, fore=color_if_okay))
             else:
                 if convert_bools and isinstance(cell, bool):
-                    cell = "X" if cell else "-"
-                res.append(color(cell, fore="red"))
+                    cell = char_if_present if cell else char_if_not_present
+                res.append(color(cell, fore=color_if_not_okay))
         return res
 
     @staticmethod

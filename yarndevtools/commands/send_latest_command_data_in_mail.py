@@ -5,6 +5,8 @@ from pythoncommons.email import EmailConfig, EmailAccount, EmailService
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
+from test_upstream_jira_umbrella_fetcher import FILE_SUMMARY
+
 LOG = logging.getLogger(__name__)
 
 
@@ -38,8 +40,7 @@ class SendLatestCommandDataInEmail:
         zip_extract_dest = FileUtils.join_path(os.sep, "tmp", "extracted_zip")
         ZipFileUtils.extract_zip_file(self.config.attachment_file, zip_extract_dest)
 
-        # TODO use constant FILE_SUMMARY
-        summary_file = FileUtils.join_path(os.sep, zip_extract_dest, "summary.txt")
+        summary_file = FileUtils.join_path(os.sep, zip_extract_dest, FILE_SUMMARY)
         FileUtils.ensure_file_exists(summary_file)
 
         body = FileUtils.read_file(summary_file)
