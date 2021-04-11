@@ -57,11 +57,11 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         return args
 
     def test_fetch_on_branch_other_than_trunk_fails(self):
-        self.utils.checkout_parent_of_branch(self.base_branch)
+        self.repo_wrapper.checkout_parent_of_branch(self.base_branch)
 
         # Can't use self.repo.head.ref as HEAD is a detached reference
         # self.repo.head.ref would raise: TypeError: HEAD is a detached symbolic reference as it points to
-        self.assertNotEqual(self.utils.get_hash_of_commit(self.base_branch), self.repo.head.commit.hexsha)
+        self.assertNotEqual(self.repo_wrapper.get_hash_of_commit(self.base_branch), self.repo.head.commit.hexsha)
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
             self.setup_args(), self.repo_wrapper, self.repo_wrapper, self.utils.jira_umbrella_data_dir, self.base_branch
         )

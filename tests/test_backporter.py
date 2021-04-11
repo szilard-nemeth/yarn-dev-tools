@@ -39,10 +39,7 @@ class TestBackporter(unittest.TestCase):
         cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
 
         cls.full_ds_branch = f"{DOWNSTREAM_JIRA_ID}-{DOWNSTREAM_BRANCH}"
-
-        # Setup committer config
-        cls.downstream_utils.prepare_git_config("downstream_user", "downstream_email")
-
+        cls.downstream_repo_wrapper.setup_committer_info("downstream_user", "downstream_email")
         # Setup debug logging of git commands
         cls.downstream_repo_wrapper.enable_debug_logging(full=True)
 
@@ -51,8 +48,8 @@ class TestBackporter(unittest.TestCase):
 
         # THIS IS A MUST HAVE!
         # Set up remote of upstream in the downstream repo
-        self.downstream_utils.add_remote(UPSTREAM_REMOTE_NAME, self.upstream_repo.git_dir)
-        self.downstream_utils.remove_branch(self.full_ds_branch)
+        self.downstream_repo_wrapper.add_remote(UPSTREAM_REMOTE_NAME, self.upstream_repo.git_dir)
+        self.downstream_repo_wrapper.remove_branch(self.full_ds_branch)
 
     def setup_args(self):
         args = Object()
@@ -91,7 +88,7 @@ class TestBackporter(unittest.TestCase):
         args = self.setup_args()
 
         # Intentionally remove remote
-        self.downstream_utils.remove_remote(UPSTREAM_REMOTE_NAME)
+        self.downstream_repo_wrapper.remove_remote(UPSTREAM_REMOTE_NAME)
 
         backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper, CHERRY_PICK_BASE_REF)
         self.assertRaises(ValueError, backporter.run)

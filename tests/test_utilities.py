@@ -14,7 +14,7 @@ from yarndevtools.constants import (
     ExecutionMode,
     ORIGIN_TRUNK,
 )
-from pythoncommons.git_constants import HEAD
+from pythoncommons.git_constants import HEAD, ORIGIN
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 from yarndevtools.yarn_dev_tools import Setup
 
@@ -71,14 +71,14 @@ class TestUtilities:
     def setUpClass(self, repo_postfix=None, init_logging=True):
         if repo_postfix:
             self.repo_postfix = repo_postfix
-        self.setup_dirs()
+        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         try:
             self.setup_repo()
             if init_logging:
                 Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=False, repos=[self.repo])
             self.reset_and_checkout_trunk()
         except InvalidGitRepositoryError:
-            LOG.info("Cloning repo '%s' for the first time...", HADOOP_REPO_APACHE)
+            LOG.info(f"Cloning repo '{HADOOP_REPO_APACHE}' for the first time...")
             Repo.clone_from(HADOOP_REPO_APACHE, self.sandbox_repo_path, progress=ProgressPrinter("clone"))
             self.setup_repo(log=False)
             self.reset_and_checkout_trunk()
@@ -88,19 +88,15 @@ class TestUtilities:
         self.repo_wrapper = GitWrapper(self.sandbox_repo_path)
         self.repo = self.repo_wrapper.repo
         if log:
-            LOG.info("Repo '%s' is already cloned to path '%s'", self.repo, self.sandbox_repo_path)
+            LOG.info(f"Repo '{self.repo}' is already cloned to path '{self.sandbox_repo_path}'")
 
     def reset_and_checkout_trunk(self):
         self.reset_changes()
         self.checkout_trunk()
 
-    def setup_dirs(self):
-        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
-
     def checkout_trunk(self):
-        default_branch = "trunk"
-        LOG.info("Checking out branch: %s", default_branch)
-        self.repo.heads[default_branch].checkout()
+        LOG.info(f"Checking out branch: {TRUNK}")
+        self.repo_wrapper.checkout_branch(TRUNK)
 
     def cleanup_and_checkout_test_branch(self, branch=None, remove=True, pull=True, checkout_from=None):
         if not branch:
@@ -111,16 +107,16 @@ class TestUtilities:
         if pull:
             self.pull_to_trunk()
         try:
-            if branch in self.repo.heads:
-                LOG.info("Resetting changes on branch (hard reset): %s", branch)
-                self.repo.heads[branch].checkout()
-                self.repo.git.reset("--hard")
+            if branch in self.repo_wrapper.get_all_branch_names():
+                LOG.info(f"Resetting changes on branch (hard reset): {branch}")
+                self.repo_wrapper.checkout_branch(branch)
+                self.repo_wrapper.reset(hard=True)
 
                 if branch != self.base_branch:
                     # Current branch cannot be removed in git, so checkout trunk then remove branch
                     self.checkout_trunk()
                     if remove:
-                        self.remove_branch(branch)
+                        self.repo_wrapper.remove_branch(branch)
         except GitCommandError:
             # Do nothing if branch does not exist
             LOG.exception("Failed to remove branch.", exc_info=True)
@@ -130,36 +126,22 @@ class TestUtilities:
             base_ref = checkout_from if checkout_from else self.base_branch
             self.repo_wrapper.checkout_new_branch(branch, base_ref)
         else:
-            LOG.info("Checking out branch: %s", branch)
+            LOG.info(f"Checking out branch: {branch}")
             self.checkout_trunk()
 
     def pull_to_trunk(self):
-        self.checkout_trunk()
-        LOG.info("Pulling origin")
-        self.repo.remotes.origin.pull()
+        self.repo_wrapper.checkout_and_pull(TRUNK, remote_to_pull=ORIGIN)
 
     def reset_and_checkout_existing_branch(self, branch, pull=True):
         self.reset_changes()
         if pull:
             self.pull_to_trunk()
-        LOG.info("Checking out branch: %s", branch)
-        self.repo.heads[branch].checkout()
-
-    def remove_branch(self, branch, ignore_error=True):
-        LOG.info("Removing branch: %s", branch)
-
-        # Checkout trunk, in case of 'branch' is currently checked out
-        self.checkout_trunk()
-
-        try:
-            self.repo.delete_head(branch, force=True)
-        except GitCommandError as e:
-            if not ignore_error:
-                raise e
+        self.repo_wrapper.checkout_branch(branch)
 
     def reset_changes(self):
         self.repo_wrapper.reset_changes(reset_to=ORIGIN_TRUNK, reset_index=True, reset_working_tree=True, clean=True)
 
+    # TODO move to FileUtils
     def does_file_contain(self, file, string):
         with open(file) as f:
             if string in f.read():
@@ -174,21 +156,21 @@ class TestUtilities:
         FileUtils.append_to_file(yarn_config_java, "dummy_changes_to_conf_2\n")
 
         if commit:
-            author = Actor("A test author", "unittest@example.com")
-            committer = Actor("A test committer", "unittest@example.com")
-            self.repo.index.add([DUMMYFILE_1, DUMMYFILE_2, yarn_config_java])
             commit_msg = "test_commit"
             if commit_message_prefix:
                 commit_msg = commit_message_prefix + commit_msg
-            self.repo.index.commit(commit_msg, author=author, committer=committer)
-            # self.repo.git.commit('-am', 'test commit', author='unittest@xxx.com')
+            self.repo_wrapper.commit(
+                commit_msg,
+                author=Actor("A test author", "unittest@example.com"),
+                committer=Actor("A test committer", "unittest@example.com"),
+                add_files_to_index=[DUMMYFILE_1, DUMMYFILE_2, yarn_config_java],
+            )
 
     def add_file_changes_and_save_to_patch(self, patch_file):
         self.add_some_file_changes()
         yarn_config_java = FileUtils.join_path(self.sandbox_repo_path, YARNCONFIGURATION_PATH)
-        self.repo.index.add([DUMMYFILE_1, DUMMYFILE_2, yarn_config_java])
+        self.repo_wrapper.add_to_index([DUMMYFILE_1, DUMMYFILE_2, yarn_config_java])
 
-        # diff = self.repo.index.diff(self.repo.head.commit, create_patch=True)
         diff = self.repo_wrapper.diff(HEAD, cached=True)
         PatchUtils.save_diff_to_patch_file(diff, patch_file)
         self.reset_changes()
@@ -199,65 +181,21 @@ class TestUtilities:
         self.does_file_contain(patch_file, "+dummy_changes_to_conf_1")
         self.does_file_contain(patch_file, "+dummy_changes_to_conf_2")
 
-    def remove_branches(self, prefix):
-        branches = self.get_all_branch_names()
-        matching_branches = list(filter(lambda br: br.startswith(prefix), branches))
-
-        for branch in matching_branches:
-            self.remove_branch(branch)
-
-    def get_all_branch_names(self):
-        return [br.name for br in self.repo.heads]
-
     def verify_commit_message_of_branch(self, branch, expected_commit_message, verify_cherry_picked_from=False):
-        commit = self.repo.heads[branch].commit
-        actual_commit_message = commit.message.rstrip()
+        commit_msg = self.repo_wrapper.get_commit_message_of_branch(branch)
         # Example commit message: 'XXX-1234: YARN-123456: test_commit
         # (cherry picked from commit 51583ec3dbc715f9ff0c5a9b52f1cc7b607b6b26)'
-
-        TESTCASE.assertIn(expected_commit_message, actual_commit_message)
+        TESTCASE.assertIn(expected_commit_message, commit_msg)
         if verify_cherry_picked_from:
-            TESTCASE.assertIn("cherry picked from commit ", actual_commit_message)
-
-    def add_remote(self, name, url):
-        try:
-            self.repo.create_remote(name, url=url)
-        except GitCommandError:
-            pass
-
-    def remove_remote(self, name):
-        self.repo.delete_remote(name)
-
-    def prepare_git_config(self, user, email):
-        self.repo.config_writer().set_value("user", "name", user).release()
-        self.repo.config_writer().set_value("user", "email", email).release()
-
-    def remove_comitter_git_config(self):
-        self.repo.config_writer().set_value("user", "name", "").release()
-        self.repo.config_writer().set_value("user", "email", "").release()
-
-    def checkout_parent_of_branch(self, branch):
-        if branch not in self.repo.heads:
-            raise ValueError(f"Cannot find branch: {branch}")
-        parent_of_branch = branch + "^"
-        self.repo.git.checkout(parent_of_branch)
-        return self.repo.git.rev_parse("--verify", HEAD)
-
-    def get_hash_of_commit(self, branch):
-        return self.repo.heads[branch].commit.hexsha
-
-    def checkout_branch(self, branch):
-        if branch not in self.repo.heads:
-            raise ValueError(f"Cannot find branch: {branch}")
-        self.repo.heads[branch].checkout()
+            TESTCASE.assertIn("cherry picked from commit ", commit_msg)
 
     def assert_files_not_empty(self, basedir, expected_files=None):
         found_files = FileUtils.find_files(basedir, ".*", single_level=True, full_path_result=True)
         for f in found_files:
             self.assert_file_not_empty(f)
-
         if expected_files:
             TESTCASE.assertEqual(expected_files, len(found_files))
 
-    def assert_file_not_empty(self, f):
+    @staticmethod
+    def assert_file_not_empty(f):
         TESTCASE.assertTrue(os.path.getsize(f) > 0)

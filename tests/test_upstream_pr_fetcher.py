@@ -22,12 +22,12 @@ class TestUpstreamPRFetcher(unittest.TestCase):
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper
-        cls.base_branch = cls.utils.checkout_parent_of_branch(DEFAULT_BRANCH)
+        cls.base_branch = cls.repo_wrapper.checkout_parent_of_branch(DEFAULT_BRANCH)
 
     def setUp(self):
         self.utils.reset_and_checkout_existing_branch(DEFAULT_BRANCH, pull=False)
         # Setup committer config
-        self.utils.prepare_git_config("upstream_user", "upstream_email")
+        self.utils.repo_wrapper.setup_committer_info("upstream_user", "upstream_email")
 
     def test_with_wrong_repo_url(self):
         args = Object()
@@ -61,7 +61,7 @@ class TestUpstreamPRFetcher(unittest.TestCase):
         args.remote_branch = DEFAULT_BRANCH
 
         # Intentionally remove git config
-        self.utils.remove_comitter_git_config()
+        self.utils.repo_wrapper.remove_committer_info()
 
         pr_fetcher = UpstreamPRFetcher(
             args, HADOOP_REPO_TEMPLATE.format(user=APACHE), self.repo_wrapper, self.base_branch
@@ -71,7 +71,7 @@ class TestUpstreamPRFetcher(unittest.TestCase):
     def test_with_valid_url_and_remote_one_commit_proper_git_config(self):
         args = Object()
         args.remote_branch = DEFAULT_BRANCH
-        self.utils.checkout_parent_of_branch(DEFAULT_BRANCH)
+        self.repo_wrapper.checkout_parent_of_branch(DEFAULT_BRANCH)
 
         pr_fetcher = UpstreamPRFetcher(
             args, HADOOP_REPO_TEMPLATE.format(user=APACHE), self.repo_wrapper, self.base_branch
