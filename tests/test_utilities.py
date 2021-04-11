@@ -6,7 +6,14 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.constants import HADOOP_REPO_APACHE, TRUNK, PROJECT_NAME, JIRA_UMBRELLA_DATA, ExecutionMode
+from yarndevtools.constants import (
+    HADOOP_REPO_APACHE,
+    TRUNK,
+    PROJECT_NAME,
+    JIRA_UMBRELLA_DATA,
+    ExecutionMode,
+    ORIGIN_TRUNK,
+)
 from pythoncommons.git_constants import HEAD
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 from yarndevtools.yarn_dev_tools import Setup
@@ -151,10 +158,7 @@ class TestUtilities:
                 raise e
 
     def reset_changes(self):
-        # TODO Move this to GitWrapper
-        LOG.info("Reset all changes...")
-        self.repo.head.reset(commit="origin/trunk", index=True, working_tree=True)
-        self.repo.git.clean("-xdf")
+        self.repo_wrapper.reset_changes(reset_to=ORIGIN_TRUNK, reset_index=True, reset_working_tree=True, clean=True)
 
     def does_file_contain(self, file, string):
         with open(file) as f:
