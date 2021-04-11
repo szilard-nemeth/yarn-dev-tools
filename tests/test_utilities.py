@@ -37,7 +37,6 @@ class Object(object):
     pass
 
 
-# TODO check how much of this can be moved to python-commons / GitWrapper
 class TestUtilities:
     repo = None
     sandbox_repo_path = None
@@ -141,12 +140,10 @@ class TestUtilities:
     def reset_changes(self):
         self.repo_wrapper.reset_changes(reset_to=ORIGIN_TRUNK, reset_index=True, reset_working_tree=True, clean=True)
 
-    # TODO move to FileUtils
-    def does_file_contain(self, file, string):
-        with open(file) as f:
-            if string in f.read():
-                return True
-        TESTCASE.fail(f"File '{file}' does not contain expected string: '{string}'")
+    @staticmethod
+    def assert_file_contains(file, string):
+        if not FileUtils.does_file_contain_str(file, string):
+            TESTCASE.fail(f"File '{file}' does not contain expected string: '{string}'")
 
     def add_some_file_changes(self, commit=False, commit_message_prefix=None):
         FileUtils.save_to_file(FileUtils.join_path(self.sandbox_repo_path, DUMMYFILE_1), DUMMYFILE_1)
@@ -176,10 +173,10 @@ class TestUtilities:
         self.reset_changes()
 
         # Verify file
-        self.does_file_contain(patch_file, "+dummyfile1")
-        self.does_file_contain(patch_file, "+dummyfile2")
-        self.does_file_contain(patch_file, "+dummy_changes_to_conf_1")
-        self.does_file_contain(patch_file, "+dummy_changes_to_conf_2")
+        self.assert_file_contains(patch_file, "+dummyfile1")
+        self.assert_file_contains(patch_file, "+dummyfile2")
+        self.assert_file_contains(patch_file, "+dummy_changes_to_conf_1")
+        self.assert_file_contains(patch_file, "+dummy_changes_to_conf_2")
 
     def verify_commit_message_of_branch(self, branch, expected_commit_message, verify_cherry_picked_from=False):
         commit_msg = self.repo_wrapper.get_commit_message_of_branch(branch)

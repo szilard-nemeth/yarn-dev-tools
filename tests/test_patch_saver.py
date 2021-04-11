@@ -53,10 +53,10 @@ class TestPatchSaver(unittest.TestCase):
         new_patch_file = patch_saver.run()
 
         # Verify file
-        self.utils.does_file_contain(new_patch_file, "+dummyfile1")
-        self.utils.does_file_contain(new_patch_file, "+dummyfile2")
-        self.utils.does_file_contain(new_patch_file, "+dummy_changes_to_conf_1")
-        self.utils.does_file_contain(new_patch_file, "+dummy_changes_to_conf_2")
+        self.utils.assert_file_contains(new_patch_file, "+dummyfile1")
+        self.utils.assert_file_contains(new_patch_file, "+dummyfile2")
+        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_1")
+        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_2")
 
     def test_save_patch_started_from_yarn_dev_tools(self):
         self.cleanup_and_checkout_branch(YARN_TEST_BRANCH)
@@ -70,10 +70,10 @@ class TestPatchSaver(unittest.TestCase):
         new_patch_file = yarn_dev_tools.save_patch(args)
 
         # Verify file
-        self.utils.does_file_contain(new_patch_file, "+dummyfile1")
-        self.utils.does_file_contain(new_patch_file, "+dummyfile2")
-        self.utils.does_file_contain(new_patch_file, "+dummy_changes_to_conf_1")
-        self.utils.does_file_contain(new_patch_file, "+dummy_changes_to_conf_2")
+        self.utils.assert_file_contains(new_patch_file, "+dummyfile1")
+        self.utils.assert_file_contains(new_patch_file, "+dummyfile2")
+        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_1")
+        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_2")
 
 
 if __name__ == "__main__":
