@@ -16,7 +16,8 @@ from pythoncommons.result_printer import (
     BoolConversionConfig,
 )
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData, GitLogLineFormat
+from yarndevtools.commands.upstream_jira_umbrella_fetcher import GitLogLineFormat
+from yarndevtools.commands_common import CommitData
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 from pythoncommons.git_wrapper import GitWrapper
 
