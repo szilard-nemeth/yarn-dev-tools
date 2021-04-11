@@ -24,6 +24,9 @@ LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME = "latest-session-branchcomparator"
 LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
 DEFAULT_COMMAND_DATA_FILE_NAME = "command_data.zip"
 
+# File names
+SUMMARY_FILE = "summary.txt"
+
 # Do not leak bad ENV variable namings into the python code
 LOADED_ENV_UPSTREAM_DIR = "upstream-hadoop-dir"
 LOADED_ENV_DOWNSTREAM_DIR = "downstream-hadoop-dir"

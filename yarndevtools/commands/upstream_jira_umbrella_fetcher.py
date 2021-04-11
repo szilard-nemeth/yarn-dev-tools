@@ -19,6 +19,7 @@ from pythoncommons.git_constants import (
 from yarndevtools.commands_common import CommitData, GitLogLineFormat
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
+    SUMMARY_FILE,
 )
 
 from enum import Enum
@@ -297,7 +298,7 @@ class UpstreamJiraUmbrellaFetcher:
 
     @property
     def summary_file(self):
-        return FileUtils.join_path(self.result_basedir, "summary.txt")
+        return FileUtils.join_path(self.result_basedir, SUMMARY_FILE)
 
     @property
     def intermediate_results_file(self):
