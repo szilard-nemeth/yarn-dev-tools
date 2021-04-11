@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple, Set
 from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.process import CommandRunner
 from pythoncommons.result_printer import (
     ResultPrinter,
     ColorizeConfig,
@@ -15,7 +16,6 @@ from pythoncommons.result_printer import (
     BoolConversionConfig,
 )
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.command_runner import CommandRunner
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 from pythoncommons.git_wrapper import GitWrapper
@@ -550,7 +550,6 @@ class TableWithHeader:
         return self.header + self.table
 
 
-# LATER TODOS
 # TODO Handle multiple jira ids?? example: "CDPD-10052. HADOOP-16932"
 # TODO Consider revert commits?
 # TODO Add documentation

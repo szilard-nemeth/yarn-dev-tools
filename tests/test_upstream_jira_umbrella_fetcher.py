@@ -142,7 +142,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         )
         umbrella_fetcher.run()
 
-        self._verify_files_and_mod_dates()
+        self._verify_files_and_mod_dates(output_dir)
 
         # Since we are using force-mode (non cached mode), we expect all files have a newer mod date
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)

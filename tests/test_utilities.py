@@ -30,7 +30,7 @@ class Object(object):
     pass
 
 
-# TODO check how much of this can be moved to python-commons
+# TODO check how much of this can be moved to python-commons / GitWrapper
 class TestUtilities:
     repo = None
     sandbox_repo_path = None

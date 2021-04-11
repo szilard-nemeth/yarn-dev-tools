@@ -5,10 +5,10 @@ import sys
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.pickle_utils import PickleUtils
+from pythoncommons.process import CommandRunner
 from pythoncommons.result_printer import ResultPrinter
 from pythoncommons.string_utils import StringUtils, auto_str
 
-from yarndevtools.command_runner import CommandRunner
 from pythoncommons.git_constants import (
     HEAD,
     COMMIT_FIELD_SEPARATOR,
