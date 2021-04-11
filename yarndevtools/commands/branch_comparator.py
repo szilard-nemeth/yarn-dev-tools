@@ -16,7 +16,7 @@ from pythoncommons.result_printer import (
     BoolConversionConfig,
 )
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData
+from yarndevtools.commands.upstream_jira_umbrella_fetcher import CommitData, GitLogLineFormat
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -239,7 +239,7 @@ class Branches:
                     [
                         CommitData.from_git_log_str(
                             commit_str,
-                            format="oneline_with_date_and_author",
+                            format=GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR,
                             pattern=ANY_JIRA_ID_PATTERN,
                             allow_unmatched_jira_id=True,
                         )

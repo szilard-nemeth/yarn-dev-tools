@@ -204,6 +204,11 @@ class JiraUmbrellaData:
         return res_branches
 
 
+class GitLogLineFormat(Enum):
+    ONELINE_WITH_DATE = 0
+    ONELINE_WITH_DATE_AND_AUTHOR = 1
+
+
 # TODO move this to common module as it is used by BranchCompataror as well
 @auto_str
 class CommitData:
@@ -218,7 +223,11 @@ class CommitData:
 
     @staticmethod
     def from_git_log_str(
-        git_log_str, format: str = None, pattern=YARN_JIRA_ID_PATTERN, allow_unmatched_jira_id=False, author=None
+        git_log_str,
+        format: GitLogLineFormat = None,
+        pattern=YARN_JIRA_ID_PATTERN,
+        allow_unmatched_jira_id=False,
+        author=None,
     ):
         """
         1. Commit hash: It is in the first column.
@@ -228,9 +237,8 @@ class CommitData:
         :param git_log_str:
         :return:
         """
-        # TODO Make an enum for format strings: 'format'
         if not format:
-            format = "oneline_with_date"
+            format = GitLogLineFormat.ONELINE_WITH_DATE
         comps = git_log_str.split(COMMIT_FIELD_SEPARATOR)
         match = pattern.search(git_log_str)
 
@@ -255,17 +263,17 @@ class CommitData:
         # commit_author = self.upstream_repo.show(commit_hash, suppress_diff=True, format="%ae"))
 
         c_hash = comps[0]
-        if format == "oneline_with_date":
+        if format == GitLogLineFormat.ONELINE_WITH_DATE:
             # Example: 'ceab00b0db84455da145e0545fe9be63b270b315 COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00'
             message = COMMIT_FIELD_SEPARATOR.join(comps[1:-1])
             date = comps[-1]
-        elif format == "oneline_with_date_and_author":
+        elif format == GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR:
             # Example: 'ceab00b0db84455da145e0545fe9be63b270b315 COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00 snemeth@cloudera.com'
             message = COMMIT_FIELD_SEPARATOR.join(comps[1:-2])
             date = comps[-2]
             author = comps[-1]
         else:
-            raise ValueError(f"Unrecognized format string: {format}")
+            raise ValueError(f"Unrecognized format value: {format}")
         return CommitData(c_hash=c_hash, jira_id=jira_id, message=message, date=date, reverted=reverted, author=author)
 
     def as_oneline_string(self) -> str:
@@ -496,7 +504,9 @@ class UpstreamJiraUmbrellaFetcher:
 
             if downstream_commits_for_jira:
                 backported_commits = [
-                    BackportedCommit(CommitData.from_git_log_str(commit_str, format="oneline_with_date"), [])
+                    BackportedCommit(
+                        CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE), []
+                    )
                     for commit_str in downstream_commits_for_jira
                 ]
                 LOG.info(
@@ -530,7 +540,9 @@ class UpstreamJiraUmbrellaFetcher:
             matched_downstream_commit_list = output.split("\n")
             if matched_downstream_commit_list:
                 backported_commits = [
-                    BackportedCommit(CommitData.from_git_log_str(commit_str, format="oneline_with_date"), [branch])
+                    BackportedCommit(
+                        CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE), [branch]
+                    )
                     for commit_str in matched_downstream_commit_list
                 ]
                 LOG.info(
@@ -561,7 +573,7 @@ class UpstreamJiraUmbrellaFetcher:
         :return:
         """
         self.data.upstream_commit_data_list = [
-            CommitData.from_git_log_str(commit_str, format="oneline_with_date")
+            CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE)
             for commit_str in self.data.matched_upstream_commit_list
         ]
         self.data.matched_upstream_commit_hashes = [
