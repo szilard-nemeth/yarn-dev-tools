@@ -57,4 +57,4 @@ class ZipLatestCommandData:
         else:
             zip_file = ZipFileUtils.create_zip_as_tmp_file(self.config.input_files, self.config.dest_filename)
         LOG.info(f"Finished writing command data to zip file: {zip_file.name}")
-        FileUtils.create_symlink(LATEST_DATA_ZIP_LINK_NAME, zip_file.name, self.config.project_out_root)
+        FileUtils.create_symlink_path_dir(LATEST_DATA_ZIP_LINK_NAME, zip_file.name, self.config.project_out_root)

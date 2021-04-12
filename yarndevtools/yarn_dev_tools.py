@@ -209,7 +209,7 @@ class YarnDevTools:
 
     def compare_branches(self, args):
         branch_comparator = BranchComparator(args, self.downstream_repo, self.branch_comparator_output_dir)
-        FileUtils.create_symlink(
+        FileUtils.create_symlink_path_dir(
             LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME, branch_comparator.config.output_dir, self.project_out_root
         )
         branch_comparator.run()
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     )
 
     if CommandType.from_str(args.command) not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        FileUtils.create_symlink(LATEST_LOG_LINK_NAME, log_file, yarn_dev_tools.project_out_root)
+        FileUtils.create_symlink_path_dir(LATEST_LOG_LINK_NAME, log_file, yarn_dev_tools.project_out_root)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 
