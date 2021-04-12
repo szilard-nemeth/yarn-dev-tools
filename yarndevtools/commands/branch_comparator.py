@@ -20,7 +20,7 @@ from pythoncommons.result_printer import (
     DEFAULT_TABLE_FORMATS,
 )
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.commands_common import CommitData, GitLogLineFormat
+from yarndevtools.commands_common import CommitData, GitLogLineFormat, GitLogParseConfig, MatchFirstJiraIdParseStrategy
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -242,20 +242,17 @@ class Branches:
         for br_type in BranchType:
             branch: BranchData = self.branch_data[br_type]
             branch.gitlog_results = self.repo.log(branch.name, oneline_with_date_and_author=True)
-            # Store commit objects in reverse order (ascending by date)
-            branch.commit_objs = list(
-                reversed(
-                    [
-                        CommitData.from_git_log_str(
-                            commit_str,
-                            format=GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR,
-                            pattern=ANY_JIRA_ID_PATTERN,
-                            allow_unmatched_jira_id=True,
-                        )
-                        for commit_str in branch.gitlog_results
-                    ]
-                )
+            parse_config = GitLogParseConfig(
+                log_format=GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR,
+                pattern=ANY_JIRA_ID_PATTERN,
+                allow_unmatched_jira_id=True,
+                print_unique_jira_projects=True,
+                jira_id_parse_strategy=MatchFirstJiraIdParseStrategy(),
+                keep_parser_state=True,
             )
+
+            # Store commit objects in reverse order (ascending by date)
+            branch.commit_objs = list(reversed(CommitData.from_git_log_output(branch.gitlog_results, parse_config)))
             self.summary.all_commits_with_missing_jira_id[br_type] = list(
                 filter(lambda c: not c.jira_id, branch.commit_objs)
             )

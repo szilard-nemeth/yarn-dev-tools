@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from re import Pattern
+from typing import List, Any
 
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
@@ -129,6 +130,14 @@ class CommitData:
         self.reverted = reverted
         self.author = author
         self.reverted_at_least_once = reverted_at_least_once
+
+    @staticmethod
+    def from_git_log_output(git_log_output: List[str], parse_config: GitLogParseConfig) -> List[Any]:
+        parser = GitLogParser(parse_config)
+        result: List[CommitData] = []
+        for commit_str in git_log_output:
+            result.append(parser.parse_line(commit_str))
+        return result
 
     # TODO make another method that can work with full git log results, not just a line of it
     @staticmethod
