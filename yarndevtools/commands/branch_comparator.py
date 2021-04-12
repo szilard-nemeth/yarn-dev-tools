@@ -577,14 +577,13 @@ class BranchComparator:
         script_results: Dict[BranchType, Tuple[str, str]] = self.execute_git_compare_script(
             self.config.git_compare_script
         )
-        unique_jira_ids_per_branch: Dict[BranchType, List[str]] = {}
         for br_type in BranchType:
-            unique_jira_ids_per_branch[br_type] = self._get_compare_script_unique_jira_ids_for_branch(
-                script_results, self.branches.get_branch(br_type)
-            )
-            self.branches.summary.unique_jira_ids_legacy_script[br_type] = unique_jira_ids_per_branch[br_type]
+            self.branches.summary.unique_jira_ids_legacy_script[
+                br_type
+            ] = self._get_compare_script_unique_jira_ids_for_branch(script_results, self.branches.get_branch(br_type))
             LOG.debug(
-                f"[LEGACY SCRIPT] Unique commit results for {br_type.value}: {unique_jira_ids_per_branch[br_type]}"
+                f"[LEGACY SCRIPT] Unique commit results for {br_type.value}: "
+                f"{self.branches.summary.unique_jira_ids_legacy_script[br_type]}"
             )
         # Cross check unique jira ids with previous results
         for br_type in BranchType:
