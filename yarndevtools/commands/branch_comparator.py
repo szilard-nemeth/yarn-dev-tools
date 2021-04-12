@@ -1,7 +1,7 @@
 import logging
 import os
 from enum import Enum
-from typing import Dict, List, Tuple, Set, Any
+from typing import Dict, List, Tuple, Set
 from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
@@ -14,7 +14,7 @@ from pythoncommons.result_printer import (
     MatchType,
     EvaluationMethod,
     BoolConversionConfig,
-    TableFormat,
+    TabulateTableFormat,
     DEFAULT_TABLE_FORMATS,
 )
 from pythoncommons.string_utils import StringUtils
@@ -648,7 +648,9 @@ class BranchComparator:
 
 
 class TableWithHeader:
-    def __init__(self, header_title, table: str, table_fmt: TableFormat, colorized: bool = False, branch: str = None):
+    def __init__(
+        self, header_title, table: str, table_fmt: TabulateTableFormat, colorized: bool = False, branch: str = None
+    ):
         self.header = (
             StringUtils.generate_header_line(
                 header_title, char="═", length=len(StringUtils.get_first_line_of_multiline_str(table))
@@ -656,7 +658,7 @@ class TableWithHeader:
             + "\n"
         )
         self.table = table
-        self.table_fmt: TableFormat = table_fmt
+        self.table_fmt: TabulateTableFormat = table_fmt
         self.colorized = colorized
         self.branch = branch
 
@@ -713,7 +715,7 @@ class RenderedSummary:
         self,
         ttype: RenderedTableType,
         colorized: bool = False,
-        table_fmt: TableFormat = TableFormat.NORMAL,
+        table_fmt: TabulateTableFormat = TabulateTableFormat.GRID,
         branch: str = None,
     ):
         tables = self._tables[ttype.value]
@@ -724,7 +726,7 @@ class RenderedSummary:
                 result.append(table)
         return result
 
-    def get_branch_based_tables(self, ttype: RenderedTableType, table_fmt: TableFormat):
+    def get_branch_based_tables(self, ttype: RenderedTableType, table_fmt: TabulateTableFormat):
         tables = []
         for br_type, br_data in self.summary_data.branch_data.items():
             tables.extend(self.get_tables(ttype, colorized=False, table_fmt=table_fmt, branch=br_data.name))
@@ -825,9 +827,9 @@ class RenderedSummary:
             )
 
     def generate_summary_string(self):
-        a_normal_table = self.get_tables(RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE, table_fmt=TableFormat.GRID)[
-            0
-        ]
+        a_normal_table = self.get_tables(
+            RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE, table_fmt=TabulateTableFormat.GRID
+        )[0]
         length_of_table_first_line = StringUtils.get_first_line_of_multiline_str(a_normal_table.table)
         summary_str = "\n\n" + (
             StringUtils.generate_header_line("SUMMARY", char="═", length=len(length_of_table_first_line)) + "\n"
@@ -837,13 +839,13 @@ class RenderedSummary:
 
     def generate_summary_msgs(self):
         def regular_table(table_type: RenderedTableType):
-            return self.get_tables(table_type, colorized=False, table_fmt=TableFormat.GRID, branch=None)
+            return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.GRID, branch=None)
 
         def get_branch_tables(table_type: RenderedTableType):
-            return self.get_branch_based_tables(table_type, table_fmt=TableFormat.GRID)
+            return self.get_branch_based_tables(table_type, table_fmt=TabulateTableFormat.GRID)
 
         def get_colorized_tables(table_type: RenderedTableType, colorized=False):
-            return self.get_tables(table_type, table_fmt=TableFormat.GRID, colorized=colorized, branch=None)
+            return self.get_tables(table_type, table_fmt=TabulateTableFormat.GRID, colorized=colorized, branch=None)
 
         rt = regular_table
         rtt = RenderedTableType
