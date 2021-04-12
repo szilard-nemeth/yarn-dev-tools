@@ -41,6 +41,7 @@ class GitLogParseConfig:
         print_unique_jira_projects: bool = False,
         commit_field_separator: str = COMMIT_FIELD_SEPARATOR,
         jira_id_parse_strategy: JiraIdParseStrategy = None,
+        keep_parser_state: bool = False,
     ):
         self.jira_id_parse_strategy = jira_id_parse_strategy
         if not self.jira_id_parse_strategy:
@@ -51,17 +52,18 @@ class GitLogParseConfig:
         self.allow_unmatched_jira_id = allow_unmatched_jira_id
         self.author = author
         self.commit_field_separator = commit_field_separator
+        # TODO implement using this property and serialize parser state to json for future reference + add to zip
+        self.keep_parser_state = keep_parser_state
 
 
 class GitLogParser:
-    def __init__(self, config: GitLogParseConfig, keep_state: bool = False):
+    def __init__(self, config: GitLogParseConfig):
         self.config = config
-        self.keep_state = keep_state
 
     def parse_line(self, git_log_line: str):
         comps = git_log_line.split(self.config.commit_field_separator)
         jira_id = GitLogParser._determine_jira_id(git_log_line, self.config)
-        reverted = self._determine_if_reverted(git_log_line)
+        reverted, reverted_at_least_once = self._determine_if_reverted(git_log_line)
 
         # Alternatively, commit date and author may be gathered with git show,
         # but this requires more CLI calls, so it's not the preferred way.
@@ -85,7 +87,15 @@ class GitLogParser:
             author = comps[-1]  # author is the last item
         else:
             raise ValueError(f"Unrecognized format value: {self.config.log_format}")
-        return CommitData(commit_hash, jira_id, message, date, reverted=reverted, author=author)
+        return CommitData(
+            commit_hash,
+            jira_id,
+            message,
+            date,
+            reverted=reverted,
+            reverted_at_least_once=reverted_at_least_once,
+            author=author,
+        )
 
     @staticmethod
     def _determine_jira_id(git_log_str, parse_config: GitLogParseConfig):
@@ -100,15 +110,17 @@ class GitLogParser:
     @staticmethod
     def _determine_if_reverted(git_log_line):
         revert_count = git_log_line.upper().count(REVERT.upper())
-        reverted = False
+        final_reverted = False
         if revert_count % 2 == 1:
-            reverted = True
-        return reverted
+            final_reverted = True
+        return final_reverted, revert_count > 0
 
 
 @auto_str
 class CommitData:
-    def __init__(self, c_hash, jira_id, message, date, branches=None, reverted=False, author=None):
+    def __init__(
+        self, c_hash, jira_id, message, date, branches=None, reverted=False, reverted_at_least_once=False, author=None
+    ):
         self.hash = c_hash
         self.jira_id = jira_id
         self.message = message
@@ -116,6 +128,7 @@ class CommitData:
         self.branches = branches
         self.reverted = reverted
         self.author = author
+        self.reverted_at_least_once = reverted_at_least_once
 
     # TODO make another method that can work with full git log results, not just a line of it
     @staticmethod
@@ -144,8 +157,9 @@ class CommitData:
             author=author,
             print_unique_jira_projects=True,
             jira_id_parse_strategy=jira_id_parse_strategy,
+            keep_parser_state=True,
         )
-        parser = GitLogParser(parse_config, keep_state=True)
+        parser = GitLogParser(parse_config)
         return parser.parse_line(git_log_str)
 
     def as_oneline_string(self) -> str:
