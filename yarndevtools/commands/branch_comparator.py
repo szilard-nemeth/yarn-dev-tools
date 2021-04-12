@@ -66,8 +66,9 @@ class BranchData:
 
 
 class SummaryData:
-    def __init__(self, output_dir: str, branch_data: Dict[BranchType, BranchData]):
+    def __init__(self, output_dir: str, run_legacy_script: bool, branch_data: Dict[BranchType, BranchData]):
         self.output_dir: str = output_dir
+        self.run_legacy_script: bool = run_legacy_script
         self.branch_data: Dict[BranchType, BranchData] = branch_data
         self.merge_base: CommitData = None
 
@@ -148,9 +149,12 @@ class SummaryData:
         for br_type, br_name in self.branch_names.items():
             res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_commits[br_type])}\n"
 
-        res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
-        for br_type, br_name in self.branch_names.items():
-            res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
+        if self.run_legacy_script:
+            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
+            for br_type, br_name in self.branch_names.items():
+                res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
+        else:
+            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
 
         res += "\n\n=====Stats: COMMON=====\n"
         res += f"Merge-base commit: {self.merge_base.hash} {self.merge_base.message} {self.merge_base.date}\n"
@@ -195,7 +199,8 @@ class BranchComparatorConfig:
         self.commit_author_exceptions = args.commit_author_exceptions
         self.console_mode = True if "console_mode" in args and args.console_mode else False
         self.fail_on_missing_jira_id = False
-        self.git_compare_script = BranchComparatorConfig.find_git_compare_script()
+        self.run_legacy_script = args.run_legacy_script
+        self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
 
     @staticmethod
     def find_git_compare_script():
@@ -215,7 +220,7 @@ class Branches:
 
         # Set later
         self.merge_base: CommitData = None
-        self.summary: SummaryData = SummaryData(self.conf.output_dir, self.branch_data)
+        self.summary: SummaryData = SummaryData(self.conf.output_dir, self.conf.run_legacy_script, self.branch_data)
 
     def get_branch(self, br_type: BranchType) -> BranchData:
         return self.branch_data[br_type]
@@ -545,6 +550,76 @@ class Branches:
 # TODO Check in logs: all results for "Jira ID is the same for commits, but commit message differs"
 
 
+class LegacyScriptRunner:
+    @staticmethod
+    def start(config, branches, repo_path):
+        script_results: Dict[BranchType, Tuple[str, str]] = LegacyScriptRunner._execute_compare_script(
+            config, branches, working_dir=repo_path
+        )
+        for br_type in BranchType:
+            branches.summary.unique_jira_ids_legacy_script[
+                br_type
+            ] = LegacyScriptRunner._get_unique_jira_ids_for_branch(script_results, branches.get_branch(br_type))
+            LOG.debug(
+                f"[LEGACY SCRIPT] Unique commit results for {br_type.value}: "
+                f"{branches.summary.unique_jira_ids_legacy_script[br_type]}"
+            )
+        # Cross check unique jira ids with previous results
+        for br_type in BranchType:
+            branch_data = branches.get_branch(br_type)
+            unique_jira_ids = [c.jira_id for c in branches.summary.unique_commits[br_type]]
+            LOG.info(f"[CURRENT SCRIPT] Found {len(unique_jira_ids)} unique commits on {br_type} '{branch_data.name}'")
+            LOG.debug(f"[CURRENT SCRIPT] Found unique commits on {br_type} '{branch_data.name}': {unique_jira_ids} ")
+
+    @staticmethod
+    def _get_unique_jira_ids_for_branch(script_results: Dict[BranchType, Tuple[str, str]], branch_data: BranchData):
+        branch_type = branch_data.type
+        res_tuple = script_results[branch_type]
+        LOG.info(f"CLI Command for {branch_type} was: {res_tuple[0]}")
+        LOG.info(f"Output of command for {branch_type} was: {res_tuple[1]}")
+        lines = res_tuple[1].splitlines()
+        unique_jira_ids = [line.split(" ")[0] for line in lines]
+        LOG.info(f"[LEGACY SCRIPT] Found {len(unique_jira_ids)} unique commits on {branch_type} '{branch_data.name}'")
+        LOG.debug(f"[LEGACY SCRIPT] Found unique commits on {branch_type} '{branch_data.name}': {unique_jira_ids}")
+        return unique_jira_ids
+
+    @staticmethod
+    def _execute_compare_script(config, branches, working_dir) -> Dict[BranchType, Tuple[str, str]]:
+        compare_script = config.legacy_compare_script_path
+        master_br_name = branches.get_branch(BranchType.MASTER).shortname
+        feature_br_name = branches.get_branch(BranchType.FEATURE).shortname
+        output_dir = FileUtils.join_path(config.output_dir, "git_compare_script_output")
+        FileUtils.ensure_dir_created(output_dir)
+
+        results: Dict[BranchType, Tuple[str, str]] = {
+            BranchType.MASTER: LegacyScriptRunner._exec_script_only_on_master(
+                compare_script, feature_br_name, master_br_name, output_dir, working_dir
+            ),
+            BranchType.FEATURE: LegacyScriptRunner._exec_script_only_on_feature(
+                compare_script, feature_br_name, master_br_name, output_dir, working_dir
+            ),
+        }
+        return results
+
+    @staticmethod
+    def _exec_script_only_on_master(compare_script, feature_br_name, master_br_name, output_dir, working_dir):
+        args1 = f"{feature_br_name} {master_br_name}"
+        output_file1 = FileUtils.join_path(output_dir, f"only-on-{master_br_name}")
+        cli_cmd, cli_output = CommandRunner.execute_script(
+            compare_script, args=args1, working_dir=working_dir, output_file=output_file1, use_tee=True
+        )
+        return cli_cmd, cli_output
+
+    @staticmethod
+    def _exec_script_only_on_feature(compare_script, feature_br_name, master_br_name, output_dir, working_dir):
+        args2 = f"{master_br_name} {feature_br_name}"
+        output_file2 = FileUtils.join_path(output_dir, f"only-on-{feature_br_name}")
+        cli_cmd, cli_output = CommandRunner.execute_script(
+            compare_script, args=args2, working_dir=working_dir, output_file=output_file2, use_tee=True
+        )
+        return cli_cmd, cli_output
+
+
 class BranchComparator:
     """"""
 
@@ -563,6 +638,7 @@ class BranchComparator:
             f"Feature branch: {self.branches.get_branch(BranchType.FEATURE).name}\n "
             f"Commit author exceptions: {self.config.commit_author_exceptions}\n "
             f"Console mode: {self.config.console_mode}\n "
+            f"Run legacy comparator script: {self.config.run_legacy_script}\n "
         )
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
@@ -570,41 +646,9 @@ class BranchComparator:
         print_stats = self.config.console_mode
         save_to_file = not self.config.console_mode
         self.compare(print_stats=print_stats, save_to_file=save_to_file)
-        self._run_legacy_git_compare_script()
+        if self.config.run_legacy_script:
+            LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path)
         self.print_and_save_summary()
-
-    def _run_legacy_git_compare_script(self):
-        script_results: Dict[BranchType, Tuple[str, str]] = self.execute_git_compare_script(
-            self.config.git_compare_script
-        )
-        for br_type in BranchType:
-            self.branches.summary.unique_jira_ids_legacy_script[
-                br_type
-            ] = self._get_compare_script_unique_jira_ids_for_branch(script_results, self.branches.get_branch(br_type))
-            LOG.debug(
-                f"[LEGACY SCRIPT] Unique commit results for {br_type.value}: "
-                f"{self.branches.summary.unique_jira_ids_legacy_script[br_type]}"
-            )
-        # Cross check unique jira ids with previous results
-        for br_type in BranchType:
-            branch_data = self.branches.get_branch(br_type)
-            unique_jira_ids = [c.jira_id for c in self.branches.summary.unique_commits[br_type]]
-            LOG.info(f"[CURRENT SCRIPT] Found {len(unique_jira_ids)} unique commits on {br_type} '{branch_data.name}'")
-            LOG.debug(f"[CURRENT SCRIPT] Found unique commits on {br_type} '{branch_data.name}': {unique_jira_ids} ")
-
-    @staticmethod
-    def _get_compare_script_unique_jira_ids_for_branch(
-        script_results: Dict[BranchType, Tuple[str, str]], branch_data: BranchData
-    ):
-        branch_type = branch_data.type
-        res_tuple = script_results[branch_type]
-        LOG.info(f"CLI Command for {branch_type} was: {res_tuple[0]}")
-        LOG.info(f"Output of command for {branch_type} was: {res_tuple[1]}")
-        lines = res_tuple[1].splitlines()
-        unique_jira_ids = [line.split(" ")[0] for line in lines]
-        LOG.info(f"[LEGACY SCRIPT] Found {len(unique_jira_ids)} unique commits on {branch_type} '{branch_data.name}'")
-        LOG.debug(f"[LEGACY SCRIPT] Found unique commits on {branch_type} '{branch_data.name}': {unique_jira_ids}")
-        return unique_jira_ids
 
     def validate_branches(self):
         both_exist = self.branches.validate(BranchType.FEATURE)
@@ -627,29 +671,6 @@ class BranchComparator:
         filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_HTML)
         LOG.info(f"Saving summary to html file: {filename}")
         FileUtils.save_to_file(filename, rendered_sum.html_summary)
-
-    def execute_git_compare_script(self, script) -> Dict[BranchType, Tuple[str, str]]:
-        working_dir = self.repo.repo_path
-        master_br_name = self.branches.get_branch(BranchType.MASTER).shortname
-        feature_br_name = self.branches.get_branch(BranchType.FEATURE).shortname
-        output_dir = FileUtils.join_path(self.config.output_dir, "git_compare_script_output")
-        FileUtils.ensure_dir_created(output_dir)
-
-        results: Dict[BranchType, Tuple[str, str]] = {}
-        args1 = f"{feature_br_name} {master_br_name}"
-        output_file1 = FileUtils.join_path(output_dir, f"only-on-{master_br_name}")
-        cli_cmd, cli_output = CommandRunner.execute_script(
-            script, args=args1, working_dir=working_dir, output_file=output_file1, use_tee=True
-        )
-        results[BranchType.MASTER] = (cli_cmd, cli_output)
-
-        args2 = f"{master_br_name} {feature_br_name}"
-        output_file2 = FileUtils.join_path(output_dir, f"only-on-{feature_br_name}")
-        cli_cmd, cli_output = CommandRunner.execute_script(
-            script, args=args2, working_dir=working_dir, output_file=output_file2, use_tee=True
-        )
-        results[BranchType.FEATURE] = (cli_cmd, cli_output)
-        return results
 
 
 class TableWithHeader:
