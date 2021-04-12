@@ -17,7 +17,7 @@ from pythoncommons.result_printer import (
 )
 from pythoncommons.string_utils import StringUtils
 from yarndevtools.commands_common import CommitData, GitLogLineFormat
-from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
+from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE
 from pythoncommons.git_wrapper import GitWrapper
 
 
@@ -630,124 +630,11 @@ class BranchComparator:
         self.branches.compare(self.config.commit_author_exceptions)
 
     def print_and_save_summary(self):
-        printable_summary_str, writable_summary_str = BranchComparator.render_summary_tables_and_string(
-            self.branches.summary
-        )
-        LOG.info(printable_summary_str)
-        filename = FileUtils.join_path(self.config.output_dir, "summary.txt")
+        rendered_sum = RenderedSummary.from_summary_data(self.branches.summary)
+        LOG.info(rendered_sum.printable_summary_str)
+        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE)
         LOG.info(f"Saving summary to file: {filename}")
-        FileUtils.save_to_file(filename, writable_summary_str)
-
-    @staticmethod
-    def render_summary_tables_and_string(summary_data: SummaryData):
-        # Generate tables first, in order to know the length of the header rows
-        result_files_data = sorted(FileUtils.find_files(summary_data.output_dir, regex=".*", full_path_result=True))
-        result_files_table = TableWithHeader(
-            "RESULT FILES",
-            ResultPrinter.print_table(
-                result_files_data,
-                lambda file: (file, len(FileUtils.read_file(file).splitlines())),
-                header=["Row", "File", "# of lines"],
-                print_result=False,
-                max_width=200,
-                max_width_separator=os.sep,
-            ),
-        )
-
-        unique_commit_tables = []
-        for br_type, br_data in summary_data.branch_data.items():
-            unique_commit_tables.append(
-                TableWithHeader(
-                    f"UNIQUE ON BRANCH {br_data.name}",
-                    ResultPrinter.print_table(
-                        summary_data.unique_commits[br_type],
-                        lambda commit: (commit.jira_id, commit.message, commit.date),
-                        header=["Row", "Jira ID", "Commit message", "Commit date"],
-                        print_result=False,
-                        max_width=80,
-                        max_width_separator=" ",
-                    ),
-                )
-            )
-
-        common_commits_table = TableWithHeader(
-            "COMMON COMMITS SINCE BRANCHES DIVERGED",
-            ResultPrinter.print_table(
-                summary_data.common_commits,
-                lambda commit: (commit.jira_id, commit.message, commit.date),
-                header=["Row", "Jira ID", "Commit message", "Commit date"],
-                print_result=False,
-                max_width=80,
-                max_width_separator=" ",
-            ),
-        )
-
-        header = ["Row", "Jira ID", "Commit message", "Commit date"]
-        header.extend(summary_data.get_branch_names())
-        colorized_table, normal_table = BranchComparator.create_all_commits_tables(
-            header, summary_data.all_commits_presence_matrix
-        )
-
-        # Generate summary string
-        summary_str_common = "\n\n" + (
-            StringUtils.generate_header_line(
-                "SUMMARY", char="═", length=len(StringUtils.get_first_line_of_multiline_str(common_commits_table.table))
-            )
-            + "\n"
-        )
-        summary_str_common += str(summary_data)
-        summary_str_common += "\n\n"
-
-        printable_tables = [result_files_table] + unique_commit_tables + [common_commits_table, colorized_table]
-        writable_tables = [result_files_table] + unique_commit_tables + [common_commits_table, normal_table]
-        return BranchComparator.generate_summary_msgs(printable_tables, writable_tables, summary_str_common)
-
-    @staticmethod
-    def generate_summary_msgs(
-        printable_tables: List[TableWithHeader], writable_tables: List[TableWithHeader], summary_str_common: str
-    ):
-        printable_summary_str: str = summary_str_common
-        writable_summary_str: str = summary_str_common
-        for table in printable_tables:
-            printable_summary_str += str(table)
-            printable_summary_str += "\n\n"
-
-        for table in writable_tables:
-            writable_summary_str += str(table)
-            writable_summary_str += "\n\n"
-        return printable_summary_str, writable_summary_str
-
-    @staticmethod
-    def create_all_commits_tables(header, all_commits: List[List]):
-        # Adding 1 because row id will be added as first column
-        row_len = len(all_commits[0]) + 1
-        color_conf = ColorizeConfig(
-            [
-                ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, (0, row_len), (0, row_len)),
-                ColorDescriptor(bool, False, Color.RED, MatchType.ANY, (0, row_len), (0, row_len)),
-            ],
-            eval_method=EvaluationMethod.ALL,
-        )
-        colorized_table = BranchComparator._create_all_comits_table(header, all_commits, colorize_config=color_conf)
-        normal_table = BranchComparator._create_all_comits_table(header, all_commits, colorize_config=False)
-        return colorized_table, normal_table
-
-    @staticmethod
-    def _create_all_comits_table(header, all_commits, colorize_config=None):
-        table = TableWithHeader(
-            "ALL COMMITS (MERGED LIST)",
-            ResultPrinter.print_table(
-                all_commits,
-                lambda row: row,
-                header=header,
-                print_result=False,
-                max_width=100,
-                max_width_separator=" ",
-                bool_conversion_config=BoolConversionConfig(),
-                colorize_config=colorize_config,
-            ),
-        )
-        return table
+        FileUtils.save_to_file(filename, rendered_sum.writable_summary_str)
 
     def execute_git_compare_script(self, script) -> Dict[BranchType, Tuple[str, str]]:
         working_dir = self.repo.repo_path
@@ -771,3 +658,202 @@ class BranchComparator:
         )
         results[BranchType.FEATURE] = (cli_cmd, cli_output)
         return results
+
+
+class RenderedTableType(Enum):
+    RESULT_FILES = ("result_files", "RESULT FILES")
+    UNIQUE_ON_BRANCH = ("unique_on_branch", "UNIQUE ON BRANCH $$")
+    COMMON_COMMITS_SINCE_DIVERGENCE = ("common_commits_since_divergence", "COMMON COMMITS SINCE BRANCHES DIVERGED")
+    ALL_COMMITS_MERGED = ("all_commits_merged", "ALL COMMITS (MERGED LIST)")
+
+    def __init__(self, key, header_value):
+        self.key = key
+        self.header = header_value
+
+
+class RenderedSummary:
+    def __init__(self, summary_data: SummaryData):
+        self._tables: Dict[str, TableWithHeader] = {}
+        self.summary_data = summary_data
+        self.add_result_files_table()
+        self.add_unique_commit_tables()
+        self.add_common_commits_table()
+        self.add_all_commits_tables()
+        self.summary_str = self.generate_summary_string()
+        self.printable_summary_str, self.writable_summary_str = self.generate_summary_msgs()
+
+    def add_regular_table(self, table: TableWithHeader, ttype: RenderedTableType):
+        self._tables[ttype.value] = table
+
+    def add_branch_based_table(self, table: TableWithHeader, ttype: RenderedTableType, branch):
+        self._tables[self.generate_branch_dict_key(ttype, branch)] = table
+
+    def add_color_based_table(self, table: TableWithHeader, ttype: RenderedTableType, colored: bool):
+        self._tables[self.generate_color_dict_key(ttype, colored)] = table
+
+    def get_regular_table(self, ttype: RenderedTableType):
+        return self._tables[ttype.value]
+
+    def get_branch_based_table(self, ttype: RenderedTableType, branch):
+        return self._tables[self.generate_branch_dict_key(ttype, branch)]
+
+    def get_color_based_table(self, ttype: RenderedTableType, colored: bool):
+        return self._tables[self.generate_color_dict_key(ttype, colored)]
+
+    def get_all_branch_based_tables(self, ttype: RenderedTableType):
+        tables = []
+        for br_type, br_data in self.summary_data.branch_data.items():
+            tables.append(self.get_branch_based_table(ttype, br_type))
+        return tables
+
+    @staticmethod
+    def generate_branch_dict_key(ttype, branch):
+        return f"{ttype.value}_{branch}"
+
+    @staticmethod
+    def generate_color_dict_key(ttype, colorized):
+        suffix = "colorized" if colorized else "normal"
+        return f"{ttype.value}_{suffix}"
+
+    @staticmethod
+    def from_summary_data(summary_data: SummaryData):
+        return RenderedSummary(summary_data)
+
+    def add_result_files_table(self):
+        result_files_data = sorted(
+            FileUtils.find_files(self.summary_data.output_dir, regex=".*", full_path_result=True)
+        )
+        table_type = RenderedTableType.RESULT_FILES
+        self.add_regular_table(
+            TableWithHeader(
+                table_type.header,
+                ResultPrinter.print_table(
+                    result_files_data,
+                    lambda file: (file, len(FileUtils.read_file(file).splitlines())),
+                    header=["Row", "File", "# of lines"],
+                    print_result=False,
+                    max_width=200,
+                    max_width_separator=os.sep,
+                ),
+            ),
+            table_type,
+        )
+
+    def add_unique_commit_tables(self):
+        table_type = RenderedTableType.UNIQUE_ON_BRANCH
+        for br_type, br_data in self.summary_data.branch_data.items():
+            header_value = table_type.header.replace("$$", br_data.name)
+            self.add_branch_based_table(
+                TableWithHeader(
+                    header_value,
+                    ResultPrinter.print_table(
+                        self.summary_data.unique_commits[br_type],
+                        lambda commit: (commit.jira_id, commit.message, commit.date),
+                        header=["Row", "Jira ID", "Commit message", "Commit date"],
+                        print_result=False,
+                        max_width=80,
+                        max_width_separator=" ",
+                    ),
+                ),
+                table_type,
+                br_type,
+            )
+
+    def add_common_commits_table(self):
+        table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
+        self.add_regular_table(
+            TableWithHeader(
+                table_type.header,
+                ResultPrinter.print_table(
+                    self.summary_data.common_commits,
+                    lambda commit: (commit.jira_id, commit.message, commit.date),
+                    header=["Row", "Jira ID", "Commit message", "Commit date"],
+                    print_result=False,
+                    max_width=80,
+                    max_width_separator=" ",
+                ),
+            ),
+            table_type,
+        )
+
+    def add_all_commits_tables(self):
+        all_commits: List[List] = self.summary_data.all_commits_presence_matrix
+
+        header = ["Row", "Jira ID", "Commit message", "Commit date"]
+        header.extend(self.summary_data.get_branch_names())
+
+        # Adding 1 because row id will be added as first column
+        row_len = len(all_commits[0]) + 1
+        color_conf = ColorizeConfig(
+            [
+                ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, (0, row_len), (0, row_len)),
+                ColorDescriptor(bool, False, Color.RED, MatchType.ANY, (0, row_len), (0, row_len)),
+            ],
+            eval_method=EvaluationMethod.ALL,
+        )
+        self._add_all_comits_table(header, all_commits, colorize_config=color_conf)
+        self._add_all_comits_table(header, all_commits, colorize_config=False)
+
+    def _add_all_comits_table(self, header, all_commits, colorize_config=None):
+        table_type = RenderedTableType.ALL_COMMITS_MERGED
+        colored = True if colorize_config else False
+        self.add_color_based_table(
+            TableWithHeader(
+                table_type.header,
+                ResultPrinter.print_table(
+                    all_commits,
+                    lambda row: row,
+                    header=header,
+                    print_result=False,
+                    max_width=100,
+                    max_width_separator=" ",
+                    bool_conversion_config=BoolConversionConfig(),
+                    colorize_config=colorize_config,
+                ),
+            ),
+            table_type,
+            colored,
+        )
+
+    def generate_summary_string(self):
+        summary_str = "\n\n" + (
+            StringUtils.generate_header_line(
+                "SUMMARY",
+                char="═",
+                length=len(
+                    StringUtils.get_first_line_of_multiline_str(
+                        self.get_regular_table(RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE).table
+                    )
+                ),
+            )
+            + "\n"
+        )
+        summary_str += str(self.summary_data) + "\n\n"
+        return summary_str
+
+    def generate_summary_msgs(self):
+        rtt = RenderedTableType
+        rt = self.get_regular_table
+        bbt = self.get_all_branch_based_tables
+        cbt = self.get_color_based_table
+        printable_tables: List[TableWithHeader] = (
+            [rt(rtt.RESULT_FILES)]
+            + bbt(rtt.UNIQUE_ON_BRANCH)
+            + [rt(rtt.COMMON_COMMITS_SINCE_DIVERGENCE), cbt(rtt.ALL_COMMITS_MERGED, colored=True)]
+        )
+        writable_tables: List[TableWithHeader] = (
+            [rt(rtt.RESULT_FILES)]
+            + bbt(rtt.UNIQUE_ON_BRANCH)
+            + [rt(rtt.COMMON_COMMITS_SINCE_DIVERGENCE), cbt(rtt.ALL_COMMITS_MERGED, colored=False)]
+        )
+
+        printable_summary_str = self._generate_summary_str(printable_tables)
+        writable_summary_str = self._generate_summary_str(writable_tables)
+        return printable_summary_str, writable_summary_str
+
+    def _generate_summary_str(self, tables):
+        printable_summary_str: str = self.summary_str
+        for table in tables:
+            printable_summary_str += str(table)
+            printable_summary_str += "\n\n"
+        return printable_summary_str
