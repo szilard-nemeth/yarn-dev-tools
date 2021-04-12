@@ -2,6 +2,8 @@ import logging
 import os
 from enum import Enum
 from typing import Dict, List, Tuple, Set
+
+from bs4 import BeautifulSoup
 from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
@@ -921,8 +923,31 @@ class RenderedSummary:
     def generate_summary_html(self, html_tables, separator_tag="hr", add_breaks=2) -> str:
         html_sep = f"<{separator_tag}/>"
         html_sep += add_breaks * "<br/>"
+        tables_html: str = html_sep
+        tables_html += html_sep.join([h.table for h in html_tables])
 
-        html: str = self.summary_str
-        html += html_sep
-        html += html_sep.join([h.table for h in html_tables])
-        return html
+        soup = BeautifulSoup()
+        self._add_summary_as_html_paragraphs(soup)
+        html = soup.new_tag("html")
+        self._add_html_head_and_style(soup, html)
+        html.append(BeautifulSoup(tables_html, "html.parser"))
+        soup.append(html)
+        return soup.prettify()
+
+    def _add_summary_as_html_paragraphs(self, soup):
+        lines = self.summary_str.splitlines()
+        for line in lines:
+            p = soup.new_tag("p")
+            p.append(line)
+            soup.append(p)
+
+    def _add_html_head_and_style(self, soup, html):
+        head = soup.new_tag("head")
+        style = soup.new_tag("style")
+        style.string = """
+table, th, td {
+  border: 1px solid black;
+}
+"""
+        head.append(style)
+        html.append(head)
