@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from enum import Enum
 from re import Pattern
-from typing import List, Any
+from typing import List, Any, Set, Tuple
 
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
@@ -25,11 +26,11 @@ class JiraIdParseStrategy(ABC):
 
 
 class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
-    def parse(self, git_log_line: str, config) -> str or None:
+    def parse(self, git_log_line: str, config) -> Tuple[str, List[str]] or None:
         match = config.pattern.search(git_log_line)
         if match:
-            return match.group(1)
-        return None
+            return [match.group(1)]
+        return []
 
 
 class GitLogParseConfig:
@@ -57,13 +58,31 @@ class GitLogParseConfig:
         self.keep_parser_state = keep_parser_state
 
 
+@dataclass
+class CommitParserState:
+    git_log_line_raw: str
+    all_fields: List[str]
+    found_jira_ids: List[str]
+    commit_data_obj: Any
+
+
+@dataclass
+class GitLogParserState:
+    unique_jira_projects: Set[str] = field(default_factory=set)
+    commit_states: List[CommitParserState] = field(default_factory=list)
+
+
 class GitLogParser:
     def __init__(self, config: GitLogParseConfig):
         self.config = config
+        self.keep_state = config.keep_parser_state
+        self.state = None
+        if self.keep_state:
+            self.state = GitLogParserState()
 
     def parse_line(self, git_log_line: str):
-        comps = git_log_line.split(self.config.commit_field_separator)
-        jira_id = GitLogParser._determine_jira_id(git_log_line, self.config)
+        fields = git_log_line.split(self.config.commit_field_separator)
+        jira_id, jira_ids = GitLogParser._determine_jira_ids(git_log_line, self.config)
         reverted, reverted_at_least_once = self._determine_if_reverted(git_log_line)
 
         # Alternatively, commit date and author may be gathered with git show,
@@ -72,23 +91,24 @@ class GitLogParser:
         # commit_author = self.upstream_repo.show(commit_hash, suppress_diff=True, format="%ae"))
 
         # Hash is always at first place
-        commit_hash = comps[0]
+        commit_hash = fields[0]
         author = self.config.author
         if self.config.log_format == GitLogLineFormat.ONELINE_WITH_DATE:
             # Example: 'ceab00b0db84455da145e0545fe9be63b270b315
             #  COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00'
-            message = COMMIT_FIELD_SEPARATOR.join(comps[1:-1])
-            date = comps[-1]  # date is the last item
+            message = COMMIT_FIELD_SEPARATOR.join(fields[1:-1])
+            date = fields[-1]  # date is the last item
         elif self.config.log_format == GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR:
             # Example: 'ceab00b0db84455da145e0545fe9be63b270b315
             #  COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00
             #    snemeth@cloudera.com'
-            message = COMMIT_FIELD_SEPARATOR.join(comps[1:-2])
-            date = comps[-2]  # date is the 2nd to last
-            author = comps[-1]  # author is the last item
+            message = COMMIT_FIELD_SEPARATOR.join(fields[1:-2])
+            date = fields[-2]  # date is the 2nd to last
+            author = fields[-1]  # author is the last item
         else:
             raise ValueError(f"Unrecognized format value: {self.config.log_format}")
-        return CommitData(
+
+        commit_data = CommitData(
             commit_hash,
             jira_id,
             message,
@@ -98,15 +118,27 @@ class GitLogParser:
             author=author,
         )
 
+        if self.keep_state:
+            commit_state = CommitParserState(git_log_line, fields, jira_ids, commit_data)
+            self.state.commit_states.append(commit_state)
+            self.state.unique_jira_projects.update(
+                [GitLogParser._get_jira_project_from_jira_id(jid) for jid in jira_ids]
+            )
+
+        return commit_data
+
     @staticmethod
-    def _determine_jira_id(git_log_str, parse_config: GitLogParseConfig):
-        jira_id = parse_config.jira_id_parse_strategy.parse(git_log_str, config=parse_config)
-        if not jira_id and not parse_config.allow_unmatched_jira_id:
+    def _determine_jira_ids(git_log_str, parse_config: GitLogParseConfig) -> Tuple[str or None, List[str]]:
+        jira_ids = parse_config.jira_id_parse_strategy.parse(git_log_str, config=parse_config)
+        if not jira_ids and not parse_config.allow_unmatched_jira_id:
             raise ValueError(
                 f"Cannot find YARN jira id in git log string: {git_log_str}. "
                 f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
             )
-        return jira_id
+        if not jira_ids:
+            return None, []
+        else:
+            return jira_ids[0], jira_ids
 
     @staticmethod
     def _determine_if_reverted(git_log_line):
@@ -115,6 +147,12 @@ class GitLogParser:
         if revert_count % 2 == 1:
             final_reverted = True
         return final_reverted, revert_count > 0
+
+    @staticmethod
+    def _get_jira_project_from_jira_id(jira_id):
+        if "-" not in jira_id:
+            raise ValueError(f"Unexpected jira id: {jira_id}")
+        return jira_id.split("-")[0]
 
 
 @auto_str
