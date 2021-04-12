@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from enum import Enum
 from re import Pattern
 
@@ -16,6 +17,20 @@ class GitLogLineFormat(Enum):
     ONELINE_WITH_DATE_AND_AUTHOR = 1
 
 
+class JiraIdParseStrategy(ABC):
+    @abstractmethod
+    def parse(self, git_log_line: str, config) -> str or None:
+        pass
+
+
+class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
+    def parse(self, git_log_line: str, config) -> str or None:
+        match = config.pattern.search(git_log_line)
+        if match:
+            return match.group(1)
+        return None
+
+
 class GitLogParseConfig:
     def __init__(
         self,
@@ -25,7 +40,11 @@ class GitLogParseConfig:
         author: str = None,
         print_unique_jira_projects: bool = False,
         commit_field_separator: str = COMMIT_FIELD_SEPARATOR,
+        jira_id_parse_strategy: JiraIdParseStrategy = None,
     ):
+        self.jira_id_parse_strategy = jira_id_parse_strategy
+        if not self.jira_id_parse_strategy:
+            self.jira_id_parse_strategy = MatchFirstJiraIdParseStrategy()
         self.log_format = log_format
         self.pattern = pattern
         self.print_unique_jira_projects = print_unique_jira_projects
@@ -70,16 +89,12 @@ class GitLogParser:
 
     @staticmethod
     def _determine_jira_id(git_log_str, parse_config: GitLogParseConfig):
-        match = parse_config.pattern.search(git_log_str)
-        jira_id = None
-        if not match:
-            if not parse_config.allow_unmatched_jira_id:
-                raise ValueError(
-                    f"Cannot find YARN jira id in git log string: {git_log_str}. "
-                    f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
-                )
-        else:
-            jira_id = match.group(1)
+        jira_id = parse_config.jira_id_parse_strategy.parse(git_log_str, config=parse_config)
+        if not jira_id and not parse_config.allow_unmatched_jira_id:
+            raise ValueError(
+                f"Cannot find YARN jira id in git log string: {git_log_str}. "
+                f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
+            )
         return jira_id
 
     @staticmethod
@@ -110,6 +125,7 @@ class CommitData:
         pattern: Pattern = YARN_JIRA_ID_PATTERN,
         allow_unmatched_jira_id: bool = False,
         author: str = None,
+        jira_id_parse_strategy: JiraIdParseStrategy = None,
     ):
         """
         1. Commit hash: It is in the first column.
@@ -122,7 +138,12 @@ class CommitData:
 
         # TODO Signature can be modified later if all usages migrated to use GitLogParseConfig object as input
         parse_config = GitLogParseConfig(
-            format, pattern, allow_unmatched_jira_id, author, print_unique_jira_projects=True
+            log_format=format,
+            pattern=pattern,
+            allow_unmatched_jira_id=allow_unmatched_jira_id,
+            author=author,
+            print_unique_jira_projects=True,
+            jira_id_parse_strategy=jira_id_parse_strategy,
         )
         parser = GitLogParser(parse_config, keep_state=True)
         return parser.parse_line(git_log_str)
