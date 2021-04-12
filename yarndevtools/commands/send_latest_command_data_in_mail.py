@@ -5,7 +5,7 @@ from pythoncommons.email import EmailConfig, EmailAccount, EmailService
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
-from yarndevtools.constants import SUMMARY_FILE
+from yarndevtools.constants import SUMMARY_FILE_TXT
 
 LOG = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class SendLatestCommandDataInEmail:
         zip_extract_dest = FileUtils.join_path(os.sep, "tmp", "extracted_zip")
         ZipFileUtils.extract_zip_file(self.config.attachment_file, zip_extract_dest)
 
-        summary_file = FileUtils.join_path(os.sep, zip_extract_dest, SUMMARY_FILE)
+        summary_file = FileUtils.join_path(os.sep, zip_extract_dest, SUMMARY_FILE_TXT)
         FileUtils.ensure_file_exists(summary_file)
 
         body = FileUtils.read_file(summary_file)

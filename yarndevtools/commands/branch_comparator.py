@@ -19,7 +19,7 @@ from pythoncommons.result_printer import (
 )
 from pythoncommons.string_utils import StringUtils
 from yarndevtools.commands_common import CommitData, GitLogLineFormat
-from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE
+from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 from pythoncommons.git_wrapper import GitWrapper
 
 
@@ -619,9 +619,14 @@ class BranchComparator:
     def print_and_save_summary(self):
         rendered_sum = RenderedSummary.from_summary_data(self.branches.summary)
         LOG.info(rendered_sum.printable_summary_str)
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE)
-        LOG.info(f"Saving summary to file: {filename}")
+
+        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_TXT)
+        LOG.info(f"Saving summary to text file: {filename}")
         FileUtils.save_to_file(filename, rendered_sum.writable_summary_str)
+
+        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_HTML)
+        LOG.info(f"Saving summary to html file: {filename}")
+        FileUtils.save_to_file(filename, rendered_sum.html_summary)
 
     def execute_git_compare_script(self, script) -> Dict[BranchType, Tuple[str, str]]:
         working_dir = self.repo.repo_path
@@ -699,7 +704,7 @@ class RenderedSummary:
         self.add_common_commits_table()
         self.add_all_commits_tables()
         self.summary_str = self.generate_summary_string()
-        self.printable_summary_str, self.writable_summary_str = self.generate_summary_msgs()
+        self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
 
     def add_table(self, ttype: RenderedTableType, table: TableWithHeader):
         if table.is_branch_based and ttype not in self._tables_with_branch:
@@ -844,26 +849,46 @@ class RenderedSummary:
         def get_branch_tables(table_type: RenderedTableType):
             return self.get_branch_based_tables(table_type, table_fmt=TabulateTableFormat.GRID)
 
+        def html_table(table_type: RenderedTableType):
+            return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.HTML, branch=None)
+
+        def get_html_branch_tables(table_type: RenderedTableType):
+            return self.get_branch_based_tables(table_type, table_fmt=TabulateTableFormat.HTML)
+
         def get_colorized_tables(table_type: RenderedTableType, colorized=False):
             return self.get_tables(table_type, table_fmt=TabulateTableFormat.GRID, colorized=colorized, branch=None)
 
         rt = regular_table
+        ht = html_table
         rtt = RenderedTableType
-        bbt = get_branch_tables
+        bt = get_branch_tables
+        hbt = get_html_branch_tables
         cbt = get_colorized_tables
+
         printable_tables: List[TableWithHeader] = (
             rt(rtt.RESULT_FILES)
-            + bbt(rtt.UNIQUE_ON_BRANCH)
+            + bt(rtt.UNIQUE_ON_BRANCH)
             + rt(rtt.COMMON_COMMITS_SINCE_DIVERGENCE)
             + cbt(rtt.ALL_COMMITS_MERGED, colorized=True)
         )
         writable_tables: List[TableWithHeader] = (
             rt(rtt.RESULT_FILES)
-            + bbt(rtt.UNIQUE_ON_BRANCH)
+            + bt(rtt.UNIQUE_ON_BRANCH)
             + rt(rtt.COMMON_COMMITS_SINCE_DIVERGENCE)
             + cbt(rtt.ALL_COMMITS_MERGED, colorized=False)
         )
-        return self._generate_summary_str(printable_tables), self._generate_summary_str(writable_tables)
+
+        html_tables: List[TableWithHeader] = (
+            ht(rtt.RESULT_FILES)
+            + hbt(rtt.UNIQUE_ON_BRANCH)
+            + ht(rtt.COMMON_COMMITS_SINCE_DIVERGENCE)
+            + ht(rtt.ALL_COMMITS_MERGED)
+        )
+        return (
+            self._generate_summary_str(printable_tables),
+            self._generate_summary_str(writable_tables),
+            self.generate_summary_html(html_tables),
+        )
 
     def _generate_summary_str(self, tables):
         printable_summary_str: str = self.summary_str
@@ -871,3 +896,12 @@ class RenderedSummary:
             printable_summary_str += str(table)
             printable_summary_str += "\n\n"
         return printable_summary_str
+
+    def generate_summary_html(self, html_tables, separator_tag="hr", add_breaks=2) -> str:
+        html_sep = f"<{separator_tag}/>"
+        html_sep += add_breaks * "<br/>"
+
+        html: str = self.summary_str
+        html += html_sep
+        html += html_sep.join([h.table for h in html_tables])
+        return html

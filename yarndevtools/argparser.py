@@ -176,6 +176,7 @@ class ArgParser:
 
     @staticmethod
     def add_compare_branches(subparsers, yarn_dev_tools):
+        # TODO Add option: Optionally run Legacy compare script
         parser = subparsers.add_parser(
             CommandType.COMPARE_BRANCHES.value,
             help="Compares branches." "Example: CDH-7.1-maint cdpd-master",
