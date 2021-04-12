@@ -34,7 +34,7 @@ class TestReviewBranchCreator(unittest.TestCase):
 
     def setUp(self):
         self.utils.reset_and_checkout_existing_branch(BASE_BRANCH, pull=False)
-        self.repo_wrapper.remove_branches_with_prefix(REVIEW_BRANCH)
+        self.repo_wrapper.remove_branches_with_prefix(REVIEW_BRANCH, checkout_before_remove=TRUNK)
 
     def cleanup_and_checkout_branch(self):
         self.utils.cleanup_and_checkout_test_branch(pull=False)

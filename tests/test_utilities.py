@@ -112,10 +112,8 @@ class TestUtilities:
                 self.repo_wrapper.reset(hard=True)
 
                 if branch != self.base_branch:
-                    # Current branch cannot be removed in git, so checkout trunk then remove branch
-                    self.checkout_trunk()
                     if remove:
-                        self.repo_wrapper.remove_branch(branch)
+                        self.repo_wrapper.remove_branch(branch, checkout_before_remove=TRUNK)
         except GitCommandError:
             # Do nothing if branch does not exist
             LOG.exception("Failed to remove branch.", exc_info=True)

@@ -49,7 +49,7 @@ class TestBackporter(unittest.TestCase):
         # THIS IS A MUST HAVE!
         # Set up remote of upstream in the downstream repo
         self.downstream_repo_wrapper.add_remote(UPSTREAM_REMOTE_NAME, self.upstream_repo.git_dir)
-        self.downstream_repo_wrapper.remove_branch(self.full_ds_branch)
+        self.downstream_repo_wrapper.remove_branch(self.full_ds_branch, checkout_before_remove=TRUNK)
 
     def setup_args(self):
         args = Object()
