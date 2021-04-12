@@ -692,7 +692,7 @@ class RenderedSummary:
 
     def __init__(self, summary_data: SummaryData):
         self._tables: Dict[RenderedTableType, List[TableWithHeader]] = {}
-        self._tables_with_branch: Dict[RenderedTableType, bool] = {RenderedTableType.ALL_COMMITS_MERGED: True}
+        self._tables_with_branch: Dict[RenderedTableType, bool] = {RenderedTableType.UNIQUE_ON_BRANCH: True}
         self.summary_data = summary_data
         self.add_result_files_table()
         self.add_unique_commit_tables()
@@ -705,7 +705,7 @@ class RenderedSummary:
         if table.is_branch_based and ttype not in self._tables_with_branch:
             raise ValueError(
                 f"Unexpected table type for branch-based table: {ttype}. "
-                f"Possible table types with branch info: {set(self._tables_with_branch.keys())}"
+                f"Possible table types with branch info: {[k.name for k in self._tables_with_branch.keys()]}"
             )
         if ttype not in self._tables:
             self._tables[ttype] = []
@@ -718,7 +718,7 @@ class RenderedSummary:
         table_fmt: TabulateTableFormat = TabulateTableFormat.GRID,
         branch: str = None,
     ):
-        tables = self._tables[ttype.value]
+        tables = self._tables[ttype]
         result = []
         for table in tables:
             # TODO simplify with filter
@@ -751,7 +751,7 @@ class RenderedSummary:
             tabulate_fmts=DEFAULT_TABLE_FORMATS,
         )
 
-        for table_fmt, table in gen_tables:
+        for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False, branch=None)
             )
@@ -769,7 +769,7 @@ class RenderedSummary:
                 max_width_separator=" ",
                 tabulate_fmts=DEFAULT_TABLE_FORMATS,
             )
-            for table_fmt, table in gen_tables:
+            for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,
                     TableWithHeader(header_value, table, table_fmt=table_fmt, colorized=False, branch=br_data.name),
@@ -786,7 +786,7 @@ class RenderedSummary:
             max_width_separator=" ",
             tabulate_fmts=DEFAULT_TABLE_FORMATS,
         )
-        for table_fmt, table in gen_tables:
+        for table_fmt, table in gen_tables.items():
             self.add_table(table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False))
 
     def add_all_commits_tables(self):
@@ -821,7 +821,7 @@ class RenderedSummary:
             colorize_config=colorize_conf,
         )
 
-        for table_fmt, table in gen_tables:
+        for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=colorize)
             )
