@@ -32,18 +32,36 @@ class JiraIdChoosePreference(Enum):
     LAST = "last"
 
 
+@dataclass
+class JiraIdData:
+    chosen: str or None
+    all_matched: Dict[str, List]
+
+
 class JiraIdParseStrategy(ABC):
     @abstractmethod
-    def parse(self, git_log_line: str, config, parser) -> str or None:
+    def parse(self, git_log_line: str, config, parser) -> JiraIdData:
         pass
 
 
+def create_jira_id_dict(truth_list: List[bool], matches: List[str]):
+    jira_id_dict = {"upstream": [], "downstream": []}
+    for idx, t in enumerate(truth_list):
+        key = "downstream"
+        if t:
+            key = "upstream"
+        jira_id_dict[key].append(matches[idx])
+    return jira_id_dict
+
+
 class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
-    def parse(self, git_log_line: str, config, parser) -> Tuple[str, List[str]] or None:
+    def parse(self, git_log_line: str, config, parser) -> JiraIdData:
         match = config.pattern.search(git_log_line)
         if match:
-            return match.group(1), []
-        return None, []
+            match_value = match.group(1)
+            jira_id_dict = create_jira_id_dict([True], [match_value])
+            return JiraIdData(match_value, jira_id_dict)
+        return JiraIdData(None, {})
 
 
 class MatchAllJiraIdStrategy(JiraIdParseStrategy):
@@ -54,18 +72,19 @@ class MatchAllJiraIdStrategy(JiraIdParseStrategy):
         self.type_preference = type_preference
         self.choose_preference = choose_preference
 
-    def parse(self, git_log_line: str, config, parser) -> Tuple[str, List[str]] or None:
+    def parse(self, git_log_line: str, config, parser) -> JiraIdData:
         matches = config.pattern.findall(git_log_line)
         if not matches:
             parser.add_violation(git_log_line, "No jira ID match")
-            return None, []
+            return JiraIdData(None, {})
         truth_list = self._get_upstream_jira_id_truth_list(matches)
         true_count = sum(truth_list)
+        jira_id_dict = create_jira_id_dict(truth_list, matches)
 
         if self.type_preference == JiraIdTypePreference.UPSTREAM:
             if not any(truth_list):
                 parser.add_violation(git_log_line, "No upstream jira ID found.")
-                return None, matches
+                return JiraIdData(None, jira_id_dict)
             if self.choose_preference == JiraIdChoosePreference.LAST and true_count == 1:
                 LOG.warning(
                     f"Choose preference is {self.choose_preference.value} "
@@ -73,10 +92,10 @@ class MatchAllJiraIdStrategy(JiraIdParseStrategy):
                 )
             if self.choose_preference == JiraIdChoosePreference.FIRST:
                 idx = self.index_of_first(truth_list, lambda x: x)
-                return matches[idx], matches
+                return JiraIdData(matches[idx], jira_id_dict)
             elif self.choose_preference == JiraIdChoosePreference.LAST:
                 idx = self.index_of_first(reversed(truth_list), lambda x: x)
-                return matches[idx], matches
+                return JiraIdData(matches[idx], jira_id_dict)
 
         if self.type_preference == JiraIdTypePreference.DOWNSTREAM:
             pass
@@ -122,7 +141,7 @@ class GitLogParseConfig:
 class CommitParserState:
     git_log_line_raw: str
     all_fields: List[str]
-    found_jira_ids: List[str]
+    jira_id_data: JiraIdData
     commit_data_obj: Any
 
 
@@ -148,7 +167,7 @@ class GitLogParser:
 
     def parse_line(self, git_log_line: str):
         fields = git_log_line.split(self.config.commit_field_separator)
-        jira_id, jira_ids = self._determine_jira_ids(git_log_line, self.config)
+        jira_id_data = self._determine_jira_ids(git_log_line, self.config)
         reverted, reverted_at_least_once = self._determine_if_reverted(git_log_line)
 
         # Alternatively, commit date and author may be gathered with git show,
@@ -176,31 +195,36 @@ class GitLogParser:
 
         commit_data = CommitData(
             commit_hash,
-            jira_id,
+            jira_id_data.chosen,
             message,
             date,
             reverted=reverted,
             reverted_at_least_once=reverted_at_least_once,
             author=author,
+            jira_id_data=jira_id_data,
         )
 
         if self.keep_state:
-            commit_state = CommitParserState(git_log_line, fields, jira_ids, commit_data)
+            commit_state = CommitParserState(git_log_line, fields, jira_id_data, commit_data)
             self.state.commit_states.append(commit_state)
             self.state.unique_jira_projects.update(
-                [GitLogParser._get_jira_project_from_jira_id(jid) for jid in jira_ids]
+                [
+                    GitLogParser._get_jira_project_from_jira_id(jid)
+                    for jira_ids in list(jira_id_data.all_matched.values())
+                    for jid in jira_ids
+                ]
             )
 
         return commit_data
 
-    def _determine_jira_ids(self, git_log_str, parse_config: GitLogParseConfig) -> Tuple[str or None, List[str]]:
-        jira_id, jira_ids = parse_config.jira_id_parse_strategy.parse(git_log_str, parse_config, self)
-        if not jira_ids and not parse_config.allow_unmatched_jira_id:
+    def _determine_jira_ids(self, git_log_str, parse_config: GitLogParseConfig) -> JiraIdData:
+        jira_id_data = parse_config.jira_id_parse_strategy.parse(git_log_str, parse_config, self)
+        if not jira_id_data.all_matched and not parse_config.allow_unmatched_jira_id:
             raise ValueError(
                 f"Cannot find YARN jira id in git log string: {git_log_str}. "
                 f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
             )
-        return jira_id, jira_ids
+        return jira_id_data
 
     @staticmethod
     def _determine_if_reverted(git_log_line):
@@ -227,7 +251,16 @@ class GitLogParser:
 @auto_str
 class CommitData:
     def __init__(
-        self, c_hash, jira_id, message, date, branches=None, reverted=False, reverted_at_least_once=False, author=None
+        self,
+        c_hash,
+        jira_id,
+        message,
+        date,
+        branches=None,
+        reverted=False,
+        reverted_at_least_once=False,
+        author=None,
+        jira_id_data: JiraIdData = None,
     ):
         self.hash = c_hash
         self.jira_id = jira_id
@@ -237,6 +270,7 @@ class CommitData:
         self.reverted = reverted
         self.author = author
         self.reverted_at_least_once = reverted_at_least_once
+        self.jira_id_data = jira_id_data
 
     @staticmethod
     def from_git_log_output(git_log_output: List[str], parse_config: GitLogParseConfig) -> List[Any]:
