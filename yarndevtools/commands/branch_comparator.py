@@ -426,14 +426,16 @@ class Branches:
 
         self.write_commit_list_to_file_or_console(
             "commit message differs",
-            [item for tup in self.summary.common_commits_matched_by_jira_id for item in tup],
+            self.summary.common_commits_matched_by_jira_id,
             add_sep_to_end=False,
+            add_line_break_between_groups=True,
         )
 
         self.write_commit_list_to_file_or_console(
             "commits matched by message",
-            [t[0] for t in self.summary.common_commits_matched_by_message],
+            self.summary.common_commits_matched_by_jira_id,
             add_sep_to_end=False,
+            add_line_break_between_groups=True,
         )
 
         master_br.unique_commits = self._filter_relevant_unique_commits(
@@ -537,8 +539,23 @@ class Branches:
             LOG.info(f"Saving {output_type} for branch {branch.type.name} to file: {f}")
             FileUtils.save_to_file(f, contents)
 
-    def write_commit_list_to_file_or_console(self, output_type: str, commits: List[CommitData], add_sep_to_end=True):
-        contents = StringUtils.list_to_multiline_string([c.as_oneline_string() for c in commits])
+    def write_commit_list_to_file_or_console(
+        self,
+        output_type: str,
+        commit_groups: List[Tuple[CommitData, CommitData]],
+        add_sep_to_end=True,
+        add_line_break_between_groups=False,
+    ):
+        if not add_line_break_between_groups:
+            commits = [commit.as_oneline_string() for tup in commit_groups for commit in tup]
+            contents = StringUtils.list_to_multiline_string(commits)
+        else:
+            contents = ""
+            for tup in commit_groups:
+                commit_strs = [commit.as_oneline_string() for commit in tup]
+                contents += StringUtils.list_to_multiline_string(commit_strs)
+                contents += "\n\n"
+
         if self.conf.console_mode:
             LOG.info(f"Printing {output_type}: {contents}")
         else:
