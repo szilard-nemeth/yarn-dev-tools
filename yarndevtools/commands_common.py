@@ -43,6 +43,8 @@ class JiraIdData:
 
     @staticmethod
     def create_jira_id_dict(truth_list: List[bool], matches: List[str]):
+        if len(truth_list) != len(matches):
+            raise ValueError("Truth list and matches should have the same length!" f"Printing args: {locals()}")
         jira_id_dict = {JiraIdData.UPSTREAM_KEY: [], JiraIdData.DOWNSTREAM_KEY: [], JiraIdData.POS_KEY: {}}
 
         for idx, t in enumerate(truth_list):
