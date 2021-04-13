@@ -54,7 +54,9 @@ class BranchData:
         self.commits_before_merge_base: List[CommitData] = []
         self.commits_after_merge_base: List[CommitData] = []
         self.hash_to_index: Dict[str, int] = {}  # Dict: commit hash to commit index
-        self.jira_id_to_commit: Dict[str, CommitData] = {}  # Dict: Jira ID (e.g. YARN-1234) to CommitData object
+        self.jira_id_to_commits: Dict[
+            str, List[CommitData]
+        ] = {}  # Dict: Jira ID (e.g. YARN-1234) to List of CommitData objects
         self.unique_commits: List[CommitData] = []
         self.merge_base_idx: int = -1
 
@@ -74,6 +76,12 @@ class BranchData:
         self.commits_after_merge_base = self.commit_objs[self.merge_base_idx :]
 
 
+class RelatedCommitGroup:
+    def __init__(self, master_commits: List[CommitData], feature_commits: List[CommitData]):
+        self.master_commits = master_commits
+        self.feature_commits = feature_commits
+
+
 class SummaryData:
     def __init__(self, output_dir: str, run_legacy_script: bool, branch_data: Dict[BranchType, BranchData]):
         self.output_dir: str = output_dir
@@ -86,11 +94,15 @@ class SummaryData:
         self.number_of_commits: Dict[BranchType, int] = {}
         self.all_commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
         self.commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
+
+        # Inner-dict key: commit message, value: CommitData obj
         self.commits_with_missing_jira_id_filtered: Dict[BranchType, Dict] = {}
         self.unique_commits: Dict[BranchType, List[CommitData]] = {}
 
         # List-based data structures
         self.common_commits_before_merge_base: List[CommitData] = []
+
+        # All common commits
         self.common_commits_after_merge_base: List[Tuple[CommitData, CommitData]] = []
 
         # Commits matched by message with missing Jira ID
@@ -144,7 +156,7 @@ class SummaryData:
 
     def is_jira_id_present_on_branch(self, jira_id: str, br_type: BranchType):
         br: BranchData = self.get_branch(br_type)
-        return jira_id in br.jira_id_to_commit
+        return jira_id in br.jira_id_to_commits
 
     def __str__(self):
         res = ""
@@ -279,7 +291,9 @@ class Branches:
 
             for idx, commit in enumerate(branch.commit_objs):
                 branch.hash_to_index[commit.hash] = idx
-                branch.jira_id_to_commit[commit.jira_id] = commit
+                if commit.jira_id not in branch.jira_id_to_commits:
+                    branch.jira_id_to_commits[commit.jira_id] = []
+                branch.jira_id_to_commits[commit.jira_id].append(commit)
         # This must be executed after branch.hash_to_index is set
         self.get_merge_base()
 
@@ -400,29 +414,30 @@ class Branches:
                         self.summary.common_commits_after_merge_base.append(commit_tuple)
                         self.summary.common_commits_matched_by_message.append(commit_tuple)
 
-            elif master_commit.jira_id in feature_br.jira_id_to_commit:
+            elif master_commit.jira_id in feature_br.jira_id_to_commits:
                 # Normal path: Try to match commits across branches by Jira ID
-                feature_commit = feature_br.jira_id_to_commit[master_commit.jira_id]
+                feature_commits: List[CommitData] = feature_br.jira_id_to_commits[master_commit.jira_id]
                 LOG.debug(
-                    "Found matching commit by jira id. Details: \n"
+                    "Found matching commits by jira id. Details: \n"
                     f"Master branch commit: {master_commit.as_oneline_string()}\n"
-                    f"Feature branch commit: {feature_commit.as_oneline_string()}"
+                    f"Feature branch commits: {[fc.as_oneline_string() for fc in feature_commits]}"
                 )
 
-                commit_tuple: Tuple[CommitData, CommitData] = (master_commit, feature_commit)
-                if master_commit_msg == feature_commit.message:
-                    self.summary.common_commits_matched_both.append(commit_tuple)
-                else:
-                    LOG.warning(
-                        "Jira ID is the same for commits, but commit message differs: \n"
-                        f"Master branch commit: {master_commit.as_oneline_string()}\n"
-                        f"Feature branch commit: {feature_commit.as_oneline_string()}"
-                    )
-                    self.summary.common_commits_matched_by_jira_id.append(commit_tuple)
+                for feature_commit in feature_commits:
+                    commit_tuple: Tuple[CommitData, CommitData] = (master_commit, feature_commit)
+                    if master_commit_msg == feature_commit.message:
+                        self.summary.common_commits_matched_both.append(commit_tuple)
+                    else:
+                        LOG.warning(
+                            "Jira ID is the same for commits, but commit message differs: \n"
+                            f"Master branch commit: {master_commit.as_oneline_string()}\n"
+                            f"Feature branch commit: {feature_commit.as_oneline_string()}"
+                        )
+                        self.summary.common_commits_matched_by_jira_id.append(commit_tuple)
 
-                # Either if commit message matched or not, count this as a common commit as Jira ID matched
-                self.summary.common_commits_after_merge_base.append(commit_tuple)
-                common_jira_ids.add(master_commit.jira_id)
+                    # Either if commit message matched or not, count this as a common commit as Jira ID matched
+                    self.summary.common_commits_after_merge_base.append(commit_tuple)
+                    common_jira_ids.add(master_commit.jira_id)
 
         self.write_commit_list_to_file_or_console(
             "commit message differs",
