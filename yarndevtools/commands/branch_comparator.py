@@ -24,7 +24,6 @@ from yarndevtools.commands_common import (
     CommitData,
     GitLogLineFormat,
     GitLogParseConfig,
-    MatchFirstJiraIdParseStrategy,
     MatchAllJiraIdStrategy,
     JiraIdTypePreference,
     JiraIdChoosePreference,
@@ -256,7 +255,9 @@ class Branches:
                 allow_unmatched_jira_id=True,
                 print_unique_jira_projects=True,
                 jira_id_parse_strategy=MatchAllJiraIdStrategy(
-                    type_preference=JiraIdTypePreference.UPSTREAM, choose_preference=JiraIdChoosePreference.FIRST
+                    type_preference=JiraIdTypePreference.UPSTREAM,
+                    choose_preference=JiraIdChoosePreference.FIRST,
+                    fallback_type=JiraIdTypePreference.DOWNSTREAM,
                 ),
                 keep_parser_state=True,
             )

@@ -59,6 +59,8 @@ class JiraIdData:
 
     @property
     def all_matched_jira_ids(self):
+        if self.DOWNSTREAM_KEY not in self._all_matched and self.UPSTREAM_KEY not in self._all_matched:
+            return []
         return self._all_matched[self.DOWNSTREAM_KEY] + self._all_matched[self.UPSTREAM_KEY]
 
     @property
@@ -86,9 +88,20 @@ class MatchAllJiraIdStrategy(JiraIdParseStrategy):
     UPSTREAM_JIRA_PROJECTS = ["HADOOP", "HBASE", "HDFS", "MAPREDUCE", "YARN"]
     UPSTREAM_JIRA_PROJECTS_TUP = tuple(UPSTREAM_JIRA_PROJECTS)
 
-    def __init__(self, type_preference: JiraIdTypePreference, choose_preference: JiraIdChoosePreference):
+    def __init__(
+        self,
+        type_preference: JiraIdTypePreference,
+        choose_preference: JiraIdChoosePreference,
+        fallback_type: JiraIdTypePreference = None,
+    ):
         self.type_preference = type_preference
         self.choose_preference = choose_preference
+        self.fallback_type = fallback_type
+        if self.fallback_type and self.fallback_type == self.type_preference:
+            raise ValueError(
+                f"Fallback type '{self.fallback_type}' "
+                f"should not be the same as type preference '{self.type_preference}'"
+            )
 
     def parse(self, git_log_line: str, config, parser) -> JiraIdData:
         matches = config.pattern.findall(git_log_line)
@@ -101,8 +114,13 @@ class MatchAllJiraIdStrategy(JiraIdParseStrategy):
 
         if self.type_preference == JiraIdTypePreference.UPSTREAM:
             if not any(truth_list):
-                parser.add_violation(git_log_line, "No upstream jira ID found.")
-                return JiraIdData(None, jira_id_dict)
+                if self.fallback_type:
+                    parser.add_violation(git_log_line, "No upstream jira ID found but fallback type is set")
+                    idx = self.index_of_first(truth_list, lambda x: not x)
+                    return JiraIdData(matches[idx], jira_id_dict)
+                else:
+                    parser.add_violation(git_log_line, "No upstream jira ID found")
+                    return JiraIdData(None, jira_id_dict)
             if self.choose_preference == JiraIdChoosePreference.LAST and true_count == 1:
                 LOG.warning(
                     f"Choose preference is {self.choose_preference.value} "
