@@ -366,6 +366,7 @@ class Branches:
         self, feature_br: BranchData, master_br: BranchData, commit_author_exceptions: List[str]
     ):
         branches = [feature_br, master_br]
+        self._print_all_jira_ids(branches)
         self._handle_commits_with_missing_jira_id(branches)
         self._handle_commits_with_missing_jira_id_filter_author(branches, commit_author_exceptions)
 
@@ -402,7 +403,7 @@ class Branches:
                 # Normal path: Try to match commits across branches by Jira ID
                 feature_commit = feature_br.jira_id_to_commit[master_commit.jira_id]
                 LOG.debug(
-                    "Found same commit on both branches (by Jira ID):\n"
+                    "Found matching commit by jira id. Details: \n"
                     f"Master branch commit: {master_commit.as_oneline_string()}\n"
                     f"Feature branch commit: {feature_commit.as_oneline_string()}"
                 )
@@ -551,6 +552,12 @@ class Branches:
         if add_sep_to_end:
             file_prefix += "-"
         return file_prefix
+
+    def _print_all_jira_ids(self, branches: List[BranchData]):
+        for br_data in branches:
+            LOG.info(f"Printing jira IDs for {br_data.type.value}...")
+            for c in br_data.commits_after_merge_base:
+                LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
 
 
 # TODO Handle multiple jira ids?? example: "CDPD-10052. HADOOP-16932"
