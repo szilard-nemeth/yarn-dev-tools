@@ -35,17 +35,33 @@ class JiraIdChoosePreference(Enum):
 @dataclass
 class JiraIdData:
     chosen: str or None
-    all_matched: Dict[str, List]
+    _all_matched: Dict[str, Any]
+
+    DOWNSTREAM_KEY = "downstream"
+    UPSTREAM_KEY = "upstream"
+    POS_KEY = "positions"
 
     @staticmethod
     def create_jira_id_dict(truth_list: List[bool], matches: List[str]):
-        jira_id_dict = {"upstream": [], "downstream": []}
+        jira_id_dict = {JiraIdData.UPSTREAM_KEY: [], JiraIdData.DOWNSTREAM_KEY: [], JiraIdData.POS_KEY: {}}
+
         for idx, t in enumerate(truth_list):
-            key = "downstream"
+            key = JiraIdData.DOWNSTREAM_KEY
             if t:
-                key = "upstream"
-            jira_id_dict[key].append(matches[idx])
+                # True value means upstream jira id
+                key = JiraIdData.UPSTREAM_KEY
+            match = matches[idx]
+            jira_id_dict[key].append(match)
+            jira_id_dict[JiraIdData.POS_KEY][match] = idx
         return jira_id_dict
+
+    @property
+    def all_matched_jira_ids(self):
+        return self._all_matched[self.DOWNSTREAM_KEY] + self._all_matched[self.UPSTREAM_KEY]
+
+    @property
+    def has_matched_jira_id(self):
+        return len(self.all_matched_jira_ids) > 0
 
 
 class JiraIdParseStrategy(ABC):
@@ -210,7 +226,7 @@ class GitLogParser:
             self.state.unique_jira_projects.update(
                 [
                     GitLogParser._get_jira_project_from_jira_id(jid)
-                    for jira_ids in list(jira_id_data.all_matched.values())
+                    for jira_ids in list(jira_id_data.all_matched_jira_ids)
                     for jid in jira_ids
                 ]
             )
@@ -219,7 +235,7 @@ class GitLogParser:
 
     def _determine_jira_ids(self, git_log_str, parse_config: GitLogParseConfig) -> JiraIdData:
         jira_id_data = parse_config.jira_id_parse_strategy.parse(git_log_str, parse_config, self)
-        if not jira_id_data.all_matched and not parse_config.allow_unmatched_jira_id:
+        if not jira_id_data.has_matched_jira_id and not parse_config.allow_unmatched_jira_id:
             raise ValueError(
                 f"Cannot find YARN jira id in git log string: {git_log_str}. "
                 f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
