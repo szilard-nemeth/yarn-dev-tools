@@ -1,9 +1,10 @@
+import json
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from re import Pattern
-from typing import List, Any, Set, Tuple
-
+from typing import List, Any, Set, Tuple, Dict
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
     REVERT,
@@ -13,24 +14,83 @@ from yarndevtools.constants import (
     YARN_JIRA_ID_PATTERN,
 )
 
+LOG = logging.getLogger(__name__)
+
 
 class GitLogLineFormat(Enum):
     ONELINE_WITH_DATE = 0
     ONELINE_WITH_DATE_AND_AUTHOR = 1
 
 
+class JiraIdTypePreference(Enum):
+    UPSTREAM = "upstream"
+    DOWNSTREAM = "downstream"
+
+
+class JiraIdChoosePreference(Enum):
+    FIRST = "first"
+    LAST = "last"
+
+
 class JiraIdParseStrategy(ABC):
     @abstractmethod
-    def parse(self, git_log_line: str, config) -> str or None:
+    def parse(self, git_log_line: str, config, parser) -> str or None:
         pass
 
 
 class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
-    def parse(self, git_log_line: str, config) -> Tuple[str, List[str]] or None:
+    def parse(self, git_log_line: str, config, parser) -> Tuple[str, List[str]] or None:
         match = config.pattern.search(git_log_line)
         if match:
-            return [match.group(1)]
-        return []
+            return match.group(1), []
+        return None, []
+
+
+class MatchAllJiraIdStrategy(JiraIdParseStrategy):
+    UPSTREAM_JIRA_PROJECTS = ["HADOOP", "HBASE", "HDFS", "MAPREDUCE", "YARN"]
+    UPSTREAM_JIRA_PROJECTS_TUP = tuple(UPSTREAM_JIRA_PROJECTS)
+
+    def __init__(self, type_preference: JiraIdTypePreference, choose_preference: JiraIdChoosePreference):
+        self.type_preference = type_preference
+        self.choose_preference = choose_preference
+
+    def parse(self, git_log_line: str, config, parser) -> Tuple[str, List[str]] or None:
+        matches = config.pattern.findall(git_log_line)
+        if not matches:
+            parser.add_violation(git_log_line, "No jira ID match")
+            return None, []
+        truth_list = self._get_upstream_jira_id_truth_list(matches)
+        true_count = sum(truth_list)
+
+        if self.type_preference == JiraIdTypePreference.UPSTREAM:
+            if not any(truth_list):
+                parser.add_violation(git_log_line, "No upstream jira ID found.")
+                return None, matches
+            if self.choose_preference == JiraIdChoosePreference.LAST and true_count == 1:
+                LOG.warning(
+                    f"Choose preference is {self.choose_preference.value} "
+                    f"but only one jira ID match found for log line: {git_log_line}"
+                )
+            if self.choose_preference == JiraIdChoosePreference.FIRST:
+                idx = self.index_of_first(truth_list, lambda x: x)
+                return matches[idx], matches
+            elif self.choose_preference == JiraIdChoosePreference.LAST:
+                idx = self.index_of_first(reversed(truth_list), lambda x: x)
+                return matches[idx], matches
+
+        if self.type_preference == JiraIdTypePreference.DOWNSTREAM:
+            pass
+            # TODO Implement downstream
+
+    def _get_upstream_jira_id_truth_list(self, jira_ids):
+        return [jid.startswith(self.UPSTREAM_JIRA_PROJECTS_TUP) for jid in jira_ids]
+
+    @staticmethod
+    def index_of_first(lst, pred):
+        for i, v in enumerate(lst):
+            if pred(v):
+                return i
+        return None
 
 
 class GitLogParseConfig:
@@ -75,14 +135,20 @@ class GitLogParserState:
 class GitLogParser:
     def __init__(self, config: GitLogParseConfig):
         self.config = config
+        self.violations: Dict[str, List[str]] = {}
         self.keep_state = config.keep_parser_state
         self.state = None
         if self.keep_state:
             self.state = GitLogParserState()
 
+    def add_violation(self, git_log_line: str, description: str):
+        if description not in self.violations:
+            self.violations[description] = []
+        self.violations[description].append(git_log_line)
+
     def parse_line(self, git_log_line: str):
         fields = git_log_line.split(self.config.commit_field_separator)
-        jira_id, jira_ids = GitLogParser._determine_jira_ids(git_log_line, self.config)
+        jira_id, jira_ids = self._determine_jira_ids(git_log_line, self.config)
         reverted, reverted_at_least_once = self._determine_if_reverted(git_log_line)
 
         # Alternatively, commit date and author may be gathered with git show,
@@ -127,18 +193,14 @@ class GitLogParser:
 
         return commit_data
 
-    @staticmethod
-    def _determine_jira_ids(git_log_str, parse_config: GitLogParseConfig) -> Tuple[str or None, List[str]]:
-        jira_ids = parse_config.jira_id_parse_strategy.parse(git_log_str, config=parse_config)
+    def _determine_jira_ids(self, git_log_str, parse_config: GitLogParseConfig) -> Tuple[str or None, List[str]]:
+        jira_id, jira_ids = parse_config.jira_id_parse_strategy.parse(git_log_str, parse_config, self)
         if not jira_ids and not parse_config.allow_unmatched_jira_id:
             raise ValueError(
                 f"Cannot find YARN jira id in git log string: {git_log_str}. "
                 f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
             )
-        if not jira_ids:
-            return None, []
-        else:
-            return jira_ids[0], jira_ids
+        return jira_id, jira_ids
 
     @staticmethod
     def _determine_if_reverted(git_log_line):
@@ -153,6 +215,13 @@ class GitLogParser:
         if "-" not in jira_id:
             raise ValueError(f"Unexpected jira id: {jira_id}")
         return jira_id.split("-")[0]
+
+    def log_violations(self):
+        sum_violations = sum([len(self.violations[k]) for k in self.violations.keys()])
+        LOG.error("Found all violations: %d", sum_violations)
+        LOG.error(f"Found {len(self.violations)} kinds of parser violations: {set(self.violations.keys())}")
+        for type, commits in self.violations.items():
+            LOG.error(f"Found {len(self.violations[type])} violations for: {type}: {commits}")
 
 
 @auto_str
@@ -175,6 +244,8 @@ class CommitData:
         result: List[CommitData] = []
         for commit_str in git_log_output:
             result.append(parser.parse_line(commit_str))
+
+        parser.log_violations()
         return result
 
     # TODO make another method that can work with full git log results, not just a line of it

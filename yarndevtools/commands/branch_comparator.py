@@ -20,7 +20,15 @@ from pythoncommons.result_printer import (
     DEFAULT_TABLE_FORMATS,
 )
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.commands_common import CommitData, GitLogLineFormat, GitLogParseConfig, MatchFirstJiraIdParseStrategy
+from yarndevtools.commands_common import (
+    CommitData,
+    GitLogLineFormat,
+    GitLogParseConfig,
+    MatchFirstJiraIdParseStrategy,
+    MatchAllJiraIdStrategy,
+    JiraIdTypePreference,
+    JiraIdChoosePreference,
+)
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -247,7 +255,9 @@ class Branches:
                 pattern=ANY_JIRA_ID_PATTERN,
                 allow_unmatched_jira_id=True,
                 print_unique_jira_projects=True,
-                jira_id_parse_strategy=MatchFirstJiraIdParseStrategy(),
+                jira_id_parse_strategy=MatchAllJiraIdStrategy(
+                    type_preference=JiraIdTypePreference.UPSTREAM, choose_preference=JiraIdChoosePreference.FIRST
+                ),
                 keep_parser_state=True,
             )
 
