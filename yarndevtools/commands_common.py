@@ -37,6 +37,16 @@ class JiraIdData:
     chosen: str or None
     all_matched: Dict[str, List]
 
+    @staticmethod
+    def create_jira_id_dict(truth_list: List[bool], matches: List[str]):
+        jira_id_dict = {"upstream": [], "downstream": []}
+        for idx, t in enumerate(truth_list):
+            key = "downstream"
+            if t:
+                key = "upstream"
+            jira_id_dict[key].append(matches[idx])
+        return jira_id_dict
+
 
 class JiraIdParseStrategy(ABC):
     @abstractmethod
@@ -44,22 +54,12 @@ class JiraIdParseStrategy(ABC):
         pass
 
 
-def create_jira_id_dict(truth_list: List[bool], matches: List[str]):
-    jira_id_dict = {"upstream": [], "downstream": []}
-    for idx, t in enumerate(truth_list):
-        key = "downstream"
-        if t:
-            key = "upstream"
-        jira_id_dict[key].append(matches[idx])
-    return jira_id_dict
-
-
 class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
     def parse(self, git_log_line: str, config, parser) -> JiraIdData:
         match = config.pattern.search(git_log_line)
         if match:
             match_value = match.group(1)
-            jira_id_dict = create_jira_id_dict([True], [match_value])
+            jira_id_dict = JiraIdData.create_jira_id_dict([True], [match_value])
             return JiraIdData(match_value, jira_id_dict)
         return JiraIdData(None, {})
 
@@ -79,7 +79,7 @@ class MatchAllJiraIdStrategy(JiraIdParseStrategy):
             return JiraIdData(None, {})
         truth_list = self._get_upstream_jira_id_truth_list(matches)
         true_count = sum(truth_list)
-        jira_id_dict = create_jira_id_dict(truth_list, matches)
+        jira_id_dict = JiraIdData.create_jira_id_dict(truth_list, matches)
 
         if self.type_preference == JiraIdTypePreference.UPSTREAM:
             if not any(truth_list):
