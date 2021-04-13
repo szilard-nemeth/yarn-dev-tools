@@ -226,11 +226,7 @@ class GitLogParser:
             commit_state = CommitParserState(git_log_line, fields, jira_id_data, commit_data)
             self.state.commit_states.append(commit_state)
             self.state.unique_jira_projects.update(
-                [
-                    GitLogParser._get_jira_project_from_jira_id(jid)
-                    for jira_ids in list(jira_id_data.all_matched_jira_ids)
-                    for jid in jira_ids
-                ]
+                [GitLogParser._get_jira_project_from_jira_id(jid) for jid in jira_id_data.all_matched_jira_ids]
             )
 
         return commit_data
