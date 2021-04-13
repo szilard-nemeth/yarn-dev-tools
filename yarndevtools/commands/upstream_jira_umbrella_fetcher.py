@@ -235,7 +235,7 @@ class UpstreamJiraUmbrellaFetcher:
         self.upstream_base_branch = upstream_base_branch
         self.force_mode = True if args.force_mode else False
         # These fields will be assigned when data is fetched
-        self.data: JiraUmbrellaData = None
+        self.data: JiraUmbrellaData or None = None
         self.result_basedir = None
 
     def run(self):

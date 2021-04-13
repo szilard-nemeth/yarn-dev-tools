@@ -1,10 +1,9 @@
-import json
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from re import Pattern
-from typing import List, Any, Set, Tuple, Dict
+from typing import List, Any, Set, Dict
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
     REVERT,
@@ -87,6 +86,7 @@ class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
 class MatchAllJiraIdStrategy(JiraIdParseStrategy):
     UPSTREAM_JIRA_PROJECTS = ["HADOOP", "HBASE", "HDFS", "MAPREDUCE", "YARN"]
     UPSTREAM_JIRA_PROJECTS_TUP = tuple(UPSTREAM_JIRA_PROJECTS)
+    # TODO make lower/upper comparison
 
     def __init__(
         self,
