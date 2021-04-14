@@ -56,8 +56,7 @@ class BranchData:
 
         # Set later
         self.gitlog_results: List[str] = []
-        # Commit objects in reverse order (from oldest to newest)
-        # Commits stored in a list, in order from last to first commit (descending)
+        # CommitData objects stored in a list, ordered from last to first commit (descending, from oldest to newest)
         self.commit_objs: List[CommitData] = []
         self.all_commits_with_missing_jira_id: List[CommitData] = []
         self.commits_before_merge_base: List[CommitData] = []
@@ -303,6 +302,7 @@ class BranchComparatorConfig:
         )
         self.commit_author_exceptions = args.commit_author_exceptions
         self.console_mode = True if "console_mode" in args and args.console_mode else False
+        self.save_to_file = not self.console_mode
         self.fail_on_missing_jira_id = False
         self.run_legacy_script = args.run_legacy_script
         self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
@@ -341,7 +341,7 @@ class Branches:
             LOG.error(f"{br_data.type.name} does not exist with name '{br_data.name}'")
         return branch_exist
 
-    def execute_git_log(self, print_stats=True, save_to_file=True):
+    def execute_git_log(self):
         for br_type in BranchType:
             branch: BranchData = self.branch_data[br_type]
             branch.gitlog_results = self.repo.log(branch.name, oneline_with_date_author_committer=True)
@@ -379,10 +379,19 @@ class Branches:
         # This must be executed after branch.hash_to_index is set
         self.get_merge_base()
 
-        if print_stats:
+    def pre_compare(self, config: BranchComparatorConfig):
+        self._print_all_jira_ids()
+        if config.console_mode:
             self._print_stats()
-        if save_to_file:
+        if config.save_to_file:
             self._write_git_log_to_file()
+        feature_br: BranchData = self.branch_data[BranchType.FEATURE]
+        master_br: BranchData = self.branch_data[BranchType.MASTER]
+        branches = [feature_br, master_br]
+        self._sanity_check_commits_before_merge_base(feature_br, master_br)
+        self._save_commits_before_after_merge_base_to_file()
+        self._handle_commits_with_missing_jira_id(branches)
+        self._handle_commits_with_missing_jira_id_filter_author(branches, config)
 
     def _print_stats(self):
         for br_type in BranchType:
@@ -423,13 +432,10 @@ class Branches:
             branch: BranchData = self.branch_data[br_type]
             branch.set_merge_base(self.merge_base)
 
-    def compare(self, commit_author_exceptions):
-        self._save_commits_before_after_merge_base_to_file()
+    def compare(self):
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
-
-        self._sanity_check_commits_before_merge_base(feature_br, master_br)
-        self._check_after_merge_base_commits(feature_br, master_br, commit_author_exceptions)
+        self._check_after_merge_base_commits(feature_br, master_br)
 
     def _sanity_check_commits_before_merge_base(self, feature_br: BranchData, master_br: BranchData):
         if len(master_br.commits_before_merge_base) != len(feature_br.commits_before_merge_base):
@@ -454,14 +460,7 @@ class Branches:
             f"'{feature_br.name}' and '{master_br.name}'"
         )
 
-    def _check_after_merge_base_commits(
-        self, feature_br: BranchData, master_br: BranchData, commit_author_exceptions: List[str]
-    ):
-        branches = [feature_br, master_br]
-        self._print_all_jira_ids(branches)
-        self._handle_commits_with_missing_jira_id(branches)
-        self._handle_commits_with_missing_jira_id_filter_author(branches, commit_author_exceptions)
-
+    def _check_after_merge_base_commits(self, feature_br: BranchData, master_br: BranchData):
         common_jira_ids: Set[str] = set()
         common_commit_msgs: Set[str] = set()
         master_commits_by_message: Dict[str, CommitData] = self.summary.commits_with_missing_jira_id_filtered[
@@ -548,7 +547,9 @@ class Branches:
         self.write_to_file_or_console("unique commits", master_br, master_br.unique_commits)
         self.write_to_file_or_console("unique commits", feature_br, feature_br.unique_commits)
 
-    def _handle_commits_with_missing_jira_id_filter_author(self, branches: List[BranchData], commit_author_exceptions):
+    def _handle_commits_with_missing_jira_id_filter_author(
+        self, branches: List[BranchData], config: BranchComparatorConfig
+    ):
         # Create a dict of (commit message, CommitData),
         # filtering all the commits that has author from the exceptional authors.
         # Assumption: Commit message is unique for all commits
@@ -557,14 +558,14 @@ class Branches:
                 [
                     (c.message, c)
                     for c in filter(
-                        lambda c: c.author not in commit_author_exceptions,
+                        lambda c: c.author not in config.commit_author_exceptions,
                         self.summary.commits_with_missing_jira_id[br_data.type],
                     )
                 ]
             )
             LOG.combined_log(
                 f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
-                f"(after applied author filter: {commit_author_exceptions}): ",
+                f"(after applied author filter: {config.commit_author_exceptions}): ",
                 coll=self.summary.commits_with_missing_jira_id_filtered[br_data.type],
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
@@ -651,8 +652,8 @@ class Branches:
             file_prefix += "-"
         return file_prefix
 
-    def _print_all_jira_ids(self, branches: List[BranchData]):
-        for br_data in branches:
+    def _print_all_jira_ids(self):
+        for br_type, br_data in self.branch_data.items():
             LOG.info(f"Printing jira IDs for {br_data.type.value}...")
             for c in br_data.commits_after_merge_base:
                 LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
@@ -779,9 +780,7 @@ class BranchComparator:
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
-        print_stats = self.config.console_mode
-        save_to_file = not self.config.console_mode
-        self.compare(print_stats=print_stats, save_to_file=save_to_file)
+        self.compare()
         if self.config.run_legacy_script:
             LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path)
         self.print_and_save_summary()
@@ -792,9 +791,10 @@ class BranchComparator:
         if not both_exist:
             raise ValueError("Both feature and master branch should be an existing branch. Exiting...")
 
-    def compare(self, print_stats=True, save_to_file=True):
-        self.branches.execute_git_log(print_stats=print_stats, save_to_file=save_to_file)
-        self.branches.compare(self.config.commit_author_exceptions)
+    def compare(self):
+        self.branches.execute_git_log()
+        self.branches.pre_compare(self.config)
+        self.branches.compare()
 
     def print_and_save_summary(self):
         rendered_sum = RenderedSummary.from_summary_data(self.branches.summary)
