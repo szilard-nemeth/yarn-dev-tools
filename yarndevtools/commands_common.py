@@ -346,5 +346,9 @@ class CommitData:
         parser = GitLogParser(parse_config)
         return parser.parse_line(git_log_str)
 
-    def as_oneline_string(self) -> str:
-        return f"{self.hash} {self.message}"
+    def as_oneline_string(self, include_date=False) -> str:
+        result_str = ""
+        if include_date:
+            result_str += f"{self.date} "
+        result_str += f"{self.hash} {self.message}"
+        return result_str
