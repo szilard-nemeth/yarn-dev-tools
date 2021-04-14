@@ -1,7 +1,7 @@
 import logging
 import os
 from enum import Enum
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Any
 
 from bs4 import BeautifulSoup
 from git import Commit
@@ -31,6 +31,13 @@ from yarndevtools.commands_common import (
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 from pythoncommons.git_wrapper import GitWrapper
 
+HEADER_COMMIT_DATE = "Commit date"
+HEADER_COMMIT_MSG = "Commit message"
+HEADER_JIRA_ID = "Jira ID"
+HEADER_ROW = "Row"
+HEADER_FILE = "File"
+HEADER_NO_OF_LINES = "# of lines"
+HEADER_COMMITTER = "Committer"
 
 LOG = logging.getLogger(__name__)
 
@@ -177,9 +184,9 @@ class SummaryData:
         rows: List[List] = []
         for commit in self.all_commits:
             jira_id = commit.jira_id
-            row = [jira_id, commit.message, commit.date]
+            row: List[str] = [jira_id, commit.message, commit.date, commit.committer]
 
-            presence = []
+            presence: List[bool] = []
             if self.is_jira_id_present_on_branch(jira_id, BranchType.MASTER) and self.is_jira_id_present_on_branch(
                 jira_id, BranchType.FEATURE
             ):
@@ -871,7 +878,7 @@ class RenderedSummary:
         gen_tables = ResultPrinter.print_tables(
             result_files_data,
             lambda file: (file, len(FileUtils.read_file(file).splitlines())),
-            header=["Row", "File", "# of lines"],
+            header=[HEADER_ROW, HEADER_FILE, HEADER_NO_OF_LINES],
             print_result=False,
             max_width=200,
             max_width_separator=os.sep,
@@ -889,8 +896,8 @@ class RenderedSummary:
             header_value = table_type.header.replace("$$", br_data.name)
             gen_tables = ResultPrinter.print_tables(
                 self.summary_data.unique_commits[br_type],
-                lambda commit: (commit.jira_id, commit.message, commit.date),
-                header=["Row", "Jira ID", "Commit message", "Commit date"],
+                lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
+                header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
                 print_result=False,
                 max_width=80,
                 max_width_separator=" ",
@@ -906,8 +913,8 @@ class RenderedSummary:
         table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
         gen_tables = ResultPrinter.print_tables(
             self.summary_data.common_commits,
-            lambda commit: (commit.jira_id, commit.message, commit.date),
-            header=["Row", "Jira ID", "Commit message", "Commit date"],
+            lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
+            header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
             print_result=False,
             max_width=80,
             max_width_separator=" ",
@@ -919,7 +926,7 @@ class RenderedSummary:
     def add_all_commits_tables(self):
         all_commits: List[List] = self.summary_data.all_commits_presence_matrix
 
-        header = ["Row", "Jira ID", "Commit message", "Commit date"]
+        header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
         header.extend(self.summary_data.get_branch_names())
 
         # Adding 1 because row id will be added as first column
