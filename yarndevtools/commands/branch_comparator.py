@@ -1,7 +1,7 @@
 import logging
 import os
 from enum import Enum
-from typing import Dict, List, Tuple, Set, Any
+from typing import Dict, List, Tuple, Set
 
 from bs4 import BeautifulSoup
 from git import Commit
@@ -70,6 +70,8 @@ class BranchData:
 
     @property
     def number_of_commits(self):
+        if not self.gitlog_results:
+            raise ValueError("Git log is not yet queried so number of commits is not yet stored.")
         return len(self.gitlog_results)
 
     def set_merge_base(self, merge_base: CommitData):
@@ -141,7 +143,6 @@ class SummaryData:
         # Dict-based data structures, key: BranchType
         # These are set before comparing the branches
         self.branch_data: Dict[BranchType, BranchData] = branch_data
-        self.number_of_commits: Dict[BranchType, int] = {}
         self.all_commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
         self.commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
 
@@ -280,7 +281,7 @@ class SummaryData:
     def add_stats_no_of_commits_branch(self, res):
         res += "\n\n=====Stats: BRANCHES=====\n"
         for br_type, br_data in self.branch_data.items():
-            res += f"Number of commits on {br_type.value} '{br_data.name}': {self.number_of_commits[br_type]}\n"
+            res += f"Number of commits on {br_type.value} '{br_data.name}': {br_data.number_of_commits}\n"
         return res
 
 
@@ -371,16 +372,10 @@ class Branches:
         # This must be executed after branch.hash_to_index is set
         self.get_merge_base()
 
-        self._record_stats_to_summary()
         if print_stats:
             self._print_stats()
         if save_to_file:
             self._write_git_log_to_file()
-
-    def _record_stats_to_summary(self):
-        for br_type in BranchType:
-            branch: BranchData = self.branch_data[br_type]
-            self.summary.number_of_commits[br_type] = branch.number_of_commits
 
     def _print_stats(self):
         for br_type in BranchType:
