@@ -59,6 +59,7 @@ class BranchData:
         # Commit objects in reverse order (from oldest to newest)
         # Commits stored in a list, in order from last to first commit (descending)
         self.commit_objs: List[CommitData] = []
+        self.all_commits_with_missing_jira_id: List[CommitData] = []
         self.commits_before_merge_base: List[CommitData] = []
         self.commits_after_merge_base: List[CommitData] = []
         self.hash_to_index: Dict[str, int] = {}  # Dict: commit hash to commit index
@@ -84,6 +85,10 @@ class BranchData:
             raise ValueError("set_merge_base is invoked while commit list was empty!")
         self.commits_before_merge_base = self.commit_objs[: self.merge_base_idx]
         self.commits_after_merge_base = self.commit_objs[self.merge_base_idx :]
+
+    def set_commit_objs(self, commits):
+        self.commit_objs = commits
+        self.all_commits_with_missing_jira_id = list(filter(lambda c: not c.jira_id, self.commit_objs))
 
 
 class RelatedCommitGroup:
@@ -143,7 +148,6 @@ class SummaryData:
         # Dict-based data structures, key: BranchType
         # These are set before comparing the branches
         self.branch_data: Dict[BranchType, BranchData] = branch_data
-        self.all_commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
         self.commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
 
         # Inner-dict key: commit message, value: CommitData obj
@@ -180,6 +184,13 @@ class SummaryData:
         )
         all_commits.sort(key=lambda c: c.date, reverse=True)
         return all_commits
+
+    @property
+    def all_commits_with_missing_jira_id(self) -> Dict[BranchType, List[CommitData]]:
+        result = {}
+        for br_type, br_data in self.branch_data.items():
+            result[br_type] = br_data.all_commits_with_missing_jira_id
+        return result
 
     @property
     def all_commits_presence_matrix(self) -> List[List]:
@@ -348,11 +359,7 @@ class Branches:
             )
 
             # Store commit objects in reverse order (ascending by date)
-            branch.commit_objs = list(reversed(CommitData.from_git_log_output(branch.gitlog_results, parse_config)))
-            self.summary.all_commits_with_missing_jira_id[br_type] = list(
-                filter(lambda c: not c.jira_id, branch.commit_objs)
-            )
-
+            branch.set_commit_objs(list(reversed(CommitData.from_git_log_output(branch.gitlog_results, parse_config))))
             LOG.combined_log(
                 "Found commits with missing Jira ID:",
                 info_coll=self.summary.all_commits_with_missing_jira_id[br_type],
