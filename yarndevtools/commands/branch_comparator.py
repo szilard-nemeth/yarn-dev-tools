@@ -359,20 +359,10 @@ class Branches:
 
             # Store commit objects in reverse order (ascending by date)
             branch.set_commit_objs(list(reversed(CommitData.from_git_log_output(branch.gitlog_results, parse_config))))
-            LOG.combined_log(
-                "Found commits with missing Jira ID:",
-                info_coll=self.summary.all_commits_with_missing_jira_id[br_type],
-                debug_coll=self.summary.all_commits_with_missing_jira_id,
-                debug_coll_func=StringUtils.dict_to_multiline_string,
-            )
-            if self.conf.fail_on_missing_jira_id:
-                # TODO fix this prints size of dict keys which is 2 (feature, master)
-                raise ValueError(
-                    f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID!"
-                )
-
             for idx, commit in enumerate(branch.commit_objs):
                 branch.hash_to_index[commit.hash] = idx
+                # TODO add a special key like "NO_JIRA_ID" that groups all commits without jira id, right now these are overwriting
+                #  because key will be None
                 if commit.jira_id not in branch.jira_id_to_commits:
                     branch.jira_id_to_commits[commit.jira_id] = []
                 branch.jira_id_to_commits[commit.jira_id].append(commit)
@@ -577,6 +567,20 @@ class Branches:
     def _handle_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # TODO write these to file
         # TODO also write commits with multiple jira IDs
+        for br_type, br_data in self.branch_data.items():
+            LOG.combined_log(
+                "Found all commits with missing Jira ID:",
+                info_coll=self.summary.all_commits_with_missing_jira_id[br_type],
+                debug_coll=self.summary.all_commits_with_missing_jira_id,
+                debug_coll_func=StringUtils.dict_to_multiline_string,
+            )
+        if self.conf.fail_on_missing_jira_id:
+            # TODO fix this prints size of dict keys which is 2 (feature, master)
+            raise ValueError(
+                f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
+                f"Halting as configured"
+            )
+
         for br_data in branches:
             self.summary.commits_with_missing_jira_id[br_data.type]: List[CommitData] = list(
                 filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
