@@ -136,11 +136,11 @@ class SummaryData:
     def __init__(self, conf, branch_data: Dict[BranchType, BranchData]):
         self.output_dir: str = conf.output_dir
         self.run_legacy_script: bool = conf.run_legacy_script
-        self.branch_data: Dict[BranchType, BranchData] = branch_data
         self.merge_base: CommitData or None = None
 
         # Dict-based data structures, key: BranchType
-        self.branch_names: Dict[BranchType, str] = {br_type: br_data.name for br_type, br_data in branch_data.items()}
+        # These are set before comparing the branches
+        self.branch_data: Dict[BranchType, BranchData] = branch_data
         self.number_of_commits: Dict[BranchType, int] = {}
         self.all_commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
         self.commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
@@ -238,8 +238,8 @@ class SummaryData:
         return res
 
     def add_stats_commits_with_missing_jira_id(self, res):
-        for br_type, br_name in self.branch_names.items():
-            res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_name}=====\n"
+        for br_type, br_data in self.branch_data.items():
+            res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_data.name}=====\n"
             res += (
                 f"Number of all commits with missing Jira ID: {len(self.all_commits_with_missing_jira_id[br_type])}\n"
             )
@@ -263,22 +263,24 @@ class SummaryData:
     def add_stats_unique_commits_legacy_script(self, res):
         if self.run_legacy_script:
             res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
-            for br_type, br_name in self.branch_names.items():
-                res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
+            for br_type, br_data in self.branch_data.items():
+                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
         else:
             res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
         return res
 
     def add_stats_no_of_unique_commits_on_branch(self, res):
         res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
-        for br_type, br_name in self.branch_names.items():
-            res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_commits[br_type])}\n"
+        for br_type, br_data in self.branch_data.items():
+            res += (
+                f"Number of unique commits on {br_type.value} '{br_data.name}': {len(self.unique_commits[br_type])}\n"
+            )
         return res
 
     def add_stats_no_of_commits_branch(self, res):
         res += "\n\n=====Stats: BRANCHES=====\n"
-        for br_type, br_name in self.branch_names.items():
-            res += f"Number of commits on {br_type.value} '{br_name}': {self.number_of_commits[br_type]}\n"
+        for br_type, br_data in self.branch_data.items():
+            res += f"Number of commits on {br_type.value} '{br_data.name}': {self.number_of_commits[br_type]}\n"
         return res
 
 
