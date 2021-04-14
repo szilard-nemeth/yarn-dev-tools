@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.logging_utils import LoggerFactory
 from pythoncommons.process import CommandRunner
 from pythoncommons.result_printer import (
     ResultPrinter,
@@ -39,7 +40,7 @@ HEADER_FILE = "File"
 HEADER_NO_OF_LINES = "# of lines"
 HEADER_COMMITTER = "Committer"
 
-LOG = logging.getLogger(__name__)
+LOG = LoggerFactory.get_logger(__name__)
 
 
 class BranchType(Enum):
@@ -330,10 +331,12 @@ class Branches:
             self.summary.all_commits_with_missing_jira_id[br_type] = list(
                 filter(lambda c: not c.jira_id, branch.commit_objs)
             )
-            LOG.info(f"Found {len(self.summary.all_commits_with_missing_jira_id[br_type])} commits with empty Jira ID")
 
-            LOG.debug(
-                f"Found commits with empty Jira ID: {StringUtils.dict_to_multiline_string(self.summary.all_commits_with_missing_jira_id)}"
+            LOG.combined_log(
+                "Found commits with empty Jira ID:",
+                info_coll=self.summary.all_commits_with_missing_jira_id[br_type],
+                debug_coll=self.summary.all_commits_with_missing_jira_id,
+                debug_coll_func=StringUtils.dict_to_multiline_string,
             )
             if self.fail_on_missing_jira_id:
                 raise ValueError(
@@ -543,15 +546,11 @@ class Branches:
                     )
                 ]
             )
-            LOG.warning(
+            LOG.combined_log(
                 f"Found {br_data.type.value} commits after merge-base with empty Jira ID "
-                f"(after applied author filter: {commit_author_exceptions}): "
-                f"{len(self.summary.commits_with_missing_jira_id_filtered[br_data.type])} "
-            )
-            LOG.debug(
-                f"Found {br_data.type.value} commits after merge-base with empty Jira ID "
-                f"(after applied author filter: {commit_author_exceptions}): "
-                f"{StringUtils.list_to_multiline_string(self.summary.commits_with_missing_jira_id_filtered[br_data.type])}"
+                f"(after applied author filter: {commit_author_exceptions}): ",
+                coll=self.summary.commits_with_missing_jira_id_filtered[br_data.type],
+                debug_coll_func=StringUtils.list_to_multiline_string,
             )
         for br_data in branches:
             self.write_to_file_or_console(
@@ -566,15 +565,10 @@ class Branches:
                 filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
             )
 
-            LOG.warning(
-                f"Found {br_data.type.value} "
-                f"commits after merge-base with empty Jira ID: "
-                f"{len(self.summary.commits_with_missing_jira_id[br_data.type])}"
-            )
-            LOG.debug(
-                f"Found {br_data.type.value} "
-                f"commits after merge-base with empty Jira ID: "
-                f"{StringUtils.list_to_multiline_string(self.summary.commits_with_missing_jira_id[br_data.type])}"
+            LOG.combined_log(
+                f"Found {br_data.type.value} " f"commits after merge-base with empty Jira ID: ",
+                coll=self.summary.commits_with_missing_jira_id[br_data.type],
+                debug_coll_func=StringUtils.list_to_multiline_string,
             )
         for br_data in branches:
             self.write_to_file_or_console(
@@ -676,8 +670,16 @@ class LegacyScriptRunner:
         for br_type in BranchType:
             branch_data = branches.get_branch(br_type)
             unique_jira_ids = [c.jira_id for c in branches.summary.unique_commits[br_type]]
-            LOG.info(f"[CURRENT SCRIPT] Found {len(unique_jira_ids)} unique commits on {br_type} '{branch_data.name}'")
-            LOG.debug(f"[CURRENT SCRIPT] Found unique commits on {br_type} '{branch_data.name}': {unique_jira_ids} ")
+            if LOG.isEnabledFor(logging.DEBUG):
+                LOG.debug(
+                    f"[CURRENT SCRIPT] Found unique commits on branch "
+                    f"'{branch_data.name}' [{br_type}]: {unique_jira_ids} "
+                )
+            else:
+                LOG.debug(
+                    f"[CURRENT SCRIPT] Found unique commits on branch "
+                    f"'{branch_data.name}' [{br_type}]: {len(unique_jira_ids)} "
+                )
 
     @staticmethod
     def _get_unique_jira_ids_for_branch(script_results: Dict[BranchType, Tuple[str, str]], branch_data: BranchData):
@@ -687,8 +689,18 @@ class LegacyScriptRunner:
         LOG.info(f"Output of command for {branch_type} was: {res_tuple[1]}")
         lines = res_tuple[1].splitlines()
         unique_jira_ids = [line.split(" ")[0] for line in lines]
-        LOG.info(f"[LEGACY SCRIPT] Found {len(unique_jira_ids)} unique commits on {branch_type} '{branch_data.name}'")
-        LOG.debug(f"[LEGACY SCRIPT] Found unique commits on {branch_type} '{branch_data.name}': {unique_jira_ids}")
+
+        if LOG.isEnabledFor(logging.DEBUG):
+            LOG.debug(
+                f"[LEGACY SCRIPT] Found unique commits on branch "
+                f"'{branch_data.name}' [{branch_type}]: {unique_jira_ids}"
+            )
+        else:
+            LOG.debug(
+                f"[LEGACY SCRIPT] Found unique commits on branch "
+                f"'{branch_data.name}' [{branch_type}]: {len(unique_jira_ids)}"
+            )
+
         return unique_jira_ids
 
     @staticmethod

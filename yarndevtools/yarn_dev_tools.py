@@ -57,7 +57,8 @@ class Setup:
     def init_logger(execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose=False):
         # get root logger
         logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
+        level = logging.DEBUG
+        logger.setLevel(level)
 
         if execution_mode == ExecutionMode.PRODUCTION:
             log_file = ProjectUtils.get_default_log_file(PROJECT_NAME, postfix=postfix)
@@ -69,13 +70,13 @@ class Setup:
         # create file handler which logs even debug messages
         fh = TimedRotatingFileHandler(log_file, when="midnight")
         fh.suffix = "%Y_%m_%d.log"
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(level)
 
         # create console handler with a higher log level
         ch = logging.StreamHandler(stream=sys.stdout)
         ch.setLevel(logging.INFO)
         if console_debug:
-            ch.setLevel(logging.DEBUG)
+            ch.setLevel(level)
 
         formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
         fh.setFormatter(formatter)
