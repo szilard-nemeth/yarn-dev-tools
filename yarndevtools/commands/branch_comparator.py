@@ -213,41 +213,15 @@ class SummaryData:
     def __str__(self):
         res = ""
         res += f"Output dir: {self.output_dir}\n"
+        res = self.add_stats_no_of_commits_branch(res)
+        res = self.add_stats_no_of_unique_commits_on_branch(res)
+        res = self.add_stats_unique_commits_legacy_script(res)
+        res = self.add_stats_common_commits_on_branches(res)
+        res = self.add_stats_commits_with_missing_jira_id(res)
+        res = self.add_stats_common_commit_details(res)
+        return res
 
-        res += "\n\n=====Stats: BRANCHES=====\n"
-        for br_type, br_name in self.branch_names.items():
-            res += f"Number of commits on {br_type.value} '{br_name}': {self.number_of_commits[br_type]}\n"
-
-        res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
-        for br_type, br_name in self.branch_names.items():
-            res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_commits[br_type])}\n"
-
-        if self.run_legacy_script:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
-            for br_type, br_name in self.branch_names.items():
-                res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
-        else:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
-
-        res += "\n\n=====Stats: COMMON=====\n"
-        res += f"Merge-base commit: {self.merge_base.hash} {self.merge_base.message} {self.merge_base.date}\n"
-        res += f"Number of common commits before merge-base: {len(self.common_commits_before_merge_base)}\n"
-        res += f"Number of common commits after merge-base: {len(self.common_commits_after_merge_base)}\n"
-
-        for br_type, br_name in self.branch_names.items():
-            res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_name}=====\n"
-            res += (
-                f"Number of all commits with missing Jira ID: {len(self.all_commits_with_missing_jira_id[br_type])}\n"
-            )
-            res += (
-                f"Number of commits with missing Jira ID after merge-base: "
-                f"{len(self.commits_with_missing_jira_id[br_type])}\n"
-            )
-            res += (
-                f"Number of commits with missing Jira ID after merge-base, filtered by author exceptions: "
-                f"{len(self.commits_with_missing_jira_id_filtered[br_type])}\n"
-            )
-
+    def add_stats_common_commit_details(self, res):
         res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
         res += (
             f"Number of common commits with missing Jira ID, matched by commit message: "
@@ -261,6 +235,50 @@ class SummaryData:
             f"Number of common commits with matching Jira ID and commit message: "
             f"{len(self.common_commits_matched_both)}\n"
         )
+        return res
+
+    def add_stats_commits_with_missing_jira_id(self, res):
+        for br_type, br_name in self.branch_names.items():
+            res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_name}=====\n"
+            res += (
+                f"Number of all commits with missing Jira ID: {len(self.all_commits_with_missing_jira_id[br_type])}\n"
+            )
+            res += (
+                f"Number of commits with missing Jira ID after merge-base: "
+                f"{len(self.commits_with_missing_jira_id[br_type])}\n"
+            )
+            res += (
+                f"Number of commits with missing Jira ID after merge-base, filtered by author exceptions: "
+                f"{len(self.commits_with_missing_jira_id_filtered[br_type])}\n"
+            )
+        return res
+
+    def add_stats_common_commits_on_branches(self, res):
+        res += "\n\n=====Stats: COMMON=====\n"
+        res += f"Merge-base commit: {self.merge_base.hash} {self.merge_base.message} {self.merge_base.date}\n"
+        res += f"Number of common commits before merge-base: {len(self.common_commits_before_merge_base)}\n"
+        res += f"Number of common commits after merge-base: {len(self.common_commits_after_merge_base)}\n"
+        return res
+
+    def add_stats_unique_commits_legacy_script(self, res):
+        if self.run_legacy_script:
+            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
+            for br_type, br_name in self.branch_names.items():
+                res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
+        else:
+            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
+        return res
+
+    def add_stats_no_of_unique_commits_on_branch(self, res):
+        res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
+        for br_type, br_name in self.branch_names.items():
+            res += f"Number of unique commits on {br_type.value} '{br_name}': {len(self.unique_commits[br_type])}\n"
+        return res
+
+    def add_stats_no_of_commits_branch(self, res):
+        res += "\n\n=====Stats: BRANCHES=====\n"
+        for br_type, br_name in self.branch_names.items():
+            res += f"Number of commits on {br_type.value} '{br_name}': {self.number_of_commits[br_type]}\n"
         return res
 
 
@@ -450,12 +468,6 @@ class Branches:
         ]
 
         # List of tuples. First item: Master branch commit obj, second item: feature branch commit obj
-
-        # 1. Go through commits on each branch, put commits into groups for the same jira
-        # 2. Compare groups accross two branches
-        # 3. Function: Get all ids of group
-        # 4. Check if all commits are the same including the reverts
-        # 5. If anything differs in groups, warn and write to file
         for master_commit in master_br.commits_after_merge_base:
             master_commit_msg = master_commit.message
             master_jira_id = master_commit.jira_id
