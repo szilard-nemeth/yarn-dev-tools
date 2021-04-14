@@ -154,8 +154,6 @@ class SummaryData:
         # These are set before comparing the branches
         self.branch_data: Dict[BranchType, BranchData] = branch_data
 
-        self.unique_commits: Dict[BranchType, List[CommitData]] = {}
-
         # List-based data structures
         self.common_commits_before_merge_base: List[CommitData] = []
 
@@ -182,7 +180,10 @@ class SummaryData:
     @property
     def all_commits(self):
         all_commits: List[CommitData] = (
-            [] + self.unique_commits[BranchType.MASTER] + self.unique_commits[BranchType.FEATURE] + self.common_commits
+            []
+            + self.branch_data[BranchType.MASTER].unique_commits
+            + self.branch_data[BranchType.FEATURE].unique_commits
+            + self.common_commits
         )
         all_commits.sort(key=lambda c: c.date, reverse=True)
         return all_commits
@@ -286,9 +287,7 @@ class SummaryData:
     def add_stats_no_of_unique_commits_on_branch(self, res):
         res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
         for br_type, br_data in self.branch_data.items():
-            res += (
-                f"Number of unique commits on {br_type.value} '{br_data.name}': {len(self.unique_commits[br_type])}\n"
-            )
+            res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_commits)}\n"
         return res
 
     def add_stats_no_of_commits_branch(self, res):
@@ -530,8 +529,6 @@ class Branches:
         )
         LOG.info(f"Identified {len(master_br.unique_commits)} unique commits on branch: {master_br.name}")
         LOG.info(f"Identified {len(feature_br.unique_commits)} unique commits on branch: {feature_br.name}")
-        self.summary.unique_commits[BranchType.MASTER] = master_br.unique_commits
-        self.summary.unique_commits[BranchType.FEATURE] = feature_br.unique_commits
         self.write_to_file_or_console("unique commits", master_br, master_br.unique_commits)
         self.write_to_file_or_console("unique commits", feature_br, feature_br.unique_commits)
 
@@ -917,7 +914,7 @@ class RenderedSummary:
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)
             gen_tables = ResultPrinter.print_tables(
-                self.summary_data.unique_commits[br_type],
+                br_data.unique_commits,
                 lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
                 header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
                 print_result=False,
