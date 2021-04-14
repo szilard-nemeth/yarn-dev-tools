@@ -73,6 +73,7 @@ class BranchData:
         ] = {}  # Dict: Jira ID (e.g. YARN-1234) to List of CommitData objects
         self.unique_commits: List[CommitData] = []
         self.merge_base_idx: int = -1
+        self.unique_jira_ids_legacy_script: List[str] = []
 
     @property
     def number_of_commits(self):
@@ -168,8 +169,6 @@ class SummaryData:
 
         # Commits matched by Jira ID and by message as well
         self.common_commits_matched_both: List[Tuple[CommitData, CommitData]] = []
-
-        self.unique_jira_ids_legacy_script: Dict[BranchType, List[str]] = {}
 
         self.commit_groups: RelatedCommits = RelatedCommits()
 
@@ -279,7 +278,7 @@ class SummaryData:
         if self.run_legacy_script:
             res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
             for br_type, br_data in self.branch_data.items():
-                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(self.unique_jira_ids_legacy_script[br_type])}\n"
+                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_jira_ids_legacy_script)}\n"
         else:
             res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
         return res
@@ -667,13 +666,15 @@ class LegacyScriptRunner:
             config, branches, working_dir=repo_path
         )
         for br_type in BranchType:
-            branches.summary.unique_jira_ids_legacy_script[
-                br_type
-            ] = LegacyScriptRunner._get_unique_jira_ids_for_branch(script_results, branches.get_branch(br_type))
+            branch_data = branches.get_branch(br_type)
+            branch_data.unique_jira_ids_legacy_script = LegacyScriptRunner._get_unique_jira_ids_for_branch(
+                script_results, branch_data
+            )
             LOG.debug(
                 f"[LEGACY SCRIPT] Unique commit results for {br_type.value}: "
-                f"{branches.summary.unique_jira_ids_legacy_script[br_type]}"
+                f"{branch_data.unique_jira_ids_legacy_script}"
             )
+
         # Cross check unique jira ids with previous results
         for br_type in BranchType:
             branch_data = branches.get_branch(br_type)
