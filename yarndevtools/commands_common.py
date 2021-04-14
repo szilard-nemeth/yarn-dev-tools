@@ -312,15 +312,15 @@ class CommitData:
         jira_id_data: JiraIdData = None,
     ):
         self.hash = c_hash
-        self.jira_id = jira_id
-        self.message = message
-        self.date = date
+        self.jira_id: str = jira_id
+        self.message: str = message
+        self.date: str = date
         self.branches = branches
-        self.reverted = reverted
-        self.author = author
-        self.committer = committer
-        self.reverted_at_least_once = reverted_at_least_once
-        self.jira_id_data = jira_id_data
+        self.reverted: bool = reverted
+        self.author: str = author
+        self.committer: str = committer
+        self.reverted_at_least_once: bool = reverted_at_least_once
+        self.jira_id_data: JiraIdData = jira_id_data
 
     @staticmethod
     def from_git_log_output(git_log_output: List[str], parse_config: GitLogParseConfig) -> List[Any]:
