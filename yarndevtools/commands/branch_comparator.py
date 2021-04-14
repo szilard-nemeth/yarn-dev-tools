@@ -354,14 +354,14 @@ class Branches:
             )
 
             LOG.combined_log(
-                "Found commits with empty Jira ID:",
+                "Found commits with missing Jira ID:",
                 info_coll=self.summary.all_commits_with_missing_jira_id[br_type],
                 debug_coll=self.summary.all_commits_with_missing_jira_id,
                 debug_coll_func=StringUtils.dict_to_multiline_string,
             )
             if self.fail_on_missing_jira_id:
                 raise ValueError(
-                    f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with empty Jira ID!"
+                    f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID!"
                 )
 
             for idx, commit in enumerate(branch.commit_objs):
@@ -556,7 +556,7 @@ class Branches:
                 ]
             )
             LOG.combined_log(
-                f"Found {br_data.type.value} commits after merge-base with empty Jira ID "
+                f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
                 f"(after applied author filter: {commit_author_exceptions}): ",
                 coll=self.summary.commits_with_missing_jira_id_filtered[br_data.type],
                 debug_coll_func=StringUtils.list_to_multiline_string,
@@ -575,7 +575,7 @@ class Branches:
             )
 
             LOG.combined_log(
-                f"Found {br_data.type.value} " f"commits after merge-base with empty Jira ID: ",
+                f"Found {br_data.type.value} commits after merge-base with missing Jira ID: ",
                 coll=self.summary.commits_with_missing_jira_id[br_data.type],
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
