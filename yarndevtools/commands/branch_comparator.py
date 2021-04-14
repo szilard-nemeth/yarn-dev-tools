@@ -133,9 +133,9 @@ class RelatedCommits:
 
 
 class SummaryData:
-    def __init__(self, output_dir: str, run_legacy_script: bool, branch_data: Dict[BranchType, BranchData]):
-        self.output_dir: str = output_dir
-        self.run_legacy_script: bool = run_legacy_script
+    def __init__(self, conf, branch_data: Dict[BranchType, BranchData]):
+        self.output_dir: str = conf.output_dir
+        self.run_legacy_script: bool = conf.run_legacy_script
         self.branch_data: Dict[BranchType, BranchData] = branch_data
         self.merge_base: CommitData or None = None
 
@@ -311,7 +311,7 @@ class Branches:
 
         # Set later
         self.merge_base: CommitData or None = None
-        self.summary: SummaryData = SummaryData(self.conf.output_dir, self.conf.run_legacy_script, self.branch_data)
+        self.summary: SummaryData = SummaryData(self.conf, self.branch_data)
 
     def get_branch(self, br_type: BranchType) -> BranchData:
         return self.branch_data[br_type]
