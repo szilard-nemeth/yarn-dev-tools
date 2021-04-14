@@ -321,7 +321,6 @@ class Branches:
         for br_type in BranchType:
             branch_name = branch_dict[br_type]
             self.branch_data[br_type] = BranchData(br_type, branch_name)
-        self.fail_on_missing_jira_id = conf.fail_on_missing_jira_id
 
         # Set later
         self.merge_base: CommitData or None = None
@@ -366,7 +365,8 @@ class Branches:
                 debug_coll=self.summary.all_commits_with_missing_jira_id,
                 debug_coll_func=StringUtils.dict_to_multiline_string,
             )
-            if self.fail_on_missing_jira_id:
+            if self.conf.fail_on_missing_jira_id:
+                # TODO fix this prints size of dict keys which is 2 (feature, master)
                 raise ValueError(
                     f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID!"
                 )
@@ -389,7 +389,7 @@ class Branches:
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         branches = [feature_br, master_br]
         self._sanity_check_commits_before_merge_base(feature_br, master_br)
-        self._save_commits_before_after_merge_base_to_file()
+        self._write_commits_before_after_merge_base_to_file()
         self._handle_commits_with_missing_jira_id(branches)
         self._handle_commits_with_missing_jira_id_filter_author(branches, config)
 
@@ -404,7 +404,7 @@ class Branches:
             # We would like to maintain descending order of commits in printouts
             self.write_to_file_or_console("git log output full raw", branch, list(reversed(branch.commit_objs)))
 
-    def _save_commits_before_after_merge_base_to_file(self):
+    def _write_commits_before_after_merge_base_to_file(self):
         for br_type in BranchType:
             branch: BranchData = self.branch_data[br_type]
             self.write_to_file_or_console("before mergebase commits", branch, branch.commits_before_merge_base)
