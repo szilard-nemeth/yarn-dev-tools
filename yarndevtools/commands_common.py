@@ -16,9 +16,11 @@ from yarndevtools.constants import (
 LOG = logging.getLogger(__name__)
 
 
+# TODO This could be moved to pythoncommons to store the actual log format strings
 class GitLogLineFormat(Enum):
     ONELINE_WITH_DATE = 0
     ONELINE_WITH_DATE_AND_AUTHOR = 1
+    ONELINE_WITH_DATE_AUTHOR_COMMITTER = 2
 
 
 class JiraIdTypePreference(Enum):
@@ -214,18 +216,31 @@ class GitLogParser:
         # Hash is always at first place
         commit_hash = fields[0]
         author = self.config.author
+        committer = None
         if self.config.log_format == GitLogLineFormat.ONELINE_WITH_DATE:
+            # Fields: <hash> <commit message> <date>
             # Example: 'ceab00b0db84455da145e0545fe9be63b270b315
             #  COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00'
             message = COMMIT_FIELD_SEPARATOR.join(fields[1:-1])
             date = fields[-1]  # date is the last item
         elif self.config.log_format == GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR:
+            # Fields: <hash> <commit message> <date> <author>
             # Example: 'ceab00b0db84455da145e0545fe9be63b270b315
             #  COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00
             #    snemeth@cloudera.com'
             message = COMMIT_FIELD_SEPARATOR.join(fields[1:-2])
             date = fields[-2]  # date is the 2nd to last
             author = fields[-1]  # author is the last item
+
+        elif self.config.log_format == GitLogLineFormat.ONELINE_WITH_DATE_AUTHOR_COMMITTER:
+            # Fields: <hash> <commit message> <date> <author> <committer>
+            # Example: 'ceab00b0db84455da145e0545fe9be63b270b315
+            #  COMPX-3264. Fix QueueMetrics#containerAskToCount map synchronization issues 2021-03-22T02:18:52-07:00
+            #    snemeth@cloudera.com' 'pbacsko@cloudera.com'
+            message = COMMIT_FIELD_SEPARATOR.join(fields[1:-3])
+            date = fields[-3]
+            author = fields[-2]
+            committer = fields[-1]
         else:
             raise ValueError(f"Unrecognized format value: {self.config.log_format}")
 
@@ -237,6 +252,7 @@ class GitLogParser:
             reverted=reverted,
             reverted_at_least_once=reverted_at_least_once,
             author=author,
+            committer=committer,
             jira_id_data=jira_id_data,
         )
 
@@ -292,6 +308,7 @@ class CommitData:
         reverted=False,
         reverted_at_least_once=False,
         author=None,
+        committer=None,
         jira_id_data: JiraIdData = None,
     ):
         self.hash = c_hash
@@ -301,6 +318,7 @@ class CommitData:
         self.branches = branches
         self.reverted = reverted
         self.author = author
+        self.committer = committer
         self.reverted_at_least_once = reverted_at_least_once
         self.jira_id_data = jira_id_data
 
@@ -333,6 +351,8 @@ class CommitData:
         :return:
         """
 
+        # TODO Make this method smart to check the known log formats and parse all the values accordingly
+        #  so that format parameter is not needed anymore
         # TODO Signature can be modified later if all usages migrated to use GitLogParseConfig object as input
         parse_config = GitLogParseConfig(
             log_format=format,
@@ -346,9 +366,13 @@ class CommitData:
         parser = GitLogParser(parse_config)
         return parser.parse_line(git_log_str)
 
-    def as_oneline_string(self, include_date=False) -> str:
+    def as_oneline_string(self, incl_date=False, incl_author=False, incl_committer=False) -> str:
         result_str = ""
-        if include_date:
+        if incl_date:
             result_str += f"{self.date} "
+        if incl_author:
+            result_str += f"{self.author} "
+        if incl_committer:
+            result_str += f"{self.committer} "
         result_str += f"{self.hash} {self.message}"
         return result_str

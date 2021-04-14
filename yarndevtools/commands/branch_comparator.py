@@ -304,9 +304,9 @@ class Branches:
     def execute_git_log(self, print_stats=True, save_to_file=True):
         for br_type in BranchType:
             branch: BranchData = self.branch_data[br_type]
-            branch.gitlog_results = self.repo.log(branch.name, oneline_with_date_and_author=True)
+            branch.gitlog_results = self.repo.log(branch.name, oneline_with_date_author_committer=True)
             parse_config = GitLogParseConfig(
-                log_format=GitLogLineFormat.ONELINE_WITH_DATE_AND_AUTHOR,
+                log_format=GitLogLineFormat.ONELINE_WITH_DATE_AUTHOR_COMMITTER,
                 pattern=ANY_JIRA_ID_PATTERN,
                 allow_unmatched_jira_id=True,
                 print_unique_jira_projects=True,
@@ -380,8 +380,9 @@ class Branches:
         self.merge_base = CommitData.from_git_log_str(
             self.repo.log(
                 merge_base[0].hexsha,
-                oneline_with_date=True,
+                oneline_with_date_author_committer=True,
             )[0],
+            format=GitLogLineFormat.ONELINE_WITH_DATE_AUTHOR_COMMITTER,
             allow_unmatched_jira_id=True,
         )
         self.summary.merge_base = self.merge_base
@@ -592,7 +593,7 @@ class Branches:
         return result
 
     def write_to_file_or_console(self, output_type: str, branch: BranchData, commits: List[CommitData]):
-        contents = StringUtils.list_to_multiline_string([c.as_oneline_string(include_date=True) for c in commits])
+        contents = StringUtils.list_to_multiline_string([self.convert_commit_to_str(c) for c in commits])
         if self.conf.console_mode:
             LOG.info(f"Printing {output_type} for branch {branch.type.name}: {contents}")
         else:
@@ -609,12 +610,12 @@ class Branches:
         add_line_break_between_groups=False,
     ):
         if not add_line_break_between_groups:
-            commits = [commit.as_oneline_string(include_date=True) for tup in commit_groups for commit in tup]
+            commits = [self.convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
             contents = StringUtils.list_to_multiline_string(commits)
         else:
             contents = ""
             for tup in commit_groups:
-                commit_strs = [commit.as_oneline_string(include_date=True) for commit in tup]
+                commit_strs = [self.convert_commit_to_str(commit) for commit in tup]
                 contents += StringUtils.list_to_multiline_string(commit_strs)
                 contents += "\n\n"
 
@@ -638,6 +639,10 @@ class Branches:
             LOG.info(f"Printing jira IDs for {br_data.type.value}...")
             for c in br_data.commits_after_merge_base:
                 LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
+
+    @staticmethod
+    def convert_commit_to_str(commit: CommitData):
+        return commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
 
 
 # TODO Handle multiple jira ids?? example: "CDPD-10052. HADOOP-16932"
