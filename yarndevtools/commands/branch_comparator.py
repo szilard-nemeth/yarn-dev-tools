@@ -846,7 +846,7 @@ class RenderedSummary:
         branch: str = None,
     ):
         tables = self._tables[ttype]
-        result = []
+        result: List[TableWithHeader] = []
         for table in tables:
             # TODO simplify with filter
             if table.colorized == colorized and table.table_fmt == table_fmt and table.branch == branch:
@@ -854,7 +854,7 @@ class RenderedSummary:
         return result
 
     def get_branch_based_tables(self, ttype: RenderedTableType, table_fmt: TabulateTableFormat):
-        tables = []
+        tables: List[TableWithHeader] = []
         for br_type, br_data in self.summary_data.branch_data.items():
             tables.extend(self.get_tables(ttype, colorized=False, table_fmt=table_fmt, branch=br_data.name))
         return tables
@@ -1023,7 +1023,7 @@ class RenderedSummary:
         html_sep = f"<{separator_tag}/>"
         html_sep += add_breaks * "<br/>"
         tables_html: str = html_sep
-        tables_html += html_sep.join([h.table for h in html_tables])
+        tables_html += html_sep.join([f"<h1>{h.header}</h1>" + h.table for h in html_tables])
 
         soup = BeautifulSoup()
         self._add_summary_as_html_paragraphs(soup)
