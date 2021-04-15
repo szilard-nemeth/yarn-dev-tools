@@ -1,7 +1,7 @@
 import logging
 import os
 from enum import Enum
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple, Set, Any
 
 from bs4 import BeautifulSoup
 from git import Commit
@@ -67,10 +67,12 @@ class BranchData:
 
         self.commits_before_merge_base: List[CommitData] = []
         self.commits_after_merge_base: List[CommitData] = []
-        self.hash_to_index: Dict[str, int] = {}  # Dict: commit hash to commit index
-        self.jira_id_to_commits: Dict[
-            str, List[CommitData]
-        ] = {}  # Dict: Jira ID (e.g. YARN-1234) to List of CommitData objects
+
+        # Dict: commit hash to commit index
+        self.hash_to_index: Dict[str, int] = {}
+
+        # Dict: Jira ID (e.g. YARN-1234) to List of CommitData objects
+        self.jira_id_to_commits: Dict[str, List[CommitData]] = {}
         self.unique_commits: List[CommitData] = []
         self.merge_base_idx: int = -1
         self.unique_jira_ids_legacy_script: List[str] = []
@@ -145,36 +147,36 @@ class RelatedCommits:
         self.lst.append(cg)
 
 
+class CommonCommits:
+    def __init__(self):
+        self.before_merge_base: List[CommitData] = []
+        self.after_merge_base: List[Tuple[CommitData, CommitData]] = []
+
+        # Commits matched by message with missing Jira ID
+        self.matched_only_by_message: List[Tuple[CommitData, CommitData]] = []
+
+        # Commits matched by Jira ID but not by message
+        self.matched_only_by_jira_id: List[Tuple[CommitData, CommitData]] = []
+
+        # Commits matched by Jira ID and by message as well
+        self.matched_both: List[Tuple[CommitData, CommitData]] = []
+
+
 class SummaryData:
-    def __init__(self, conf, branch_data: Dict[BranchType, BranchData]):
+    def __init__(self, conf, branches: Any):
         self.output_dir: str = conf.output_dir
         self.run_legacy_script: bool = conf.run_legacy_script
         self.merge_base: CommitData or None = None
 
+        self.branches = branches
         # Dict-based data structures, key: BranchType
         # These are set before comparing the branches
-        self.branch_data: Dict[BranchType, BranchData] = branch_data
-
-        # List-based data structures
-        self.common_commits_before_merge_base: List[CommitData] = []
-
-        # All common commits
-        self.common_commits_after_merge_base: List[Tuple[CommitData, CommitData]] = []
-
-        # Commits matched by message with missing Jira ID
-        self.common_commits_matched_only_by_message: List[Tuple[CommitData, CommitData]] = []
-
-        # Commits matched by Jira ID but not by message
-        self.common_commits_matched_only_by_jira_id: List[Tuple[CommitData, CommitData]] = []
-
-        # Commits matched by Jira ID and by message as well
-        self.common_commits_matched_both: List[Tuple[CommitData, CommitData]] = []
-
+        self.branch_data: Dict[BranchType, BranchData] = branches.branch_data
         self.commit_groups: RelatedCommits = RelatedCommits()
 
     @property
     def common_commits(self):
-        return [c[0] for c in self.common_commits_after_merge_base]
+        return [c[0] for c in self.branches.common_commits.after_merge_base]
 
     @property
     def all_commits(self):
@@ -199,7 +201,7 @@ class SummaryData:
         rows: List[List] = []
         for commit in self.all_commits:
             jira_id = commit.jira_id
-            row: List[str] = [jira_id, commit.message, commit.date, commit.committer]
+            row: List[Any] = [jira_id, commit.message, commit.date, commit.committer]
 
             presence: List[bool] = []
             if self.is_jira_id_present_on_branch(jira_id, BranchType.MASTER) and self.is_jira_id_present_on_branch(
@@ -239,15 +241,15 @@ class SummaryData:
         res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
         res += (
             f"Number of common commits with missing Jira ID, matched by commit message: "
-            f"{len(self.common_commits_matched_only_by_message)}\n"
+            f"{len(self.branches.common_commits.matched_only_by_message)}\n"
         )
         res += (
             f"Number of common commits with matching Jira ID but different commit message: "
-            f"{len(self.common_commits_matched_only_by_jira_id)}\n"
+            f"{len(self.branches.common_commits.matched_only_by_jira_id)}\n"
         )
         res += (
             f"Number of common commits with matching Jira ID and commit message: "
-            f"{len(self.common_commits_matched_both)}\n"
+            f"{len(self.branches.common_commits.matched_both)}\n"
         )
         return res
 
@@ -270,8 +272,8 @@ class SummaryData:
     def add_stats_common_commits_on_branches(self, res):
         res += "\n\n=====Stats: COMMON=====\n"
         res += f"Merge-base commit: {self.merge_base.hash} {self.merge_base.message} {self.merge_base.date}\n"
-        res += f"Number of common commits before merge-base: {len(self.common_commits_before_merge_base)}\n"
-        res += f"Number of common commits after merge-base: {len(self.common_commits_after_merge_base)}\n"
+        res += f"Number of common commits before merge-base: {len(self.branches.common_commits.before_merge_base)}\n"
+        res += f"Number of common commits after merge-base: {len(self.branches.common_commits.after_merge_base)}\n"
         return res
 
     def add_stats_unique_commits_legacy_script(self, res):
@@ -325,7 +327,8 @@ class Branches:
 
         # Set later
         self.merge_base: CommitData or None = None
-        self.summary: SummaryData = SummaryData(self.conf, self.branch_data)
+        self.common_commits: CommonCommits or None = None
+        self.summary: SummaryData = SummaryData(self.conf, self)
 
     def get_branch(self, br_type: BranchType) -> BranchData:
         return self.branch_data[br_type]
@@ -383,7 +386,7 @@ class Branches:
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         LOG.info(
-            f"Detected {len(self.summary.common_commits_before_merge_base)} common commits before merge-base between "
+            f"Detected {len(self.common_commits.before_merge_base)} common commits before merge-base between "
             f"'{feature_br.name}' and '{master_br.name}'"
         )
 
@@ -456,9 +459,10 @@ class Branches:
     def compare(self):
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
-        self._check_after_merge_base_commits(feature_br, master_br)
+        self.common_commits = self._check_after_merge_base_commits(feature_br, master_br)
 
-    def _sanity_check_commits_before_merge_base(self, feature_br: BranchData, master_br: BranchData):
+    @staticmethod
+    def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
         if len(master_br.commits_before_merge_base) != len(feature_br.commits_before_merge_base):
             raise ValueError(
                 "Number of commits before merge_base does not match. "
@@ -475,9 +479,12 @@ class Branches:
                     f"Hash of commit on {feature_br.name}: {commit2.hash}\n"
                     f"Hash of commit on {master_br.name}: {commit1.hash}"
                 )
-        self.summary.common_commits_before_merge_base = master_br.commits_before_merge_base
 
-    def _check_after_merge_base_commits(self, feature_br: BranchData, master_br: BranchData):
+    def _check_after_merge_base_commits(self, feature_br: BranchData, master_br: BranchData) -> CommonCommits:
+        common_commits: CommonCommits = CommonCommits()
+        # At this point, sanity check verified commits before merge-base, we can set it from any of master / feature branch
+        common_commits.before_merge_base = master_br.commits_before_merge_base
+
         common_jira_ids: Set[str] = set()
         common_commit_msgs: Set[str] = set()
         master_commits_by_message: Dict[str, CommitData] = master_br.commits_with_missing_jira_id_filtered
@@ -508,8 +515,8 @@ class Branches:
                             [master_commit], [feature_commits_by_message[master_commit_msg]]
                         )
                         # ATM, these are groups that contain 1 master / 1 feature commit
-                        self.summary.common_commits_after_merge_base.extend(commit_group.get_matched_by_msg)
-                        self.summary.common_commits_matched_only_by_message.extend(commit_group.get_matched_by_msg)
+                        common_commits.after_merge_base.extend(commit_group.get_matched_by_msg)
+                        common_commits.matched_only_by_message.extend(commit_group.get_matched_by_msg)
 
             elif master_jira_id in feature_br.jira_id_to_commits:
                 # Normal path: Try to match commits across branches by Jira ID
@@ -521,22 +528,22 @@ class Branches:
                 )
 
                 commit_group = RelatedCommitGroup([master_commit], feature_commits)
-                self.summary.common_commits_matched_both.extend(commit_group.get_matched_by_id_and_msg)
-                self.summary.common_commits_matched_only_by_jira_id.extend(commit_group.get_matched_by_id)
+                common_commits.matched_both.extend(commit_group.get_matched_by_id_and_msg)
+                common_commits.matched_only_by_jira_id.extend(commit_group.get_matched_by_id)
                 # Either if commit message matched or not, count this as a common commit as Jira ID matched
-                self.summary.common_commits_after_merge_base.extend(commit_group.get_matched_by_id)
+                common_commits.after_merge_base.extend(commit_group.get_matched_by_id)
                 common_jira_ids.add(master_jira_id)
 
         self.write_commit_list_to_file_or_console(
             "commit message differs",
-            self.summary.common_commits_matched_only_by_jira_id,
+            common_commits.matched_only_by_jira_id,
             add_sep_to_end=False,
             add_line_break_between_groups=True,
         )
 
         self.write_commit_list_to_file_or_console(
             "commits matched by message",
-            self.summary.common_commits_matched_only_by_message,
+            common_commits.matched_only_by_message,
             add_sep_to_end=False,
             add_line_break_between_groups=True,
         )
@@ -557,6 +564,7 @@ class Branches:
         LOG.info(f"Identified {len(feature_br.unique_commits)} unique commits on branch: {feature_br.name}")
         self.write_to_file_or_console("unique commits", master_br, master_br.unique_commits)
         self.write_to_file_or_console("unique commits", feature_br, feature_br.unique_commits)
+        return common_commits
 
     def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # TODO write commits with multiple jira IDs
