@@ -457,9 +457,7 @@ class Branches:
             branch.set_merge_base(self.merge_base)
 
     def compare(self):
-        feature_br: BranchData = self.branch_data[BranchType.FEATURE]
-        master_br: BranchData = self.branch_data[BranchType.MASTER]
-        self.common_commits = self._check_after_merge_base_commits(feature_br, master_br)
+        self.common_commits = self._check_after_merge_base_commits()
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
@@ -480,7 +478,9 @@ class Branches:
                     f"Hash of commit on {master_br.name}: {commit1.hash}"
                 )
 
-    def _check_after_merge_base_commits(self, feature_br: BranchData, master_br: BranchData) -> CommonCommits:
+    def _check_after_merge_base_commits(self) -> CommonCommits:
+        feature_br: BranchData = self.branch_data[BranchType.FEATURE]
+        master_br: BranchData = self.branch_data[BranchType.MASTER]
         common_commits: CommonCommits = CommonCommits()
         # At this point, sanity check verified commits before merge-base, we can set it from any of master / feature branch
         common_commits.before_merge_base = master_br.commits_before_merge_base
