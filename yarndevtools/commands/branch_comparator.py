@@ -182,6 +182,7 @@ class Branches:
 
         # Let the game begin :)
         # Start to compare / A.K.A. match commits
+        # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
         self.commit_matcher.match_commits()
         summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
         self._write_commit_match_result_files(common_commits)
@@ -299,8 +300,6 @@ class Branches:
 
 # TODO Add documentation
 class BranchComparator:
-    """"""
-
     def __init__(self, args, downstream_repo, output_dir: str):
         self.repo = downstream_repo
         self.config = BranchComparatorConfig(output_dir, args)
