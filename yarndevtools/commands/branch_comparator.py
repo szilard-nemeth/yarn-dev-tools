@@ -482,7 +482,8 @@ class Branches:
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         common_commits: CommonCommits = CommonCommits()
-        # At this point, sanity check verified commits before merge-base, we can set it from any of master / feature branch
+        # At this point, sanity check verified commits before merge-base,
+        # we can set it from any of master / feature branch
         common_commits.before_merge_base = master_br.commits_before_merge_base
 
         common_jira_ids: Set[str] = set()
