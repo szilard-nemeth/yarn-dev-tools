@@ -382,9 +382,14 @@ class Branches:
         LOG.info(f"Merge base of branches: {self.merge_base}")
         self._print_all_jira_ids()
         if config.console_mode:
-            self._print_stats()
+            for br_type in BranchType:
+                branch: BranchData = self.branch_data[br_type]
+                LOG.info(f"Found {branch.number_of_commits} commits on {br_type.value}: {branch.name}")
         if config.save_to_file:
-            self._write_git_log_to_file()
+            for br_type in BranchType:
+                branch: BranchData = self.branch_data[br_type]
+                # We would like to maintain descending order of commits in printouts
+                self.write_to_file_or_console("git log output full raw", branch, list(reversed(branch.commit_objs)))
 
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
@@ -393,7 +398,7 @@ class Branches:
             f"Detected {len(self.summary.common_commits_before_merge_base)} common commits before merge-base between "
             f"'{feature_br.name}' and '{master_br.name}'"
         )
-        self._write_commits_before_after_merge_base_to_file()
+
         # TODO write commits with multiple jira IDs
         # If fail on missing jira id is configured, fail-fast
         if config.fail_on_missing_jira_id:
@@ -404,6 +409,9 @@ class Branches:
             )
 
         for br_data in branches:
+            self.write_to_file_or_console("before mergebase commits", br_data, br_data.commits_before_merge_base)
+            self.write_to_file_or_console("after mergebase commits", br_data, br_data.commits_after_merge_base)
+
             LOG.combined_log(
                 "Found all commits with missing Jira ID:",
                 info_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
@@ -426,23 +434,6 @@ class Branches:
             self.write_to_file_or_console("commits missing jira id", br_data, br_data.commits_with_missing_jira_id)
             filtered_commit_list = [c for c in br_data.commits_with_missing_jira_id_filtered.values()]
             self.write_to_file_or_console("commits missing jira id filtered", br_data, filtered_commit_list)
-
-    def _print_stats(self):
-        for br_type in BranchType:
-            branch: BranchData = self.branch_data[br_type]
-            LOG.info(f"Found {branch.number_of_commits} commits on {br_type.value}: {branch.name}")
-
-    def _write_git_log_to_file(self):
-        for br_type in BranchType:
-            branch: BranchData = self.branch_data[br_type]
-            # We would like to maintain descending order of commits in printouts
-            self.write_to_file_or_console("git log output full raw", branch, list(reversed(branch.commit_objs)))
-
-    def _write_commits_before_after_merge_base_to_file(self):
-        for br_type in BranchType:
-            branch: BranchData = self.branch_data[br_type]
-            self.write_to_file_or_console("before mergebase commits", branch, branch.commits_before_merge_base)
-            self.write_to_file_or_console("after mergebase commits", branch, branch.commits_after_merge_base)
 
     def get_merge_base(self):
         merge_base: List[Commit] = self.repo.merge_base(
