@@ -318,7 +318,7 @@ class Branches:
         # This must be executed after branch.hash_to_index is set
         self.get_merge_base()
 
-    def pre_compare(self, config: BranchComparatorConfig):
+    def pre_compare(self):
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         branches = [feature_br, master_br]
@@ -494,24 +494,19 @@ class Branches:
             add_sep_to_end=False,
             add_line_break_between_groups=True,
         )
-
-        master_br.unique_commits = self._determine_unique_commits(
-            master_br.commits_after_merge_base,
-            master_commits_by_message,
-            common_jira_ids,
-            common_commit_msgs,
-        )
-        feature_br.unique_commits = self._determine_unique_commits(
-            feature_br.commits_after_merge_base,
-            feature_commits_by_message,
-            common_jira_ids,
-            common_commit_msgs,
-        )
-        LOG.info(f"Identified {len(master_br.unique_commits)} unique commits on branch: {master_br.name}")
-        LOG.info(f"Identified {len(feature_br.unique_commits)} unique commits on branch: {feature_br.name}")
-        self.write_to_file_or_console("unique commits", master_br, master_br.unique_commits)
-        self.write_to_file_or_console("unique commits", feature_br, feature_br.unique_commits)
-        return common_commits
+        for br_data in self.branch_data.values():
+            commits_by_msg = (
+                master_commits_by_message if br_data.type == BranchType.MASTER else feature_commits_by_message
+            )
+            br_data.unique_commits = self._determine_unique_commits(
+                br_data.commits_after_merge_base,
+                commits_by_msg,
+                common_jira_ids,
+                common_commit_msgs,
+            )
+            LOG.info(f"Identified {len(br_data.unique_commits)} unique commits on branch: {br_data.name}")
+            self.write_to_file_or_console("unique commits", br_data, br_data.unique_commits)
+            return common_commits
 
     def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # TODO write commits with multiple jira IDs
@@ -648,7 +643,7 @@ class BranchComparator:
 
     def compare(self):
         self.branches.execute_git_log()
-        self.branches.pre_compare(self.config)
+        self.branches.pre_compare()
         self.branches.compare()
 
     def print_and_save_summary(self):
