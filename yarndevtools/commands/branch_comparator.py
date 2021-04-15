@@ -375,7 +375,7 @@ class Branches:
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         branches = [feature_br, master_br]
         self._sanity_check_commits_before_merge_base(feature_br, master_br)
-        self._handle_commits_with_missing_jira_id(branches)
+        self._determine_commits_with_missing_jira_id(branches)
         self.print_or_write_to_file_before_compare(config)
 
     def print_or_write_to_file_before_compare(self, config):
@@ -561,7 +561,7 @@ class Branches:
         self.write_to_file_or_console("unique commits", master_br, master_br.unique_commits)
         self.write_to_file_or_console("unique commits", feature_br, feature_br.unique_commits)
 
-    def _handle_commits_with_missing_jira_id(self, branches: List[BranchData]):
+    def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # TODO write commits with multiple jira IDs
         # If fail on missing jira id is configured, fail-fast
         if self.conf.fail_on_missing_jira_id:
