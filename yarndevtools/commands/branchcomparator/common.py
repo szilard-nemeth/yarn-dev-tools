@@ -1,12 +1,23 @@
+import logging
+from abc import ABC
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Tuple
+
+from pythoncommons.string_utils import auto_str
 
 from yarndevtools.commands_common import CommitData
+
+LOG = logging.getLogger(__name__)
 
 
 class BranchType(Enum):
     FEATURE = "feature branch"
     MASTER = "master branch"
+
+
+class CommonCommitsBase(ABC):
+    def __init__(self):
+        self.before_merge_base: List[CommitData] = []
 
 
 class BranchData:
@@ -38,6 +49,12 @@ class BranchData:
         self.merge_base_idx: int = -1
         self.unique_jira_ids_legacy_script: List[str] = []
 
+    def __str__(self):
+        return f"Branch type: {self.type}"
+
+    def __repr__(self):
+        return f"Branch type: {self.type}"
+
     @property
     def number_of_commits(self):
         if not self.gitlog_results:
@@ -58,3 +75,55 @@ class BranchData:
     def set_commit_objs(self, commits):
         self.commit_objs = commits
         self.all_commits_with_missing_jira_id = list(filter(lambda c: not c.jira_id, self.commit_objs))
+
+
+class RelatedCommitGroup:
+    MATCHED_BY_MSG = "matched_by_msg"
+    MATCHED_BY_ID = "matched_by_id"
+    MATCHED_BY_BOTH = "matched_by_both"
+
+    def __init__(self, master_commits: List[CommitData], feature_commits: List[CommitData]):
+        self.master_commits = master_commits
+        self.feature_commits = feature_commits
+        self.match_data: Dict[str, List[Tuple[CommitData, CommitData]]] = self.process()
+
+    @property
+    def get_matched_by_id_and_msg(self) -> List[Tuple[CommitData, CommitData]]:
+        return self.match_data[self.MATCHED_BY_BOTH]
+
+    @property
+    def get_matched_by_id(self) -> List[Tuple[CommitData, CommitData]]:
+        return self.match_data[self.MATCHED_BY_ID]
+
+    @property
+    def get_matched_by_msg(self) -> List[Tuple[CommitData, CommitData]]:
+        return self.match_data[self.MATCHED_BY_MSG]
+
+    def process(self):
+        result_dict = {self.MATCHED_BY_ID: [], self.MATCHED_BY_MSG: [], self.MATCHED_BY_BOTH: []}
+        # TODO we can assume one master commit for now
+        mc = self.master_commits[0]
+        result: List[CommitData]
+        for fc in self.feature_commits:
+            match_by_id = mc.jira_id == fc.jira_id
+            match_by_msg = mc.message == fc.message
+            if match_by_id and match_by_msg:
+                result_dict[self.MATCHED_BY_BOTH].append((mc, fc))
+            elif match_by_id:
+                result_dict[self.MATCHED_BY_ID].append((mc, fc))
+            elif match_by_id:
+                LOG.warning(
+                    "Jira ID is the same for commits, but commit message differs: \n"
+                    f"Master branch commit: {mc.as_oneline_string()}\n"
+                    f"Feature branch commit: {fc.as_oneline_string()}"
+                )
+                result_dict[self.MATCHED_BY_MSG].append((mc, fc))
+        return result_dict
+
+
+class RelatedCommits:
+    def __init__(self):
+        self.lst: List[RelatedCommitGroup] = []
+
+    def add(self, cg: RelatedCommitGroup):
+        self.lst.append(cg)
