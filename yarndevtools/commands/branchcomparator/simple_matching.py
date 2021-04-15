@@ -24,6 +24,9 @@ class CommonCommits(CommonCommitsBase):
 
 
 class SimpleCommitMatcherSummaryData(SummaryDataAbs):
+    def __init__(self, config, branches):
+        super().__init__(config, branches)
+
     def common_commits_after_merge_base(self):
         return [c[0] for c in self._common_commits.after_merge_base]
 
@@ -45,7 +48,7 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
 
     def add_stats_common_commits_on_branches(self, res):
         res += "\n\n=====Stats: COMMON=====\n"
-        res += f"Merge-base commit: {self.merge_base.hash} {self.merge_base.message} {self.merge_base.date}\n"
+        res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
         res += f"Number of common commits before merge-base: {len(self._common_commits.before_merge_base)}\n"
         res += f"Number of common commits after merge-base: {len(self._common_commits.after_merge_base)}\n"
         return res

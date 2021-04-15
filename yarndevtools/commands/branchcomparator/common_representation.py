@@ -35,10 +35,10 @@ class SummaryDataAbs(ABC):
     def __init__(self, conf, branches: Any):
         self.output_dir: str = conf.output_dir
         self.run_legacy_script: bool = conf.run_legacy_script
-        self.merge_base: CommitData or None = None
 
         # Dict-based data structure, key: BranchType
         # These are set before comparing the branches
+        self.branches = branches
         self.branch_data: Dict[BranchType, BranchData] = branches.branch_data
 
     @abstractmethod
@@ -55,13 +55,6 @@ class SummaryDataAbs(ABC):
         )
         all_commits.sort(key=lambda c: c.date, reverse=True)
         return all_commits
-
-    @property
-    def all_commits_with_missing_jira_id(self) -> Dict[BranchType, List[CommitData]]:
-        result = {}
-        for br_type, br_data in self.branch_data.items():
-            result[br_type] = br_data.all_commits_with_missing_jira_id
-        return result
 
     @property
     def all_commits_presence_matrix(self) -> List[List]:
@@ -111,9 +104,7 @@ class SummaryDataAbs(ABC):
     def add_stats_commits_with_missing_jira_id(self, res):
         for br_type, br_data in self.branch_data.items():
             res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_data.name}=====\n"
-            res += (
-                f"Number of all commits with missing Jira ID: {len(self.all_commits_with_missing_jira_id[br_type])}\n"
-            )
+            res += f"Number of all commits with missing Jira ID: {len(self.branches.all_commits_with_missing_jira_id[br_type])}\n"
             res += (
                 f"Number of commits with missing Jira ID after merge-base: "
                 f"{len(br_data.commits_with_missing_jira_id)}\n"

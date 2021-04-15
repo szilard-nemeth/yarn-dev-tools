@@ -2,9 +2,6 @@ import logging
 from abc import ABC
 from enum import Enum
 from typing import List, Dict, Tuple
-
-from pythoncommons.string_utils import auto_str
-
 from yarndevtools.commands_common import CommitData
 
 LOG = logging.getLogger(__name__)
