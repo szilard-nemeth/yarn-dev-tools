@@ -42,6 +42,7 @@ class BranchComparatorConfig:
 
 class Branches:
     def __init__(self, conf: BranchComparatorConfig, repo: GitWrapper, branch_dict: Dict[BranchType, str]):
+        self.all_commits_with_missing_jira_id: Dict[BranchType, List[CommitData]] = {}
         self.config = conf
         self.repo = repo
         self.branch_data: Dict[BranchType, BranchData] = {}
@@ -51,7 +52,6 @@ class Branches:
 
         # TODO make this object instance configurable
         self.commit_matcher = SimpleCommitMatcher(self.branch_data)
-        self.summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self)
 
         # These are set later
         self.merge_base: CommitData or None = None
@@ -96,7 +96,9 @@ class Branches:
                 if commit.jira_id not in branch.jira_id_to_commits:
                     branch.jira_id_to_commits[commit.jira_id] = []
                 branch.jira_id_to_commits[commit.jira_id].append(commit)
-        # This must be executed after branch.hash_to_index is set
+
+        # These must be executed after branch.hash_to_index is set !
+        self.set_commits_with_missing_jira_id()
         self.get_merge_base()
 
     def pre_compare(self):
@@ -118,11 +120,8 @@ class Branches:
         # TODO write commits with multiple jira IDs
         # If fail on missing jira id is configured, fail-fast
         if self.config.fail_on_missing_jira_id:
-            # TODO fix this prints size of dict keys which is 2 (feature, master)
-            raise ValueError(
-                f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
-                f"Halting as configured"
-            )
+            len_of_all_lists = sum([len(lst) for lst in self.all_commits_with_missing_jira_id.values()])
+            raise ValueError(f"Found {len_of_all_lists} commits with missing Jira ID! " f"Halting as configured.")
 
         for br_type, br_data in self.branch_data.items():
             LOG.info(f"Printing jira IDs for {br_data.type.value}...")
@@ -139,8 +138,8 @@ class Branches:
 
             LOG.combined_log(
                 "Found all commits with missing Jira ID:",
-                info_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
-                debug_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
+                info_coll=self.all_commits_with_missing_jira_id[br_data.type],
+                debug_coll=self.all_commits_with_missing_jira_id[br_data.type],
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
 
@@ -176,12 +175,11 @@ class Branches:
             format=GitLogLineFormat.ONELINE_WITH_DATE_AUTHOR_COMMITTER,
             allow_unmatched_jira_id=True,
         )
-        self.summary.merge_base = self.merge_base
         for br_type in BranchType:
             branch: BranchData = self.branch_data[br_type]
             branch.set_merge_base(self.merge_base)
 
-    def compare(self):
+    def compare(self) -> SummaryDataAbs:
         # At this point, sanity check verified commits before merge-base,
         # we can set it from any of master / feature branch
         common_commits = self.commit_matcher.create_common_commits_obj()
@@ -190,8 +188,11 @@ class Branches:
 
         # Start to compare
         self.commit_matcher.match_commits()
-        self.summary._common_commits = common_commits
+        summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self)
+        # TODO fix this!!
+        summary._common_commits = common_commits
         self._write_commit_match_result_files(common_commits)
+        return summary
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
@@ -218,7 +219,7 @@ class Branches:
         if self.config.fail_on_missing_jira_id:
             # TODO fix this prints size of dict keys which is 2 (feature, master)
             raise ValueError(
-                f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
+                f"Found {len(self.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
                 f"Halting as configured"
             )
 
@@ -303,6 +304,10 @@ class Branches:
         for br_data in self.branch_data.values():
             self.write_to_file_or_console("unique commits", br_data, br_data.unique_commits)
 
+    def set_commits_with_missing_jira_id(self):
+        for br_type, br_data in self.branch_data.items():
+            self.all_commits_with_missing_jira_id[br_type] = br_data.all_commits_with_missing_jira_id
+
 
 # TODO Handle multiple jira ids?? example: "CDPD-10052. HADOOP-16932"
 # TODO Consider revert commits?
@@ -333,10 +338,10 @@ class BranchComparator:
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
-        self.compare()
+        summary_data = self.compare()
         if self.config.run_legacy_script:
             LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path)
-        self.print_and_save_summary()
+        self.print_and_save_summary(summary_data)
 
     def validate_branches(self):
         both_exist = self.branches.validate(BranchType.FEATURE)
@@ -344,13 +349,13 @@ class BranchComparator:
         if not both_exist:
             raise ValueError("Both feature and master branch should be an existing branch. Exiting...")
 
-    def compare(self):
+    def compare(self) -> SummaryDataAbs:
         self.branches.execute_git_log()
         self.branches.pre_compare()
-        self.branches.compare()
+        return self.branches.compare()
 
-    def print_and_save_summary(self):
-        rendered_sum = RenderedSummary.from_summary_data(self.branches.summary)
+    def print_and_save_summary(self, summary_data: SummaryDataAbs):
+        rendered_sum = RenderedSummary.from_summary_data(summary_data)
         LOG.info(rendered_sum.printable_summary_str)
 
         filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_TXT)
