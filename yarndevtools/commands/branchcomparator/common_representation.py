@@ -1,5 +1,5 @@
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict, Any
 
@@ -41,12 +41,9 @@ class SummaryDataAbs(ABC):
         # These are set before comparing the branches
         self.branch_data: Dict[BranchType, BranchData] = branches.branch_data
 
-        # TODO remove this when possible
-        self._common_commits = None
-
-    @property
-    def common_commits(self):
-        return [c[0] for c in self._common_commits.after_merge_base]
+    @abstractmethod
+    def common_commits_after_merge_base(self):
+        pass
 
     @property
     def all_commits(self):
@@ -54,7 +51,7 @@ class SummaryDataAbs(ABC):
             []
             + self.branch_data[BranchType.MASTER].unique_commits
             + self.branch_data[BranchType.FEATURE].unique_commits
-            + self.common_commits
+            + self.common_commits_after_merge_base()
         )
         all_commits.sort(key=lambda c: c.date, reverse=True)
         return all_commits
@@ -107,21 +104,9 @@ class SummaryDataAbs(ABC):
         res = self.add_stats_common_commit_details(res)
         return res
 
+    @abstractmethod
     def add_stats_common_commit_details(self, res):
-        res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
-        res += (
-            f"Number of common commits with missing Jira ID, matched by commit message: "
-            f"{len(self._common_commits.matched_only_by_message)}\n"
-        )
-        res += (
-            f"Number of common commits with matching Jira ID but different commit message: "
-            f"{len(self._common_commits.matched_only_by_jira_id)}\n"
-        )
-        res += (
-            f"Number of common commits with matching Jira ID and commit message: "
-            f"{len(self._common_commits.matched_both)}\n"
-        )
-        return res
+        pass
 
     def add_stats_commits_with_missing_jira_id(self, res):
         for br_type, br_data in self.branch_data.items():
@@ -139,12 +124,9 @@ class SummaryDataAbs(ABC):
             )
         return res
 
+    @abstractmethod
     def add_stats_common_commits_on_branches(self, res):
-        res += "\n\n=====Stats: COMMON=====\n"
-        res += f"Merge-base commit: {self.merge_base.hash} {self.merge_base.message} {self.merge_base.date}\n"
-        res += f"Number of common commits before merge-base: {len(self._common_commits.before_merge_base)}\n"
-        res += f"Number of common commits after merge-base: {len(self._common_commits.after_merge_base)}\n"
-        return res
+        pass
 
     def add_stats_unique_commits_legacy_script(self, res):
         if self.run_legacy_script:
@@ -299,7 +281,7 @@ class RenderedSummary:
     def add_common_commits_table(self):
         table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
         gen_tables = ResultPrinter.print_tables(
-            self.summary_data.common_commits,
+            self.summary_data.common_commits_after_merge_base(),
             lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
             header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
             print_result=False,
