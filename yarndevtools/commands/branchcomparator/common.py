@@ -98,7 +98,7 @@ class RelatedCommitGroup:
 
     def process(self):
         result_dict = {self.MATCHED_BY_ID: [], self.MATCHED_BY_MSG: [], self.MATCHED_BY_BOTH: []}
-        # TODO we can assume one master commit for now
+        # We can assume one master commit for this implementation
         mc = self.master_commits[0]
         result: List[CommitData]
         for fc in self.feature_commits:

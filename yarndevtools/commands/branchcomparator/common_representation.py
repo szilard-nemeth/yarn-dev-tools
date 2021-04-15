@@ -30,7 +30,6 @@ HEADER_NO_OF_LINES = "# of lines"
 HEADER_COMMITTER = "Committer"
 
 
-# TODO Make a subclass for SimpleCommitMatcher and other implementations
 class SummaryDataAbs(ABC):
     def __init__(self, conf, branches: Any):
         self.output_dir: str = conf.output_dir

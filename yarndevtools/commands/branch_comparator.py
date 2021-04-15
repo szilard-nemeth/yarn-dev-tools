@@ -117,12 +117,6 @@ class Branches:
             f"'{feature_br.name}' and '{master_br.name}'"
         )
 
-        # TODO write commits with multiple jira IDs
-        # If fail on missing jira id is configured, fail-fast
-        if self.config.fail_on_missing_jira_id:
-            len_of_all_lists = sum([len(lst) for lst in self.all_commits_with_missing_jira_id.values()])
-            raise ValueError(f"Found {len_of_all_lists} commits with missing Jira ID! " f"Halting as configured.")
-
         for br_type, br_data in self.branch_data.items():
             LOG.info(f"Printing jira IDs for {br_data.type.value}...")
             for c in br_data.commits_after_merge_base:
@@ -186,6 +180,7 @@ class Branches:
         common_commits.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
         self.print_or_write_to_file_before_compare(common_commits)
 
+        # Let the game begin :)
         # Start to compare / A.K.A. match commits
         self.commit_matcher.match_commits()
         summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
@@ -212,20 +207,15 @@ class Branches:
                 )
 
     def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
-        # TODO write commits with multiple jira IDs
         # If fail on missing jira id is configured, fail-fast
         if self.config.fail_on_missing_jira_id:
-            # TODO fix this prints size of dict keys which is 2 (feature, master)
-            raise ValueError(
-                f"Found {len(self.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
-                f"Halting as configured"
-            )
-
+            len_of_all_lists = sum([len(lst) for lst in self.all_commits_with_missing_jira_id.values()])
+            raise ValueError(f"Found {len_of_all_lists} commits with missing Jira ID! " f"Halting as configured")
+        # TODO write commits with multiple jira IDs to a file
         for br_data in branches:
             br_data.commits_with_missing_jira_id = list(
                 filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
             )
-
             # Create a dict of (commit message, CommitData),
             # filtering all the commits that has author from the authors to filter.
             # IMPORTANT Assumption: Commit message is unique for all commits
