@@ -548,13 +548,13 @@ class Branches:
             add_line_break_between_groups=True,
         )
 
-        master_br.unique_commits = self._filter_relevant_unique_commits(
+        master_br.unique_commits = self._determine_relevant_unique_commits(
             master_br.commits_after_merge_base,
             master_commits_by_message,
             common_jira_ids,
             common_commit_msgs,
         )
-        feature_br.unique_commits = self._filter_relevant_unique_commits(
+        feature_br.unique_commits = self._determine_relevant_unique_commits(
             feature_br.commits_after_merge_base,
             feature_commits_by_message,
             common_jira_ids,
@@ -595,7 +595,7 @@ class Branches:
             )
 
     @staticmethod
-    def _filter_relevant_unique_commits(
+    def _determine_relevant_unique_commits(
         commits: List[CommitData], commits_by_message: Dict[str, CommitData], common_jira_ids, common_commit_msgs
     ) -> List[CommitData]:
         result = []
