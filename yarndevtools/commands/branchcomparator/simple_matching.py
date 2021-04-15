@@ -68,7 +68,57 @@ class SimpleCommitMatcher:
         return SimpleCommitMatcherSummaryData(config, branches, common_commits)
 
     def match_commits(self) -> CommonCommits:
-        # TODO add description of this algorithm
+        """
+        This matcher algorithm works in the way described below.
+        First, it has some assumptions about the data stored into the BranchData objects.\n
+
+        - 1. The branch objects are set to self.branch_data.
+
+        - 2. Both branches (BranchData objects) are having a property called
+        'commits_with_missing_jira_id_filtered'.
+        This is a dict of [commit message, CommitData] and this dict should hold all commits after the
+        merge-base commit of the compared branches so we don't unnecessarily compare commits below the merge-base.\n
+
+        - 3. Both branches (BranchData objects) have the 'commits_after_merge_base' property
+        with commits after the merge-base, similarly to the dict described above,
+        but this is a simple list of commits in a particular order which is irrelevant for the algorithm.
+
+        - 4. Both branches (BranchData objects) have the 'jira_id_to_commits' property set and filled
+        with commits after the merge-base,
+        similarly to the dict described above.
+        This property is a dict of Jira IDs (e.g. YARN-1234) mapped to a list of CommitData objects as
+        one Jira ID can have multiple associated commits on a branch. \n
+        Side note: For the algorithm, it's only important to have this dict filled for the feature branch.
+
+        Note: When we talk about commits, we always mean commits after the merge-base, for simplicity, \n
+        the rest of the commits are not relevant for the algorithm at all.
+
+        The algorithm: \n
+        1. The main loop iterates over the commits of the master branch.\n
+        2. If a particular master commit does not have any Jira ID, the algorithm tries to match the
+        commits by message. \n
+        It will check if the exact same message is saved to the dict of
+        commits_with_missing_jira_id_filtered of the feature branch.
+        If yes, the commit is treated as a common commit.
+        3. If a particular commit has the Jira ID set, it will be matched against feature branch commits
+        with the same Jira ID.
+        The actual matching process is the concern of the method of RelatedCommitGroup, called 'process'.
+        While executing this loop, all results are saved to self.common_commits, which is a CommonCommits object.\n
+        All matches are stored to self.common_commits.after_merge_base as a Tuple of 2 CommitData objects,
+        across the 2 branches.
+        For diagnostic and logging purposes, commits matched only by message, only by Jira ID or both are stored to
+        self.matched_only_by_message, self.matched_only_by_jira_id and self.matched_both, respectively.
+
+        After the main loop is finished, the common commits are already identified. \n
+        We also saved the set of common Jira IDs and a set of common commit messages.\n
+        The last remaining step is to iterate over all commits on both branches and
+        check against these "common sets".
+        If a commit is not in any of the Jira ID-based or commit message-based set,
+        it's unique on the particular branch.
+        These unique commits will be saved to the 'unique_commits' property of a given branch. As this is a list,
+        the algorithm keeps the original ordering of the commits.
+
+        """
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
 
@@ -146,9 +196,12 @@ class SimpleCommitMatcher:
 
     @staticmethod
     def _determine_unique_commits(
-        commits: List[CommitData], commits_by_message: Dict[str, CommitData], common_jira_ids, common_commit_msgs
+        commits: List[CommitData],
+        commits_by_message: Dict[str, CommitData],
+        common_jira_ids: Set[str],
+        common_commit_msgs: Set[str],
     ) -> List[CommitData]:
-        result = []
+        result: List[CommitData] = []
         # 1. Values of commit list can contain commits without Jira ID
         # and we don't want to count them as unique commits unless the commit is a
         # special authored commit and it's not a common commit by its message
