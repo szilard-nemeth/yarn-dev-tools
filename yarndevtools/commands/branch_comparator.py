@@ -186,11 +186,9 @@ class Branches:
         common_commits.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
         self.print_or_write_to_file_before_compare(common_commits)
 
-        # Start to compare
+        # Start to compare / A.K.A. match commits
         self.commit_matcher.match_commits()
-        summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self)
-        # TODO fix this!!
-        summary._common_commits = common_commits
+        summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
         self._write_commit_match_result_files(common_commits)
         return summary
 
