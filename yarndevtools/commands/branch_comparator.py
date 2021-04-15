@@ -1,4 +1,3 @@
-import logging
 import os
 from enum import Enum
 from typing import Dict, List, Tuple, Set, Any
@@ -8,7 +7,6 @@ from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_utils import LoggerFactory
-from pythoncommons.process import CommandRunner
 from pythoncommons.result_printer import (
     ResultPrinter,
     ColorizeConfig,
@@ -21,6 +19,9 @@ from pythoncommons.result_printer import (
     DEFAULT_TABLE_FORMATS,
 )
 from pythoncommons.string_utils import StringUtils
+
+from yarndevtools.commands.branchcomparator.common import BranchType, BranchData
+from yarndevtools.commands.branchcomparator.legacy_script import LegacyScriptRunner
 from yarndevtools.commands_common import (
     CommitData,
     GitLogLineFormat,
@@ -41,62 +42,6 @@ HEADER_NO_OF_LINES = "# of lines"
 HEADER_COMMITTER = "Committer"
 
 LOG = LoggerFactory.get_logger(__name__)
-
-
-class BranchType(Enum):
-    FEATURE = "feature branch"
-    MASTER = "master branch"
-
-
-class BranchData:
-    def __init__(self, type: BranchType, branch_name: str):
-        self.type: BranchType = type
-        self.name: str = branch_name
-        self.shortname = branch_name.split("/")[1] if "/" in branch_name else branch_name
-
-        # Set later
-        self.gitlog_results: List[str] = []
-        # CommitData objects stored in a list, ordered from last to first commit (descending, from oldest to newest)
-        self.commit_objs: List[CommitData] = []
-
-        self.all_commits_with_missing_jira_id: List[CommitData] = []
-        self.commits_with_missing_jira_id: List[CommitData] = []
-
-        # Dict key: commit message, value: CommitData obj
-        self.commits_with_missing_jira_id_filtered: Dict[str, CommitData] = {}
-
-        self.commits_before_merge_base: List[CommitData] = []
-        self.commits_after_merge_base: List[CommitData] = []
-
-        # Dict: commit hash to commit index
-        self.hash_to_index: Dict[str, int] = {}
-
-        # Dict: Jira ID (e.g. YARN-1234) to List of CommitData objects
-        self.jira_id_to_commits: Dict[str, List[CommitData]] = {}
-        self.unique_commits: List[CommitData] = []
-        self.merge_base_idx: int = -1
-        self.unique_jira_ids_legacy_script: List[str] = []
-
-    @property
-    def number_of_commits(self):
-        if not self.gitlog_results:
-            raise ValueError("Git log is not yet queried so number of commits is not yet stored.")
-        return len(self.gitlog_results)
-
-    def set_merge_base(self, merge_base: CommitData):
-        merge_base_hash = merge_base.hash
-        if merge_base_hash not in self.hash_to_index:
-            raise ValueError("Merge base cannot be found among commits. Merge base hash: " + merge_base_hash)
-        self.merge_base_idx = self.hash_to_index[merge_base_hash]
-
-        if len(self.commit_objs) == 0:
-            raise ValueError("set_merge_base is invoked while commit list was empty!")
-        self.commits_before_merge_base = self.commit_objs[: self.merge_base_idx]
-        self.commits_after_merge_base = self.commit_objs[self.merge_base_idx :]
-
-    def set_commit_objs(self, commits):
-        self.commit_objs = commits
-        self.all_commits_with_missing_jira_id = list(filter(lambda c: not c.jira_id, self.commit_objs))
 
 
 class RelatedCommitGroup:
@@ -606,10 +551,10 @@ class Branches:
         # special authored commit and it's not a common commit by its message
         # 2. If Jira ID is in common_jira_ids, it's not a unique commit, either.
         for commit in commits:
-            special_unique_commit = (
+            special_unique_commit: bool = (
                 not commit.jira_id and commit.message in commits_by_message and commit.message not in common_commit_msgs
             )
-            normal_unique_commit = commit.jira_id is not None and commit.jira_id not in common_jira_ids
+            normal_unique_commit: bool = commit.jira_id is not None and commit.jira_id not in common_jira_ids
             if special_unique_commit or normal_unique_commit:
                 result.append(commit)
         return result
@@ -665,96 +610,6 @@ class Branches:
 # TODO Consider revert commits?
 # TODO Add documentation
 # TODO Check in logs: all results for "Jira ID is the same for commits, but commit message differs"
-
-
-class LegacyScriptRunner:
-    @staticmethod
-    def start(config, branches, repo_path):
-        script_results: Dict[BranchType, Tuple[str, str]] = LegacyScriptRunner._execute_compare_script(
-            config, branches, working_dir=repo_path
-        )
-        for br_type in BranchType:
-            branch_data = branches.get_branch(br_type)
-            branch_data.unique_jira_ids_legacy_script = LegacyScriptRunner._get_unique_jira_ids_for_branch(
-                script_results, branch_data
-            )
-            LOG.debug(
-                f"[LEGACY SCRIPT] Unique commit results for {br_type.value}: "
-                f"{branch_data.unique_jira_ids_legacy_script}"
-            )
-
-        # Cross check unique jira ids with previous results
-        for br_type in BranchType:
-            branch_data = branches.get_branch(br_type)
-            unique_jira_ids = [c.jira_id for c in branches.summary.unique_commits[br_type]]
-            if LOG.isEnabledFor(logging.DEBUG):
-                LOG.debug(
-                    f"[CURRENT SCRIPT] Found unique commits on branch "
-                    f"'{branch_data.name}' [{br_type}]: {unique_jira_ids} "
-                )
-            else:
-                LOG.debug(
-                    f"[CURRENT SCRIPT] Found unique commits on branch "
-                    f"'{branch_data.name}' [{br_type}]: {len(unique_jira_ids)} "
-                )
-
-    @staticmethod
-    def _get_unique_jira_ids_for_branch(script_results: Dict[BranchType, Tuple[str, str]], branch_data: BranchData):
-        branch_type = branch_data.type
-        res_tuple = script_results[branch_type]
-        LOG.info(f"CLI Command for {branch_type} was: {res_tuple[0]}")
-        LOG.info(f"Output of command for {branch_type} was: {res_tuple[1]}")
-        lines = res_tuple[1].splitlines()
-        unique_jira_ids = [line.split(" ")[0] for line in lines]
-
-        if LOG.isEnabledFor(logging.DEBUG):
-            LOG.debug(
-                f"[LEGACY SCRIPT] Found unique commits on branch "
-                f"'{branch_data.name}' [{branch_type}]: {unique_jira_ids}"
-            )
-        else:
-            LOG.debug(
-                f"[LEGACY SCRIPT] Found unique commits on branch "
-                f"'{branch_data.name}' [{branch_type}]: {len(unique_jira_ids)}"
-            )
-
-        return unique_jira_ids
-
-    @staticmethod
-    def _execute_compare_script(config, branches, working_dir) -> Dict[BranchType, Tuple[str, str]]:
-        compare_script = config.legacy_compare_script_path
-        master_br_name = branches.get_branch(BranchType.MASTER).shortname
-        feature_br_name = branches.get_branch(BranchType.FEATURE).shortname
-        output_dir = FileUtils.join_path(config.output_dir, "git_compare_script_output")
-        FileUtils.ensure_dir_created(output_dir)
-
-        results: Dict[BranchType, Tuple[str, str]] = {
-            BranchType.MASTER: LegacyScriptRunner._exec_script_only_on_master(
-                compare_script, feature_br_name, master_br_name, output_dir, working_dir
-            ),
-            BranchType.FEATURE: LegacyScriptRunner._exec_script_only_on_feature(
-                compare_script, feature_br_name, master_br_name, output_dir, working_dir
-            ),
-        }
-        return results
-
-    @staticmethod
-    def _exec_script_only_on_master(compare_script, feature_br_name, master_br_name, output_dir, working_dir):
-        args1 = f"{feature_br_name} {master_br_name}"
-        output_file1 = FileUtils.join_path(output_dir, f"only-on-{master_br_name}")
-        cli_cmd, cli_output = CommandRunner.execute_script(
-            compare_script, args=args1, working_dir=working_dir, output_file=output_file1, use_tee=True
-        )
-        return cli_cmd, cli_output
-
-    @staticmethod
-    def _exec_script_only_on_feature(compare_script, feature_br_name, master_br_name, output_dir, working_dir):
-        args2 = f"{master_br_name} {feature_br_name}"
-        output_file2 = FileUtils.join_path(output_dir, f"only-on-{feature_br_name}")
-        cli_cmd, cli_output = CommandRunner.execute_script(
-            compare_script, args=args2, working_dir=working_dir, output_file=output_file2, use_tee=True
-        )
-        return cli_cmd, cli_output
 
 
 class BranchComparator:
