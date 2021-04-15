@@ -371,17 +371,78 @@ class Branches:
         self.get_merge_base()
 
     def pre_compare(self, config: BranchComparatorConfig):
+        feature_br: BranchData = self.branch_data[BranchType.FEATURE]
+        master_br: BranchData = self.branch_data[BranchType.MASTER]
+        branches = [feature_br, master_br]
+        self._sanity_check_commits_before_merge_base(feature_br, master_br)
+        self._handle_commits_with_missing_jira_id(branches)
+        self.print_or_write_to_file_before_compare(config)
+
+    def print_or_write_to_file_before_compare(self, config):
+        LOG.info(f"Merge base of branches: {self.merge_base}")
         self._print_all_jira_ids()
         if config.console_mode:
             self._print_stats()
         if config.save_to_file:
             self._write_git_log_to_file()
+
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         branches = [feature_br, master_br]
-        self._sanity_check_commits_before_merge_base(feature_br, master_br)
+        LOG.info(
+            f"Detected {len(self.summary.common_commits_before_merge_base)} common commits before merge-base between "
+            f"'{feature_br.name}' and '{master_br.name}'"
+        )
         self._write_commits_before_after_merge_base_to_file()
-        self._handle_commits_with_missing_jira_id(branches)
+        # TODO write commits with multiple jira IDs
+        # If fail on missing jira id is configured, fail-fast
+        if config.fail_on_missing_jira_id:
+            # TODO fix this prints size of dict keys which is 2 (feature, master)
+            raise ValueError(
+                f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
+                f"Halting as configured"
+            )
+
+        for br_data in branches:
+            LOG.combined_log(
+                "Found all commits with missing Jira ID:",
+                info_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
+                debug_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
+                debug_coll_func=StringUtils.list_to_multiline_string,
+            )
+
+            br_data.commits_with_missing_jira_id = list(
+                filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
+            )
+
+            # Create a dict of (commit message, CommitData),
+            # filtering all the commits that has author from the authors to filter.
+            # IMPORTANT Assumption: Commit message is unique for all commits
+            br_data.commits_with_missing_jira_id_filtered = dict(
+                [
+                    (c.message, c)
+                    for c in filter(
+                        lambda c: c.author not in config.commit_author_exceptions,
+                        br_data.commits_with_missing_jira_id,
+                    )
+                ]
+            )
+
+            LOG.combined_log(
+                f"Found {br_data.type.value} commits after merge-base with missing Jira ID: ",
+                coll=br_data.commits_with_missing_jira_id,
+                debug_coll_func=StringUtils.list_to_multiline_string,
+            )
+            LOG.combined_log(
+                f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
+                f"(after applied author filter: {config.commit_author_exceptions}): ",
+                coll=br_data.commits_with_missing_jira_id_filtered,
+                debug_coll_func=StringUtils.list_to_multiline_string,
+            )
+
+            self.write_to_file_or_console("commits missing jira id", br_data, br_data.commits_with_missing_jira_id)
+            filtered_commit_list = [c for c in br_data.commits_with_missing_jira_id_filtered.values()]
+            self.write_to_file_or_console("commits missing jira id filtered", br_data, filtered_commit_list)
 
     def _print_stats(self):
         for br_type in BranchType:
@@ -417,7 +478,6 @@ class Branches:
             allow_unmatched_jira_id=True,
         )
         self.summary.merge_base = self.merge_base
-        LOG.info(f"Merge base of branches: {self.merge_base}")
         for br_type in BranchType:
             branch: BranchData = self.branch_data[br_type]
             branch.set_merge_base(self.merge_base)
@@ -445,10 +505,6 @@ class Branches:
                     f"Hash of commit on {master_br.name}: {commit1.hash}"
                 )
         self.summary.common_commits_before_merge_base = master_br.commits_before_merge_base
-        LOG.info(
-            f"Detected {len(self.summary.common_commits_before_merge_base)} common commits before merge-base between "
-            f"'{feature_br.name}' and '{master_br.name}'"
-        )
 
     def _check_after_merge_base_commits(self, feature_br: BranchData, master_br: BranchData):
         common_jira_ids: Set[str] = set()
@@ -542,13 +598,6 @@ class Branches:
             )
 
         for br_data in branches:
-            LOG.combined_log(
-                "Found all commits with missing Jira ID:",
-                info_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
-                debug_coll=self.summary.all_commits_with_missing_jira_id[br_data.type],
-                debug_coll_func=StringUtils.list_to_multiline_string,
-            )
-
             br_data.commits_with_missing_jira_id = list(
                 filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
             )
@@ -565,22 +614,6 @@ class Branches:
                     )
                 ]
             )
-
-            LOG.combined_log(
-                f"Found {br_data.type.value} commits after merge-base with missing Jira ID: ",
-                coll=br_data.commits_with_missing_jira_id,
-                debug_coll_func=StringUtils.list_to_multiline_string,
-            )
-            LOG.combined_log(
-                f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
-                f"(after applied author filter: {self.conf.commit_author_exceptions}): ",
-                coll=br_data.commits_with_missing_jira_id_filtered,
-                debug_coll_func=StringUtils.list_to_multiline_string,
-            )
-
-            self.write_to_file_or_console("commits missing jira id", br_data, br_data.commits_with_missing_jira_id)
-            filtered_commit_list = [c for c in br_data.commits_with_missing_jira_id_filtered.values()]
-            self.write_to_file_or_console("commits missing jira id filtered", br_data, filtered_commit_list)
 
     @staticmethod
     def _filter_relevant_unique_commits(
