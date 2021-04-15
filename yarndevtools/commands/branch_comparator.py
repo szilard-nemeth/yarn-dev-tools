@@ -318,7 +318,7 @@ class BranchComparatorConfig:
 
 class Branches:
     def __init__(self, conf: BranchComparatorConfig, repo: GitWrapper, branch_dict: Dict[BranchType, str]):
-        self.conf = conf
+        self.config = conf
         self.repo = repo
         self.branch_data: Dict[BranchType, BranchData] = {}
         for br_type in BranchType:
@@ -328,7 +328,7 @@ class Branches:
         # Set later
         self.merge_base: CommitData or None = None
         self.common_commits: CommonCommits or None = None
-        self.summary: SummaryData = SummaryData(self.conf, self)
+        self.summary: SummaryData = SummaryData(self.config, self)
 
     def get_branch(self, br_type: BranchType) -> BranchData:
         return self.branch_data[br_type]
@@ -379,20 +379,19 @@ class Branches:
         branches = [feature_br, master_br]
         self._sanity_check_commits_before_merge_base(feature_br, master_br)
         self._determine_commits_with_missing_jira_id(branches)
-        self.print_or_write_to_file_before_compare(config)
 
-    def print_or_write_to_file_before_compare(self, config):
+    def print_or_write_to_file_before_compare(self, common_commits):
         LOG.info(f"Merge base of branches: {self.merge_base}")
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
         LOG.info(
-            f"Detected {len(self.common_commits.before_merge_base)} common commits before merge-base between "
+            f"Detected {len(common_commits.before_merge_base)} common commits before merge-base between "
             f"'{feature_br.name}' and '{master_br.name}'"
         )
 
         # TODO write commits with multiple jira IDs
         # If fail on missing jira id is configured, fail-fast
-        if config.fail_on_missing_jira_id:
+        if self.config.fail_on_missing_jira_id:
             # TODO fix this prints size of dict keys which is 2 (feature, master)
             raise ValueError(
                 f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
@@ -403,9 +402,9 @@ class Branches:
             LOG.info(f"Printing jira IDs for {br_data.type.value}...")
             for c in br_data.commits_after_merge_base:
                 LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
-            if config.console_mode:
+            if self.config.console_mode:
                 LOG.info(f"Found {br_data.number_of_commits} commits on {br_type.value}: {br_data.name}")
-            if config.save_to_file:
+            if self.config.save_to_file:
                 # We would like to maintain descending order of commits in printouts
                 self.write_to_file_or_console("git log output full raw", br_data, list(reversed(br_data.commit_objs)))
 
@@ -426,7 +425,7 @@ class Branches:
             )
             LOG.combined_log(
                 f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
-                f"(after applied author filter: {config.commit_author_exceptions}): ",
+                f"(after applied author filter: {self.config.commit_author_exceptions}): ",
                 coll=br_data.commits_with_missing_jira_id_filtered,
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
@@ -485,18 +484,20 @@ class Branches:
         # At this point, sanity check verified commits before merge-base,
         # we can set it from any of master / feature branch
         common_commits.before_merge_base = master_br.commits_before_merge_base
+        self.print_or_write_to_file_before_compare(common_commits)
 
         common_jira_ids: Set[str] = set()
         common_commit_msgs: Set[str] = set()
         master_commits_by_message: Dict[str, CommitData] = master_br.commits_with_missing_jira_id_filtered
         feature_commits_by_message: Dict[str, CommitData] = feature_br.commits_with_missing_jira_id_filtered
 
-        # List of tuples. First item: Master branch commit obj, second item: feature branch commit obj
+        # List of tuples.
+        # First item: Master branch CommitData, second item: feature branch CommitData
         for master_commit in master_br.commits_after_merge_base:
             master_commit_msg = master_commit.message
             master_jira_id = master_commit.jira_id
             if not master_jira_id:
-                # If this commit is without jira id and author was not an element of exceptional authors,
+                # If this commit is without jira id and author was not an item of authors to filter,
                 # then try to match commits across branches by commit message.
                 if master_commit_msg in master_commits_by_message:
                     LOG.debug(
@@ -549,13 +550,13 @@ class Branches:
             add_line_break_between_groups=True,
         )
 
-        master_br.unique_commits = self._determine_relevant_unique_commits(
+        master_br.unique_commits = self._determine_unique_commits(
             master_br.commits_after_merge_base,
             master_commits_by_message,
             common_jira_ids,
             common_commit_msgs,
         )
-        feature_br.unique_commits = self._determine_relevant_unique_commits(
+        feature_br.unique_commits = self._determine_unique_commits(
             feature_br.commits_after_merge_base,
             feature_commits_by_message,
             common_jira_ids,
@@ -570,7 +571,7 @@ class Branches:
     def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # TODO write commits with multiple jira IDs
         # If fail on missing jira id is configured, fail-fast
-        if self.conf.fail_on_missing_jira_id:
+        if self.config.fail_on_missing_jira_id:
             # TODO fix this prints size of dict keys which is 2 (feature, master)
             raise ValueError(
                 f"Found {len(self.summary.all_commits_with_missing_jira_id)} commits with missing Jira ID! "
@@ -589,14 +590,14 @@ class Branches:
                 [
                     (c.message, c)
                     for c in filter(
-                        lambda c: c.author not in self.conf.commit_author_exceptions,
+                        lambda c: c.author not in self.config.commit_author_exceptions,
                         br_data.commits_with_missing_jira_id,
                     )
                 ]
             )
 
     @staticmethod
-    def _determine_relevant_unique_commits(
+    def _determine_unique_commits(
         commits: List[CommitData], commits_by_message: Dict[str, CommitData], common_jira_ids, common_commit_msgs
     ) -> List[CommitData]:
         result = []
@@ -615,11 +616,11 @@ class Branches:
 
     def write_to_file_or_console(self, output_type: str, branch: BranchData, commits: List[CommitData]):
         contents = StringUtils.list_to_multiline_string([self.convert_commit_to_str(c) for c in commits])
-        if self.conf.console_mode:
+        if self.config.console_mode:
             LOG.info(f"Printing {output_type} for branch {branch.type.name}: {contents}")
         else:
             fn_prefix = Branches._convert_output_type_str_to_file_prefix(output_type)
-            f = self._generate_filename(self.conf.output_dir, fn_prefix, branch.shortname)
+            f = self._generate_filename(self.config.output_dir, fn_prefix, branch.shortname)
             LOG.info(f"Saving {output_type} for branch {branch.type.name} to file: {f}")
             FileUtils.save_to_file(f, contents)
 
@@ -640,11 +641,11 @@ class Branches:
                 contents += StringUtils.list_to_multiline_string(commit_strs)
                 contents += "\n\n"
 
-        if self.conf.console_mode:
+        if self.config.console_mode:
             LOG.info(f"Printing {output_type}: {contents}")
         else:
             fn_prefix = Branches._convert_output_type_str_to_file_prefix(output_type, add_sep_to_end=add_sep_to_end)
-            f = self._generate_filename(self.conf.output_dir, fn_prefix)
+            f = self._generate_filename(self.config.output_dir, fn_prefix)
             LOG.info(f"Saving {output_type} to file: {f}")
             FileUtils.save_to_file(f, contents)
 
