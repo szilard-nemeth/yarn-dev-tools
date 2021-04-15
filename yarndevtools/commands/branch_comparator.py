@@ -380,7 +380,10 @@ class Branches:
 
     def print_or_write_to_file_before_compare(self, config):
         LOG.info(f"Merge base of branches: {self.merge_base}")
-        self._print_all_jira_ids()
+        for br_type, br_data in self.branch_data.items():
+            LOG.info(f"Printing jira IDs for {br_data.type.value}...")
+            for c in br_data.commits_after_merge_base:
+                LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
         if config.console_mode:
             for br_type in BranchType:
                 branch: BranchData = self.branch_data[br_type]
@@ -648,12 +651,6 @@ class Branches:
         if add_sep_to_end:
             file_prefix += "-"
         return file_prefix
-
-    def _print_all_jira_ids(self):
-        for br_type, br_data in self.branch_data.items():
-            LOG.info(f"Printing jira IDs for {br_data.type.value}...")
-            for c in br_data.commits_after_merge_base:
-                LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
 
     @staticmethod
     def convert_commit_to_str(commit: CommitData):
