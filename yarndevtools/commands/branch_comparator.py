@@ -297,12 +297,7 @@ class Branches:
             self.all_commits_with_missing_jira_id[br_type] = br_data.all_commits_with_missing_jira_id
 
 
-# TODO Handle multiple jira ids?? example: "CDPD-10052. HADOOP-16932"
-# TODO Consider revert commits?
 # TODO Add documentation
-# TODO Check in logs: all results for "Jira ID is the same for commits, but commit message differs"
-
-
 class BranchComparator:
     """"""
 
