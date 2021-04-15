@@ -68,6 +68,7 @@ class SimpleCommitMatcher:
         return SimpleCommitMatcherSummaryData(config, branches, common_commits)
 
     def match_commits(self) -> CommonCommits:
+        # TODO add description of this algorithm
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
         master_br: BranchData = self.branch_data[BranchType.MASTER]
 
@@ -79,48 +80,16 @@ class SimpleCommitMatcher:
         # List of tuples.
         # First item: Master branch CommitData, second item: feature branch CommitData
         for master_commit in master_br.commits_after_merge_base:
-            master_commit_msg = master_commit.message
             master_jira_id = master_commit.jira_id
             if not master_jira_id:
                 # If this commit is without jira id and author was not an item of authors to filter,
                 # then try to match commits across branches by commit message.
-                if master_commit_msg in master_commits_by_message:
-                    LOG.debug(
-                        "Trying to match commit by commit message as Jira ID is missing. Details: \n"
-                        f"Branch: master branch\n"
-                        f"Commit message: ${master_commit_msg}\n"
-                    )
-                    # Master commit message found in missing jira id list of the feature branch, record match
-                    if master_commit_msg in feature_commits_by_message:
-                        LOG.warning(
-                            "Found matching commit by commit message. Details: \n"
-                            f"Branch: master branch\n"
-                            f"Commit message: ${master_commit_msg}\n"
-                        )
-                        common_commit_msgs.add(master_commit_msg)
-                        commit_group: RelatedCommitGroup = RelatedCommitGroup(
-                            [master_commit], [feature_commits_by_message[master_commit_msg]]
-                        )
-                        # ATM, these are groups that contain 1 master / 1 feature commit
-                        self.common_commits.after_merge_base.extend(commit_group.get_matched_by_msg)
-                        self.common_commits.matched_only_by_message.extend(commit_group.get_matched_by_msg)
-
+                self.match_by_commit_message(
+                    master_commit, common_commit_msgs, feature_commits_by_message, master_commits_by_message
+                )
             elif master_jira_id in feature_br.jira_id_to_commits:
                 # Normal path: Try to match commits across branches by Jira ID
-                feature_commits: List[CommitData] = feature_br.jira_id_to_commits[master_jira_id]
-                LOG.debug(
-                    "Found matching commits by jira id. Details: \n"
-                    f"Master branch commit: {master_commit.as_oneline_string()}\n"
-                    f"Feature branch commits: {[fc.as_oneline_string() for fc in feature_commits]}"
-                )
-
-                commit_group = RelatedCommitGroup([master_commit], feature_commits)
-                self.common_commits.matched_both.extend(commit_group.get_matched_by_id_and_msg)
-                self.common_commits.matched_only_by_jira_id.extend(commit_group.get_matched_by_id)
-
-                # Either if commit message matched or not, count this as a common commit as Jira ID matched
-                self.common_commits.after_merge_base.extend(commit_group.get_matched_by_id)
-                common_jira_ids.add(master_jira_id)
+                self.match_by_jira_id(common_jira_ids, feature_br, master_commit, master_jira_id)
 
         for br_data in self.branch_data.values():
             commits_by_msg = (
@@ -135,6 +104,45 @@ class SimpleCommitMatcher:
             LOG.info(f"Identified {len(br_data.unique_commits)} unique commits on branch: {br_data.name}")
 
         return self.common_commits
+
+    def match_by_commit_message(
+        self, master_commit, common_commit_msgs, feature_commits_by_message, master_commits_by_message
+    ):
+        master_commit_msg = master_commit.message
+        if master_commit_msg in master_commits_by_message:
+            LOG.debug(
+                "Trying to match commit by commit message as Jira ID is missing. Details: \n"
+                f"Branch: master branch\n"
+                f"Commit message: ${master_commit_msg}\n"
+            )
+            # Master commit message found in missing jira id list of the feature branch, record match
+            if master_commit_msg in feature_commits_by_message:
+                LOG.warning(
+                    "Found matching commit by commit message. Details: \n"
+                    f"Branch: master branch\n"
+                    f"Commit message: ${master_commit_msg}\n"
+                )
+                common_commit_msgs.add(master_commit_msg)
+                commit_group: RelatedCommitGroup = RelatedCommitGroup(
+                    [master_commit], [feature_commits_by_message[master_commit_msg]]
+                )
+                # ATM, these are groups that contain 1 master / 1 feature commit
+                self.common_commits.after_merge_base.extend(commit_group.get_matched_by_msg)
+                self.common_commits.matched_only_by_message.extend(commit_group.get_matched_by_msg)
+
+    def match_by_jira_id(self, common_jira_ids, feature_br, master_commit, master_jira_id):
+        feature_commits: List[CommitData] = feature_br.jira_id_to_commits[master_jira_id]
+        LOG.debug(
+            "Found matching commits by Jira ID. Details: \n"
+            f"Master branch commit: {master_commit.as_oneline_string()}\n"
+            f"Feature branch commits: {[fc.as_oneline_string() for fc in feature_commits]}"
+        )
+        commit_group = RelatedCommitGroup([master_commit], feature_commits)
+        self.common_commits.matched_both.extend(commit_group.get_matched_by_id_and_msg)
+        self.common_commits.matched_only_by_jira_id.extend(commit_group.get_matched_by_id)
+        # Either if commit message matched or not, count this as a common commit as Jira ID matched
+        self.common_commits.after_merge_base.extend(commit_group.get_matched_by_id)
+        common_jira_ids.add(master_jira_id)
 
     @staticmethod
     def _determine_unique_commits(
