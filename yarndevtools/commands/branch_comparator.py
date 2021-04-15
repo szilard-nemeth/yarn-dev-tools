@@ -411,23 +411,6 @@ class Branches:
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
 
-            br_data.commits_with_missing_jira_id = list(
-                filter(lambda c: not c.jira_id, br_data.commits_after_merge_base)
-            )
-
-            # Create a dict of (commit message, CommitData),
-            # filtering all the commits that has author from the authors to filter.
-            # IMPORTANT Assumption: Commit message is unique for all commits
-            br_data.commits_with_missing_jira_id_filtered = dict(
-                [
-                    (c.message, c)
-                    for c in filter(
-                        lambda c: c.author not in config.commit_author_exceptions,
-                        br_data.commits_with_missing_jira_id,
-                    )
-                ]
-            )
-
             LOG.combined_log(
                 f"Found {br_data.type.value} commits after merge-base with missing Jira ID: ",
                 coll=br_data.commits_with_missing_jira_id,
