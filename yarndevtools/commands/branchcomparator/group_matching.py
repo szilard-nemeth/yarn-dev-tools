@@ -1,10 +1,15 @@
 import logging
 from datetime import datetime
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Any, Set, Tuple
 
 from pythoncommons.string_utils import StringUtils, auto_str
 
-from yarndevtools.commands.branchcomparator.common import BranchData, BranchType, CommonCommitsBase
+from yarndevtools.commands.branchcomparator.common import (
+    BranchData,
+    BranchType,
+    CommonCommitsBase,
+    convert_commit_to_str,
+)
 from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs
 from yarndevtools.commands_common import CommitData
 
@@ -40,8 +45,31 @@ class CommitGroup:
         self.commits: List[CommitData] = sorted(
             commits, key=lambda cd: datetime.strptime(cd.date, "%Y-%m-%dT%H:%M:%S%z")
         )
-        self.jira_ids = set([jid for c in self.commits for jid in c.jira_id_data.all_matched_jira_ids])
+        self.all_jira_ids = set([jid for c in self.commits for jid in c.jira_id_data.all_matched_jira_ids])
+        self.commits_by_jira_id: Dict[str, List[CommitData]] = self._populate_commits_by_jira_id()
+        self.commit_revert_info: Dict[str, bool] = {}
+        self._set_reverted_status()
+
+    def _populate_commits_by_jira_id(self):
+        result: Dict[str, List[CommitData]] = {}
+        for c in self.commits:
+            if c.jira_id not in result:
+                result[c.jira_id] = []
+            result[c.jira_id].append(c)
+        return result
+
+    def _set_reverted_status(self):
         # TODO handle revert status: IDEA --> track reverts for unique pairs of all jira ids of a commit
+        if len(self.commits) == 0 or len(self.commits_by_jira_id) == 0:
+            raise ValueError("It seems commits are not yet set to self.commits")
+        for jira_id, commits in self.commits_by_jira_id.items():
+            # Commits are ordered in ascending by date
+            reverted = False
+            for c in commits:
+                if c.reverted_at_least_once:
+                    LOG.debug(f"Found reverted commit: {convert_commit_to_str(c)}")
+                reverted = c.reverted_at_least_once
+            self.commit_revert_info[jira_id] = reverted
 
     @property
     def oldest_commit_date(self):
