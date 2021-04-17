@@ -9,10 +9,9 @@ from yarndevtools.commands.branchcomparator.common import (
     BranchData,
     BranchType,
     CommonCommitsBase,
-    convert_commit_to_str,
     CommitMatchType,
 )
-from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs
+from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, convert_commit_to_str
 from yarndevtools.commands_common import CommitData
 
 LOG = logging.getLogger(__name__)
