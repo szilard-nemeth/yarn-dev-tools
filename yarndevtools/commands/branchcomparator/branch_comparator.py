@@ -8,7 +8,6 @@ from pythoncommons.string_utils import StringUtils
 from yarndevtools.commands.branchcomparator.common import (
     BranchType,
     BranchData,
-    sum_len_of_lists_in_dict,
     convert_commits_to_oneline_strings,
     convert_commit_to_str,
 )
@@ -26,6 +25,7 @@ from yarndevtools.commands_common import (
 )
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 from pythoncommons.git_wrapper import GitWrapper
+from pythoncommons.collection_utils import CollectionUtils
 
 LOG = LoggerFactory.get_logger(__name__)
 
@@ -240,7 +240,7 @@ class Branches:
     def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # If fail on missing jira id is configured, fail-fast
         if self.config.fail_on_missing_jira_id:
-            len_of_all_lists = sum_len_of_lists_in_dict(self.all_commits_with_missing_jira_id)
+            len_of_all_lists = CollectionUtils.sum_len_of_lists_in_dict(self.all_commits_with_missing_jira_id)
             raise ValueError(f"Found {len_of_all_lists} commits with missing Jira ID! " f"Halting as configured")
         # TODO write commits with multiple jira IDs to a file
         for br_data in branches:

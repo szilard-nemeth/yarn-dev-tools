@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Any, Set, Tuple, FrozenSet
 
+from pythoncommons.collection_utils import CollectionUtils
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.branchcomparator.common import (
@@ -358,7 +359,7 @@ class CommitGrouper:
     def _print_group_stats_internal(self, br_type: BranchType, groups: List[CommitGroup], type_of_group: str):
         # TODO consider printing this as a grid / html table
         predicates = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
-        partitioned_groups: List[List[CommitGroup]] = self._partition_multi(predicates, groups)
+        partitioned_groups: List[List[CommitGroup]] = CollectionUtils.partition_multi(predicates, groups)
         print_helper_dict = {
             "1 commit": partitioned_groups[0],
             "2 commits": partitioned_groups[1],
@@ -371,30 +372,6 @@ class CommitGrouper:
                 f"on branch {br_type} (# of groups: {len(partition_group)}): \n"
                 f"{StringUtils.list_to_multiline_string(groups_str_list)}"
             )
-
-    # TODO partition methods should be moved to pythoncommons
-    @staticmethod
-    def _partition(pred, iterable):
-        trues = []
-        falses = []
-        for item in iterable:
-            if pred(item):
-                trues.append(item)
-            else:
-                falses.append(item)
-        return trues, falses
-
-    @staticmethod
-    def _partition_multi(predicates, iterable) -> List[List[Any]]:
-        lists = []
-        for i in range(len(predicates)):
-            lists.append([])
-
-        for item in iterable:
-            for idx, pred in enumerate(predicates):
-                if pred(item):
-                    lists[idx].append(item)
-        return lists
 
     def sanity_check(self):
         for br_type in self.branch_data.keys():
