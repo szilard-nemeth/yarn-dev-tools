@@ -110,7 +110,7 @@ class SummaryDataAbs(ABC):
             )
             res += (
                 f"Number of commits with missing Jira ID after merge-base, filtered by author exceptions: "
-                f"{len(br_data.commits_with_missing_jira_id_filtered)}\n"
+                f"{len(br_data.commits_after_merge_base_filtered)}\n"
             )
         return res
 
