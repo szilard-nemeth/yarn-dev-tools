@@ -12,7 +12,7 @@ from yarndevtools.commands.branchcomparator.common import (
     CommitMatchType,
     CommitMatcherBase,
 )
-from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, convert_commit_to_str
+from yarndevtools.commands.branchcomparator.common_representation import convert_commit_to_str
 from yarndevtools.commands_common import CommitData
 
 LOG = logging.getLogger(__name__)
@@ -131,7 +131,7 @@ class GroupedMatchingResult(MatchingResultBase):
             self.unmatched_groups[br_type] = [all_groups_for_branch[k] for k in unmatched_keys]
 
 
-class GroupedCommitMatcherSummaryData(SummaryDataAbs):
+class GroupedCommitMatcherSummaryData:
     def __init__(self, config, branches):
         super().__init__(config, branches)
         # TODO implement
@@ -178,10 +178,6 @@ class GroupedCommitMatcher(CommitMatcherBase):
     def create_matching_result(self) -> GroupedMatchingResult:
         self.matching_result = GroupedMatchingResult()
         return self.matching_result
-
-    #
-    # def create_summary_data(self, config, branches) -> SummaryDataAbs:
-    #     return GroupedCommitMatcherSummaryData(config, branches)
 
     def match_commits(self) -> Any:
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)

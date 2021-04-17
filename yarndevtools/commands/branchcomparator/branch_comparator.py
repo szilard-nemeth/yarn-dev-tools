@@ -12,10 +12,10 @@ from yarndevtools.commands.branchcomparator.common import (
     BranchType,
     BranchData,
 )
-from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, OutputManager
+from yarndevtools.commands.branchcomparator.common_representation import OutputManager
 from yarndevtools.commands.branchcomparator.group_matching import GroupedCommitMatcher
 from yarndevtools.commands.branchcomparator.legacy_script import LegacyScriptRunner
-from yarndevtools.commands.branchcomparator.simple_matching import SimpleCommitMatcher
+from yarndevtools.commands.branchcomparator.simple_matching import SimpleCommitMatcher, SimpleCommitMatcherSummaryData
 from yarndevtools.commands_common import (
     CommitData,
     GitLogLineFormat,
@@ -162,7 +162,7 @@ class Branches:
             branch: BranchData = self.branch_data[br_type]
             branch.set_merge_base(self.merge_base)
 
-    def compare(self) -> SummaryDataAbs:
+    def compare(self):
         # TODO Make the 2 commit matchers have the same interface somehow (?)
         if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
             matching_result = self.commit_matcher.create_matching_result()
@@ -177,13 +177,14 @@ class Branches:
             # Start to compare / A.K.A. match commits
             # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
             self.commit_matcher.match_commits()
-            summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, matching_result)
+            summary_data: SimpleCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
+                self.config, self, matching_result
+            )
             self.config.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
         elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
             self.commit_matcher.match_commits()
-            return None
-            # TODO call the rest of the required methods + return with something
-        return summary
+        self.config.output_manager.print_and_save_summary(summary_data)
+        # TODO call the rest of the required methods + return with something
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
@@ -265,10 +266,9 @@ class BranchComparator:
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
-        summary_data = self.compare()
+        self.compare()
         if self.config.run_legacy_script:
             LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path)
-        self.config.output_manager.print_and_save_summary(summary_data)
 
     def validate_branches(self):
         both_exist = self.branches.validate(BranchType.FEATURE)
@@ -276,7 +276,7 @@ class BranchComparator:
         if not both_exist:
             raise ValueError("Both feature and master branch should be an existing branch. Exiting...")
 
-    def compare(self) -> SummaryDataAbs:
+    def compare(self):
         self.branches.execute_git_log()
         self.branches.pre_compare()
-        return self.branches.compare()
+        self.branches.compare()

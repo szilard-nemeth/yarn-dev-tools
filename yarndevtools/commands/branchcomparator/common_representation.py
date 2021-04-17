@@ -1,7 +1,6 @@
 import os
-from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Tuple
 
 from bs4 import BeautifulSoup
 from pythoncommons.file_utils import FileUtils
@@ -40,116 +39,6 @@ def convert_commits_to_oneline_strings(commits: List[CommitData]):
 
 def convert_commit_to_str(commit: CommitData):
     return commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
-
-
-class SummaryDataAbs(ABC):
-    def __init__(self, conf, branches: Any):
-        self.output_dir: str = conf.output_dir
-        self.run_legacy_script: bool = conf.run_legacy_script
-
-        # Dict-based data structure, key: BranchType
-        # These are set before comparing the branches
-        self.branches = branches
-        self.branch_data: Dict[BranchType, BranchData] = branches.branch_data
-
-    @abstractmethod
-    def common_commits_after_merge_base(self):
-        pass
-
-    @property
-    def all_commits(self):
-        all_commits: List[CommitData] = (
-            []
-            + self.branch_data[BranchType.MASTER].unique_commits
-            + self.branch_data[BranchType.FEATURE].unique_commits
-            + self.common_commits_after_merge_base()
-        )
-        all_commits.sort(key=lambda c: c.date, reverse=True)
-        return all_commits
-
-    @property
-    def all_commits_presence_matrix(self) -> List[List]:
-        rows: List[List] = []
-        for commit in self.all_commits:
-            jira_id = commit.jira_id
-            row: List[Any] = [jira_id, commit.message, commit.date, commit.committer]
-
-            presence: List[bool] = []
-            if self.is_jira_id_present_on_branch(jira_id, BranchType.MASTER) and self.is_jira_id_present_on_branch(
-                jira_id, BranchType.FEATURE
-            ):
-                presence = [True, True]
-            elif self.is_jira_id_present_on_branch(jira_id, BranchType.MASTER):
-                presence = [True, False]
-            elif self.is_jira_id_present_on_branch(jira_id, BranchType.FEATURE):
-                presence = [False, True]
-            row.extend(presence)
-            rows.append(row)
-        return rows
-
-    def get_branch_names(self):
-        return [bd.name for bd in self.branch_data.values()]
-
-    def get_branch(self, br_type: BranchType):
-        return self.branch_data[br_type]
-
-    def is_jira_id_present_on_branch(self, jira_id: str, br_type: BranchType):
-        br: BranchData = self.get_branch(br_type)
-        return jira_id in br.jira_id_to_commits
-
-    def __str__(self):
-        res = ""
-        res += f"Output dir: {self.output_dir}\n"
-        res = self.add_stats_no_of_commits_branch(res)
-        res = self.add_stats_no_of_unique_commits_on_branch(res)
-        res = self.add_stats_unique_commits_legacy_script(res)
-        res = self.add_stats_matched_commits_on_branches(res)
-        res = self.add_stats_commits_with_missing_jira_id(res)
-        res = self.add_stats_matched_commit_details(res)
-        return res
-
-    @abstractmethod
-    def add_stats_matched_commit_details(self, res):
-        pass
-
-    def add_stats_commits_with_missing_jira_id(self, res):
-        for br_type, br_data in self.branch_data.items():
-            res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_data.name}=====\n"
-            res += f"Number of all commits with missing Jira ID: {len(self.branches.all_commits_with_missing_jira_id[br_type])}\n"
-            res += (
-                f"Number of commits with missing Jira ID after merge-base: "
-                f"{len(br_data.commits_with_missing_jira_id)}\n"
-            )
-            res += (
-                f"Number of commits with missing Jira ID after merge-base, filtered by author exceptions: "
-                f"{len(br_data.commits_after_merge_base_filtered)}\n"
-            )
-        return res
-
-    @abstractmethod
-    def add_stats_matched_commits_on_branches(self, res):
-        pass
-
-    def add_stats_unique_commits_legacy_script(self, res):
-        if self.run_legacy_script:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
-            for br_type, br_data in self.branch_data.items():
-                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_jira_ids_legacy_script)}\n"
-        else:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
-        return res
-
-    def add_stats_no_of_unique_commits_on_branch(self, res):
-        res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
-        for br_type, br_data in self.branch_data.items():
-            res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_commits)}\n"
-        return res
-
-    def add_stats_no_of_commits_branch(self, res):
-        res += "\n\n=====Stats: BRANCHES=====\n"
-        for br_type, br_data in self.branch_data.items():
-            res += f"Number of commits on {br_type.value} '{br_data.name}': {br_data.number_of_commits}\n"
-        return res
 
 
 class TableWithHeader:
@@ -195,7 +84,7 @@ class RenderedSummary:
     - Colorized: Bool value indicating if the table values are colorized
     """
 
-    def __init__(self, summary_data: SummaryDataAbs):
+    def __init__(self, summary_data):
         self._tables: Dict[RenderedTableType, List[TableWithHeader]] = {}
         self._tables_with_branch: Dict[RenderedTableType, bool] = {RenderedTableType.UNIQUE_ON_BRANCH: True}
         self.summary_data = summary_data
@@ -205,6 +94,10 @@ class RenderedSummary:
         self.add_all_commits_tables()
         self.summary_str = self.generate_summary_string()
         self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
+
+    @staticmethod
+    def from_summary_data(summary_data):
+        return RenderedSummary(summary_data)
 
     def add_table(self, ttype: RenderedTableType, table: TableWithHeader):
         if table.is_branch_based and ttype not in self._tables_with_branch:
@@ -233,10 +126,6 @@ class RenderedSummary:
         for br_type, br_data in self.summary_data.branch_data.items():
             tables.extend(self.get_tables(ttype, colorized=False, table_fmt=table_fmt, branch=br_data.name))
         return tables
-
-    @staticmethod
-    def from_summary_data(summary_data: SummaryDataAbs):
-        return RenderedSummary(summary_data)
 
     def add_result_files_table(self):
         result_files_data = sorted(
@@ -530,7 +419,7 @@ class OutputManager:
             LOG.info(f"Saving {output_type} for branch {branch.type.name} to file: {f}")
             FileUtils.save_to_file(f, contents)
 
-    def print_and_save_summary(self, summary_data: SummaryDataAbs):
+    def print_and_save_summary(self, summary_data):
         rendered_sum = RenderedSummary.from_summary_data(summary_data)
         LOG.info(rendered_sum.printable_summary_str)
 
