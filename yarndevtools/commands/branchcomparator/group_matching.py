@@ -12,8 +12,8 @@ from yarndevtools.commands.branchcomparator.common import (
     MatchingResultBase,
     CommitMatchType,
     CommitMatcherBase,
+    CommonUtils,
 )
-from yarndevtools.commands.branchcomparator.common_representation import convert_commit_to_str
 from yarndevtools.commands_common import CommitData
 
 LOG = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class GroupedCommitMatcherUtils:
         return list(filter(lambda c: c.hash in commit_hashes, commits))
 
 
-class CommitGroupCategory(Enum):
+class CommitGroupCardinality(Enum):
     ONE_COMMIT = "1 commit"
     TWO_COMMITS = "2 commits"
     THREE_OR_MORE_COMMITS = "3 or more commits"
@@ -76,7 +76,7 @@ class CommitGroup:
             reverted = False
             for c in commits:
                 if c.reverted_at_least_once:
-                    LOG.debug(f"Found reverted commit: {convert_commit_to_str(c)}")
+                    LOG.debug(f"Found reverted commit: {CommonUtils.convert_commit_to_str(c)}")
                 reverted = c.reverted_at_least_once
             self.commit_revert_info[jira_id] = reverted
 
@@ -102,6 +102,40 @@ class CommitGroup:
 
     def as_indexed_str(self, idx):
         return f"Group {idx + 1}: \n{self.as_string}"
+
+
+class CommitGroupStats:
+    def __init__(
+        self,
+        branch_data: Dict[BranchType, BranchData],
+        groups_by_jira_id: Dict[BranchType, List[CommitGroup]],
+        groups_by_msg: Dict[BranchType, List[CommitGroup]],
+    ):
+        self._stats: Dict[BranchType, Dict[CommitMatchType, Dict[CommitGroupCardinality, List[CommitGroup]]]]
+        for br_type in branch_data.keys():
+            self._stats[br_type] = {}
+            self._stats[br_type][CommitMatchType.MATCHED_BY_ID] = self._get_group_stats_internal(
+                groups_by_jira_id[br_type]
+            )
+            self._stats[br_type][CommitMatchType.MATCHED_BY_MESSAGE] = self._get_group_stats_internal(
+                groups_by_msg[br_type]
+            )
+
+    @staticmethod
+    def _get_group_stats_internal(groups: List[CommitGroup]):
+        # TODO consider printing this as a grid / html table
+        predicates = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
+        partitioned_groups: List[List[CommitGroup]] = CollectionUtils.partition_multi(predicates, groups)
+        return {
+            CommitGroupCardinality.ONE_COMMIT: partitioned_groups[0],
+            CommitGroupCardinality.TWO_COMMITS: partitioned_groups[1],
+            CommitGroupCardinality.THREE_OR_MORE_COMMITS: partitioned_groups[2],
+        }
+
+    def get_stats(
+        self, br_type: BranchType, commit_match_type: CommitMatchType
+    ) -> Dict[CommitGroupCardinality, List[CommitGroup]]:
+        return self._stats[br_type][commit_match_type]
 
 
 class GroupedMatchingResult(MatchingResultBase):
@@ -233,7 +267,7 @@ class CommitGrouper:
         self._groups_by_jira_id: Dict[BranchType, List[CommitGroup]] = self._create_groups()
         self._groups_by_msg: Dict[BranchType, List[CommitGroup]] = self._create_groups_by_message()
         self.sanity_check()
-        self.print_group_stats()
+        self.group_stats = CommitGroupStats(self.branch_data, self._groups_by_jira_id, self._groups_by_msg)
 
     def groups_by_jira_id_dict(self) -> Dict[BranchType, Dict[FrozenSet, CommitGroup]]:
         result: Dict[BranchType, Dict[FrozenSet, CommitGroup]] = {}
@@ -325,29 +359,6 @@ class CommitGrouper:
         hashes_1 = [ch for g in self._groups_by_jira_id[br_type] for ch in g.commit_hashes]
         hashes_2 = [ch for g in self._groups_by_msg[br_type] for ch in g.commit_hashes]
         return hashes_1 + hashes_2
-
-    def print_group_stats(self):
-        for br_type in self.branch_data.keys():
-            self._print_group_stats_internal(br_type, self._groups_by_jira_id[br_type], "jira id based")
-            self._print_group_stats_internal(br_type, self._groups_by_msg[br_type], "commit message based")
-
-    @staticmethod
-    def _print_group_stats_internal(br_type: BranchType, groups: List[CommitGroup], type_of_group: str):
-        # TODO consider printing this as a grid / html table
-        predicates = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
-        partitioned_groups: List[List[CommitGroup]] = CollectionUtils.partition_multi(predicates, groups)
-        helper_dict = {
-            CommitGroupCategory.ONE_COMMIT: partitioned_groups[0],
-            CommitGroupCategory.TWO_COMMITS: partitioned_groups[1],
-            CommitGroupCategory.THREE_OR_MORE_COMMITS: partitioned_groups[2],
-        }
-        for group_category, partition_group in helper_dict.items():
-            groups_str_list = [g.as_indexed_str(idx) for idx, g in enumerate(partition_group)]
-            LOG.debug(
-                f"Listing {type_of_group} commit groups with {group_category.value} "
-                f"on branch {br_type} (# of groups: {len(partition_group)}): \n"
-                f"{StringUtils.list_to_multiline_string(groups_str_list)}"
-            )
 
     def sanity_check(self):
         for br_type in self.branch_data.keys():
