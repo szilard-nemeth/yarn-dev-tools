@@ -208,7 +208,7 @@ class YarnDevTools:
         )
         jira_umbrella_fetcher.run()
 
-    def compare_branches(self, args):
+    def branch_comparator(self, args):
         branch_comparator = BranchComparator(args, self.downstream_repo, self.branch_comparator_output_dir)
         FileUtils.create_symlink_path_dir(
             LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME, branch_comparator.config.output_dir, self.project_out_root

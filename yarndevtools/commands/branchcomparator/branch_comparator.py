@@ -30,8 +30,29 @@ LOG = logging.getLogger(__name__)
 
 
 class CommitMatchingAlgorithm(Enum):
-    SIMPLE = SimpleCommitMatcher
-    GROUPED = GroupedCommitMatcher
+    SIMPLE = ("simple", SimpleCommitMatcher)
+    GROUPED = ("grouped", GroupedCommitMatcher)
+
+    def __init__(self, name, mathcer_class):
+        self.shortname = name
+        self.matcher_class = mathcer_class
+
+    def __str__(self):
+        return self.shortname
+
+    def __repr__(self):
+        return str(self)
+
+    @staticmethod
+    def valid_values():
+        return {e.shortname: e for e in CommitMatchingAlgorithm}
+
+    @staticmethod
+    def argparse(s):
+        try:
+            return CommitMatchingAlgorithm[s.upper()]
+        except KeyError:
+            return s
 
 
 class BranchComparatorConfig:
@@ -45,10 +66,7 @@ class BranchComparatorConfig:
         self.fail_on_missing_jira_id = False
         self.run_legacy_script = args.run_legacy_script
         self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
-
-        # TODO make this object instance configurable
-        self.matching_algorithm = CommitMatchingAlgorithm.GROUPED
-        # self.matching_algorithm = CommitMatchingAlgorithm.SIMPLE
+        self.matching_algorithm: CommitMatchingAlgorithm = args.algorithm
         self.output_manager = OutputManager(self)
 
     @staticmethod
@@ -67,11 +85,7 @@ class Branches:
             branch_name = branch_dict[br_type]
             self.branch_data[br_type] = BranchData(br_type, branch_name)
 
-        if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
-            self.commit_matcher = SimpleCommitMatcher(self.branch_data)
-        elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
-            self.commit_matcher = GroupedCommitMatcher(self.branch_data)
-
+        self.commit_matcher = self.config.matching_algorithm.matcher_class(self.branch_data)
         # These are set later
         self.merge_base: CommitData or None = None
 
@@ -238,13 +252,15 @@ class BranchComparator:
 
     def run(self):
         LOG.info(
-            "Starting Branch comparator... \n "
-            f"Output dir: {self.config.output_dir}\n"
-            f"Master branch: {self.branches.get_branch(BranchType.MASTER).name}\n "
-            f"Feature branch: {self.branches.get_branch(BranchType.FEATURE).name}\n "
-            f"Commit author exceptions: {self.config.commit_author_exceptions}\n "
-            f"Console mode: {self.config.console_mode}\n "
-            f"Run legacy comparator script: {self.config.run_legacy_script}\n "
+            "Starting Branch comparator... \n"
+            f"Matching algorithm / class: {self.config.matching_algorithm} / "
+            f"{self.config.matching_algorithm.matcher_class.__name__} \n"
+            f"Output dir: {self.config.output_dir} \n"
+            f"Master branch: {self.branches.get_branch(BranchType.MASTER).name}\n"
+            f"Feature branch: {self.branches.get_branch(BranchType.FEATURE).name}\n"
+            f"Commit author exceptions: {self.config.commit_author_exceptions}\n"
+            f"Console mode: {self.config.console_mode}\n"
+            f"Run legacy comparator script: {self.config.run_legacy_script}\n"
         )
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
