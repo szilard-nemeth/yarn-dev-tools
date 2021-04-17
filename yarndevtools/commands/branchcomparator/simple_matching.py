@@ -28,6 +28,10 @@ class CommonCommits(CommonCommitsBase):
         # Commits matched by Jira ID and by message as well
         self.matched_both: List[Tuple[CommitData, CommitData]] = []
 
+    @property
+    def commits_after_merge_base(self):
+        return [c[0] for c in self.after_merge_base]
+
 
 class SimpleCommitMatcherSummaryData(SummaryDataAbs):
     def __init__(self, config, branches, common_commits):
@@ -35,7 +39,7 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
         self.common_commits = common_commits
 
     def common_commits_after_merge_base(self):
-        return [c[0] for c in self.common_commits.after_merge_base]
+        return self.common_commits.commits_after_merge_base
 
     def add_stats_common_commit_details(self, res):
         res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
