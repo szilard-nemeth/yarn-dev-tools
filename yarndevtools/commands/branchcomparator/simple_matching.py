@@ -44,13 +44,6 @@ class SimpleCommitMatcherSummaryData:
     def common_commits_after_merge_base(self):
         return self.maching_result.commits_after_merge_base
 
-    def add_stats_matched_commits_on_branches(self, res):
-        res += "\n\n=====Stats: COMMON=====\n"
-        res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
-        res += f"Number of common commits before merge-base: {len(self.maching_result.before_merge_base)}\n"
-        res += f"Number of common commits after merge-base: {len(self.maching_result.after_merge_base)}\n"
-        return res
-
     @property
     def all_commits(self):
         all_commits: List[CommitData] = (
@@ -103,20 +96,32 @@ class SimpleCommitMatcherSummaryData:
         res = self.add_stats_matched_commit_details(res)
         return res
 
-    def add_stats_matched_commit_details(self, res):
-        res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
-        res += (
-            f"Number of common commits with missing Jira ID, matched by commit message: "
-            f"{len(self.maching_result.matched_only_by_message)}\n"
-        )
-        res += (
-            f"Number of common commits with matching Jira ID but different commit message: "
-            f"{len(self.maching_result.matched_only_by_jira_id)}\n"
-        )
-        res += (
-            f"Number of common commits with matching Jira ID and commit message: "
-            f"{len(self.maching_result.matched_both)}\n"
-        )
+    def add_stats_no_of_commits_branch(self, res):
+        res += "\n\n=====Stats: BRANCHES=====\n"
+        for br_type, br_data in self.branch_data.items():
+            res += f"Number of commits on {br_type.value} '{br_data.name}': {br_data.number_of_commits}\n"
+        return res
+
+    def add_stats_no_of_unique_commits_on_branch(self, res):
+        res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
+        for br_type, br_data in self.branch_data.items():
+            res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_commits)}\n"
+        return res
+
+    def add_stats_unique_commits_legacy_script(self, res):
+        if self.run_legacy_script:
+            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
+            for br_type, br_data in self.branch_data.items():
+                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_jira_ids_legacy_script)}\n"
+        else:
+            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
+        return res
+
+    def add_stats_matched_commits_on_branches(self, res):
+        res += "\n\n=====Stats: COMMON=====\n"
+        res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
+        res += f"Number of common commits before merge-base: {len(self.maching_result.before_merge_base)}\n"
+        res += f"Number of common commits after merge-base: {len(self.maching_result.after_merge_base)}\n"
         return res
 
     def add_stats_commits_with_missing_jira_id(self, res):
@@ -133,25 +138,20 @@ class SimpleCommitMatcherSummaryData:
             )
         return res
 
-    def add_stats_unique_commits_legacy_script(self, res):
-        if self.run_legacy_script:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
-            for br_type, br_data in self.branch_data.items():
-                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_jira_ids_legacy_script)}\n"
-        else:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
-        return res
-
-    def add_stats_no_of_unique_commits_on_branch(self, res):
-        res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
-        for br_type, br_data in self.branch_data.items():
-            res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_commits)}\n"
-        return res
-
-    def add_stats_no_of_commits_branch(self, res):
-        res += "\n\n=====Stats: BRANCHES=====\n"
-        for br_type, br_data in self.branch_data.items():
-            res += f"Number of commits on {br_type.value} '{br_data.name}': {br_data.number_of_commits}\n"
+    def add_stats_matched_commit_details(self, res):
+        res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
+        res += (
+            f"Number of common commits with missing Jira ID, matched by commit message: "
+            f"{len(self.maching_result.matched_only_by_message)}\n"
+        )
+        res += (
+            f"Number of common commits with matching Jira ID but different commit message: "
+            f"{len(self.maching_result.matched_only_by_jira_id)}\n"
+        )
+        res += (
+            f"Number of common commits with matching Jira ID and commit message: "
+            f"{len(self.maching_result.matched_both)}\n"
+        )
         return res
 
 
