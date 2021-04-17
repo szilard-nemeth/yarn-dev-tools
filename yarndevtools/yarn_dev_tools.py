@@ -11,7 +11,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.commands.branch_comparator import BranchComparator
+from yarndevtools.commands.branchcomparator.branch_comparator import BranchComparator
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
 from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
 from yarndevtools.argparser import ArgParser, CommandType
