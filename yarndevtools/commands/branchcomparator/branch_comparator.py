@@ -163,28 +163,27 @@ class Branches:
             branch.set_merge_base(self.merge_base)
 
     def compare(self):
-        # TODO Make the 2 commit matchers have the same interface somehow (?)
-        if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
-            matching_result = self.commit_matcher.create_matching_result()
-            # At this point, sanity check verified commits before merge-base,
-            # we can set it from any of master / feature branch
-            matching_result.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
-            self.config.output_manager.print_or_write_to_file_before_compare(
-                self.branch_data, self.merge_base, matching_result
-            )
+        # TODO Harmonize two commit matchers, make this function more easy to understand
 
-            # Let the game begin :)
-            # Start to compare / A.K.A. match commits
-            # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
+        matching_result = self.commit_matcher.create_matching_result()
+        # At this point, sanity check verified commits before merge-base,
+        # we can set it from any of master / feature branch
+        matching_result.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
+        self.config.output_manager.print_or_write_to_file_before_compare(
+            self.branch_data, self.merge_base, matching_result
+        )
+
+        if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
+            # Let the game begin :) --> Start to compare / A.K.A. match commits
             self.commit_matcher.match_commits()
             summary_data: SimpleCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
                 self.config, self, matching_result
             )
             self.config.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
+            self.config.output_manager.print_and_save_summary(summary_data)
         elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
             self.commit_matcher.match_commits()
-        self.config.output_manager.print_and_save_summary(summary_data)
-        # TODO call the rest of the required methods + return with something
+            # TODO call the rest of the required methods
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
