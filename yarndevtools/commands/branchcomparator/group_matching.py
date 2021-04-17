@@ -279,11 +279,11 @@ class CommitGrouper:
                 curr_res[group.all_jira_ids] = group
 
             # Sanity check
-            if len(self._groups_by_jira_id[br_type]) != len(result):
+            if len(self._groups_by_jira_id[br_type]) != len(result[br_type]):
                 raise ValueError(
                     "Length of original groups and resulted group dict is not the same! "
                     f"Length of original groups: {len(self._groups_by_jira_id[br_type])} "
-                    f"Length of new grouping: {len(result)}"
+                    f"Length of new grouping: {len(result[br_type])}"
                 )
         return result
 
