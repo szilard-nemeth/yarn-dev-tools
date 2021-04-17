@@ -10,11 +10,6 @@ from yarndevtools.commands_common import CommitData
 LOG = logging.getLogger(__name__)
 
 
-# TODO move this to pythoncommons / collectionutils
-def sum_len_of_lists_in_dict(dictt):
-    return sum([len(lst) for lst in dictt.values()])
-
-
 def convert_commits_to_oneline_strings(commits: List[CommitData]):
     return StringUtils.list_to_multiline_string([convert_commit_to_str(c) for c in commits])
 
