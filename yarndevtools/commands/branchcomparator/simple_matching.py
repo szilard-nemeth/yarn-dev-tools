@@ -38,34 +38,34 @@ class SimpleMatchingResult(MatchingResultBase):
 
 
 class SimpleCommitMatcherSummaryData(SummaryDataAbs):
-    def __init__(self, config, branches, common_commits: SimpleMatchingResult):
+    def __init__(self, config, branches, matching_result: SimpleMatchingResult):
         super().__init__(config, branches)
-        self.common_commits: SimpleMatchingResult = common_commits
+        self.maching_result: SimpleMatchingResult = matching_result
 
     def common_commits_after_merge_base(self):
-        return self.common_commits.commits_after_merge_base
+        return self.maching_result.commits_after_merge_base
 
     def add_stats_matched_commit_details(self, res):
         res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
         res += (
             f"Number of common commits with missing Jira ID, matched by commit message: "
-            f"{len(self.common_commits.matched_only_by_message)}\n"
+            f"{len(self.maching_result.matched_only_by_message)}\n"
         )
         res += (
             f"Number of common commits with matching Jira ID but different commit message: "
-            f"{len(self.common_commits.matched_only_by_jira_id)}\n"
+            f"{len(self.maching_result.matched_only_by_jira_id)}\n"
         )
         res += (
             f"Number of common commits with matching Jira ID and commit message: "
-            f"{len(self.common_commits.matched_both)}\n"
+            f"{len(self.maching_result.matched_both)}\n"
         )
         return res
 
     def add_stats_matched_commits_on_branches(self, res):
         res += "\n\n=====Stats: COMMON=====\n"
         res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
-        res += f"Number of common commits before merge-base: {len(self.common_commits.before_merge_base)}\n"
-        res += f"Number of common commits after merge-base: {len(self.common_commits.after_merge_base)}\n"
+        res += f"Number of common commits before merge-base: {len(self.maching_result.before_merge_base)}\n"
+        res += f"Number of common commits after merge-base: {len(self.maching_result.after_merge_base)}\n"
         return res
 
 
@@ -79,8 +79,8 @@ class SimpleCommitMatcher(CommitMatcherBase):
         return self.matching_result
 
     @staticmethod
-    def create_summary_data(config, branches, common_commits) -> SummaryDataAbs:
-        return SimpleCommitMatcherSummaryData(config, branches, common_commits)
+    def create_summary_data(config, branches, matching_result) -> SummaryDataAbs:
+        return SimpleCommitMatcherSummaryData(config, branches, matching_result)
 
     def match_commits(self) -> SimpleMatchingResult:
         """

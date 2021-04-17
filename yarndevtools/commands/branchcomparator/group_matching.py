@@ -145,15 +145,15 @@ class GroupedCommitMatcherSummaryData(SummaryDataAbs):
         # res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
         # res += (
         #     f"Number of common commits with missing Jira ID, matched by commit message: "
-        #     f"{len(self.common_commits.matched_only_by_message)}\n"
+        #     f"{len(self.matching_result.matched_only_by_message)}\n"
         # )
         # res += (
         #     f"Number of common commits with matching Jira ID but different commit message: "
-        #     f"{len(self.common_commits.matched_only_by_jira_id)}\n"
+        #     f"{len(self.matching_result.matched_only_by_jira_id)}\n"
         # )
         # res += (
         #     f"Number of common commits with matching Jira ID and commit message: "
-        #     f"{len(self.common_commits.matched_both)}\n"
+        #     f"{len(self.matching_result.matched_both)}\n"
         # )
         # return res
         # TODO implement
