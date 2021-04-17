@@ -160,7 +160,13 @@ class GroupedCommitMatcher:
     def match_commits(self) -> Any:
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)
         self.commit_grouper: CommitGrouper = CommitGrouper(self.branch_data, self.jira_id_to_commits)
+        self.match_based_on_groups()
         # TODO print groups that has 2 or more jira IDS (also print to file)
+
+    def match_based_on_groups(self):
+        # TODO Start a second-pass that tries to group jira-id based groups with commit message groups?
+        # It can happen that a commit message group has the same commit message like already existing commits in groups, with jira ids
+        pass
 
 
 class JiraIdToCommitMappings:
@@ -210,12 +216,10 @@ class CommitGrouper:
         # 5. Pay attention to revert commits
         self.branch_data = branch_data
         self.jira_id_to_commits = jira_id_to_commits
-        self._groups: Dict[BranchType, List[CommitGroup]] = self._create_groups()
-        groups_by_msg = self._create_groups_by_message()
-        self._groups[BranchType.MASTER].extend(groups_by_msg[BranchType.MASTER])
-        self._groups[BranchType.FEATURE].extend(groups_by_msg[BranchType.FEATURE])
-        # TODO Start a second-pass that tries to group jira-id based groups with commit message groups?
-        # It can happen that a commit message group has the same commit message like already existing commits in groups, with jira ids
+        self._groups_by_jira_id: Dict[BranchType, List[CommitGroup]] = self._create_groups()
+        self._groups_by_msg = self._create_groups_by_message()
+        # self._groups[BranchType.MASTER].extend(self._groups_by_msg[BranchType.MASTER])
+        # self._groups[BranchType.FEATURE].extend(self._groups_by_msg[BranchType.FEATURE])
         self.sanity_check()
         self.print_group_stats()
 
@@ -274,19 +278,23 @@ class CommitGrouper:
         return groups
 
     def groups_by_branch_type(self, br_type: BranchType) -> List[CommitGroup]:
-        return self._groups[br_type]
+        return self._groups_by_jira_id[br_type]
 
     def sum_len_of_groups(self, br_type: BranchType):
-        return sum([g.size for g in self._groups[br_type]])
+        return sum([g.size for g in self._groups_by_jira_id[br_type]]) + sum(
+            [g.size for g in self._groups_by_msg[br_type]]
+        )
 
     def all_commit_hashes_in_groups(self, br_type: BranchType):
-        return [ch for g in self._groups[br_type] for ch in g.commit_hashes]
+        hashes_1 = [ch for g in self._groups_by_jira_id[br_type] for ch in g.commit_hashes]
+        hashes_2 = [ch for g in self._groups_by_msg[br_type] for ch in g.commit_hashes]
+        return hashes_1 + hashes_2
 
     def print_group_stats(self):
         for br_type in self.branch_data.keys():
-            groups = self._groups[br_type]
+            groups_by_jira_id = self._groups_by_jira_id[br_type]
             preds = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
-            partitioned_groups: List[List[CommitGroup]] = self._partition_multi(preds, groups)
+            partitioned_groups: List[List[CommitGroup]] = self._partition_multi(preds, groups_by_jira_id)
 
             print_helper_dict = {
                 "1 commit": partitioned_groups[0],
@@ -371,5 +379,5 @@ class CommitGrouper:
             raise ValueError(message + f"\nCommits missing from groups: \n{commit_strs})")
 
 
-class UnifiedCommitGroups:
+class MatchedCommitGroup:
     pass
