@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Any, Set, Tuple, FrozenSet
 
 from pythoncommons.collection_utils import CollectionUtils
@@ -37,6 +38,12 @@ class GroupedCommitMatcherUtils:
     ) -> List[CommitData]:
         commits: List[CommitData] = GroupedCommitMatcherUtils.get_commits(branch_data, br_type)
         return list(filter(lambda c: c.hash in commit_hashes, commits))
+
+
+class CommitGroupCategory(Enum):
+    ONE_COMMIT = "1 commit"
+    TWO_COMMITS = "2 commits"
+    THREE_OR_MORE_COMMITS = "3 or more commits"
 
 
 @auto_str
@@ -98,17 +105,6 @@ class CommitGroup:
 
 
 class GroupedMatchingResult(MatchingResultBase):
-    # TODO implement
-    # self.after_merge_base: List[Tuple[CommitData, CommitData]] = []
-
-    # Commits matched by message with missing Jira ID
-    # self.matched_only_by_message: List[Tuple[CommitData, CommitData]] = []
-
-    # Commits matched by Jira ID but not by message
-    # self.matched_only_by_jira_id: List[Tuple[CommitData, CommitData]] = []
-
-    # Commits matched by Jira ID and by message as well
-    # self.matched_both: List[Tuple[CommitData, CommitData]] = []
     def __init__(self):
         super().__init__()
         self.matched_groups: List[Tuple[CommitGroup, CommitGroup]] = []
@@ -133,38 +129,18 @@ class GroupedMatchingResult(MatchingResultBase):
 
 class GroupedCommitMatcherSummaryData:
     def __init__(self, config, branches):
-        super().__init__(config, branches)
         # TODO implement
+        pass
 
     def common_commits_after_merge_base(self):
         # TODO implement
-        # return [c[0] for c in self.common_commits.after_merge_base]
         pass
 
     def add_stats_matched_commit_details(self, res):
-        # res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
-        # res += (
-        #     f"Number of common commits with missing Jira ID, matched by commit message: "
-        #     f"{len(self.matching_result.matched_only_by_message)}\n"
-        # )
-        # res += (
-        #     f"Number of common commits with matching Jira ID but different commit message: "
-        #     f"{len(self.matching_result.matched_only_by_jira_id)}\n"
-        # )
-        # res += (
-        #     f"Number of common commits with matching Jira ID and commit message: "
-        #     f"{len(self.matching_result.matched_both)}\n"
-        # )
-        # return res
         # TODO implement
         pass
 
     def add_stats_matched_commits_on_branches(self, res):
-        # res += "\n\n=====Stats: COMMON=====\n"
-        # res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
-        # res += f"Number of common commits before merge-base: {len(self.common_commits.before_merge_base)}\n"
-        # res += f"Number of common commits after merge-base: {len(self.common_commits.after_merge_base)}\n"
-        # return res
         # TODO implement
         pass
 
@@ -355,19 +331,20 @@ class CommitGrouper:
             self._print_group_stats_internal(br_type, self._groups_by_jira_id[br_type], "jira id based")
             self._print_group_stats_internal(br_type, self._groups_by_msg[br_type], "commit message based")
 
-    def _print_group_stats_internal(self, br_type: BranchType, groups: List[CommitGroup], type_of_group: str):
+    @staticmethod
+    def _print_group_stats_internal(br_type: BranchType, groups: List[CommitGroup], type_of_group: str):
         # TODO consider printing this as a grid / html table
         predicates = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
         partitioned_groups: List[List[CommitGroup]] = CollectionUtils.partition_multi(predicates, groups)
-        print_helper_dict = {
-            "1 commit": partitioned_groups[0],
-            "2 commits": partitioned_groups[1],
-            "3 or more commits": partitioned_groups[2],
+        helper_dict = {
+            CommitGroupCategory.ONE_COMMIT: partitioned_groups[0],
+            CommitGroupCategory.TWO_COMMITS: partitioned_groups[1],
+            CommitGroupCategory.THREE_OR_MORE_COMMITS: partitioned_groups[2],
         }
-        for cardinality, partition_group in print_helper_dict.items():
+        for group_category, partition_group in helper_dict.items():
             groups_str_list = [g.as_indexed_str(idx) for idx, g in enumerate(partition_group)]
             LOG.debug(
-                f"Listing {type_of_group} commit groups with {cardinality} "
+                f"Listing {type_of_group} commit groups with {group_category.value} "
                 f"on branch {br_type} (# of groups: {len(partition_group)}): \n"
                 f"{StringUtils.list_to_multiline_string(groups_str_list)}"
             )
