@@ -17,24 +17,25 @@ from yarndevtools.commands_common import CommitData
 LOG = logging.getLogger(__name__)
 
 
-# TODO move these to utils class
-def get_commits_without_jira_id(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
-    return branch_data[br_type].commits_with_missing_jira_id_filtered
+class GroupedCommitMatcherUtils:
+    @staticmethod
+    def get_commits_without_jira_id(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
+        return branch_data[br_type].commits_with_missing_jira_id_filtered
 
+    @staticmethod
+    def get_commits(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
+        return branch_data[br_type].commits_after_merge_base_filtered
 
-def get_commits(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
-    return branch_data[br_type].commits_after_merge_base_filtered
+    @staticmethod
+    def get_commit_hashes(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
+        return set([hash for hash in branch_data[br_type].get_commit_hashes()])
 
-
-def get_commit_hashes(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
-    return set([hash for hash in branch_data[br_type].get_commit_hashes()])
-
-
-def filter_commits_by_hashes(
-    branch_data: Dict[BranchType, BranchData], br_type: BranchType, commit_hashes: Set[str]
-) -> List[CommitData]:
-    commits: List[CommitData] = get_commits(branch_data, br_type)
-    return list(filter(lambda c: c.hash in commit_hashes, commits))
+    @staticmethod
+    def filter_commits_by_hashes(
+        branch_data: Dict[BranchType, BranchData], br_type: BranchType, commit_hashes: Set[str]
+    ) -> List[CommitData]:
+        commits: List[CommitData] = GroupedCommitMatcherUtils.get_commits(branch_data, br_type)
+        return list(filter(lambda c: c.hash in commit_hashes, commits))
 
 
 @auto_str
@@ -229,7 +230,7 @@ class JiraIdToCommitMappings:
                 result_dict[br_type] = {}
 
             dic_to_update = result_dict[br_type]
-            for commit in get_commits(self.branch_data, br_data.type):
+            for commit in GroupedCommitMatcherUtils.get_commits(self.branch_data, br_data.type):
                 jira_ids = commit.jira_id_data.all_matched_jira_ids
                 for jid in jira_ids:
                     if jid not in dic_to_update:
@@ -280,8 +281,8 @@ class CommitGrouper:
             # Sanity check
             if len(self._groups_by_jira_id[br_type]) != len(result):
                 raise ValueError(
-                    "Length of original groups and resulted group dict is not the same!"
-                    f"Length of original groups: {len(self._groups_by_jira_id[br_type])}"
+                    "Length of original groups and resulted group dict is not the same! "
+                    f"Length of original groups: {len(self._groups_by_jira_id[br_type])} "
                     f"Length of new grouping: {len(result)}"
                 )
         return result
@@ -376,7 +377,7 @@ class CommitGrouper:
     def sanity_check(self):
         for br_type in self.branch_data.keys():
             # This will get commits_after_merge_base_filtered from BranchData
-            num_commits_on_branch = len(get_commits(self.branch_data, br_type))
+            num_commits_on_branch = len(GroupedCommitMatcherUtils.get_commits(self.branch_data, br_type))
 
             # Get all number of commits from all groups
             sum_len_groups = self.sum_len_of_groups(br_type)
@@ -387,7 +388,7 @@ class CommitGrouper:
                 LOG.info("Sanity check was successful")
                 return
 
-            hashes_on_branch = get_commit_hashes(self.branch_data, br_type)
+            hashes_on_branch = GroupedCommitMatcherUtils.get_commit_hashes(self.branch_data, br_type)
             hashes_of_groups = self.all_commit_hashes_in_groups(br_type)
             message = (
                 f"Number of all commits on branch vs. number of all commits in all groups "
@@ -410,7 +411,9 @@ class CommitGrouper:
             # Well, two big numbers like 414 vs. 410 commits doesn't give much of clarity, so let's print the
             # commit details
             LOG.debug(f"Querying commits on branch {br_type} against {len(diffed_hashes)} commit hashes..")
-            filtered_commits: List[CommitData] = filter_commits_by_hashes(self.branch_data, br_type, diffed_hashes)
+            filtered_commits: List[CommitData] = GroupedCommitMatcherUtils.filter_commits_by_hashes(
+                self.branch_data, br_type, diffed_hashes
+            )
             commit_strs = StringUtils.list_to_multiline_string([(c.hash, c.message) for c in filtered_commits])
             LOG.error(message)
             raise ValueError(message + f"\nCommits missing from groups: \n{commit_strs})")
