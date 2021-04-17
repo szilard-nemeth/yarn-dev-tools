@@ -456,17 +456,17 @@ class OutputManager:
             LOG.info(f"Saving {output_type} to file: {f}")
             FileUtils.save_to_file(f, contents)
 
-    def write_commit_match_result_files(self, branch_data: Dict[BranchType, BranchData], common_commits):
+    def write_commit_match_result_files(self, branch_data: Dict[BranchType, BranchData], matching_result):
         self.write_commit_list_to_file_or_console(
             "commit message differs",
-            common_commits.matched_only_by_jira_id,
+            matching_result.matched_only_by_jira_id,
             add_sep_to_end=False,
             add_line_break_between_groups=True,
         )
 
         self.write_commit_list_to_file_or_console(
             "commits matched by message",
-            common_commits.matched_only_by_message,
+            matching_result.matched_only_by_message,
             add_sep_to_end=False,
             add_line_break_between_groups=True,
         )
@@ -474,13 +474,13 @@ class OutputManager:
             self.write_to_file_or_console("unique commits", br_data, br_data.unique_commits)
 
     def print_or_write_to_file_before_compare(
-        self, branch_data: Dict[BranchType, BranchData], merge_base: CommitData, common_commits: MatchingResultBase
+        self, branch_data: Dict[BranchType, BranchData], merge_base: CommitData, matching_result: MatchingResultBase
     ):
         LOG.info(f"Merge base of branches: {merge_base}")
         feature_br: BranchData = branch_data[BranchType.FEATURE]
         master_br: BranchData = branch_data[BranchType.MASTER]
         LOG.info(
-            f"Detected {len(common_commits.before_merge_base)} common commits before merge-base between "
+            f"Detected {len(matching_result.before_merge_base)} common commits before merge-base between "
             f"'{feature_br.name}' and '{master_br.name}'"
         )
 
