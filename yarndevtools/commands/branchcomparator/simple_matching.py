@@ -4,8 +4,9 @@ from typing import Set, Dict, List, Tuple
 from yarndevtools.commands.branchcomparator.common import (
     BranchData,
     BranchType,
-    CommonCommitsBase,
+    MatchingResultBase,
     CommitMatchType,
+    CommitMatcherBase,
 )
 from yarndevtools.commands.branchcomparator.common_representation import (
     SummaryDataAbs,
@@ -17,7 +18,7 @@ from yarndevtools.commands_common import CommitData
 LOG = logging.getLogger(__name__)
 
 
-class CommonCommits(CommonCommitsBase):
+class SimpleMatchingResult(MatchingResultBase):
     def __init__(self):
         super().__init__()
         self.after_merge_base: List[Tuple[CommitData, CommitData]] = []
@@ -37,14 +38,14 @@ class CommonCommits(CommonCommitsBase):
 
 
 class SimpleCommitMatcherSummaryData(SummaryDataAbs):
-    def __init__(self, config, branches, common_commits):
+    def __init__(self, config, branches, common_commits: SimpleMatchingResult):
         super().__init__(config, branches)
-        self.common_commits = common_commits
+        self.common_commits: SimpleMatchingResult = common_commits
 
     def common_commits_after_merge_base(self):
         return self.common_commits.commits_after_merge_base
 
-    def add_stats_common_commit_details(self, res):
+    def add_stats_matched_commit_details(self, res):
         res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
         res += (
             f"Number of common commits with missing Jira ID, matched by commit message: "
@@ -60,7 +61,7 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
         )
         return res
 
-    def add_stats_common_commits_on_branches(self, res):
+    def add_stats_matched_commits_on_branches(self, res):
         res += "\n\n=====Stats: COMMON=====\n"
         res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
         res += f"Number of common commits before merge-base: {len(self.common_commits.before_merge_base)}\n"
@@ -68,19 +69,20 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
         return res
 
 
-class SimpleCommitMatcher:
+class SimpleCommitMatcher(CommitMatcherBase):
     def __init__(self, branch_data: Dict[BranchType, BranchData]):
         self.branch_data = branch_data
-        self.common_commits: CommonCommits or None = None
+        self.matching_result: SimpleMatchingResult or None = None
 
-    def create_common_commits_obj(self) -> CommonCommits:
-        self.common_commits = CommonCommits()
-        return self.common_commits
+    def create_matching_result(self) -> SimpleMatchingResult:
+        self.matching_result = SimpleMatchingResult()
+        return self.matching_result
 
-    def create_summary_data(self, config, branches, common_commits) -> SummaryDataAbs:
+    @staticmethod
+    def create_summary_data(config, branches, common_commits) -> SummaryDataAbs:
         return SimpleCommitMatcherSummaryData(config, branches, common_commits)
 
-    def match_commits(self) -> CommonCommits:
+    def match_commits(self) -> SimpleMatchingResult:
         """
         This matcher algorithm works in the way described below.
         First, it has some assumptions about the data stored into the BranchData objects.\n
@@ -116,7 +118,7 @@ class SimpleCommitMatcher:
         3. If a particular commit has the Jira ID set, it will be matched against feature branch commits
         with the same Jira ID.
         The actual matching process is the concern of the method of RelatedCommitGroupSimple, called 'process'.
-        While executing this loop, all results are saved to self.common_commits, which is a CommonCommits object.\n
+        While executing this loop, all results are saved to self.common_commits, which is a SimpleMatchingResult object.\n
         All matches are stored to self.common_commits.after_merge_base as a Tuple of 2 CommitData objects,
         across the 2 branches.
         For diagnostic and logging purposes, commits matched only by message, only by Jira ID or both are stored to
@@ -166,7 +168,7 @@ class SimpleCommitMatcher:
             )
             LOG.info(f"Identified {len(br_data.unique_commits)} unique commits on branch: {br_data.name}")
 
-        return self.common_commits
+        return self.matching_result
 
     def match_by_commit_message(
         self, master_commit, common_commit_msgs, feature_commits_by_message, master_commits_by_message
@@ -191,8 +193,8 @@ class SimpleCommitMatcher:
                     [master_commit], feature_commits_by_message[master_commit_msg]
                 )
                 # ATM, these are groups that contain 1 master / 1 feature commit
-                self.common_commits.after_merge_base.extend(commit_group.get_matched_by_msg)
-                self.common_commits.matched_only_by_message.extend(commit_group.get_matched_by_msg)
+                self.matching_result.after_merge_base.extend(commit_group.get_matched_by_msg)
+                self.matching_result.matched_only_by_message.extend(commit_group.get_matched_by_msg)
 
     def match_by_jira_id(self, common_jira_ids, feature_br, master_commit, master_jira_id):
         feature_commits: List[CommitData] = feature_br.jira_id_to_commits[master_jira_id]
@@ -202,10 +204,10 @@ class SimpleCommitMatcher:
             f"Feature branch commits: {[fc.as_oneline_string() for fc in feature_commits]}"
         )
         commit_group = RelatedCommitGroupSimple([master_commit], feature_commits)
-        self.common_commits.matched_both.extend(commit_group.get_matched_by_id_and_msg)
-        self.common_commits.matched_only_by_jira_id.extend(commit_group.get_matched_by_id)
+        self.matching_result.matched_both.extend(commit_group.get_matched_by_id_and_msg)
+        self.matching_result.matched_only_by_jira_id.extend(commit_group.get_matched_by_id)
         # Either if commit message matched or not, count this as a common commit as Jira ID matched
-        self.common_commits.after_merge_base.extend(commit_group.get_matched_by_id)
+        self.matching_result.after_merge_base.extend(commit_group.get_matched_by_id)
         common_jira_ids.add(master_jira_id)
 
     @staticmethod

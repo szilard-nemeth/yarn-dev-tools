@@ -165,20 +165,20 @@ class Branches:
     def compare(self) -> SummaryDataAbs:
         # TODO Make the 2 commit matchers have the same interface somehow (?)
         if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
+            matching_result = self.commit_matcher.create_matching_result()
             # At this point, sanity check verified commits before merge-base,
             # we can set it from any of master / feature branch
-            common_commits = self.commit_matcher.create_common_commits_obj()
-            common_commits.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
+            matching_result.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
             self.config.output_manager.print_or_write_to_file_before_compare(
-                self.branch_data, self.merge_base, common_commits
+                self.branch_data, self.merge_base, matching_result
             )
 
             # Let the game begin :)
             # Start to compare / A.K.A. match commits
             # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
             self.commit_matcher.match_commits()
-            summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
-            self.config.output_manager.write_commit_match_result_files(self.branch_data, common_commits)
+            summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, matching_result)
+            self.config.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
         elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
             self.commit_matcher.match_commits()
             return None
@@ -241,7 +241,7 @@ class Branches:
             self.all_commits_with_missing_jira_id[br_type] = br_data.all_commits_with_missing_jira_id
 
 
-# TODO Add documentation
+# TODO Add generic documentation
 class BranchComparator:
     def __init__(self, args, downstream_repo, output_dir: str):
         self.repo = downstream_repo

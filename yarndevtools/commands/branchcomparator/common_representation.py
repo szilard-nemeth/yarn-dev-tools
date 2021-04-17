@@ -19,7 +19,7 @@ from pythoncommons.result_printer import (
 )
 from pythoncommons.string_utils import StringUtils
 
-from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, CommonCommitsBase
+from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase
 from yarndevtools.commands_common import CommitData
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -103,13 +103,13 @@ class SummaryDataAbs(ABC):
         res = self.add_stats_no_of_commits_branch(res)
         res = self.add_stats_no_of_unique_commits_on_branch(res)
         res = self.add_stats_unique_commits_legacy_script(res)
-        res = self.add_stats_common_commits_on_branches(res)
+        res = self.add_stats_matched_commits_on_branches(res)
         res = self.add_stats_commits_with_missing_jira_id(res)
-        res = self.add_stats_common_commit_details(res)
+        res = self.add_stats_matched_commit_details(res)
         return res
 
     @abstractmethod
-    def add_stats_common_commit_details(self, res):
+    def add_stats_matched_commit_details(self, res):
         pass
 
     def add_stats_commits_with_missing_jira_id(self, res):
@@ -127,7 +127,7 @@ class SummaryDataAbs(ABC):
         return res
 
     @abstractmethod
-    def add_stats_common_commits_on_branches(self, res):
+    def add_stats_matched_commits_on_branches(self, res):
         pass
 
     def add_stats_unique_commits_legacy_script(self, res):
@@ -201,7 +201,7 @@ class RenderedSummary:
         self.summary_data = summary_data
         self.add_result_files_table()
         self.add_unique_commit_tables()
-        self.add_common_commits_table()
+        self.add_matched_commits_table()
         self.add_all_commits_tables()
         self.summary_str = self.generate_summary_string()
         self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
@@ -277,7 +277,7 @@ class RenderedSummary:
                     TableWithHeader(header_value, table, table_fmt=table_fmt, colorized=False, branch=br_data.name),
                 )
 
-    def add_common_commits_table(self):
+    def add_matched_commits_table(self):
         table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
         gen_tables = ResultPrinter.print_tables(
             self.summary_data.common_commits_after_merge_base(),
@@ -474,7 +474,7 @@ class OutputManager:
             self.write_to_file_or_console("unique commits", br_data, br_data.unique_commits)
 
     def print_or_write_to_file_before_compare(
-        self, branch_data: Dict[BranchType, BranchData], merge_base: CommitData, common_commits: CommonCommitsBase
+        self, branch_data: Dict[BranchType, BranchData], merge_base: CommitData, common_commits: MatchingResultBase
     ):
         LOG.info(f"Merge base of branches: {merge_base}")
         feature_br: BranchData = branch_data[BranchType.FEATURE]

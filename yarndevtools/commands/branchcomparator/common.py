@@ -1,5 +1,5 @@
 import logging
-from abc import ABC
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict, Set
 from yarndevtools.commands_common import CommitData
@@ -18,9 +18,15 @@ class CommitMatchType(Enum):
     MATCHED_BY_BOTH = "matched_by_both"
 
 
-class CommonCommitsBase(ABC):
+class MatchingResultBase(ABC):
     def __init__(self):
         self.before_merge_base: List[CommitData] = []
+
+
+class CommitMatcherBase(ABC):
+    @abstractmethod
+    def create_matching_result(self) -> MatchingResultBase:
+        pass
 
 
 class BranchData:

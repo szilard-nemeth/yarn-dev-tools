@@ -8,8 +8,9 @@ from pythoncommons.string_utils import StringUtils, auto_str
 from yarndevtools.commands.branchcomparator.common import (
     BranchData,
     BranchType,
-    CommonCommitsBase,
+    MatchingResultBase,
     CommitMatchType,
+    CommitMatcherBase,
 )
 from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, convert_commit_to_str
 from yarndevtools.commands_common import CommitData
@@ -96,8 +97,20 @@ class CommitGroup:
         return f"Group {idx + 1}: \n{self.as_string}"
 
 
-class MatchingResult:
+class GroupedMatchingResult(MatchingResultBase):
+    # TODO implement
+    # self.after_merge_base: List[Tuple[CommitData, CommitData]] = []
+
+    # Commits matched by message with missing Jira ID
+    # self.matched_only_by_message: List[Tuple[CommitData, CommitData]] = []
+
+    # Commits matched by Jira ID but not by message
+    # self.matched_only_by_jira_id: List[Tuple[CommitData, CommitData]] = []
+
+    # Commits matched by Jira ID and by message as well
+    # self.matched_both: List[Tuple[CommitData, CommitData]] = []
     def __init__(self):
+        super().__init__()
         self.matched_groups: List[Tuple[CommitGroup, CommitGroup]] = []
         self.unmatched_groups: Dict[BranchType, List[CommitGroup]] = {BranchType.MASTER: [], BranchType.FEATURE: []}
         self._matched_groups: Set[FrozenSet] = set()
@@ -118,22 +131,6 @@ class MatchingResult:
             self.unmatched_groups[br_type] = [all_groups_for_branch[k] for k in unmatched_keys]
 
 
-class CommonCommits(CommonCommitsBase):
-    def __init__(self):
-        super().__init__()
-        # TODO implement
-        # self.after_merge_base: List[Tuple[CommitData, CommitData]] = []
-
-        # Commits matched by message with missing Jira ID
-        # self.matched_only_by_message: List[Tuple[CommitData, CommitData]] = []
-
-        # Commits matched by Jira ID but not by message
-        # self.matched_only_by_jira_id: List[Tuple[CommitData, CommitData]] = []
-
-        # Commits matched by Jira ID and by message as well
-        # self.matched_both: List[Tuple[CommitData, CommitData]] = []
-
-
 class GroupedCommitMatcherSummaryData(SummaryDataAbs):
     def __init__(self, config, branches):
         super().__init__(config, branches)
@@ -144,7 +141,7 @@ class GroupedCommitMatcherSummaryData(SummaryDataAbs):
         # return [c[0] for c in self.common_commits.after_merge_base]
         pass
 
-    def add_stats_common_commit_details(self, res):
+    def add_stats_matched_commit_details(self, res):
         # res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
         # res += (
         #     f"Number of common commits with missing Jira ID, matched by commit message: "
@@ -162,7 +159,7 @@ class GroupedCommitMatcherSummaryData(SummaryDataAbs):
         # TODO implement
         pass
 
-    def add_stats_common_commits_on_branches(self, res):
+    def add_stats_matched_commits_on_branches(self, res):
         # res += "\n\n=====Stats: COMMON=====\n"
         # res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
         # res += f"Number of common commits before merge-base: {len(self.common_commits.before_merge_base)}\n"
@@ -172,13 +169,16 @@ class GroupedCommitMatcherSummaryData(SummaryDataAbs):
         pass
 
 
-class GroupedCommitMatcher:
+class GroupedCommitMatcher(CommitMatcherBase):
+    # TODO Add algorithm documentation
     def __init__(self, branch_data: Dict[BranchType, BranchData]):
         self.branch_data = branch_data
+        self.matching_result: GroupedMatchingResult or None = None
 
-    # def create_common_commits_obj(self) -> CommonCommits:
-    #     self.common_commits = CommonCommits()
-    #     return self.common_commits
+    def create_matching_result(self) -> GroupedMatchingResult:
+        self.matching_result = GroupedMatchingResult()
+        return self.matching_result
+
     #
     # def create_summary_data(self, config, branches) -> SummaryDataAbs:
     #     return GroupedCommitMatcherSummaryData(config, branches)
@@ -186,9 +186,9 @@ class GroupedCommitMatcher:
     def match_commits(self) -> Any:
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)
         self.commit_grouper: CommitGrouper = CommitGrouper(self.branch_data, self.jira_id_to_commits)
-        self.matching_result: MatchingResult = self.match_based_on_groups()
+        self.matching_result: GroupedMatchingResult = self.match_based_on_groups()
 
-    def match_based_on_groups(self) -> MatchingResult:
+    def match_based_on_groups(self) -> GroupedMatchingResult:
         # TODO make commit group objects ordered by date if they are not yet ordered
         # TODO print groups that has 2 or more jira IDS (also print to file)
         # TODO Start a second-pass that tries to group jira-id based groups with commit message groups?
@@ -201,7 +201,7 @@ class GroupedCommitMatcher:
             f"Found feature groups: {len(feature_groups)}"
         )
 
-        result: MatchingResult = MatchingResult()
+        result: GroupedMatchingResult = GroupedMatchingResult()
         for jira_ids_set, m_group in master_groups.items():
             if jira_ids_set in feature_groups:
                 f_group = feature_groups[jira_ids_set]
