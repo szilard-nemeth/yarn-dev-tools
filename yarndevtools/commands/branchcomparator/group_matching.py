@@ -179,10 +179,11 @@ class GroupedCommitMatcher(CommitMatcherBase):
         self.matching_result = GroupedMatchingResult()
         return self.matching_result
 
-    def match_commits(self) -> Any:
+    def match_commits(self) -> GroupedMatchingResult:
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)
         self.commit_grouper: CommitGrouper = CommitGrouper(self.branch_data, self.jira_id_to_commits)
         self.matching_result: GroupedMatchingResult = self.match_based_on_groups()
+        return self.matching_result
 
     def match_based_on_groups(self) -> GroupedMatchingResult:
         # TODO make commit group objects ordered by date if they are not yet ordered
