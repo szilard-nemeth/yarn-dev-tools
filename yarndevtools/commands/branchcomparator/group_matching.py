@@ -10,6 +10,7 @@ from yarndevtools.commands.branchcomparator.common import (
     BranchType,
     CommonCommitsBase,
     convert_commit_to_str,
+    CommitMatchType,
 )
 from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs
 from yarndevtools.commands_common import CommitData
@@ -40,13 +41,13 @@ class GroupedCommitMatcherUtils:
 
 @auto_str
 class CommitGroup:
-    # TODO Should have a property whether it matched by Jira ID or commit message or both
-    def __init__(self, br_type: BranchType or None, commits: Set[CommitData]):
+    def __init__(self, br_type: BranchType or None, commits: Set[CommitData], match_type: CommitMatchType):
         # Put commits into ascending order by date
         self.br_type = br_type
         self.commits: List[CommitData] = sorted(
             commits, key=lambda cd: datetime.strptime(cd.date, "%Y-%m-%dT%H:%M:%S%z")
         )
+        self.match_type: CommitMatchType = match_type
         self.all_jira_ids = frozenset([jid for c in self.commits for jid in c.jira_id_data.all_matched_jira_ids])
         self.commits_by_jira_id: Dict[str, List[CommitData]] = self._populate_commits_by_jira_id()
         self.commit_revert_info: Dict[str, bool] = {}
@@ -61,7 +62,6 @@ class CommitGroup:
         return result
 
     def _set_reverted_status(self):
-        # TODO handle revert status: IDEA --> track reverts for unique pairs of all jira ids of a commit
         if len(self.commits) == 0 or len(self.commits_by_jira_id) == 0:
             raise ValueError("It seems commits are not yet set to self.commits")
         for jira_id, commits in self.commits_by_jira_id.items():
@@ -326,7 +326,7 @@ class CommitGrouper:
                         other_commits: List[CommitData] = jira_ids_commits_for_branch[jid]
                         grouped_commits.update(other_commits)
                 if len(grouped_commits) > 0:
-                    groups[br_type].append(CommitGroup(br_type, grouped_commits))
+                    groups[br_type].append(CommitGroup(br_type, grouped_commits, CommitMatchType.MATCHED_BY_ID))
                     visited_commit_hashes.update([c.hash for c in grouped_commits])
         return groups
 
@@ -336,7 +336,9 @@ class CommitGrouper:
             groups[br_type] = []
             branch_data = self.branch_data[br_type]
             for msg, commits_with_msg_only in branch_data.filtered_commits_by_message.items():
-                groups[br_type].append(CommitGroup(br_type, set(commits_with_msg_only)))
+                groups[br_type].append(
+                    CommitGroup(br_type, set(commits_with_msg_only), CommitMatchType.MATCHED_BY_MESSAGE)
+                )
         return groups
 
     def groups_by_branch_type(self, br_type: BranchType) -> List[CommitGroup]:

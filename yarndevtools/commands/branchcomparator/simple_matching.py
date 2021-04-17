@@ -232,7 +232,7 @@ class RelatedCommitGroupSimple:
     def __init__(self, master_commits: List[CommitData], feature_commits: List[CommitData]):
         self.master_commits = master_commits
         self.feature_commits = feature_commits
-        self.match_data: Dict[str, List[Tuple[CommitData, CommitData]]] = self.process()
+        self.match_data: Dict[CommitMatchType, List[Tuple[CommitData, CommitData]]] = self.process()
 
     @property
     def get_matched_by_id_and_msg(self) -> List[Tuple[CommitData, CommitData]]:
