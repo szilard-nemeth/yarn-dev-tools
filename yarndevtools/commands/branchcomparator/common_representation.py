@@ -212,12 +212,9 @@ class RenderedSummary:
         branch: str = None,
     ):
         tables = self._tables[ttype]
-        result: List[TableWithHeader] = []
-        for table in tables:
-            # TODO simplify with filter
-            if table.colorized == colorized and table.table_fmt == table_fmt and table.branch == branch:
-                result.append(table)
-        return result
+        return list(
+            filter(lambda t: t.colorized == colorized and t.table_fmt == table_fmt and t.branch == branch, tables)
+        )
 
     def get_branch_based_tables(self, ttype: RenderedTableType, table_fmt: TabulateTableFormat):
         tables: List[TableWithHeader] = []
