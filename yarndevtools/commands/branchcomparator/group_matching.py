@@ -217,7 +217,7 @@ class CommitGrouper:
         self.branch_data = branch_data
         self.jira_id_to_commits = jira_id_to_commits
         self._groups_by_jira_id: Dict[BranchType, List[CommitGroup]] = self._create_groups()
-        self._groups_by_msg = self._create_groups_by_message()
+        self._groups_by_msg: Dict[BranchType, List[CommitGroup]] = self._create_groups_by_message()
         # self._groups[BranchType.MASTER].extend(self._groups_by_msg[BranchType.MASTER])
         # self._groups[BranchType.FEATURE].extend(self._groups_by_msg[BranchType.FEATURE])
         self.sanity_check()
@@ -245,8 +245,6 @@ class CommitGrouper:
             #     Contributed by Benjamin Teke
             # --> SOLUTION: Use set collection type for 'grouped_commits'.
             # --> PROBLEM: This drops away the ordering info of commits.
-
-            # TODO Add all commits with missing Jira ID to dedicated group
 
             for jira_id, commits in jira_ids_commits_for_branch.items():
                 grouped_commits: Set[CommitData] = set()
@@ -292,21 +290,25 @@ class CommitGrouper:
 
     def print_group_stats(self):
         for br_type in self.branch_data.keys():
-            groups_by_jira_id = self._groups_by_jira_id[br_type]
-            preds = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
-            partitioned_groups: List[List[CommitGroup]] = self._partition_multi(preds, groups_by_jira_id)
+            self._print_group_stats_internal(br_type, self._groups_by_jira_id[br_type], "jira id based")
+            self._print_group_stats_internal(br_type, self._groups_by_msg[br_type], "commit message based")
 
-            print_helper_dict = {
-                "1 commit": partitioned_groups[0],
-                "2 commits": partitioned_groups[1],
-                "3 or more commits": partitioned_groups[2],
-            }
-            for group_type, partition_group in print_helper_dict.items():
-                groups_str_list = [self._group_to_str(g, idx) for idx, g in enumerate(partition_group)]
-                LOG.debug(
-                    f"Listing commit groups with {group_type} on branch {br_type} ({len(partition_group)}): "
-                    f"{StringUtils.list_to_multiline_string(groups_str_list)}"
-                )
+    def _print_group_stats_internal(self, br_type, groups: List[CommitGroup], type_of_group: str):
+        preds = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
+        partitioned_groups: List[List[CommitGroup]] = self._partition_multi(preds, groups)
+        print_helper_dict = {
+            "1 commit": partitioned_groups[0],
+            "2 commits": partitioned_groups[1],
+            "3 or more commits": partitioned_groups[2],
+        }
+        for cardinality, partition_group in print_helper_dict.items():
+            groups_str_list = [self._group_to_str(g, idx) for idx, g in enumerate(partition_group)]
+            LOG.debug(
+                f"Listing {type_of_group} commit groups with {cardinality} "
+                f"on branch {br_type} (# of groups: {len(partition_group)}): \n"
+                f"{StringUtils.list_to_multiline_string(groups_str_list)}"
+            )
+        # TODO consider printing this as a grid / html
 
     @staticmethod
     def _group_to_str(group: CommitGroup, idx):
