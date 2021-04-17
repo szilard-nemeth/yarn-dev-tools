@@ -1,20 +1,21 @@
+import logging
 from enum import Enum
-from typing import Dict, List, Tuple
+from typing import Dict, List
+
 from git import Commit
+from pythoncommons.collection_utils import CollectionUtils
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.logging_utils import LoggerFactory
-from pythoncommons.string_utils import StringUtils
+from pythoncommons.git_wrapper import GitWrapper
+
 from yarndevtools.commands.branchcomparator.common import (
     BranchType,
     BranchData,
-    convert_commits_to_oneline_strings,
-    convert_commit_to_str,
 )
-from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, RenderedSummary
+from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, OutputManager
 from yarndevtools.commands.branchcomparator.group_matching import GroupedCommitMatcher
 from yarndevtools.commands.branchcomparator.legacy_script import LegacyScriptRunner
-from yarndevtools.commands.branchcomparator.simple_matching import SimpleCommitMatcher, CommonCommits
+from yarndevtools.commands.branchcomparator.simple_matching import SimpleCommitMatcher
 from yarndevtools.commands_common import (
     CommitData,
     GitLogLineFormat,
@@ -23,11 +24,9 @@ from yarndevtools.commands_common import (
     JiraIdTypePreference,
     JiraIdChoosePreference,
 )
-from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
-from pythoncommons.git_wrapper import GitWrapper
-from pythoncommons.collection_utils import CollectionUtils
+from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 
-LOG = LoggerFactory.get_logger(__name__)
+LOG = logging.getLogger(__name__)
 
 
 class CommitMatchingAlgorithm(Enum):
@@ -50,6 +49,7 @@ class BranchComparatorConfig:
         # TODO make this object instance configurable
         self.matching_algorithm = CommitMatchingAlgorithm.GROUPED
         # self.matching_algorithm = CommitMatchingAlgorithm.SIMPLE
+        self.output_manager = OutputManager(self)
 
     @staticmethod
     def find_git_compare_script():
@@ -77,10 +77,6 @@ class Branches:
 
     def get_branch(self, br_type: BranchType) -> BranchData:
         return self.branch_data[br_type]
-
-    @staticmethod
-    def _generate_filename(basedir, prefix, branch_name="") -> str:
-        return FileUtils.join_path(basedir, f"{prefix}{StringUtils.replace_special_chars(branch_name)}")
 
     def validate(self, br_type: BranchType):
         br_data = self.branch_data[br_type]
@@ -132,51 +128,6 @@ class Branches:
         self._sanity_check_commits_before_merge_base(feature_br, master_br)
         self._determine_commits_with_missing_jira_id(branches)
 
-    def print_or_write_to_file_before_compare(self, common_commits):
-        LOG.info(f"Merge base of branches: {self.merge_base}")
-        feature_br: BranchData = self.branch_data[BranchType.FEATURE]
-        master_br: BranchData = self.branch_data[BranchType.MASTER]
-        LOG.info(
-            f"Detected {len(common_commits.before_merge_base)} common commits before merge-base between "
-            f"'{feature_br.name}' and '{master_br.name}'"
-        )
-
-        for br_type, br_data in self.branch_data.items():
-            LOG.info(f"Printing jira IDs for {br_data.type.value}...")
-            for c in br_data.commits_after_merge_base:
-                LOG.info(f"Jira ID: {c.jira_id}, commit message: {c.message}")
-            if self.config.console_mode:
-                LOG.info(f"Found {br_data.number_of_commits} commits on {br_type.value}: {br_data.name}")
-            if self.config.save_to_file:
-                # We would like to maintain descending order of commits in printouts
-                self.write_to_file_or_console("git log output full raw", br_data, list(reversed(br_data.commit_objs)))
-
-            self.write_to_file_or_console("before mergebase commits", br_data, br_data.commits_before_merge_base)
-            self.write_to_file_or_console("after mergebase commits", br_data, br_data.commits_after_merge_base)
-
-            LOG.combined_log(
-                "Found all commits with missing Jira ID:",
-                info_coll=self.all_commits_with_missing_jira_id[br_data.type],
-                debug_coll=self.all_commits_with_missing_jira_id[br_data.type],
-                debug_coll_func=StringUtils.list_to_multiline_string,
-            )
-
-            LOG.combined_log(
-                f"Found {br_data.type.value} commits after merge-base with missing Jira ID: ",
-                coll=br_data.commits_with_missing_jira_id,
-                debug_coll_func=StringUtils.list_to_multiline_string,
-            )
-            filtered_commit_list: List[CommitData] = br_data.filtered_commit_list
-            LOG.combined_log(
-                f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
-                f"(after applied author filter: {self.config.commit_author_exceptions}): ",
-                coll=filtered_commit_list,
-                debug_coll_func=StringUtils.list_to_multiline_string,
-            )
-
-            self.write_to_file_or_console("commits missing jira id", br_data, br_data.commits_with_missing_jira_id)
-            self.write_to_file_or_console("commits missing jira id filtered", br_data, filtered_commit_list)
-
     def get_merge_base(self):
         merge_base: List[Commit] = self.repo.merge_base(
             self.branch_data[BranchType.FEATURE].name, self.branch_data[BranchType.MASTER].name
@@ -204,14 +155,16 @@ class Branches:
             # we can set it from any of master / feature branch
             common_commits = self.commit_matcher.create_common_commits_obj()
             common_commits.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
-            self.print_or_write_to_file_before_compare(common_commits)
+            self.config.output_manager.print_or_write_to_file_before_compare(
+                self.branch_data, self.merge_base, common_commits
+            )
 
             # Let the game begin :)
             # Start to compare / A.K.A. match commits
             # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
             self.commit_matcher.match_commits()
             summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
-            self._write_commit_match_result_files(common_commits)
+            self.config.output_manager.write_commit_match_result_files(self.branch_data, common_commits)
         elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
             self.commit_matcher.match_commits()
             return None
@@ -269,65 +222,6 @@ class Branches:
                 ]
             )
 
-    def write_to_file_or_console(self, output_type: str, branch: BranchData, commits: List[CommitData]):
-        contents = convert_commits_to_oneline_strings(commits)
-        if self.config.console_mode:
-            LOG.info(f"Printing {output_type} for branch {branch.type.name}: {contents}")
-        else:
-            fn_prefix = Branches._convert_output_type_str_to_file_prefix(output_type)
-            f = self._generate_filename(self.config.output_dir, fn_prefix, branch.shortname)
-            LOG.info(f"Saving {output_type} for branch {branch.type.name} to file: {f}")
-            FileUtils.save_to_file(f, contents)
-
-    def write_commit_list_to_file_or_console(
-        self,
-        output_type: str,
-        commit_groups: List[Tuple[CommitData, CommitData]],
-        add_sep_to_end=True,
-        add_line_break_between_groups=False,
-    ):
-        if not add_line_break_between_groups:
-            commits = [convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
-            contents = StringUtils.list_to_multiline_string(commits)
-        else:
-            contents = ""
-            for tup in commit_groups:
-                commit_strs = [convert_commit_to_str(commit) for commit in tup]
-                contents += StringUtils.list_to_multiline_string(commit_strs)
-                contents += "\n\n"
-
-        if self.config.console_mode:
-            LOG.info(f"Printing {output_type}: {contents}")
-        else:
-            fn_prefix = Branches._convert_output_type_str_to_file_prefix(output_type, add_sep_to_end=add_sep_to_end)
-            f = self._generate_filename(self.config.output_dir, fn_prefix)
-            LOG.info(f"Saving {output_type} to file: {f}")
-            FileUtils.save_to_file(f, contents)
-
-    @staticmethod
-    def _convert_output_type_str_to_file_prefix(output_type, add_sep_to_end=True):
-        file_prefix: str = output_type.replace(" ", "-")
-        if add_sep_to_end:
-            file_prefix += "-"
-        return file_prefix
-
-    def _write_commit_match_result_files(self, common_commits: CommonCommits):
-        self.write_commit_list_to_file_or_console(
-            "commit message differs",
-            common_commits.matched_only_by_jira_id,
-            add_sep_to_end=False,
-            add_line_break_between_groups=True,
-        )
-
-        self.write_commit_list_to_file_or_console(
-            "commits matched by message",
-            common_commits.matched_only_by_message,
-            add_sep_to_end=False,
-            add_line_break_between_groups=True,
-        )
-        for br_data in self.branch_data.values():
-            self.write_to_file_or_console("unique commits", br_data, br_data.unique_commits)
-
     def set_commits_with_missing_jira_id(self):
         for br_type, br_data in self.branch_data.items():
             self.all_commits_with_missing_jira_id[br_type] = br_data.all_commits_with_missing_jira_id
@@ -358,7 +252,7 @@ class BranchComparator:
         summary_data = self.compare()
         if self.config.run_legacy_script:
             LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path)
-        self.print_and_save_summary(summary_data)
+        self.config.output_manager.print_and_save_summary(summary_data)
 
     def validate_branches(self):
         both_exist = self.branches.validate(BranchType.FEATURE)
@@ -370,15 +264,3 @@ class BranchComparator:
         self.branches.execute_git_log()
         self.branches.pre_compare()
         return self.branches.compare()
-
-    def print_and_save_summary(self, summary_data: SummaryDataAbs):
-        rendered_sum = RenderedSummary.from_summary_data(summary_data)
-        LOG.info(rendered_sum.printable_summary_str)
-
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_TXT)
-        LOG.info(f"Saving summary to text file: {filename}")
-        FileUtils.save_to_file(filename, rendered_sum.writable_summary_str)
-
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_HTML)
-        LOG.info(f"Saving summary to html file: {filename}")
-        FileUtils.save_to_file(filename, rendered_sum.html_summary)

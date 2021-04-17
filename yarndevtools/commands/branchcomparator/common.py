@@ -2,20 +2,9 @@ import logging
 from abc import ABC
 from enum import Enum
 from typing import List, Dict, Set
-
-from pythoncommons.string_utils import StringUtils
-
 from yarndevtools.commands_common import CommitData
 
 LOG = logging.getLogger(__name__)
-
-
-def convert_commits_to_oneline_strings(commits: List[CommitData]):
-    return StringUtils.list_to_multiline_string([convert_commit_to_str(c) for c in commits])
-
-
-def convert_commit_to_str(commit: CommitData):
-    return commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
 
 
 class BranchType(Enum):
