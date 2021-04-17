@@ -171,7 +171,7 @@ class SimpleCommitMatcher:
         master_commit_msg = master_commit.message
         if master_commit_msg in master_commits_by_message:
             LOG.debug(
-                "Trying to match commit by commit message as Jira ID is missing. Details: \n"
+                "Trying to match commit by commit message as Jira ID is missing. \n"
                 f"Branch: master branch\n"
                 f"Commit: {convert_commit_to_str(master_commit)}\n"
             )
