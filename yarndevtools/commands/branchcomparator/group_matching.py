@@ -33,7 +33,8 @@ def filter_commits_by_hashes(
 
 @auto_str
 class CommitGroup:
-    def __init__(self, br_type: BranchType, commits: Set[CommitData]):
+    # TODO Should have a property whether it matched by Jira ID or commit message or both
+    def __init__(self, br_type: BranchType or None, commits: Set[CommitData]):
         # Put commits into ascending order by date
         self.br_type = br_type
         self.commits: List[CommitData] = sorted(
@@ -131,7 +132,6 @@ class GroupedCommitMatcher:
     def match_commits(self) -> Any:
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)
         self.commit_grouper: CommitGrouper = CommitGrouper(self.branch_data, self.jira_id_to_commits)
-        # self.commit_grouper
         # TODO print groups that has 2 or more jira IDS (also print to file)
 
 
@@ -183,6 +183,11 @@ class CommitGrouper:
         self.branch_data = branch_data
         self.jira_id_to_commits = jira_id_to_commits
         self._groups: Dict[BranchType, List[CommitGroup]] = self._create_groups()
+        groups_by_msg = self._create_groups_by_message()
+        self._groups[BranchType.MASTER].extend(groups_by_msg[BranchType.MASTER])
+        self._groups[BranchType.FEATURE].extend(groups_by_msg[BranchType.FEATURE])
+        # TODO Start a second-pass that tries to group jira-id based groups with commit message groups?
+        # It can happen that a commit message group has the same commit message like already existing commits in groups, with jira ids
         self.sanity_check()
         self.print_group_stats()
 
@@ -229,6 +234,15 @@ class CommitGrouper:
                 if len(grouped_commits) > 0:
                     groups[br_type].append(CommitGroup(br_type, grouped_commits))
                     visited_commit_hashes.update([c.hash for c in grouped_commits])
+        return groups
+
+    def _create_groups_by_message(self) -> Dict[BranchType, List[CommitGroup]]:
+        groups: Dict[BranchType, List[CommitGroup]] = {}
+        for br_type in self.branch_data.keys():
+            groups[br_type] = []
+            branch_data = self.branch_data[br_type]
+            for msg, commits_with_msg_only in branch_data.filtered_commits_by_message.items():
+                groups[br_type].append(CommitGroup(br_type, set(commits_with_msg_only)))
         return groups
 
     def groups_by_branch_type(self, br_type: BranchType) -> List[CommitGroup]:
@@ -288,10 +302,17 @@ class CommitGrouper:
 
     def sanity_check(self):
         for br_type in self.branch_data.keys():
+            # This will get commits_after_merge_base_filtered from BranchData
             num_commits_on_branch = len(get_commits(self.branch_data, br_type))
+
+            # Get all number of commits from all groups
             sum_len_groups = self.sum_len_of_groups(br_type)
+
+            # Diff all commits on branch vs. all number of commits in groups
+            # If they are the same it means all commits are added to exactly one group
             if num_commits_on_branch == sum_len_groups:
                 LOG.info("Sanity check was successful")
+                return
 
             hashes_on_branch = get_commit_hashes(self.branch_data, br_type)
             hashes_of_groups = self.all_commit_hashes_in_groups(br_type)
@@ -301,7 +322,7 @@ class CommitGrouper:
                 f"Number of commits on branch is: {num_commits_on_branch}\n"
                 f"Number of all items in all groups: {sum_len_groups}"
             )
-            LOG.warning(message)
+            LOG.error(message)
 
             if len(hashes_on_branch) < len(hashes_of_groups):
                 # TODO think about this what could be a useful exception message here
@@ -311,15 +332,7 @@ class CommitGrouper:
 
             diffed_hashes = set(hashes_on_branch).difference(set(hashes_of_groups))
             commits_by_hashes = self.branch_data[br_type].get_commits_by_hashes(diffed_hashes)
-            LOG.warning(f"Commits that are not found amoung groups: {commits_by_hashes}")
-
-            # It can happen that the missing commit hashes are the ones that has missing Jira IDs,
-            # as they are treated separately
-            missing_jira_id_hashes = set(self.branch_data[br_type].commits_with_missing_jira_id_filtered.keys())
-            really_missing_commit_hashes = diffed_hashes.difference(missing_jira_id_hashes)
-            if len(really_missing_commit_hashes) == 0:
-                LOG.info("Sanity check was successful")
-                return
+            LOG.error(f"Commits that are not found amoung groups: {commits_by_hashes}")
 
             # Well, two big numbers like 414 vs. 410 commits doesn't give much of clarity, so let's print the
             # commit details
