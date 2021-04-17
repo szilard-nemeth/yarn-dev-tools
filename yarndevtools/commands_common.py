@@ -59,7 +59,7 @@ class JiraIdData:
         return jira_id_dict
 
     @property
-    def all_matched_jira_ids(self):
+    def all_matched_jira_ids(self) -> List[Any]:
         if self.DOWNSTREAM_KEY not in self._all_matched and self.UPSTREAM_KEY not in self._all_matched:
             return []
         return self._all_matched[self.DOWNSTREAM_KEY] + self._all_matched[self.UPSTREAM_KEY]

@@ -1,11 +1,19 @@
+from enum import Enum
 from typing import Dict, List, Tuple
 from git import Commit
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_utils import LoggerFactory
 from pythoncommons.string_utils import StringUtils
-from yarndevtools.commands.branchcomparator.common import BranchType, BranchData
+from yarndevtools.commands.branchcomparator.common import (
+    BranchType,
+    BranchData,
+    sum_len_of_lists_in_dict,
+    convert_commits_to_oneline_strings,
+    convert_commit_to_str,
+)
 from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs, RenderedSummary
+from yarndevtools.commands.branchcomparator.group_matching import GroupedCommitMatcher
 from yarndevtools.commands.branchcomparator.legacy_script import LegacyScriptRunner
 from yarndevtools.commands.branchcomparator.simple_matching import SimpleCommitMatcher, CommonCommits
 from yarndevtools.commands_common import (
@@ -22,6 +30,11 @@ from pythoncommons.git_wrapper import GitWrapper
 LOG = LoggerFactory.get_logger(__name__)
 
 
+class CommitMatchingAlgorithm(Enum):
+    SIMPLE = SimpleCommitMatcher
+    GROUPED = GroupedCommitMatcher
+
+
 class BranchComparatorConfig:
     def __init__(self, output_dir: str, args):
         self.output_dir = FileUtils.ensure_dir_created(
@@ -33,6 +46,10 @@ class BranchComparatorConfig:
         self.fail_on_missing_jira_id = False
         self.run_legacy_script = args.run_legacy_script
         self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
+
+        # TODO make this object instance configurable
+        self.matching_algorithm = CommitMatchingAlgorithm.GROUPED
+        # self.matching_algorithm = CommitMatchingAlgorithm.SIMPLE
 
     @staticmethod
     def find_git_compare_script():
@@ -50,8 +67,10 @@ class Branches:
             branch_name = branch_dict[br_type]
             self.branch_data[br_type] = BranchData(br_type, branch_name)
 
-        # TODO make this object instance configurable
-        self.commit_matcher = SimpleCommitMatcher(self.branch_data)
+        if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
+            self.commit_matcher = SimpleCommitMatcher(self.branch_data)
+        elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
+            self.commit_matcher = GroupedCommitMatcher(self.branch_data)
 
         # These are set later
         self.merge_base: CommitData or None = None
@@ -100,6 +119,11 @@ class Branches:
         # These must be executed after branch.hash_to_index is set !
         self.set_commits_with_missing_jira_id()
         self.get_merge_base()
+        for br_type in BranchType:
+            branch: BranchData = self.branch_data[br_type]
+            branch.commits_after_merge_base_filtered = list(
+                filter(lambda c: c.author not in self.config.commit_author_exceptions, branch.commits_after_merge_base)
+            )
 
     def pre_compare(self):
         feature_br: BranchData = self.branch_data[BranchType.FEATURE]
@@ -142,15 +166,15 @@ class Branches:
                 coll=br_data.commits_with_missing_jira_id,
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
+            filtered_commit_list: List[CommitData] = br_data.filtered_commit_list
             LOG.combined_log(
                 f"Found {br_data.type.value} commits after merge-base with missing Jira ID "
                 f"(after applied author filter: {self.config.commit_author_exceptions}): ",
-                coll=br_data.commits_with_missing_jira_id_filtered,
+                coll=filtered_commit_list,
                 debug_coll_func=StringUtils.list_to_multiline_string,
             )
 
             self.write_to_file_or_console("commits missing jira id", br_data, br_data.commits_with_missing_jira_id)
-            filtered_commit_list = [c for c in br_data.commits_with_missing_jira_id_filtered.values()]
             self.write_to_file_or_console("commits missing jira id filtered", br_data, filtered_commit_list)
 
     def get_merge_base(self):
@@ -174,18 +198,24 @@ class Branches:
             branch.set_merge_base(self.merge_base)
 
     def compare(self) -> SummaryDataAbs:
-        # At this point, sanity check verified commits before merge-base,
-        # we can set it from any of master / feature branch
-        common_commits = self.commit_matcher.create_common_commits_obj()
-        common_commits.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
-        self.print_or_write_to_file_before_compare(common_commits)
+        # TODO Make the 2 commit matchers have the same interface somehow (?)
+        if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
+            # At this point, sanity check verified commits before merge-base,
+            # we can set it from any of master / feature branch
+            common_commits = self.commit_matcher.create_common_commits_obj()
+            common_commits.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
+            self.print_or_write_to_file_before_compare(common_commits)
 
-        # Let the game begin :)
-        # Start to compare / A.K.A. match commits
-        # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
-        self.commit_matcher.match_commits()
-        summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
-        self._write_commit_match_result_files(common_commits)
+            # Let the game begin :)
+            # Start to compare / A.K.A. match commits
+            # TODO move these to compare match_commits method, _write_commit_match_result_files also implementation specific
+            self.commit_matcher.match_commits()
+            summary: SummaryDataAbs = self.commit_matcher.create_summary_data(self.config, self, common_commits)
+            self._write_commit_match_result_files(common_commits)
+        elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
+            self.commit_matcher.match_commits()
+            return None
+            # TODO call the rest of the required methods + return with something
         return summary
 
     @staticmethod
@@ -210,7 +240,7 @@ class Branches:
     def _determine_commits_with_missing_jira_id(self, branches: List[BranchData]):
         # If fail on missing jira id is configured, fail-fast
         if self.config.fail_on_missing_jira_id:
-            len_of_all_lists = sum([len(lst) for lst in self.all_commits_with_missing_jira_id.values()])
+            len_of_all_lists = sum_len_of_lists_in_dict(self.all_commits_with_missing_jira_id)
             raise ValueError(f"Found {len_of_all_lists} commits with missing Jira ID! " f"Halting as configured")
         # TODO write commits with multiple jira IDs to a file
         for br_data in branches:
@@ -219,10 +249,19 @@ class Branches:
             )
             # Create a dict of (commit message, CommitData),
             # filtering all the commits that has author from the authors to filter.
-            # IMPORTANT Assumption: Commit message is unique for all commits
+            # IMPORTANT Assumption: Commit message is unique for all commits --> This is bad
+            # Example:
+            # CommitData(hash=45fa9a281222a600f056ac40d1e2edddce029186, jira_id=None, message=SPNEGO TLS verification,
+            #     date=2020-05-05T09:58:45-07:00, branches=None, reverted=False, author=eyang@apache.org,
+            #     committer=weichiu@cloudera.com, reverted_at_least_once=False,
+            #     jira_id_data=JiraIdData(chosen=None, _all_matched={}))
+            # CommitData(hash=199768ddb9cbc6e10234dec390f7f1ec03445df7, jira_id=None, message=SPNEGO TLS verification,
+            #     date=2020-10-21T12:02:22-07:00, branches=None, reverted=False, author=eyang@apache.org,
+            #     committer=weichiu@cloudera.com, reverted_at_least_once=False,
+            #     jira_id_data=JiraIdData(chosen=None, _all_matched={}))
             br_data.commits_with_missing_jira_id_filtered = dict(
                 [
-                    (c.message, c)
+                    (c.hash, c)
                     for c in filter(
                         lambda c: c.author not in self.config.commit_author_exceptions,
                         br_data.commits_with_missing_jira_id,
@@ -231,7 +270,7 @@ class Branches:
             )
 
     def write_to_file_or_console(self, output_type: str, branch: BranchData, commits: List[CommitData]):
-        contents = StringUtils.list_to_multiline_string([self.convert_commit_to_str(c) for c in commits])
+        contents = convert_commits_to_oneline_strings(commits)
         if self.config.console_mode:
             LOG.info(f"Printing {output_type} for branch {branch.type.name}: {contents}")
         else:
@@ -248,12 +287,12 @@ class Branches:
         add_line_break_between_groups=False,
     ):
         if not add_line_break_between_groups:
-            commits = [self.convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
+            commits = [convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
             contents = StringUtils.list_to_multiline_string(commits)
         else:
             contents = ""
             for tup in commit_groups:
-                commit_strs = [self.convert_commit_to_str(commit) for commit in tup]
+                commit_strs = [convert_commit_to_str(commit) for commit in tup]
                 contents += StringUtils.list_to_multiline_string(commit_strs)
                 contents += "\n\n"
 
@@ -271,10 +310,6 @@ class Branches:
         if add_sep_to_end:
             file_prefix += "-"
         return file_prefix
-
-    @staticmethod
-    def convert_commit_to_str(commit: CommitData):
-        return commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
 
     def _write_commit_match_result_files(self, common_commits: CommonCommits):
         self.write_commit_list_to_file_or_console(
