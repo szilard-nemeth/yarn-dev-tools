@@ -7,10 +7,7 @@ from yarndevtools.commands.branchcomparator.common import (
     MatchingResultBase,
     CommitMatchType,
     CommitMatcherBase,
-)
-from yarndevtools.commands.branchcomparator.common_representation import (
-    convert_commit_to_str,
-    convert_commits_to_oneline_strings,
+    CommonUtils,
 )
 from yarndevtools.commands_common import CommitData
 
@@ -267,15 +264,15 @@ class SimpleCommitMatcher(CommitMatcherBase):
             LOG.debug(
                 "Trying to match commit by commit message as Jira ID is missing. \n"
                 f"Branch: master branch\n"
-                f"Commit: {convert_commit_to_str(master_commit)}\n"
+                f"Commit: {CommonUtils.convert_commit_to_str(master_commit)}\n"
             )
             # Master commit message found in missing jira id list of the feature branch, record match
             if master_commit_msg in feature_commits_by_message:
                 LOG.warning(
                     "Found match by commit message.\n"
                     f"Branch: master branch\n"
-                    f"Master branch commit: {convert_commit_to_str(master_commit)}\n"
-                    f"Feature branch commit(s): {convert_commits_to_oneline_strings(feature_commits_by_message[master_commit_msg])}\n"
+                    f"Master branch commit: {CommonUtils.convert_commit_to_str(master_commit)}\n"
+                    f"Feature branch commit(s): {CommonUtils.convert_commits_to_oneline_strings(feature_commits_by_message[master_commit_msg])}\n"
                 )
                 common_commit_msgs.add(master_commit_msg)
                 commit_group: RelatedCommitGroupSimple = RelatedCommitGroupSimple(

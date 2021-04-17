@@ -18,7 +18,7 @@ from pythoncommons.result_printer import (
 )
 from pythoncommons.string_utils import StringUtils
 
-from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase
+from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase, CommonUtils
 from yarndevtools.commands.branchcomparator.simple_matching import SimpleMatchingResult
 from yarndevtools.commands_common import CommitData
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
@@ -32,14 +32,6 @@ HEADER_ROW = "Row"
 HEADER_FILE = "File"
 HEADER_NO_OF_LINES = "# of lines"
 HEADER_COMMITTER = "Committer"
-
-
-def convert_commits_to_oneline_strings(commits: List[CommitData]):
-    return StringUtils.list_to_multiline_string([convert_commit_to_str(c) for c in commits])
-
-
-def convert_commit_to_str(commit: CommitData):
-    return commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
 
 
 class TableWithHeader:
@@ -329,12 +321,12 @@ class OutputManager:
         add_line_break_between_groups=False,
     ):
         if not add_line_break_between_groups:
-            commits = [convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
+            commits = [CommonUtils.convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
             contents = StringUtils.list_to_multiline_string(commits)
         else:
             contents = ""
             for tup in commit_groups:
-                commit_strs = [convert_commit_to_str(commit) for commit in tup]
+                commit_strs = [CommonUtils.convert_commit_to_str(commit) for commit in tup]
                 contents += StringUtils.list_to_multiline_string(commit_strs)
                 contents += "\n\n"
 
@@ -413,7 +405,7 @@ class OutputManager:
             self.write_to_file_or_console("commits missing jira id filtered", br_data, filtered_commit_list)
 
     def write_to_file_or_console(self, output_type: str, branch: BranchData, commits: List[CommitData]):
-        contents = convert_commits_to_oneline_strings(commits)
+        contents = CommonUtils.convert_commits_to_oneline_strings(commits)
         if self.config.console_mode:
             LOG.info(f"Printing {output_type} for branch {branch.type.name}: {contents}")
         else:
