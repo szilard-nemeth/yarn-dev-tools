@@ -1,6 +1,8 @@
 import logging
 import sys
 from enum import Enum
+
+from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
 from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME
 
 LOG = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ class ArgParser:
         ArgParser.add_save_diff_as_patches(subparsers, yarn_dev_tools)
         ArgParser.diff_patches_of_jira(subparsers, yarn_dev_tools)
         ArgParser.add_fetch_jira_umbrella_data(subparsers, yarn_dev_tools)
-        ArgParser.add_compare_branches(subparsers, yarn_dev_tools)
+        ArgParser.add_branch_comparator(subparsers, yarn_dev_tools)
         ArgParser.add_zip_latest_command_data(subparsers, yarn_dev_tools)
         ArgParser.add_send_latest_command_data(subparsers, yarn_dev_tools)
 
@@ -175,10 +177,20 @@ class ArgParser:
         parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)
 
     @staticmethod
-    def add_compare_branches(subparsers, yarn_dev_tools):
+    def add_branch_comparator(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
             CommandType.COMPARE_BRANCHES.value,
-            help="Compares branches." "Example: CDH-7.1-maint cdpd-master",
+            help="Branch comparator."
+            "Usage: <algorithm> <feature branch> <master branch>"
+            "Example: simple CDH-7.1-maint cdpd-master"
+            "Example: grouped CDH-7.1-maint cdpd-master",
+        )
+
+        parser.add_argument(
+            "algorithm",
+            type=CommitMatchingAlgorithm.argparse,
+            choices=list(CommitMatchingAlgorithm),
+            help="Matcher algorithm",
         )
         parser.add_argument("feature_branch", type=str, help="Feature branch")
         parser.add_argument("master_branch", type=str, help="Master branch")
@@ -199,7 +211,7 @@ class ArgParser:
             default=False,
             help="Console mode: Instead of writing output files, print everything to the console",
         )
-        parser.set_defaults(func=yarn_dev_tools.compare_branches)
+        parser.set_defaults(func=yarn_dev_tools.branch_comparator)
 
     @staticmethod
     def add_zip_latest_command_data(subparsers, yarn_dev_tools):
