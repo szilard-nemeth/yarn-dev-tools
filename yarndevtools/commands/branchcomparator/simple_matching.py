@@ -7,6 +7,7 @@ from yarndevtools.commands.branchcomparator.common import (
     CommonCommitsBase,
     convert_commit_to_str,
     convert_commits_to_oneline_strings,
+    CommitMatchType,
 )
 from yarndevtools.commands.branchcomparator.common_representation import SummaryDataAbs
 from yarndevtools.commands_common import CommitData
@@ -228,10 +229,6 @@ class SimpleCommitMatcher:
 
 
 class RelatedCommitGroupSimple:
-    MATCHED_BY_MSG = "matched_by_msg"
-    MATCHED_BY_ID = "matched_by_id"
-    MATCHED_BY_BOTH = "matched_by_both"
-
     def __init__(self, master_commits: List[CommitData], feature_commits: List[CommitData]):
         self.master_commits = master_commits
         self.feature_commits = feature_commits
@@ -239,18 +236,18 @@ class RelatedCommitGroupSimple:
 
     @property
     def get_matched_by_id_and_msg(self) -> List[Tuple[CommitData, CommitData]]:
-        return self.match_data[self.MATCHED_BY_BOTH]
+        return self.match_data[CommitMatchType.MATCHED_BY_BOTH]
 
     @property
     def get_matched_by_id(self) -> List[Tuple[CommitData, CommitData]]:
-        return self.match_data[self.MATCHED_BY_ID]
+        return self.match_data[CommitMatchType.MATCHED_BY_ID]
 
     @property
     def get_matched_by_msg(self) -> List[Tuple[CommitData, CommitData]]:
-        return self.match_data[self.MATCHED_BY_MSG]
+        return self.match_data[CommitMatchType.MATCHED_BY_MESSAGE]
 
     def process(self):
-        result_dict = {self.MATCHED_BY_ID: [], self.MATCHED_BY_MSG: [], self.MATCHED_BY_BOTH: []}
+        result_dict = {cmt: [] for cmt in CommitMatchType}
         # We can assume one master commit for this implementation
         mc = self.master_commits[0]
         result: List[CommitData]
@@ -258,14 +255,14 @@ class RelatedCommitGroupSimple:
             match_by_id = mc.jira_id == fc.jira_id
             match_by_msg = mc.message == fc.message
             if match_by_id and match_by_msg:
-                result_dict[self.MATCHED_BY_BOTH].append((mc, fc))
+                result_dict[CommitMatchType.MATCHED_BY_BOTH].append((mc, fc))
             elif match_by_id:
-                result_dict[self.MATCHED_BY_ID].append((mc, fc))
+                result_dict[CommitMatchType.MATCHED_BY_ID].append((mc, fc))
             elif match_by_msg:
                 LOG.warning(
                     "Jira ID is the same for commits, but commit message differs: \n"
                     f"Master branch commit: {mc.as_oneline_string()}\n"
                     f"Feature branch commit: {fc.as_oneline_string()}"
                 )
-                result_dict[self.MATCHED_BY_MSG].append((mc, fc))
+                result_dict[CommitMatchType.MATCHED_BY_MESSAGE].append((mc, fc))
         return result_dict

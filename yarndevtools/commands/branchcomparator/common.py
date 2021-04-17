@@ -23,6 +23,12 @@ class BranchType(Enum):
     MASTER = "master branch"
 
 
+class CommitMatchType(Enum):
+    MATCHED_BY_MESSAGE = "matched_by_msg"
+    MATCHED_BY_ID = "matched_by_id"
+    MATCHED_BY_BOTH = "matched_by_both"
+
+
 class CommonCommitsBase(ABC):
     def __init__(self):
         self.before_merge_base: List[CommitData] = []
