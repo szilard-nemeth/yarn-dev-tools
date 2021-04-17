@@ -19,6 +19,7 @@ from pythoncommons.result_printer import (
 from pythoncommons.string_utils import StringUtils
 
 from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase
+from yarndevtools.commands.branchcomparator.simple_matching import SimpleMatchingResult
 from yarndevtools.commands_common import CommitData
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -345,7 +346,9 @@ class OutputManager:
             LOG.info(f"Saving {output_type} to file: {f}")
             FileUtils.save_to_file(f, contents)
 
-    def write_commit_match_result_files(self, branch_data: Dict[BranchType, BranchData], matching_result):
+    def write_commit_match_result_files(
+        self, branch_data: Dict[BranchType, BranchData], matching_result: SimpleMatchingResult
+    ):
         self.write_commit_list_to_file_or_console(
             "commit message differs",
             matching_result.matched_only_by_jira_id,
