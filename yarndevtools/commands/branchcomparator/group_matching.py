@@ -103,11 +103,11 @@ class CommitGroup:
 
     @property
     def as_string(self):
-        str = ""
+        s = ""
         for commit in self.commits:
-            str += commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
-            str += "\n"
-        return str
+            s += commit.as_oneline_string(incl_date=True, incl_author=False, incl_committer=True)
+            s += "\n"
+        return s
 
     def as_indexed_str(self, idx):
         return f"Group {idx + 1}: \n{self.as_string}"
@@ -133,10 +133,10 @@ class CommitGroupStats:
         return CollectionUtils.sum_len_of_lists_in_dict(self._stats[br_type][match_type])
 
     def get_no_of_groups_for_match_type(self, match_type: CommitMatchType):
-        sum = 0
+        grps = 0
         for br_type in BranchType:
-            sum += CollectionUtils.sum_len_of_lists_in_dict(self._stats[br_type][match_type])
-        return sum
+            grps += CollectionUtils.sum_len_of_lists_in_dict(self._stats[br_type][match_type])
+        return grps
 
     @staticmethod
     def _get_group_stats_internal(groups: List[CommitGroup]):

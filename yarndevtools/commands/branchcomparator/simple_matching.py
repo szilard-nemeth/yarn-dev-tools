@@ -103,6 +103,8 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
         return self.branch_data[br_type]
 
     def is_jira_id_present_on_branch(self, jira_id: str, br_type: BranchType):
+        if jira_id:
+            raise ValueError("jira_id should not be None!")
         br: BranchData = self.get_branch(br_type)
         return jira_id in br.jira_id_to_commits
 
