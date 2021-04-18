@@ -160,7 +160,8 @@ class SimpleCommitMatcher(CommitMatcherBase):
     def create_summary_data(self, config, branches, matching_result) -> SimpleCommitMatcherSummaryData:
         return SimpleCommitMatcherSummaryData(config, branches, matching_result)
 
-    def match_commits(self) -> SimpleMatchingResult:
+    def match_commits(self, config, output_manager, merge_base) -> SimpleMatchingResult:
+        super().match_commits(config, output_manager, merge_base)
         """
         This matcher algorithm works in the way described below.
         First, it has some assumptions about the data stored into the BranchData objects.\n

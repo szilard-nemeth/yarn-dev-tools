@@ -263,7 +263,8 @@ class GroupedCommitMatcher(CommitMatcherBase):
     def create_summary_data(config, branches, matching_result) -> GroupedCommitMatcherSummaryData:
         return GroupedCommitMatcherSummaryData(config, branches, matching_result)
 
-    def match_commits(self) -> GroupedMatchingResult:
+    def match_commits(self, config, output_manager, merge_base) -> GroupedMatchingResult:
+        super().match_commits(config, output_manager, merge_base)
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)
         self.commit_grouper: CommitGrouper = CommitGrouper(self.branch_data, self.jira_id_to_commits)
         self.matching_result: GroupedMatchingResult = self.match_based_on_groups()
