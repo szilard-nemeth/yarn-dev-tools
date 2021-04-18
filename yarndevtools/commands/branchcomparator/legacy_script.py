@@ -28,6 +28,7 @@ class LegacyScriptRunner:
         # Cross check unique jira ids with previous results
         for br_type in BranchType:
             branch_data = branches.get_branch(br_type)
+            # TODO this seems to be completely wrong branches.summary.unique_commits is no longer stored there
             unique_jira_ids = [c.jira_id for c in branches.summary.unique_commits[br_type]]
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.debug(

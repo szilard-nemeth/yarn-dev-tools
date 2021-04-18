@@ -1,13 +1,36 @@
 import logging
-from typing import Set, Dict, List, Tuple, Any
+import typing
+from typing import List, Dict, Tuple
+from typing import Set, Any
 
+from pythoncommons.result_printer import (
+    ResultPrinter,
+    DEFAULT_TABLE_FORMATS,
+    BoolConversionConfig,
+    ColorizeConfig,
+    MatchType,
+    Color,
+    ColorDescriptor,
+    EvaluationMethod,
+)
+from pythoncommons.string_utils import StringUtils
+
+from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase, CommonUtils
 from yarndevtools.commands.branchcomparator.common import (
-    BranchData,
-    BranchType,
-    MatchingResultBase,
     CommitMatchType,
     CommitMatcherBase,
-    CommonUtils,
+)
+from yarndevtools.commands.branchcomparator.common_representation import (
+    SummaryDataAbs,
+    RenderedTableType,
+    RenderedSummaryAbs,
+    TableWithHeader,
+    HEADER_ROW,
+    HEADER_JIRA_ID,
+    HEADER_COMMIT_MSG,
+    HEADER_COMMIT_DATE,
+    HEADER_COMMITTER,
+    OutputManagerAbs,
 )
 from yarndevtools.commands_common import CommitData
 
@@ -28,18 +51,16 @@ class SimpleMatchingResult(MatchingResultBase):
         # Commits matched by Jira ID and by message as well
         self.matched_both: List[Tuple[CommitData, CommitData]] = []
 
+        self.unique_commits: Dict[BranchType, List[CommitData]] = {}
+
     @property
     def commits_after_merge_base(self):
         return [c[0] for c in self.after_merge_base]
 
 
-class SimpleCommitMatcherSummaryData:
+class SimpleCommitMatcherSummaryData(SummaryDataAbs):
     def __init__(self, config, branches, matching_result: SimpleMatchingResult):
-        self.output_dir: str = config.output_dir
-        self.run_legacy_script: bool = config.run_legacy_script
-        self.branches = branches
-        self.branch_data: Dict[BranchType, BranchData] = branches.branch_data
-        self.maching_result: SimpleMatchingResult = matching_result
+        super().__init__(config, branches, matching_result)
 
     def common_commits_after_merge_base(self):
         return self.maching_result.commits_after_merge_base
@@ -48,8 +69,8 @@ class SimpleCommitMatcherSummaryData:
     def all_commits(self):
         all_commits: List[CommitData] = (
             []
-            + self.branch_data[BranchType.MASTER].unique_commits
-            + self.branch_data[BranchType.FEATURE].unique_commits
+            + self.maching_result.unique_commits[BranchType.MASTER]
+            + self.maching_result.unique_commits[BranchType.FEATURE]
             + self.common_commits_after_merge_base()
         )
         all_commits.sort(key=lambda c: c.date, reverse=True)
@@ -96,46 +117,20 @@ class SimpleCommitMatcherSummaryData:
         res = self.add_stats_matched_commit_details(res)
         return res
 
-    def add_stats_no_of_commits_branch(self, res):
-        res += "\n\n=====Stats: BRANCHES=====\n"
-        for br_type, br_data in self.branch_data.items():
-            res += f"Number of commits on {br_type.value} '{br_data.name}': {br_data.number_of_commits}\n"
-        return res
-
     def add_stats_no_of_unique_commits_on_branch(self, res):
         res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
         for br_type, br_data in self.branch_data.items():
-            res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_commits)}\n"
-        return res
-
-    def add_stats_unique_commits_legacy_script(self, res):
-        if self.run_legacy_script:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT]=====\n"
-            for br_type, br_data in self.branch_data.items():
-                res += f"Number of unique commits on {br_type.value} '{br_data.name}': {len(br_data.unique_jira_ids_legacy_script)}\n"
-        else:
-            res += "\n\n=====Stats: UNIQUE COMMITS [LEGACY SCRIPT] - EXECUTION SKIPPED, NO DATA =====\n"
+            res += (
+                f"Number of unique commits on {br_type.value} '{br_data.name}': "
+                f"{len(self.maching_result.unique_commits[br_type])}\n"
+            )
         return res
 
     def add_stats_matched_commits_on_branches(self, res):
-        res += "\n\n=====Stats: COMMON=====\n"
+        res += "\n\n=====Stats: COMMON COMMITS=====\n"
         res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
         res += f"Number of common commits before merge-base: {len(self.maching_result.before_merge_base)}\n"
         res += f"Number of common commits after merge-base: {len(self.maching_result.after_merge_base)}\n"
-        return res
-
-    def add_stats_commits_with_missing_jira_id(self, res):
-        for br_type, br_data in self.branch_data.items():
-            res += f"\n\n=====Stats: COMMITS WITH MISSING JIRA ID ON BRANCH: {br_data.name}=====\n"
-            res += f"Number of all commits with missing Jira ID: {len(self.branches.all_commits_with_missing_jira_id[br_type])}\n"
-            res += (
-                f"Number of commits with missing Jira ID after merge-base: "
-                f"{len(br_data.commits_with_missing_jira_id)}\n"
-            )
-            res += (
-                f"Number of commits with missing Jira ID after merge-base, filtered by author exceptions: "
-                f"{len(br_data.commits_after_merge_base_filtered)}\n"
-            )
         return res
 
     def add_stats_matched_commit_details(self, res):
@@ -157,15 +152,10 @@ class SimpleCommitMatcherSummaryData:
 
 class SimpleCommitMatcher(CommitMatcherBase):
     def __init__(self, branch_data: Dict[BranchType, BranchData]):
-        self.branch_data = branch_data
-        self.matching_result: SimpleMatchingResult or None = None
+        super().__init__(branch_data, SimpleMatchingResult())
+        self.matching_result = typing.cast(SimpleMatchingResult, self.matching_result)
 
-    def create_matching_result(self) -> SimpleMatchingResult:
-        self.matching_result = SimpleMatchingResult()
-        return self.matching_result
-
-    @staticmethod
-    def create_summary_data(config, branches, matching_result) -> SimpleCommitMatcherSummaryData:
+    def create_summary_data(self, config, branches, matching_result) -> SimpleCommitMatcherSummaryData:
         return SimpleCommitMatcherSummaryData(config, branches, matching_result)
 
     def match_commits(self) -> SimpleMatchingResult:
@@ -246,13 +236,16 @@ class SimpleCommitMatcher(CommitMatcherBase):
             commits_by_msg = (
                 master_commits_by_message if br_data.type == BranchType.MASTER else feature_commits_by_message
             )
-            br_data.unique_commits = self._determine_unique_commits(
+            self.matching_result.unique_commits[br_data.type] = self._determine_unique_commits(
                 br_data.commits_after_merge_base,
                 commits_by_msg,
                 common_jira_ids,
                 common_commit_msgs,
             )
-            LOG.info(f"Identified {len(br_data.unique_commits)} unique commits on branch: {br_data.name}")
+            LOG.info(
+                f"Identified {len(self.matching_result.unique_commits[br_data.type])}"
+                f" unique commits on branch: {br_data.name}"
+            )
 
         return self.matching_result
 
@@ -356,3 +349,115 @@ class RelatedCommitGroupSimple:
                 )
                 result_dict[CommitMatchType.MATCHED_BY_MESSAGE].append((mc, fc))
         return result_dict
+
+
+class SimpleOutputManager(OutputManagerAbs):
+    def write_commit_list_to_file_or_console(
+        self,
+        output_type: str,
+        commit_groups: List[Tuple[CommitData, CommitData]],
+        add_sep_to_end=True,
+        add_line_break_between_groups=False,
+    ):
+        if not add_line_break_between_groups:
+            commits = [CommonUtils.convert_commit_to_str(commit) for tup in commit_groups for commit in tup]
+            contents = StringUtils.list_to_multiline_string(commits)
+        else:
+            contents = ""
+            for tup in commit_groups:
+                commit_strs = [CommonUtils.convert_commit_to_str(commit) for commit in tup]
+                contents += StringUtils.list_to_multiline_string(commit_strs)
+                contents += "\n\n"
+
+        self._write_to_file_or_console(contents, output_type, add_sep_to_end=add_sep_to_end)
+
+    def write_commit_match_result_files(
+        self, branch_data: Dict[BranchType, BranchData], matching_result: MatchingResultBase
+    ):
+        matching_result = typing.cast(SimpleMatchingResult, matching_result)
+        self.write_commit_list_to_file_or_console(
+            "commit message differs",
+            matching_result.matched_only_by_jira_id,
+            add_sep_to_end=False,
+            add_line_break_between_groups=True,
+        )
+
+        self.write_commit_list_to_file_or_console(
+            "commits matched by message",
+            matching_result.matched_only_by_message,
+            add_sep_to_end=False,
+            add_line_break_between_groups=True,
+        )
+        for br_data in branch_data.values():
+            self.write_to_file_or_console("unique commits", br_data, matching_result.unique_commits[br_data.type])
+
+
+class SimpleRenderedSummary(RenderedSummaryAbs):
+    def __init__(self, summary_data, matching_result):
+        # TODO list of RenderedTableType: Error-prone as if any of it is missing, rendering will be wrong
+        super().__init__(
+            summary_data,
+            matching_result,
+            [
+                RenderedTableType.RESULT_FILES,
+                RenderedTableType.UNIQUE_ON_BRANCH,
+                RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE,
+                RenderedTableType.ALL_COMMITS_MERGED,
+            ],
+        )
+
+        self.add_result_files_table()
+        self.add_unique_commit_tables(matching_result)
+        self.add_matched_commits_table()
+        self.add_all_commits_tables()
+        self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
+
+    def add_matched_commits_table(self):
+        table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
+        gen_tables = ResultPrinter.print_tables(
+            self.summary_data.common_commits_after_merge_base(),
+            lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
+            header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
+            print_result=False,
+            max_width=80,
+            max_width_separator=" ",
+            tabulate_fmts=DEFAULT_TABLE_FORMATS,
+        )
+        for table_fmt, table in gen_tables.items():
+            self.add_table(table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False))
+
+    def add_all_commits_tables(self):
+        all_commits: List[List] = self.summary_data.all_commits_presence_matrix
+
+        header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
+        header.extend(self.summary_data.get_branch_names())
+
+        # Adding 1 because row id will be added as first column
+        row_len = len(all_commits[0]) + 1
+        color_conf = ColorizeConfig(
+            [
+                ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, (0, row_len), (0, row_len)),
+                ColorDescriptor(bool, False, Color.RED, MatchType.ANY, (0, row_len), (0, row_len)),
+            ],
+            eval_method=EvaluationMethod.ALL,
+        )
+        self._add_all_comits_table(header, all_commits, colorize_conf=color_conf)
+        self._add_all_comits_table(header, all_commits, colorize_conf=None)
+
+    def _add_all_comits_table(self, header, all_commits, colorize_conf: ColorizeConfig = None):
+        table_type = RenderedTableType.ALL_COMMITS_MERGED
+        colorize = True if colorize_conf else False
+        gen_tables = ResultPrinter.print_tables(
+            all_commits,
+            lambda row: row,
+            header=header,
+            print_result=False,
+            max_width=100,
+            max_width_separator=" ",
+            bool_conversion_config=BoolConversionConfig(),
+            colorize_config=colorize_conf,
+        )
+        for table_fmt, table in gen_tables.items():
+            self.add_table(
+                table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=colorize)
+            )

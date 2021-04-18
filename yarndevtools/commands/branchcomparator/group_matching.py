@@ -1,9 +1,11 @@
 import logging
+import typing
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Any, Set, Tuple, FrozenSet
+from typing import Dict, List, Set, Tuple, FrozenSet
 
 from pythoncommons.collection_utils import CollectionUtils
+from pythoncommons.result_printer import ResultPrinter, DEFAULT_TABLE_FORMATS
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.branchcomparator.common import (
@@ -13,6 +15,13 @@ from yarndevtools.commands.branchcomparator.common import (
     CommitMatchType,
     CommitMatcherBase,
     CommonUtils,
+)
+from yarndevtools.commands.branchcomparator.common_representation import (
+    RenderedSummaryAbs,
+    RenderedTableType,
+    TableWithHeader,
+    OutputManagerAbs,
+    SummaryDataAbs,
 )
 from yarndevtools.commands_common import CommitData
 
@@ -50,7 +59,7 @@ class CommitGroupCardinality(Enum):
 class CommitGroup:
     def __init__(self, br_type: BranchType or None, commits: Set[CommitData], match_type: CommitMatchType):
         # Put commits into ascending order by date
-        self.br_type = br_type
+        self.br_type: BranchType = br_type
         self.commits: List[CommitData] = sorted(
             commits, key=lambda cd: datetime.strptime(cd.date, "%Y-%m-%dT%H:%M:%S%z")
         )
@@ -107,12 +116,11 @@ class CommitGroup:
 class CommitGroupStats:
     def __init__(
         self,
-        branch_data: Dict[BranchType, BranchData],
         groups_by_jira_id: Dict[BranchType, List[CommitGroup]],
         groups_by_msg: Dict[BranchType, List[CommitGroup]],
     ):
-        self._stats: Dict[BranchType, Dict[CommitMatchType, Dict[CommitGroupCardinality, List[CommitGroup]]]]
-        for br_type in branch_data.keys():
+        self._stats: Dict[BranchType, Dict[CommitMatchType, Dict[CommitGroupCardinality, List[CommitGroup]]]] = {}
+        for br_type in BranchType:
             self._stats[br_type] = {}
             self._stats[br_type][CommitMatchType.MATCHED_BY_ID] = self._get_group_stats_internal(
                 groups_by_jira_id[br_type]
@@ -120,6 +128,15 @@ class CommitGroupStats:
             self._stats[br_type][CommitMatchType.MATCHED_BY_MESSAGE] = self._get_group_stats_internal(
                 groups_by_msg[br_type]
             )
+
+    def get_no_of_groups_for_branch(self, br_type: BranchType, match_type: CommitMatchType):
+        return CollectionUtils.sum_len_of_lists_in_dict(self._stats[br_type][match_type])
+
+    def get_no_of_groups_for_match_type(self, match_type: CommitMatchType):
+        sum = 0
+        for br_type in BranchType:
+            sum += CollectionUtils.sum_len_of_lists_in_dict(self._stats[br_type][match_type])
+        return sum
 
     @staticmethod
     def _get_group_stats_internal(groups: List[CommitGroup]):
@@ -144,13 +161,38 @@ class GroupedMatchingResult(MatchingResultBase):
         self.matched_groups: List[Tuple[CommitGroup, CommitGroup]] = []
         self.unmatched_groups: Dict[BranchType, List[CommitGroup]] = {BranchType.MASTER: [], BranchType.FEATURE: []}
         self._matched_groups: Set[FrozenSet] = set()
+        self.group_stats: CommitGroupStats or None = None
+
+    @property
+    def unique_commits(self) -> Dict[BranchType, List[CommitData]]:
+        res = {}
+        for br_type, commit_groups in self.unmatched_groups.items():
+            tmp_lst: List[CommitData] = []
+            for g in commit_groups:
+                tmp_lst.extend(g.commits)
+            res[br_type] = tmp_lst
+        return res
+
+    @property
+    def no_of_common_commits(self):
+        # Both groups in the tuple will have equal number of commits so we can freely choose any tuple item
+        return sum([g[0].size for g in self.matched_groups])
 
     def matched_group_candidate(
-        self, jira_ids_set: FrozenSet[str], master_group: CommitGroup, feature_group: CommitGroup
+        self, jira_ids_set: FrozenSet[str], master_group: CommitGroup, feature_group: CommitGroup, strict: bool = False
     ):
+        # TODO Run this with strict=True
         # TODO add more advanced matching: Right now, 2 commit groups are matched if all the jira IDs are the same for them
         #   Here we can add commit message matching
         #   Here we can add advanced matching like considering reverts, order of commits should be same in 2 matched groups, etc.
+
+        if strict:
+            if master_group.size != feature_group.size:
+                raise ValueError(
+                    "Number of commits in master group is different than in feature group!\n"
+                    f"Master group: {master_group}"
+                    f"Feature group: {feature_group}"
+                )
         self.matched_groups.append((master_group, feature_group))
         self._matched_groups.add(jira_ids_set)
 
@@ -161,33 +203,66 @@ class GroupedMatchingResult(MatchingResultBase):
             self.unmatched_groups[br_type] = [all_groups_for_branch[k] for k in unmatched_keys]
 
 
-class GroupedCommitMatcherSummaryData:
-    def __init__(self, config, branches):
-        # TODO implement
-        pass
+class GroupedCommitMatcherSummaryData(SummaryDataAbs):
+    def __init__(self, config, branches, matching_result: GroupedMatchingResult):
+        super().__init__(config, branches, matching_result)
 
-    def common_commits_after_merge_base(self):
-        # TODO implement
-        pass
+    def __str__(self):
+        res = ""
+        res += f"Output dir: {self.output_dir}\n"
+        res = self.add_stats_no_of_commits_branch(res)
+        res = self.add_stats_no_of_unique_commits_on_branch(res)
+        res = self.add_stats_unique_commits_legacy_script(res)
+        res = self.add_stats_matched_commits_on_branches(res)
+        res = self.add_stats_commits_with_missing_jira_id(res)
+        res = self.add_stats_matched_commit_details(res)
+        # TODO print CommitGroupStats object
+        return res
 
-    def add_stats_matched_commit_details(self, res):
-        # TODO implement
-        pass
+    def add_stats_no_of_unique_commits_on_branch(self, res):
+        res += "\n\n=====Stats: UNIQUE COMMITS=====\n"
+        for br_type, br_data in self.branch_data.items():
+            uniq_groups_on_branch: List[CommitGroup] = self.maching_result.unmatched_groups[br_type]
+            no_of_uniq_commits: int = sum([g.size for g in uniq_groups_on_branch])
+            res += f"Number of unique commit groups on {br_type.value} '{br_data.name}': {len(uniq_groups_on_branch)}\n"
+            res += f"Number of unique commits on {br_type.value} '{br_data.name}': {no_of_uniq_commits}\n"
+        return res
 
     def add_stats_matched_commits_on_branches(self, res):
-        # TODO implement
-        pass
+        res += "\n\n=====Stats: COMMON COMMITS=====\n"
+        res += f"Merge-base commit: {self.branches.merge_base.as_oneline_string(incl_date=True)}\n"
+        res += f"Number of common commits before merge-base: {len(self.maching_result.before_merge_base)}\n"
+        res += f"Number of common commit groups after merge-base: {len(self.maching_result.matched_groups)}\n"
+        res += f"Number of common commits after merge-base: {self.maching_result.no_of_common_commits}\n"
+        return res
+
+    def add_stats_matched_commit_details(self, res):
+        res += "\n\n=====Stats: COMMON COMMITS ACROSS BRANCHES=====\n"
+        res += (
+            f"Number of common commits with missing Jira ID, matched by commit message: "
+            f"{self.maching_result.group_stats.get_no_of_groups_for_match_type(CommitMatchType.MATCHED_BY_MESSAGE)}\n"
+        )
+        res += (
+            f"Number of common commits with matching Jira ID but different commit message: "
+            f"{self.maching_result.group_stats.get_no_of_groups_for_match_type(CommitMatchType.MATCHED_BY_ID)}\n"
+        )
+
+        # TODO this is not yet stored - Think about this
+        # res += (
+        #     f"Number of common commits with matching Jira ID and commit message: "
+        #     f"{len(self.maching_result.matched_both)}\n"
+        # )
+        return res
 
 
 class GroupedCommitMatcher(CommitMatcherBase):
-    # TODO Add algorithm documentation
+    # TODO Add documentation
     def __init__(self, branch_data: Dict[BranchType, BranchData]):
-        self.branch_data = branch_data
-        self.matching_result: GroupedMatchingResult or None = None
+        super().__init__(branch_data, GroupedMatchingResult())
 
-    def create_matching_result(self) -> GroupedMatchingResult:
-        self.matching_result = GroupedMatchingResult()
-        return self.matching_result
+    @staticmethod
+    def create_summary_data(config, branches, matching_result) -> GroupedCommitMatcherSummaryData:
+        return GroupedCommitMatcherSummaryData(config, branches, matching_result)
 
     def match_commits(self) -> GroupedMatchingResult:
         self.jira_id_to_commits: JiraIdToCommitMappings = JiraIdToCommitMappings(self.branch_data)
@@ -203,8 +278,8 @@ class GroupedCommitMatcher(CommitMatcherBase):
         master_groups: Dict[FrozenSet, CommitGroup] = self.commit_grouper.groups_by_jira_id_dict()[BranchType.MASTER]
         feature_groups: Dict[FrozenSet, CommitGroup] = self.commit_grouper.groups_by_jira_id_dict()[BranchType.FEATURE]
         LOG.info(
-            f"Matching commit groups. "
-            f"Found master groups: {len(master_groups)}"
+            f"Matching commit groups: "
+            f"Found master groups: {len(master_groups)}, "
             f"Found feature groups: {len(feature_groups)}"
         )
 
@@ -214,6 +289,7 @@ class GroupedCommitMatcher(CommitMatcherBase):
                 f_group = feature_groups[jira_ids_set]
                 result.matched_group_candidate(jira_ids_set, m_group, f_group)
         result.finalize(self.commit_grouper.groups_by_jira_id_dict())
+        result.group_stats = self.commit_grouper.group_stats
         return result
 
 
@@ -267,7 +343,7 @@ class CommitGrouper:
         self._groups_by_jira_id: Dict[BranchType, List[CommitGroup]] = self._create_groups()
         self._groups_by_msg: Dict[BranchType, List[CommitGroup]] = self._create_groups_by_message()
         self.sanity_check()
-        self.group_stats = CommitGroupStats(self.branch_data, self._groups_by_jira_id, self._groups_by_msg)
+        self.group_stats = CommitGroupStats(self._groups_by_jira_id, self._groups_by_msg)
 
     def groups_by_jira_id_dict(self) -> Dict[BranchType, Dict[FrozenSet, CommitGroup]]:
         result: Dict[BranchType, Dict[FrozenSet, CommitGroup]] = {}
@@ -347,9 +423,6 @@ class CommitGrouper:
                 )
         return groups
 
-    def groups_by_branch_type(self, br_type: BranchType) -> List[CommitGroup]:
-        return self._groups_by_jira_id[br_type]
-
     def sum_len_of_groups(self, br_type: BranchType):
         return sum([g.size for g in self._groups_by_jira_id[br_type]]) + sum(
             [g.size for g in self._groups_by_msg[br_type]]
@@ -403,3 +476,185 @@ class CommitGrouper:
             commit_strs = StringUtils.list_to_multiline_string([(c.hash, c.message) for c in filtered_commits])
             LOG.error(message)
             raise ValueError(message + f"\nCommits missing from groups: \n{commit_strs})")
+
+
+class GroupedOutputManager(OutputManagerAbs):
+    def write_matched_commit_groups_to_file_or_console(
+        self, output_type: str, matching_result: GroupedMatchingResult, add_sep_to_end=True
+    ):
+        contents = ""
+        group_id = 0
+        for group_tuple in matching_result.matched_groups:
+            group_id += 1
+            for group in group_tuple:
+                line = CommitGroupConverter.convert_commit_group_to_file_output(group, self.branch_names, group_id)
+                contents += line
+                contents += "\n"
+            contents += f"{self.LINE_SEPARATOR}\n"
+
+        self._write_to_file_or_console(contents, output_type, add_sep_to_end=add_sep_to_end)
+
+    def write_unmatched_commit_groups_to_file_or_console(
+        self, output_type: str, branch_data: Dict[BranchType, BranchData], matching_result: GroupedMatchingResult
+    ):
+        lines_dict: Dict[BranchType, List[str]] = CommitGroupConverter.convert_unmatched_groups_to_file_output(
+            matching_result, self.branch_names
+        )
+        for br_data in branch_data.values():
+            contents = ""
+            lines = lines_dict[br_data.type]
+            for line in lines:
+                contents += f"{line}\n"
+                contents += f"{self.LINE_SEPARATOR}\n"
+            self._write_to_file_or_console_branch_data(br_data, contents, output_type)
+
+    def write_commit_match_result_files(
+        self, branch_data: Dict[BranchType, BranchData], matching_result: MatchingResultBase
+    ):
+        matching_result = typing.cast(GroupedMatchingResult, matching_result)
+        self.write_matched_commit_groups_to_file_or_console("matched groups", matching_result, add_sep_to_end=False)
+        self.write_unmatched_commit_groups_to_file_or_console("unmatched groups", branch_data, matching_result)
+        # TODO Commit message differs info is yet to be stored but should be written to file like in SimpleOutputManager
+
+
+class GroupedRenderedSummary(RenderedSummaryAbs):
+    HEADER_GROUP_ID = "Group #"
+    HEADER_BRANCH_TYPE = "Branch type"
+    HEADER_COMMIT_MATCH_TYPE = "Commit match type"
+    HEADER_COMMITS = "Commits in group"
+    HEADER_REVERT_INFO = "Revert info"
+
+    def __init__(self, summary_data, matching_result):
+        super().__init__(
+            summary_data,
+            matching_result,
+            [
+                RenderedTableType.RESULT_FILES,
+                RenderedTableType.UNIQUE_ON_BRANCH,
+                RenderedTableType.MATCHED_COMMIT_GROUPS,
+                RenderedTableType.UNMATCHED_COMMIT_GROUPS,
+            ],
+        )
+
+        self.add_result_files_table()
+        self.add_unique_commit_tables(matching_result)
+        self.add_matched_groups_tables(matching_result)
+        self.add_unmatched_groups_tables(matching_result)
+        self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
+
+    def add_matched_groups_tables(self, matching_result: GroupedMatchingResult):
+        table_type = RenderedTableType.MATCHED_COMMIT_GROUPS
+        table_rows = CommitGroupConverter.convert_matched_groups_to_table_rows(matching_result)
+        gen_tables = ResultPrinter.print_tables(
+            table_rows,
+            lambda row: row,
+            header=self._get_header(),
+            print_result=False,
+            max_width=80,
+            max_width_separator=" ",
+            tabulate_fmts=DEFAULT_TABLE_FORMATS,
+            add_row_numbers=False,
+        )
+        for table_fmt, table in gen_tables.items():
+            self.add_table(table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False))
+
+    def add_unmatched_groups_tables(self, matching_result: GroupedMatchingResult):
+        table_type = RenderedTableType.UNMATCHED_COMMIT_GROUPS
+        table_rows_by_branch_type = CommitGroupConverter.convert_unmatched_groups_to_table_rows(matching_result)
+        for br_type, br_data in self.summary_data.branch_data.items():
+            header_value = table_type.header.replace("$$", br_data.name)
+            gen_tables = ResultPrinter.print_tables(
+                table_rows_by_branch_type[br_type],
+                lambda row: row,
+                header=self._get_header(),
+                print_result=False,
+                max_width=80,
+                max_width_separator=" ",
+                tabulate_fmts=DEFAULT_TABLE_FORMATS,
+                add_row_numbers=False,
+            )
+            for table_fmt, table in gen_tables.items():
+                self.add_table(
+                    table_type,
+                    TableWithHeader(header_value, table, table_fmt=table_fmt, colorized=False, branch=br_data.name),
+                )
+
+    @staticmethod
+    def _get_header():
+        return [
+            GroupedRenderedSummary.HEADER_GROUP_ID,
+            GroupedRenderedSummary.HEADER_BRANCH_TYPE,
+            GroupedRenderedSummary.HEADER_COMMIT_MATCH_TYPE,
+            GroupedRenderedSummary.HEADER_COMMITS,
+            GroupedRenderedSummary.HEADER_REVERT_INFO,
+        ]
+
+
+class CommitGroupConverter:
+    @staticmethod
+    def convert_matched_groups_to_table_rows(matching_result: GroupedMatchingResult):
+        table_rows: List[List[str]] = []
+        for idx, group_tup in enumerate(matching_result.matched_groups):
+            group_id = idx + 1
+            table_rows.append(CommitGroupConverter.convert_commit_group_to_row(group_tup[0], group_id))
+            table_rows.append(CommitGroupConverter.convert_commit_group_to_row(group_tup[1], group_id))
+        return table_rows
+
+    @staticmethod
+    def convert_unmatched_groups_to_table_rows(
+        matching_result: GroupedMatchingResult,
+    ) -> Dict[BranchType, List[List[str]]]:
+        table_rows: Dict[BranchType, List[List[str]]] = {}
+        for br_type, commit_groups in matching_result.unmatched_groups.items():
+            table_rows[br_type] = []
+            for idx, group in enumerate(commit_groups):
+                table_rows[br_type].append(CommitGroupConverter.convert_commit_group_to_row(group, idx + 1))
+        return table_rows
+
+    @staticmethod
+    def convert_unmatched_groups_to_file_output(
+        matching_result: GroupedMatchingResult, branch_names: Dict[BranchType, str]
+    ) -> Dict[BranchType, List[str]]:
+        lines: Dict[BranchType, List[str]] = {}
+        for br_type, commit_groups in matching_result.unmatched_groups.items():
+            lines[br_type] = []
+            for idx, group in enumerate(commit_groups):
+                lines[br_type].append(
+                    CommitGroupConverter.convert_commit_group_to_file_output(group, branch_names, idx + 1)
+                )
+        return lines
+
+    @staticmethod
+    def convert_commit_group_to_row(group: CommitGroup, group_id: int) -> List[str]:
+        revert_info = "\n".join(
+            [
+                f"{jira_id}: {'Reverted' if reverted else 'Normal'}"
+                for jira_id, reverted in group.commit_revert_info.items()
+            ]
+        )
+        row_list = [
+            str(group_id),
+            str(group.br_type.value),
+            str(group.match_type.value),
+            str(CommonUtils.convert_commits_to_oneline_strings(group.commits, incl_jira_id=True)),
+            str(revert_info),
+        ]
+        return row_list
+
+    @staticmethod
+    def convert_commit_group_to_file_output(
+        group: CommitGroup, branch_names: Dict[BranchType, str], group_id: int
+    ) -> str:
+        revert_info = "\n".join(
+            [
+                f"{jira_id}: {'Reverted' if reverted else 'Normal'}"
+                for jira_id, reverted in group.commit_revert_info.items()
+            ]
+        )
+        result = ""
+        result += f"Group ID: {group_id}\n"
+        result += f"Match type: {group.match_type.value}\n"
+        result += f"Branch: {branch_names[group.br_type]} ({group.br_type.value})\n"
+        result += f"Commits: {CommonUtils.convert_commits_to_oneline_strings(group.commits, incl_jira_id=True)}\n"
+        result += f"Revert info: {revert_info}\n"
+        return result

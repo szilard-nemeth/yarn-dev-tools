@@ -11,11 +11,22 @@ from pythoncommons.git_wrapper import GitWrapper
 from yarndevtools.commands.branchcomparator.common import (
     BranchType,
     BranchData,
+    CommitMatcherBase,
+    MatchingResultBase,
 )
-from yarndevtools.commands.branchcomparator.common_representation import OutputManager
-from yarndevtools.commands.branchcomparator.group_matching import GroupedCommitMatcher
+from yarndevtools.commands.branchcomparator.group_matching import (
+    GroupedCommitMatcher,
+    GroupedRenderedSummary,
+    GroupedCommitMatcherSummaryData,
+    GroupedOutputManager,
+)
 from yarndevtools.commands.branchcomparator.legacy_script import LegacyScriptRunner
-from yarndevtools.commands.branchcomparator.simple_matching import SimpleCommitMatcher, SimpleCommitMatcherSummaryData
+from yarndevtools.commands.branchcomparator.simple_matching import (
+    SimpleCommitMatcher,
+    SimpleCommitMatcherSummaryData,
+    SimpleRenderedSummary,
+    SimpleOutputManager,
+)
 from yarndevtools.commands_common import (
     CommitData,
     GitLogLineFormat,
@@ -30,12 +41,13 @@ LOG = logging.getLogger(__name__)
 
 
 class CommitMatchingAlgorithm(Enum):
-    SIMPLE = ("simple", SimpleCommitMatcher)
-    GROUPED = ("grouped", GroupedCommitMatcher)
+    SIMPLE = ("simple", SimpleCommitMatcher, SimpleOutputManager)
+    GROUPED = ("grouped", GroupedCommitMatcher, GroupedOutputManager)
 
-    def __init__(self, name, mathcer_class):
+    def __init__(self, name, matcher_class, om_class):
         self.shortname = name
-        self.matcher_class = mathcer_class
+        self.matcher_class = matcher_class
+        self.output_manager_class = om_class
 
     def __str__(self):
         return self.shortname
@@ -67,7 +79,6 @@ class BranchComparatorConfig:
         self.run_legacy_script = args.run_legacy_script
         self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
         self.matching_algorithm: CommitMatchingAlgorithm = args.algorithm
-        self.output_manager = OutputManager(self)
 
     @staticmethod
     def find_git_compare_script():
@@ -85,7 +96,9 @@ class Branches:
             branch_name = branch_dict[br_type]
             self.branch_data[br_type] = BranchData(br_type, branch_name)
 
-        self.commit_matcher = self.config.matching_algorithm.matcher_class(self.branch_data)
+        self.commit_matcher: CommitMatcherBase = self.config.matching_algorithm.matcher_class(self.branch_data)
+        self.output_manager = self.config.matching_algorithm.output_manager_class(self.config, branch_dict)
+
         # These are set later
         self.merge_base: CommitData or None = None
 
@@ -164,26 +177,25 @@ class Branches:
 
     def compare(self):
         # TODO Harmonize two commit matchers, make this function more easy to understand
+        self.commit_matcher.pre_compare(self.config, self.output_manager, self.merge_base)
 
-        matching_result = self.commit_matcher.create_matching_result()
-        # At this point, sanity check verified commits before merge-base,
-        # we can set it from any of master / feature branch
-        matching_result.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
-        self.config.output_manager.print_or_write_to_file_before_compare(
-            self.branch_data, self.merge_base, matching_result
-        )
-
+        # Let the game begin :) --> Start to compare / A.K.A. match commits
         if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
-            # Let the game begin :) --> Start to compare / A.K.A. match commits
-            self.commit_matcher.match_commits()
+            matching_result: MatchingResultBase = self.commit_matcher.match_commits()
             summary_data: SimpleCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
                 self.config, self, matching_result
             )
-            self.config.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
-            self.config.output_manager.print_and_save_summary(summary_data)
+            rendered_summary: SimpleRenderedSummary = SimpleRenderedSummary(summary_data, matching_result)
+            self.output_manager.print_and_save_summary(rendered_summary)
+            self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
         elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
-            self.commit_matcher.match_commits()
-            # TODO call the rest of the required methods
+            matching_result: MatchingResultBase = self.commit_matcher.match_commits()
+            summary_data: GroupedCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
+                self.config, self, matching_result
+            )
+            rendered_summary: GroupedRenderedSummary = GroupedRenderedSummary(summary_data, matching_result)
+            self.output_manager.print_and_save_summary(rendered_summary)
+            self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):

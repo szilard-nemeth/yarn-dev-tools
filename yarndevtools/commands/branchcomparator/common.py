@@ -12,8 +12,14 @@ LOG = logging.getLogger(__name__)
 
 class CommonUtils:
     @staticmethod
-    def convert_commits_to_oneline_strings(commits: List[CommitData]):
-        return StringUtils.list_to_multiline_string([CommonUtils.convert_commit_to_str(c) for c in commits])
+    def convert_commits_to_oneline_strings(commits: List[CommitData], incl_jira_id=False, commit_id_separator=" -> "):
+        result = []
+        for c in commits:
+            commit_str = CommonUtils.convert_commit_to_str(c)
+            if incl_jira_id:
+                commit_str = f"{c.jira_id}{commit_id_separator}{commit_str}"
+            result.append(commit_str)
+        return StringUtils.list_to_multiline_string(result)
 
     @staticmethod
     def convert_commit_to_str(commit: CommitData):
@@ -26,9 +32,9 @@ class BranchType(Enum):
 
 
 class CommitMatchType(Enum):
-    MATCHED_BY_MESSAGE = "matched_by_msg"
-    MATCHED_BY_ID = "matched_by_id"
-    MATCHED_BY_BOTH = "matched_by_both"
+    MATCHED_BY_MESSAGE = "Matched by commit message"
+    MATCHED_BY_ID = "Matched by Jira ID"
+    MATCHED_BY_BOTH = "Matched by both Jira ID and message"
 
 
 class MatchingResultBase(ABC):
@@ -37,8 +43,22 @@ class MatchingResultBase(ABC):
 
 
 class CommitMatcherBase(ABC):
+    def __init__(self, branch_data, matching_result: MatchingResultBase):
+        self.branch_data = branch_data
+        self.matching_result = matching_result
+
+    def pre_compare(self, config, output_manager, merge_base):
+        # At this point, sanity check verified commits before merge-base,
+        # we can set it from any of master / feature branch
+        self.matching_result.before_merge_base = self.branch_data[BranchType.MASTER].commits_before_merge_base
+        output_manager.print_or_write_to_file_before_compare(self.branch_data, merge_base, self.matching_result)
+
     @abstractmethod
-    def create_matching_result(self) -> MatchingResultBase:
+    def match_commits(self) -> MatchingResultBase:
+        pass
+
+    @abstractmethod
+    def create_summary_data(self, config, branches, matching_result):
         pass
 
 
@@ -70,8 +90,8 @@ class BranchData:
 
         # Dict: Jira ID (e.g. YARN-1234) to List of CommitData objects
         self.jira_id_to_commits: Dict[str, List[CommitData]] = {}
-        self.unique_commits: List[CommitData] = []
         self.merge_base_idx: int = -1
+        # TODO this should not be stored here
         self.unique_jira_ids_legacy_script: List[str] = []
 
     def __str__(self):
