@@ -1,4 +1,5 @@
 import logging
+import sys
 from enum import Enum
 from typing import Dict, List
 
@@ -64,7 +65,7 @@ class CommitMatchingAlgorithm(Enum):
 
 
 class BranchComparatorConfig:
-    def __init__(self, output_dir: str, args):
+    def __init__(self, output_dir: str, args, branch_names: Dict[BranchType, str]):
         self.output_dir = FileUtils.ensure_dir_created(
             FileUtils.join_path(output_dir, f"session-{DateUtils.now_formatted('%Y%m%d_%H%M%S')}")
         )
@@ -75,6 +76,21 @@ class BranchComparatorConfig:
         self.run_legacy_script = args.run_legacy_script
         self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
         self.matching_algorithm: CommitMatchingAlgorithm = args.algorithm
+        self.branch_names = branch_names
+        self.full_cmd: str or None = None
+
+    def __str__(self):
+        return (
+            f"Full command was: {self.full_cmd} \n"
+            f"Matching algorithm / class: {self.matching_algorithm} / "
+            f"{self.matching_algorithm.matcher_class.__name__} \n"
+            f"Output dir: {self.output_dir} \n"
+            f"Master branch: {self.branch_names[BranchType.MASTER]}\n"
+            f"Feature branch: {self.branch_names[BranchType.FEATURE]}\n"
+            f"Commit author exceptions: {self.commit_author_exceptions}\n"
+            f"Console mode: {self.console_mode}\n"
+            f"Run legacy comparator script: {self.run_legacy_script}\n"
+        )
 
     @staticmethod
     def find_git_compare_script():
@@ -241,24 +257,17 @@ class Branches:
 # TODO Add generic documentation
 class BranchComparator:
     def __init__(self, args, downstream_repo, output_dir: str):
+        branch_names: Dict[BranchType, str] = {
+            BranchType.FEATURE: args.feature_branch,
+            BranchType.MASTER: args.master_branch,
+        }
         self.repo = downstream_repo
-        self.config = BranchComparatorConfig(output_dir, args)
-        self.branches: Branches = Branches(
-            self.config, self.repo, {BranchType.FEATURE: args.feature_branch, BranchType.MASTER: args.master_branch}
-        )
+        self.config = BranchComparatorConfig(output_dir, args, branch_names)
+        self.branches: Branches = Branches(self.config, self.repo, branch_names)
 
     def run(self):
-        LOG.info(
-            "Starting Branch comparator... \n"
-            f"Matching algorithm / class: {self.config.matching_algorithm} / "
-            f"{self.config.matching_algorithm.matcher_class.__name__} \n"
-            f"Output dir: {self.config.output_dir} \n"
-            f"Master branch: {self.branches.get_branch(BranchType.MASTER).name}\n"
-            f"Feature branch: {self.branches.get_branch(BranchType.FEATURE).name}\n"
-            f"Commit author exceptions: {self.config.commit_author_exceptions}\n"
-            f"Console mode: {self.config.console_mode}\n"
-            f"Run legacy comparator script: {self.config.run_legacy_script}\n"
-        )
+        self.config.full_cmd = " ".join(sys.argv)
+        LOG.info(f"Starting Branch comparator... \n{str(self.config)}")
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
