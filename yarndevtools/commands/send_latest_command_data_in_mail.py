@@ -19,6 +19,18 @@ class Config:
         self.sender = args.sender
         self.recipients = args.recipients
         self.subject = args.subject
+        self.attachment_filename = args.attachment_filename
+
+    def __str__(self):
+        return (
+            f"SMTP server: {self.email_conf.smtp_server}\n"
+            f"SMTP port: {self.email_conf.smtp_port}\n"
+            f"Account user: {self.email_account.user}\n"
+            f"Recipients: {self.recipients}\n"
+            f"Sender: {self.sender}\n"
+            f"Subject: {self.subject}\n"
+            f"Attachment file: {self.attachment_file}\n"
+        )
 
 
 class SendLatestCommandDataInEmail:
@@ -26,16 +38,7 @@ class SendLatestCommandDataInEmail:
         self.config = Config(args, attachment_file)
 
     def run(self):
-        LOG.info(
-            "Starting sending latest command data in email. Details: \n"
-            f"SMTP server: {self.config.email_conf.smtp_server}\n"
-            f"SMTP port: {self.config.email_conf.smtp_port}\n"
-            f"Account user: {self.config.email_account.user}\n"
-            f"Recipients: {self.config.recipients}\n"
-            f"Sender: {self.config.sender}\n"
-            f"Subject: {self.config.subject}\n"
-            f"Attachment file: {self.config.attachment_file}\n"
-        )
+        LOG.info("Starting sending latest command data in email. Details: \n" f"{str(self.config)}")
 
         zip_extract_dest = FileUtils.join_path(os.sep, "tmp", "extracted_zip")
         ZipFileUtils.extract_zip_file(self.config.attachment_file, zip_extract_dest)
@@ -52,5 +55,6 @@ class SendLatestCommandDataInEmail:
             self.config.recipients,
             self.config.attachment_file,
             body_mimetype="html",
+            override_attachment_filename=self.config.attachment_filename,
         )
         LOG.info("Finished sending email to recipients")
