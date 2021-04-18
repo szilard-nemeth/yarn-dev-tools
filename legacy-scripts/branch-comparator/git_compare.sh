@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 result=`git log $1..$2 --oneline --no-merges | grep -e '[A-Z]\+-[0-9]\+' -o`
 gitlog=`git log $1 --oneline --no-merges`
 
