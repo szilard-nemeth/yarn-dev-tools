@@ -175,16 +175,15 @@ class Branches:
             allow_unmatched_jira_id=True,
         )
         for br_type in BranchType:
-            branch: BranchData = self.branch_data[br_type]
-            branch.set_merge_base(self.merge_base)
+            self.branch_data[br_type].set_merge_base(self.merge_base)
 
     def compare(self):
         # TODO Harmonize two commit matchers, make this function more easy to understand
-        self.commit_matcher.pre_compare(self.config, self.output_manager, self.merge_base)
-
         # Let the game begin :) --> Start to compare / A.K.A. match commits
         if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
-            matching_result: MatchingResultBase = self.commit_matcher.match_commits()
+            matching_result: MatchingResultBase = self.commit_matcher.match_commits(
+                self.config, self.output_manager, self.merge_base
+            )
             summary_data: SimpleCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
                 self.config, self, matching_result
             )
@@ -192,7 +191,9 @@ class Branches:
             self.output_manager.print_and_save_summary(rendered_summary)
             self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
         elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
-            matching_result: MatchingResultBase = self.commit_matcher.match_commits()
+            matching_result: MatchingResultBase = self.commit_matcher.match_commits(
+                self.config, self.output_manager, self.merge_base
+            )
             summary_data: GroupedCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
                 self.config, self, matching_result
             )
