@@ -133,8 +133,11 @@ class Branches:
             branch.set_commit_objs(list(reversed(CommitData.from_git_log_output(branch.gitlog_results, parse_config))))
             for idx, commit in enumerate(branch.commit_objs):
                 branch.hash_to_index[commit.hash] = idx
-                # TODO add a special key like "NO_JIRA_ID" that groups all commits without jira id, right now these are overwriting
-                #  because key will be None
+                # Simply skip commits that doesn't have jira_id set to a valid value, as they are None.
+                # Commits without jira_id handled separately with BranchData.set_commit_objs.
+                if not commit.jira_id:
+                    continue
+
                 if commit.jira_id not in branch.jira_id_to_commits:
                     branch.jira_id_to_commits[commit.jira_id] = []
                 branch.jira_id_to_commits[commit.jira_id].append(commit)
