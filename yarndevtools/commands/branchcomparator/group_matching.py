@@ -140,7 +140,6 @@ class CommitGroupStats:
 
     @staticmethod
     def _get_group_stats_internal(groups: List[CommitGroup]):
-        # TODO consider printing this as a grid / html table
         predicates = [lambda x: x.size == 1, lambda x: x.size == 2, lambda x: x.size > 2]
         partitioned_groups: List[List[CommitGroup]] = CollectionUtils.partition_multi(predicates, groups)
         return {
@@ -216,7 +215,7 @@ class GroupedCommitMatcherSummaryData(SummaryDataAbs):
         res = self.add_stats_matched_commits_on_branches(res)
         res = self.add_stats_commits_with_missing_jira_id(res)
         res = self.add_stats_matched_commit_details(res)
-        # TODO print CommitGroupStats object
+        # TODO print CommitGroupStats object: CommitGroupStats._get_group_stats_internal
         return res
 
     def add_stats_no_of_unique_commits_on_branch(self, res):
