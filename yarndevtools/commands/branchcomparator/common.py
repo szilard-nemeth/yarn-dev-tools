@@ -40,6 +40,7 @@ class CommitMatchType(Enum):
 class MatchingResultBase(ABC):
     def __init__(self):
         self.before_merge_base: List[CommitData] = []
+        self.rendered_summary = None
 
 
 class CommitMatcherBase(ABC):
@@ -54,12 +55,8 @@ class CommitMatcherBase(ABC):
         output_manager.print_or_write_to_file_before_compare(self.branch_data, merge_base, self.matching_result)
 
     @abstractmethod
-    def match_commits(self, config, output_manager, merge_base) -> MatchingResultBase:
+    def match_commits(self, config, output_manager, merge_base, branches) -> MatchingResultBase:
         self.pre_compare(config, output_manager, merge_base)
-
-    @abstractmethod
-    def create_summary_data(self, config, branches, matching_result):
-        pass
 
 
 class BranchData:

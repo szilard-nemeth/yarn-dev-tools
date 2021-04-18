@@ -16,15 +16,11 @@ from yarndevtools.commands.branchcomparator.common import (
 )
 from yarndevtools.commands.branchcomparator.group_matching import (
     GroupedCommitMatcher,
-    GroupedRenderedSummary,
-    GroupedCommitMatcherSummaryData,
     GroupedOutputManager,
 )
 from yarndevtools.commands.branchcomparator.legacy_script import LegacyScriptRunner
 from yarndevtools.commands.branchcomparator.simple_matching import (
     SimpleCommitMatcher,
-    SimpleCommitMatcherSummaryData,
-    SimpleRenderedSummary,
     SimpleOutputManager,
 )
 from yarndevtools.commands_common import (
@@ -178,28 +174,12 @@ class Branches:
             self.branch_data[br_type].set_merge_base(self.merge_base)
 
     def compare(self):
-        # TODO Harmonize two commit matchers, make this function more easy to understand
         # Let the game begin :) --> Start to compare / A.K.A. match commits
-        if self.config.matching_algorithm == CommitMatchingAlgorithm.SIMPLE:
-            matching_result: MatchingResultBase = self.commit_matcher.match_commits(
-                self.config, self.output_manager, self.merge_base
-            )
-            summary_data: SimpleCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
-                self.config, self, matching_result
-            )
-            rendered_summary: SimpleRenderedSummary = SimpleRenderedSummary(summary_data, matching_result)
-            self.output_manager.print_and_save_summary(rendered_summary)
-            self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
-        elif self.config.matching_algorithm == CommitMatchingAlgorithm.GROUPED:
-            matching_result: MatchingResultBase = self.commit_matcher.match_commits(
-                self.config, self.output_manager, self.merge_base
-            )
-            summary_data: GroupedCommitMatcherSummaryData = self.commit_matcher.create_summary_data(
-                self.config, self, matching_result
-            )
-            rendered_summary: GroupedRenderedSummary = GroupedRenderedSummary(summary_data, matching_result)
-            self.output_manager.print_and_save_summary(rendered_summary)
-            self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
+        matching_result: MatchingResultBase = self.commit_matcher.match_commits(
+            self.config, self.output_manager, self.merge_base, self
+        )
+        self.output_manager.print_and_save_summary(matching_result.rendered_summary)
+        self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
