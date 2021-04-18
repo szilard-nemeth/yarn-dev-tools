@@ -84,13 +84,13 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
             row: List[Any] = [jira_id, commit.message, commit.date, commit.committer]
 
             presence: List[bool] = []
-            if self.is_jira_id_present_on_branch(jira_id, BranchType.MASTER) and self.is_jira_id_present_on_branch(
-                jira_id, BranchType.FEATURE
+            if self.is_commit_present_on_branch(commit, BranchType.MASTER) and self.is_commit_present_on_branch(
+                commit, BranchType.FEATURE
             ):
                 presence = [True, True]
-            elif self.is_jira_id_present_on_branch(jira_id, BranchType.MASTER):
+            elif self.is_commit_present_on_branch(commit, BranchType.MASTER):
                 presence = [True, False]
-            elif self.is_jira_id_present_on_branch(jira_id, BranchType.FEATURE):
+            elif self.is_commit_present_on_branch(commit, BranchType.FEATURE):
                 presence = [False, True]
             row.extend(presence)
             rows.append(row)
@@ -102,11 +102,12 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
     def get_branch(self, br_type: BranchType):
         return self.branch_data[br_type]
 
-    def is_jira_id_present_on_branch(self, jira_id: str, br_type: BranchType):
-        if jira_id:
-            raise ValueError("jira_id should not be None!")
+    def is_commit_present_on_branch(self, commit: CommitData, br_type: BranchType) -> bool:
         br: BranchData = self.get_branch(br_type)
-        return jira_id in br.jira_id_to_commits
+        if commit.jira_id:
+            return commit.jira_id in br.jira_id_to_commits
+        else:
+            return commit.hash in br.hash_to_index
 
     def __str__(self):
         res = ""
