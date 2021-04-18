@@ -251,6 +251,7 @@ class SimpleCommitMatcher(CommitMatcherBase):
         summary_data: SimpleCommitMatcherSummaryData = SimpleCommitMatcherSummaryData(
             config, branches, self.matching_result
         )
+        # TODO this is a bug, summary table rendering happens here but new result files will be created afterwards
         self.matching_result.rendered_summary = SimpleRenderedSummary(summary_data, self.matching_result)
         return self.matching_result
 
