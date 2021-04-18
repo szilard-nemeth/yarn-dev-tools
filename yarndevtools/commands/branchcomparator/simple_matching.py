@@ -157,11 +157,8 @@ class SimpleCommitMatcher(CommitMatcherBase):
         super().__init__(branch_data, SimpleMatchingResult())
         self.matching_result = typing.cast(SimpleMatchingResult, self.matching_result)
 
-    def create_summary_data(self, config, branches, matching_result) -> SimpleCommitMatcherSummaryData:
-        return SimpleCommitMatcherSummaryData(config, branches, matching_result)
-
-    def match_commits(self, config, output_manager, merge_base) -> SimpleMatchingResult:
-        super().match_commits(config, output_manager, merge_base)
+    def match_commits(self, config, output_manager, merge_base, branches) -> SimpleMatchingResult:
+        super().match_commits(config, output_manager, merge_base, branches)
         """
         This matcher algorithm works in the way described below.
         First, it has some assumptions about the data stored into the BranchData objects.\n
@@ -250,6 +247,10 @@ class SimpleCommitMatcher(CommitMatcherBase):
                 f" unique commits on branch: {br_data.name}"
             )
 
+        summary_data: SimpleCommitMatcherSummaryData = SimpleCommitMatcherSummaryData(
+            config, branches, self.matching_result
+        )
+        self.matching_result.rendered_summary = SimpleRenderedSummary(summary_data, self.matching_result)
         return self.matching_result
 
     def match_by_commit_message(
