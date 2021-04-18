@@ -178,8 +178,8 @@ class Branches:
         matching_result: MatchingResultBase = self.commit_matcher.match_commits(
             self.config, self.output_manager, self.merge_base, self
         )
-        self.output_manager.print_and_save_summary(matching_result.rendered_summary)
         self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
+        self.output_manager.print_and_save_summary(matching_result.rendered_summary)
         return matching_result
 
     @staticmethod
