@@ -238,4 +238,5 @@ class ArgParser:
         parser.add_argument("--subject", required=True, type=str, help="Subject of the email")
         parser.add_argument("--sender", required=True, type=str, help="Sender of the email [From]")
         parser.add_argument("--recipients", required=True, type=str, nargs="+", help="List of email recipients [To]")
+        parser.add_argument("--attachment-filename", required=False, type=str, help="Override attachment filename")
         parser.set_defaults(func=yarn_dev_tools.send_latest_command_results)
