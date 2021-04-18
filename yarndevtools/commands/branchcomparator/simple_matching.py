@@ -112,6 +112,7 @@ class SimpleCommitMatcherSummaryData(SummaryDataAbs):
     def __str__(self):
         res = ""
         res += f"Output dir: {self.output_dir}\n"
+        res += f"Config: {str(self.config.config_str)}\n"
         res = self.add_stats_no_of_commits_branch(res)
         res = self.add_stats_no_of_unique_commits_on_branch(res)
         res = self.add_stats_unique_commits_legacy_script(res)
