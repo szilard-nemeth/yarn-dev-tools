@@ -173,13 +173,14 @@ class Branches:
         for br_type in BranchType:
             self.branch_data[br_type].set_merge_base(self.merge_base)
 
-    def compare(self):
+    def compare(self) -> MatchingResultBase:
         # Let the game begin :) --> Start to compare / A.K.A. match commits
         matching_result: MatchingResultBase = self.commit_matcher.match_commits(
             self.config, self.output_manager, self.merge_base, self
         )
         self.output_manager.print_and_save_summary(matching_result.rendered_summary)
         self.output_manager.write_commit_match_result_files(self.branch_data, matching_result)
+        return matching_result
 
     @staticmethod
     def _sanity_check_commits_before_merge_base(feature_br: BranchData, master_br: BranchData):
@@ -261,9 +262,9 @@ class BranchComparator:
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
-        self.compare()
+        matching_result = self.compare()
         if self.config.run_legacy_script:
-            LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path)
+            LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path, matching_result)
 
     def validate_branches(self):
         both_exist = self.branches.validate(BranchType.FEATURE)
@@ -271,7 +272,7 @@ class BranchComparator:
         if not both_exist:
             raise ValueError("Both feature and master branch should be an existing branch. Exiting...")
 
-    def compare(self):
+    def compare(self) -> MatchingResultBase:
         self.branches.execute_git_log()
         self.branches.pre_compare()
-        self.branches.compare()
+        return self.branches.compare()

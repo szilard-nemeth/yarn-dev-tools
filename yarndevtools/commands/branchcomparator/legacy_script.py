@@ -11,7 +11,7 @@ LOG = logging.getLogger(__name__)
 
 class LegacyScriptRunner:
     @staticmethod
-    def start(config, branches, repo_path):
+    def start(config, branches, repo_path, matching_result):
         script_results: Dict[BranchType, Tuple[str, str]] = LegacyScriptRunner._execute_compare_script(
             config, branches, working_dir=repo_path
         )
@@ -29,7 +29,7 @@ class LegacyScriptRunner:
         for br_type in BranchType:
             branch_data = branches.get_branch(br_type)
             # TODO this seems to be completely wrong branches.summary.unique_commits is no longer stored there
-            unique_jira_ids = [c.jira_id for c in branches.summary.unique_commits[br_type]]
+            unique_jira_ids = [c.jira_id for c in matching_result.unique_commits[br_type]]
             if LOG.isEnabledFor(logging.DEBUG):
                 LOG.debug(
                     f"[CURRENT SCRIPT] Found unique commits on branch "
