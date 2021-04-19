@@ -217,6 +217,7 @@ class GroupedCommitMatcherSummaryData(SummaryDataAbs):
         res = self.add_stats_commits_with_missing_jira_id(res)
         res = self.add_stats_matched_commit_details(res)
         # TODO print CommitGroupStats object: CommitGroupStats._get_group_stats_internal
+        # TODO Think about what else can be printed?
         return res
 
     def add_stats_no_of_unique_commits_on_branch(self, res):
