@@ -58,6 +58,7 @@ class JiraIdData:
             jira_id_dict[JiraIdData.POS_KEY][match] = idx
         return jira_id_dict
 
+    # TODO Move this property to CommitData
     @property
     def all_matched_jira_ids(self) -> List[Any]:
         if self.DOWNSTREAM_KEY not in self._all_matched and self.UPSTREAM_KEY not in self._all_matched:
