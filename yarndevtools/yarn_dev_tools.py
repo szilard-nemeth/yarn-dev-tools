@@ -12,6 +12,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.branchcomparator.branch_comparator import BranchComparator
+from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
 from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
 from yarndevtools.argparser import ArgParser, CommandType
@@ -40,6 +41,7 @@ from yarndevtools.constants import (
     JIRA_PATCH_DIFFER,
     BRANCH_COMPARATOR,
     ExecutionMode,
+    JENKINS_TEST_REPORTER,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -122,6 +124,10 @@ class YarnDevTools:
     @property
     def branch_comparator_output_dir(self):
         return ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
+
+    @property
+    def jenkins_test_reporter_output_dir(self):
+        return ProjectUtils.get_output_child_dir(JENKINS_TEST_REPORTER)
 
     def ensure_required_env_vars_are_present(self):
         upstream_hadoop_dir = OsUtils.get_env_value(ENV_HADOOP_DEV_DIR, None)
@@ -223,6 +229,10 @@ class YarnDevTools:
         file_to_send = FileUtils.join_path(yarn_dev_tools.project_out_root, LATEST_DATA_ZIP_LINK_NAME)
         send_latest_cmd_data = SendLatestCommandDataInEmail(args, file_to_send)
         send_latest_cmd_data.run()
+
+    def fetch_send_jenkins_test_report(self, args):
+        jenkins_test_reporter = JenkinsTestReporter(args, self.jenkins_test_reporter_output_dir)
+        jenkins_test_reporter.run()
 
 
 if __name__ == "__main__":

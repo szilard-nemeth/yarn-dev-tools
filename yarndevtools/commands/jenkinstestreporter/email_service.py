@@ -5,8 +5,8 @@ from email.mime.text import MIMEText
 logger = logging.getLogger(__name__)
 
 
-# TODO Migrate to YARN tools
-class EmailService:
+# TODO Remove
+class EmailServiceLegacy:
     def __init__(self, email_recipients):
         self.mail_recipient_addresses = email_recipients
         self.email_smtp_server = "smtp.gmail.com"

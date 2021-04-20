@@ -26,6 +26,7 @@ class CommandType(Enum):
     BRANCH_COMPARATOR = "compare_branches"
     ZIP_LATEST_COMMAND_DATA = "zip_latest_command_data"
     SEND_LATEST_COMMAND_DATA = "send_latest_command_data"
+    JENKINS_TEST_REPORTER = "jenkins_test_reporter"
 
     @staticmethod
     def from_str(val):
@@ -62,6 +63,7 @@ class ArgParser:
         ArgParser.add_branch_comparator(subparsers, yarn_dev_tools)
         ArgParser.add_zip_latest_command_data(subparsers, yarn_dev_tools)
         ArgParser.add_send_latest_command_data(subparsers, yarn_dev_tools)
+        ArgParser.add_jenkins_test_reporter(subparsers, yarn_dev_tools)
 
         # Normal arguments
         parser.add_argument(
@@ -231,12 +233,70 @@ class ArgParser:
             CommandType.SEND_LATEST_COMMAND_DATA.value,
             help="Sends latest command data in email." "Example: --dest_dir /tmp",
         )
+        ArgParser.add_email_arguments(parser)
+        parser.set_defaults(func=yarn_dev_tools.send_latest_command_results)
+
+    @staticmethod
+    def add_jenkins_test_reporter(subparsers, yarn_dev_tools):
+        parser = subparsers.add_parser(
+            CommandType.JENKINS_TEST_REPORTER.value,
+            help="Fetches, parses and sends unit test result reports from Jenkins in email."
+            "Example: "
+            "--job-name {job_name} "
+            "--testcase-filter org.apache.hadoop.yarn "
+            "--smtp_server smtp.gmail.com "
+            "--smtp_port 465 "
+            "--account_user someuser@somemail.com "
+            "--account_password somepassword "
+            "--sender 'YARN jenkins test reporter' "
+            "--recipients snemeth@cloudera.com"
+            #
+        )
+        ArgParser.add_email_arguments(parser, add_subject=False, add_attachment_filename=False)
+
+        parser.add_argument(
+            "-J",
+            "--jenkins-url",
+            type=str,
+            dest="jenkins_url",
+            help="Jenkins URL to fetch results from",
+            default="http://build.infra.cloudera.com/",
+        )
+        parser.add_argument(
+            "-j",
+            "--job-name",
+            type=str,
+            dest="job_name",
+            help="Jenkins job name to fetch results from",
+            default="Mawo-UT-hadoop-CDPD-7.x",
+        )
+        parser.add_argument(
+            "-n",
+            "--num-days",
+            type=int,
+            dest="num_prev_days",
+            help="Number of days to examine",
+            default=14,
+        )
+
+        parser.add_argument(
+            "-t",
+            "--testcase-filter",
+            dest="tc_filter",
+            type=str,
+            help="Testcase filters in format <project>:<filter value>",
+        )
+        parser.set_defaults(func=yarn_dev_tools.fetch_send_jenkins_test_report)
+
+    @staticmethod
+    def add_email_arguments(parser, add_subject=True, add_attachment_filename=True):
         parser.add_argument("--smtp_server", required=True, type=str, help="SMPT server")
         parser.add_argument("--smtp_port", required=True, type=str, help="SMTP port")
         parser.add_argument("--account_user", required=True, type=str, help="Email account's user")
         parser.add_argument("--account_password", required=True, type=str, help="Email account's password")
-        parser.add_argument("--subject", required=True, type=str, help="Subject of the email")
+        if add_subject:
+            parser.add_argument("--subject", required=True, type=str, help="Subject of the email")
         parser.add_argument("--sender", required=True, type=str, help="Sender of the email [From]")
         parser.add_argument("--recipients", required=True, type=str, nargs="+", help="List of email recipients [To]")
-        parser.add_argument("--attachment-filename", required=False, type=str, help="Override attachment filename")
-        parser.set_defaults(func=yarn_dev_tools.send_latest_command_results)
+        if add_attachment_filename:
+            parser.add_argument("--attachment-filename", required=False, type=str, help="Override attachment filename")

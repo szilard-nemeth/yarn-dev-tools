@@ -266,6 +266,7 @@ class BranchComparator:
         self.branches: Branches = Branches(self.config, self.repo, branch_names)
 
     def run(self):
+        # TODO move this to python-commons`
         self.config.full_cmd = " ".join(sys.argv)
         LOG.info(f"Starting Branch comparator... \n{str(self.config)}")
         self.validate_branches()

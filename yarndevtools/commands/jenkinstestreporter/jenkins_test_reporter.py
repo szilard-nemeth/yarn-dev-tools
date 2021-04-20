@@ -7,10 +7,11 @@ import traceback
 import datetime
 import json as simplejson
 import logging
-import argparse
 import time
-
-from email_service import EmailService
+from pythoncommons.date_utils import DateUtils
+from pythoncommons.email import EmailService
+from pythoncommons.file_utils import FileUtils
+from yarndevtools.common.shared_command_utils import FullEmailConfig
 
 sysversion = sys.hexversion
 onward30 = False
@@ -27,10 +28,6 @@ else:
     import urllib.request
 
 # Configuration
-DEFAULT_JENKINS_URL = "http://build.infra.cloudera.com/"
-DEFAULT_JOB_NAME = "Mawo-UT-hadoop-CDPD-7.x"
-DEFAULT_NUM_PREVIOUS_DAYS = 14
-
 SECONDS_PER_DAY = 86400
 
 # total number of runs to examine
@@ -38,6 +35,8 @@ numRunsToExamine = 0
 
 # Whether to enable file cache for testreport JSON responses
 enable_file_cache = True
+
+LOG = logging.getLogger(__name__)
 
 
 class Report:
@@ -129,42 +128,6 @@ class JobBuildDataCounters:
 
     def __str__(self):
         return "Failed: {}, Passed: {}, Skipped: {}".format(self.failed, self.passed, self.skipped)
-
-
-def parse_args():
-    """ Parse arguments """
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-J", "--jenkins-url", type=str, dest="jenkins_url", help="Jenkins URL", default=DEFAULT_JENKINS_URL
-    )
-    parser.add_argument(
-        "-j", "--job-name", type=str, dest="job_name", help="Job name to look at", default=DEFAULT_JOB_NAME
-    )
-    parser.add_argument(
-        "-n",
-        "--num-days",
-        type=int,
-        dest="num_prev_days",
-        help="Number of days to examine",
-        default=DEFAULT_NUM_PREVIOUS_DAYS,
-    )
-
-    parser.add_argument(
-        "-e",
-        "--email-recipients",
-        dest="email_recipients",
-        type=str,
-        nargs="+",
-        help="Email addresses send the report to",
-    )
-
-    # TODO fix help text
-    parser.add_argument(
-        "-t", "--testcase-filter", dest="tc_filter", type=str, help="Email addresses send the report to"
-    )
-
-    args = parser.parse_args()
-    return args
 
 
 def load_url_data(url):
@@ -343,63 +306,110 @@ def configure_logging():
     logger = logging.getLogger()
     logger.removeHandler(logger.handlers[0])
     logger.addHandler(sh)
-    opts = parse_args()
-    logging.info("****Recently FAILED builds in url: " + opts.jenkins_url + "/job/" + opts.job_name + "")
-    return opts
 
 
-def send_mail(email_service, report, build_idx):
-    report_text = report.convert_to_text(build_data_idx=build_idx)
-    build_link = report.get_build_link(build_data_idx=build_idx)
+class JenkinsTestReporterConfig:
+    def __init__(self, output_dir: str, args):
+        self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
+        self.jenkins_url = args.jenkins_url
+        self.job_name = args.job_name
+        self.num_prev_days = args.num_prev_days
+        self.tc_filter = args.tc_filter
 
-    if report.is_valid_build(build_data_idx=build_idx):
-        email_subject = "Failed tests with build: {}".format(build_link)
-    else:
-        email_subject = "Failed to fetch test report, build is invalid: {}".format(build_link)
+        self.output_dir = FileUtils.ensure_dir_created(
+            FileUtils.join_path(output_dir, f"session-{DateUtils.now_formatted('%Y%m%d_%H%M%S')}")
+        )
+        self.full_cmd: str = self._determine_full_command()
 
-    logging.info("Trying to send report in email. Report text: %s", report_text)
-    email_service.send_mail(email_subject, report_text)
+    # TODO move this to python-commons
+    @staticmethod
+    def _determine_full_command():
+        split_res = " ".join(sys.argv).split("password ")
+        # Chop the first word from the 2nd string, that word should be the password.
+        return split_res[0] + "password ****** " + " ".join(split_res[1].split(" ")[1:])
 
-
-def main():
-    import sys
-
-    print("Arguments: " + str(sys.argv[1:]))
-
-    if "MAIL_ACC_PASSWORD" not in os.environ:
-        raise ValueError("'MAIL_ACC_PASSWORD' env var is not set. Please set it to a valid value!")
-
-    global numRunsToExamine
-    opts = configure_logging()
-    email_service = EmailService(opts.email_recipients)
-    request_limit = 1
-
-    tc_filter = opts.tc_filter if opts.tc_filter else ""
-    report = find_flaky_tests(opts.jenkins_url, opts.job_name, opts.num_prev_days, request_limit, tc_filter)
-
-    build_idx = 0
-    if len(report.all_failing_tests) == 0 and report.is_valid_build(build_data_idx=build_idx):
-        logging.info("Report is valid and does not contain any failed tests. Won't send mail, exiting...")
-        raise SystemExit(0)
-
-    # We have some failed tests OR the build is invalid
-    logging.info("Report is not valid or contains failed tests!")
-
-    if len(report.job_build_datas) > 1:
-        logging.info("Report contains more than 1 build result, using the first build result while sending the mail.")
-
-    if report.is_valid_build(build_idx):
-        logging.info(
-            "\nAmong " + str(numRunsToExamine) + " runs examined, all failed " + "tests <#failedRuns: testName>:"
+    def __str__(self):
+        return (
+            f"Full command was: {self.full_cmd}\n"
+            f"Jenkins URL: {self.jenkins_url}\n"
+            f"Jenkins job name: {self.job_name}\n"
+            f"Number of days to check: {self.num_prev_days}\n"
+            f"Testcase filter: {self.tc_filter}\n"
         )
 
-        # Print summary section: all failed tests sorted by how many times they failed
-        logging.info("TESTCASE SUMMARY:")
-        for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
-            logging.info("    " + str(report.all_failing_tests[tn]) + ": " + tn)
 
-    send_mail(email_service, report, build_idx)
+class JenkinsTestReporter:
+    def __init__(self, args, output_dir):
+        self.config = JenkinsTestReporterConfig(output_dir, args)
 
+    def run(self):
+        LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
+        self.main()
 
-if __name__ == "__main__":
-    main()
+    def main(self):
+        import sys
+
+        print("Arguments: " + str(sys.argv[1:]))
+        global numRunsToExamine
+        configure_logging()
+        logging.info(
+            "****Recently FAILED builds in url: " + self.config.jenkins_url + "/job/" + self.config.job_name + ""
+        )
+        request_limit = 1
+
+        tc_filter = self.config.tc_filter if self.config.tc_filter else ""
+        if not tc_filter:
+            LOG.warning("TESTCASE FILTER IS NOT SET!")
+        report = find_flaky_tests(
+            self.config.jenkins_url, self.config.job_name, self.config.num_prev_days, request_limit, tc_filter
+        )
+
+        build_idx = 0
+        if len(report.all_failing_tests) == 0 and report.is_valid_build(build_data_idx=build_idx):
+            logging.info("Report is valid and does not contain any failed tests. Won't send mail, exiting...")
+            raise SystemExit(0)
+
+        # We have some failed tests OR the build is invalid
+        logging.info("Report is not valid or contains failed tests!")
+
+        if len(report.job_build_datas) > 1:
+            logging.info(
+                "Report contains more than 1 build result, using the first build result while sending the mail."
+            )
+
+        if report.is_valid_build(build_idx):
+            logging.info(
+                "\nAmong " + str(numRunsToExamine) + " runs examined, all failed " + "tests <#failedRuns: testName>:"
+            )
+
+            # Print summary section: all failed tests sorted by how many times they failed
+            logging.info("TESTCASE SUMMARY:")
+            for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
+                logging.info("    " + str(report.all_failing_tests[tn]) + ": " + tn)
+
+        # TODO idea: Attach raw json / html jenkins report to email
+        self.send_mail(report, build_idx)
+
+    def send_mail(self, report, build_idx):
+        report_text = report.convert_to_text(build_data_idx=build_idx)
+        email_subject = self._get_email_subject(build_idx, report)
+
+        logging.info("Trying to send report in email. Report text: %s", report_text)
+        email_service = EmailService(self.config.full_email_conf.email_conf)
+        email_service.send_mail(
+            self.config.full_email_conf.sender,
+            email_subject,
+            report_text,
+            self.config.full_email_conf.recipients,
+            body_mimetype="plain",
+        )
+        LOG.info("Finished sending email to recipients")
+
+    @staticmethod
+    def _get_email_subject(build_idx, report):
+        build_link = report.get_build_link(build_data_idx=build_idx)
+        if report.is_valid_build(build_data_idx=build_idx):
+            email_subject = "Failed tests with build: {}".format(build_link)
+        else:
+            email_subject = "Failed to fetch test report, build is invalid: {}".format(build_link)
+        return email_subject
