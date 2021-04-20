@@ -12,12 +12,12 @@ LOG = logging.getLogger(__name__)
 
 class CommonUtils:
     @staticmethod
-    def convert_commits_to_oneline_strings(commits: List[CommitData], incl_jira_id=False, commit_id_separator=" -> "):
+    def convert_commits_to_oneline_strings(commits: List[CommitData], incl_jira_id=False):
         result = []
         for c in commits:
             commit_str = CommonUtils.convert_commit_to_str(c)
             if incl_jira_id:
-                commit_str = f"{c.jira_id}{commit_id_separator}{commit_str}"
+                commit_str = f"[{c.jira_id}]{commit_str}"
             result.append(commit_str)
         return StringUtils.list_to_multiline_string(result)
 

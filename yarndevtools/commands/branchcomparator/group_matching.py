@@ -663,6 +663,6 @@ class CommitGroupConverter:
         result += f"Group size: {len(group.commits)}\n"
         result += f"Match type: {group.match_type.value}\n"
         result += f"Branch: {branch_names[group.br_type]} ({group.br_type.value})\n"
-        result += f"Commits: \n{CommonUtils.convert_commits_to_oneline_strings(group.commits, incl_jira_id=True)}\n"
-        result += f"Revert info: {revert_info}\n"
+        result += f"Commits:\n{CommonUtils.convert_commits_to_oneline_strings(group.commits, incl_jira_id=True)}\n"
+        result += f"Revert info:\n{revert_info}\n"
         return result
