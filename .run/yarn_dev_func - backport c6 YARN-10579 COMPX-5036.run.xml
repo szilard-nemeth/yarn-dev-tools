@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="yarn_dev_func - backport c6 YARN-10579 COMPX-5036" type="PythonConfigurationType" factoryName="Python">
-    <module name="linux_env" />
+  <configuration default="false" name="backport c6 YARN-10579 COMPX-5036" type="PythonConfigurationType" factoryName="Python">
+    <module name="yarn-dev-tools" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>
