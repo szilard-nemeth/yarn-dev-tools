@@ -84,9 +84,13 @@ class CommitGroup:
             # Commits are ordered in ascending by date
             reverted = False
             for c in commits:
-                if c.reverted_at_least_once:
+                new_revert_status = c.reverted_at_least_once
+                if new_revert_status:
                     LOG.debug(f"Found reverted commit: {CommonUtils.convert_commit_to_str(c)}")
-                reverted = c.reverted_at_least_once
+
+                if reverted != new_revert_status:
+                    LOG.debug(f"Revert status changed for jira {jira_id}: {reverted} --> {new_revert_status}")
+                reverted = new_revert_status
             self.commit_revert_info[jira_id] = reverted
 
     @property
