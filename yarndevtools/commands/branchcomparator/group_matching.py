@@ -301,7 +301,7 @@ class JiraIdToCommitMappings:
         # Inner-dict key: Jira ID
         self._dict: Dict[BranchType, Dict[str, List[CommitData]]] = self._map_jira_ids_to_commits()
 
-    def _map_jira_ids_to_commits(self):
+    def _map_jira_ids_to_commits(self) -> Dict[BranchType, Dict[str, List[CommitData]]]:
         # This is better than BranchData.jira_id_to_commits as it maps all jira IDs (including downstream) to commits.
         # At the same time, it does not break the behaviour of SimpleCommitMatcher.
 
@@ -347,6 +347,7 @@ class CommitGrouper:
         self.sanity_check()
         self.group_stats = CommitGroupStats(self._groups_by_jira_id, self._groups_by_msg)
 
+    # TODO store this to property
     def groups_by_jira_id_dict(self) -> Dict[BranchType, Dict[FrozenSet, CommitGroup]]:
         result: Dict[BranchType, Dict[FrozenSet, CommitGroup]] = {}
         for br_type, br_data in self.branch_data.items():
@@ -371,7 +372,7 @@ class CommitGrouper:
                 )
         return result
 
-    def _create_groups(self):
+    def _create_groups(self) -> Dict[BranchType, List[CommitGroup]]:
         groups: Dict[BranchType, List[CommitGroup]] = {}
         for br_type in self.branch_data.keys():
             groups[br_type] = []
