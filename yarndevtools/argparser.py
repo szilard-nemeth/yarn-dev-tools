@@ -23,7 +23,7 @@ class CommandType(Enum):
     SAVE_DIFF_AS_PATCHES = "save_diff_as_patches"
     DIFF_PATCHES_OF_JIRA = "diff_patches_of_jira"
     FETCH_JIRA_UMBRELLA_DATA = "fetch_jira_umbrella_data"
-    COMPARE_BRANCHES = "compare_branches"
+    BRANCH_COMPARATOR = "compare_branches"
     ZIP_LATEST_COMMAND_DATA = "zip_latest_command_data"
     SEND_LATEST_COMMAND_DATA = "send_latest_command_data"
 
@@ -179,7 +179,7 @@ class ArgParser:
     @staticmethod
     def add_branch_comparator(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.COMPARE_BRANCHES.value,
+            CommandType.BRANCH_COMPARATOR.value,
             help="Branch comparator."
             "Usage: <algorithm> <feature branch> <master branch>"
             "Example: simple CDH-7.1-maint cdpd-master"
