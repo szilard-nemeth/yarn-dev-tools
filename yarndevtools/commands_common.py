@@ -162,6 +162,7 @@ class GitLogParseConfig:
         commit_field_separator: str = COMMIT_FIELD_SEPARATOR,
         jira_id_parse_strategy: JiraIdParseStrategy = None,
         keep_parser_state: bool = False,
+        verbose_mode: bool = False,
     ):
         self.jira_id_parse_strategy = jira_id_parse_strategy
         if not self.jira_id_parse_strategy:
@@ -174,6 +175,7 @@ class GitLogParseConfig:
         self.commit_field_separator = commit_field_separator
         # TODO implement using this property and serialize parser state to json for future reference + add to zip
         self.keep_parser_state = keep_parser_state
+        self.verbose_mode = verbose_mode
 
 
 @dataclass
@@ -190,6 +192,7 @@ class GitLogParserState:
     commit_states: List[CommitParserState] = field(default_factory=list)
 
 
+# TODO this class and CommitData are good candidates to move to python-commons
 class GitLogParser:
     def __init__(self, config: GitLogParseConfig):
         self.config = config
@@ -294,7 +297,9 @@ class GitLogParser:
         LOG.error("Found all violations: %d", sum_violations)
         LOG.error(f"Found {len(self.violations)} kinds of parser violations: {set(self.violations.keys())}")
         for type, commits in self.violations.items():
-            LOG.error(f"Found {len(self.violations[type])} violations for: {type}: {commits}")
+            LOG.error(f"Found {len(self.violations[type])} violations for: {type}")
+            if self.config.verbose_mode:
+                LOG.debug(f"Listing violated commits: {commits}")
 
 
 @auto_str
