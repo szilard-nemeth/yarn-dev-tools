@@ -1,0 +1,11 @@
+from enum import Enum
+
+BRANCH_DIFF_REPORTER_DIR_NAME = "daily-downstream-branchdiff-reporting"
+
+
+class EnvVar(Enum):
+    MAIL_ACC_PASSWORD = "MAIL_ACC_PASSWORD"
+    MAIL_ACC_USER = "MAIL_ACC_USER"
+    CLOUDERA_HADOOP_ROOT = "CLOUDERA_HADOOP_ROOT"
+    HADOOP_DEV_DIR = "HADOOP_DEV_DIR"
+    PYTHONPATH = "PYTHONPATH"
