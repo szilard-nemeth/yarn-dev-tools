@@ -12,22 +12,13 @@ from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService
 from pythoncommons.file_utils import FileUtils
 from yarndevtools.common.shared_command_utils import FullEmailConfig
+import urllib.request
 
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 
 sysversion = sys.hexversion
-onward30 = False
 if sysversion < 0x020600F0:
     sys.exit("Minimum supported python version is 2.6, the current version is " + "Python" + platform.python_version())
-
-if sysversion == 0x030000F0:
-    sys.exit("There is a known bug with Python" + platform.python_version() + ", please try a different version")
-
-if sysversion < 0x03000000:
-    import urllib2
-else:
-    onward30 = True
-    import urllib.request
 
 # Configuration
 SECONDS_PER_DAY = 86400
@@ -134,14 +125,10 @@ class JobBuildDataCounters:
 
 def load_url_data(url):
     """ Load data from specified url """
-    if onward30:
-        ourl = urllib.request.urlopen(url)
-        codec = ourl.info().get_param("charset")
-        content = ourl.read().decode(codec)
-        data = simplejson.loads(content, strict=False)
-    else:
-        ourl = urllib2.urlopen(url)
-        data = simplejson.load(ourl, strict=False)
+    ourl = urllib.request.urlopen(url)
+    codec = ourl.info().get_param("charset")
+    content = ourl.read().decode(codec)
+    data = simplejson.loads(content, strict=False)
     return data
 
 
@@ -150,7 +137,6 @@ def list_builds(jenkins_url, job_name):
     url = "%(jenkins)s/job/%(job_name)s/api/json?tree=builds[url,result,timestamp]" % dict(
         jenkins=jenkins_url, job_name=job_name
     )
-
     try:
         data = load_url_data(url)
     except Exception:
@@ -301,7 +287,7 @@ def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_fil
 
 
 def configure_logging():
-    logging.basicConfig(format="%(levelname)s:%(message)s", level=LOG.info)
+    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
     # set up logger to write to stdout
     sh = logging.StreamHandler(sys.stdout)
     sh.setLevel(logging.INFO)
