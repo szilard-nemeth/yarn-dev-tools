@@ -13,6 +13,8 @@ from pythoncommons.email import EmailService
 from pythoncommons.file_utils import FileUtils
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 
+EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
+
 sysversion = sys.hexversion
 onward30 = False
 if sysversion < 0x020600F0:
@@ -409,7 +411,7 @@ class JenkinsTestReporter:
     def _get_email_subject(build_idx, report):
         build_link = report.get_build_link(build_data_idx=build_idx)
         if report.is_valid_build(build_data_idx=build_idx):
-            email_subject = "Failed tests with build: {}".format(build_link)
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_link}"
         else:
-            email_subject = "Failed to fetch test report, build is invalid: {}".format(build_link)
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, build is invalid: {build_link}"
         return email_subject
