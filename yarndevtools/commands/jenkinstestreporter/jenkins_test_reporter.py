@@ -304,7 +304,7 @@ def configure_logging():
     logging.basicConfig(format="%(levelname)s:%(message)s", level=LOG.info)
     # set up logger to write to stdout
     sh = logging.StreamHandler(sys.stdout)
-    sh.setLevel(LOG.info)
+    sh.setLevel(logging.INFO)
     logger = logging.getLogger()
     logger.removeHandler(logger.handlers[0])
     logger.addHandler(sh)
