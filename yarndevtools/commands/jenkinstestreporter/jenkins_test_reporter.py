@@ -16,10 +16,6 @@ import urllib.request
 
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 
-sysversion = sys.hexversion
-if sysversion < 0x020600F0:
-    sys.exit("Minimum supported python version is 2.6, the current version is " + "Python" + platform.python_version())
-
 # Configuration
 SECONDS_PER_DAY = 86400
 
@@ -146,6 +142,7 @@ def list_builds(jenkins_url, job_name):
 
 
 def get_file_name_for_report(job_name, build_number):
+    # TODO utilize pythoncommon ProjectUtils to get output dir
     cwd = os.getcwd()
     job_name = job_name.replace(".", "_")
     job_dir_path = os.path.join(cwd, "workdir", "reports", job_name)
