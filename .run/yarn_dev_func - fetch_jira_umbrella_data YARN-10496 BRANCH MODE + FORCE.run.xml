@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yarndevtools/yarn_dev_tools.py" />
-    <option name="PARAMETERS" value="fetch_jira_umbrella_data YARN-10496 --force-mode --branches origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x" />
+    <option name="PARAMETERS" value="--debug fetch_jira_umbrella_data YARN-10496 --force-mode --branches origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
