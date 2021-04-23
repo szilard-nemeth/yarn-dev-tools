@@ -15,7 +15,7 @@ ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
         LOG.info("Starting CDSW runner...")
-        self.run_clone_repos_script(basedir)
+        self.run_clone_downstream_repos_script(basedir)
 
         # TODO investigate why legacy script fails!
         self.run_comparator_and_send_mail(algorithm="simple", run_legacy_script=False)

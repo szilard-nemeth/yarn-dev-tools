@@ -30,6 +30,7 @@ MAIL_ADDR_YARN_ENG_BP = "yarn_eng_bp@cloudera.com"
 MAIL_ADDR_SNEMETH = "snemeth@cloudera.com"
 
 CDSW_BASEDIR = FileUtils.join_path("home", "cdsw")
+HADOOP_UPSTREAM_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "apache", "hadoop")
 HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
 YARN_DEV_TOOLS_ROOT_DIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "snemeth", "yarn-dev-tools")
 YARN_DEV_TOOLS_CDSW_ROOT_DIR = FileUtils.join_path(
@@ -73,12 +74,10 @@ class CdswSetup:
         if mandatory_env_vars:
             LOG.info(f"Printing env vars: {os.environ}")
 
-        # Could have set it to dummy dir but dir must be an existing dir and a valid git repo as well,
-        # so it's more simple to reuse CLOUDERA_HADOOP_ROOT.
         env_var_dict.update(
             {
                 EnvVar.CLOUDERA_HADOOP_ROOT.value: HADOOP_CLOUDERA_BASEDIR,
-                EnvVar.HADOOP_DEV_DIR.value: HADOOP_CLOUDERA_BASEDIR,
+                EnvVar.HADOOP_DEV_DIR.value: HADOOP_UPSTREAM_BASEDIR,
             }
         )
 
@@ -110,9 +109,14 @@ class CdswRunnerBase(ABC):
     def start(self, basedir):
         pass
 
-    def run_clone_repos_script(self, basedir):
-        clone_repos_script = os.path.join(basedir, "scripts", "clone_repos.sh")
-        cmd = f"{BASHX} {clone_repos_script}"
+    def run_clone_downstream_repos_script(self, basedir):
+        clone_ds_repos_script = os.path.join(basedir, "scripts", "clone_downstream_repos.sh")
+        cmd = f"{BASHX} {clone_ds_repos_script}"
+        SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
+
+    def run_clone_upstream_repos_script(self, basedir):
+        clone_us_repos_script = os.path.join(basedir, "scripts", "clone_upstream_repos.sh")
+        cmd = f"{BASHX} {clone_us_repos_script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     def execute_yarndevtools_script(self, script_args):

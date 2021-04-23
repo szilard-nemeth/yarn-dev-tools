@@ -16,7 +16,7 @@ TC_FILTER_DEFAULT = "org.apache.hadoop.yarn"
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
         LOG.info("Starting CDSW runner...")
-        self.run_clone_repos_script(basedir)
+        self.run_clone_downstream_repos_script(basedir)
 
         cdpd_master_job = "Mawo-UT-hadoop-CDPD-7.x"
         cdh_71_maint_job = "Mawo-UT-hadoop-CDPD-7.1.x"

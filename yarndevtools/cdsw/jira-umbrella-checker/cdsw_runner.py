@@ -18,7 +18,8 @@ CMD_LOG = logging.getLogger(__name__)
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
         LOG.info("Starting CDSW runner...")
-        self.run_clone_repos_script(basedir)
+        self.run_clone_downstream_repos_script(basedir)
+        self.run_clone_upstream_repos_script(basedir)
         self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-10496")
 
     def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira: str):
