@@ -241,6 +241,13 @@ class ArgParser:
         parser.add_argument(
             "--dest_filename", required=False, type=str, default=DEFAULT_COMMAND_DATA_FILE_NAME, help="Zip filename"
         )
+        parser.add_argument(
+            "--ignore-filetypes",
+            required=False,
+            type=str,
+            nargs="+",
+            help="Filetype to ignore so they won't be added to the resulted zip file.",
+        )
         parser.set_defaults(func=yarn_dev_tools.zip_latest_command_results)
 
     @staticmethod
