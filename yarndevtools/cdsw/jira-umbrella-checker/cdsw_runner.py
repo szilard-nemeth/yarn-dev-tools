@@ -1,11 +1,12 @@
 import logging
+from typing import Dict
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
     YARN_DEV_TOOLS_ROOT_DIR,
-    MAIL_ADDR_SNEMETH,
+    MAIL_ADDR_YARN_ENG_BP,
 )
 from yarndevtools.cdsw.common_python.constants import EnvVar
 
@@ -13,6 +14,8 @@ DEFAULT_BRANCHES = "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x"
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
+
+JIRA_INFO: Dict[str, str] = {"YARN-10496": "AQC", "YARN-6223": "GPU phase 1", "YARN-8820": "GPU phase 2"}
 
 
 class CdswRunner(CdswRunnerBase):
@@ -29,11 +32,12 @@ class CdswRunner(CdswRunnerBase):
 
         self.run_zipper(CommandType.FETCH_JIRA_UMBRELLA_DATA, debug=True)
 
+        additional_info: str = JIRA_INFO[umbrella_jira]
         sender = "YARN upstream umbrella checker"
-        subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira}, start date: {date_str}]"
-        attachment_fnname: str = f"command_data_{date_str}.zip"
+        subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira} ({additional_info}), start date: {date_str}]"
+        attachment_fname: str = f"command_data_{date_str}.zip"
         self.send_latest_command_data_in_email(
-            sender=sender, subject=subject, attachment_filename=attachment_fnname, recipients=MAIL_ADDR_SNEMETH
+            sender=sender, subject=subject, attachment_filename=attachment_fname, recipients=MAIL_ADDR_YARN_ENG_BP
         )
 
     def _run_upstream_umbrella_checker(self, umbrella_jira, branches, force=True):
