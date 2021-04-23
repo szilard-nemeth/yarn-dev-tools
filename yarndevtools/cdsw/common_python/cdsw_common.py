@@ -5,12 +5,13 @@ import os
 from typing import Dict, List
 
 # MAKE SURE THIS PRECEDES IMPORT TO pythoncommons
-import subprocess
+
 
 # https://stackoverflow.com/a/50255019/1106893
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import EnvVar
 
 from pythoncommons.process import SubprocessCommandRunner
@@ -26,6 +27,7 @@ PY3 = "python3"
 BASH = "bash"
 BASHX = "bash -x"
 MAIL_ADDR_YARN_ENG_BP = "yarn_eng_bp@cloudera.com"
+MAIL_ADDR_SNEMETH = "snemeth@cloudera.com"
 
 CDSW_BASEDIR = FileUtils.join_path("home", "cdsw")
 HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
@@ -120,6 +122,28 @@ class CdswRunnerBase(ABC):
     @staticmethod
     def current_date_formatted():
         return DateUtils.get_current_datetime()
+
+    def run_zipper(self, command_type: CommandType, debug=False):
+        debug_mode = "--debug" if debug else ""
+        self.execute_yarndevtools_script(
+            f"{debug_mode} "
+            f"{CommandType.ZIP_LATEST_COMMAND_DATA.val} {command_type.val} "
+            f"--dest_dir /tmp "
+            f"--dest_filename command_data.zip "
+        )
+
+    def send_latest_command_data_in_email(
+        self, sender, subject, recipients=MAIL_ADDR_YARN_ENG_BP, attachment_filename=None
+    ):
+        attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
+        self.execute_yarndevtools_script(
+            f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.val} "
+            f"{self.common_mail_config.as_arguments()}"
+            f'--subject "{subject}" '
+            f'--sender "{sender}" '
+            f'--recipients "{recipients}" '
+            f"--attachment-filename {attachment_filename_val}"
+        )
 
 
 class CommonMailConfig:
