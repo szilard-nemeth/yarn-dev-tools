@@ -24,6 +24,8 @@ class CdswRunner(CdswRunnerBase):
         self.run_clone_downstream_repos_script(basedir)
         self.run_clone_upstream_repos_script(basedir)
         self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-10496")
+        self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-6223")
+        self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-8820")
 
     def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira: str):
         date_str = self.current_date_formatted()
