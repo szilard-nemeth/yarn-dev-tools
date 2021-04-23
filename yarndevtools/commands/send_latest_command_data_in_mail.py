@@ -6,7 +6,6 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
 from yarndevtools.common.shared_command_utils import FullEmailConfig
-from yarndevtools.constants import SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
 

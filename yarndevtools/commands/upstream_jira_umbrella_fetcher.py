@@ -144,7 +144,9 @@ class JiraUmbrellaData:
                         backport_present_list.append(branch in all_branches)
                     curr_row = [bjira.jira_id]
                     curr_row.extend(backport_present_list)
-                    curr_row = ResultPrinter.colorize_row(curr_row, convert_bools=True)
+                    # TODO Temporarily disabled colorize in order to send the mail effortlessly with summary body.
+                    #   This method requires redesign, nevertheless.
+                    # curr_row = ResultPrinter.colorize_row(curr_row, convert_bools=True)
                     backports_list.append(curr_row)
 
                 header = ["Row", "Jira ID"]
