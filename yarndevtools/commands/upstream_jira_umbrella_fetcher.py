@@ -8,7 +8,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.result_printer import ResultPrinter
+from pythoncommons.result_printer import ResultPrinter, TabulateTableFormat
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from pythoncommons.git_constants import (
@@ -77,6 +77,8 @@ class JiraUmbrellaData:
             print_result=False,
             max_width=80,
             max_width_separator=" ",
+            # tabulate_fmts=[TabulateTableFormat.GRID, TabulateTableFormat.HTML]
+            tabulate_fmt=TabulateTableFormat.GRID,
         )
 
         files = FileUtils.find_files(result_basedir, regex=".*", full_path_result=True)
