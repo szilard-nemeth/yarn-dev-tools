@@ -3,7 +3,7 @@ import sys
 from enum import Enum
 
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
-from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME
+from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
 
@@ -248,6 +248,14 @@ class ArgParser:
         parser = subparsers.add_parser(
             CommandType.SEND_LATEST_COMMAND_DATA.val,
             help="Sends latest command data in email." "Example: --dest_dir /tmp",
+        )
+        parser.add_argument(
+            "--file-as-email-body-from-zip",
+            dest="email_body_file",
+            required=False,
+            type=str,
+            help="The specified file from the latest command data zip will be added to the email body.",
+            default=SUMMARY_FILE_HTML,
         )
         ArgParser.add_email_arguments(parser)
         parser.set_defaults(func=yarn_dev_tools.send_latest_command_results)
