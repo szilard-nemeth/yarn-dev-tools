@@ -1,6 +1,7 @@
 #!/bin/bash
 
 function clone-fetch-hadoop() {
+  mkdir -p $REPOS_ROOT/apache
   cd $REPOS_ROOT/apache
   ls -la .
   git clone https://github.com/apache/hadoop.git
