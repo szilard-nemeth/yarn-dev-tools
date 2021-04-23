@@ -14,7 +14,7 @@
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/workplace-specific/cloudera/scripts/yarn/python/yarndevfunc/yarn_dev_func.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yarndevtools/yarn_dev_tools.py" />
     <option name="PARAMETERS" value="fetch_jira_umbrella_data YARN-10496 --force-mode --branches origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />

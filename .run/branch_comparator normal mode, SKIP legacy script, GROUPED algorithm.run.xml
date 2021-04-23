@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yarndevtools/yarn_dev_tools.py" />
-    <option name="PARAMETERS" value="--debug compare_branches grouped origin/CDH-7.1-maint origin/cdpd-master --commit_author_exceptions &quot;rel-eng@cloudera.com&quot;" />
+    <option name="PARAMETERS" value="--debug branch_comparator grouped origin/CDH-7.1-maint origin/cdpd-master --commit_author_exceptions &quot;rel-eng@cloudera.com&quot;" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

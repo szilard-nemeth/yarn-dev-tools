@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="zip latest command data" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="zip latest command data branch_comparator" type="PythonConfigurationType" factoryName="Python">
     <module name="yarn-dev-tools" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -15,7 +15,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yarndevtools/yarn_dev_tools.py" />
-    <option name="PARAMETERS" value="--debug zip_latest_command_data --dest_dir /tmp --dest_filename command_data.zip" />
+    <option name="PARAMETERS" value="--debug zip_latest_command_data branch_comparator --dest_dir /tmp --dest_filename command_data.zip" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

@@ -3,8 +3,8 @@ from typing import List
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
-    LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME,
     LATEST_LOG_LINK_NAME,
     LATEST_DATA_ZIP_LINK_NAME,
 )
@@ -22,15 +22,17 @@ class Config:
 
 class ZipLatestCommandData:
     def __init__(self, args, project_basedir: str):
-        self.zip_these_files = [LATEST_LOG_LINK_NAME, LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME]
-        self.input_files = self._validate(self.zip_these_files, project_basedir)
+        cmd_type_str: str = args.cmd_type
+        self.cmd_type: CommandType = CommandType.from_str(cmd_type_str)
+        input_files = [LATEST_LOG_LINK_NAME, self.cmd_type.session_link_name]
+        self.input_files = self._validate(input_files, project_basedir)
         self.config = Config(args, self.input_files, project_basedir)
 
     def _validate(self, input_files: List[str], project_basedir: str):
         return self._check_input_files(input_files, project_basedir)
 
-    @staticmethod
-    def _check_input_files(input_files: List[str], project_basedir: str):
+    def _check_input_files(self, input_files: List[str], project_basedir: str):
+        LOG.info(f"Checking provided input files. Command: {self.cmd_type}, Files: {input_files}")
         resolved_files = [FileUtils.join_path(project_basedir, f) for f in input_files]
         not_found_files = []
 
@@ -41,6 +43,7 @@ class ZipLatestCommandData:
                 not_found_files.append(f)
         if len(not_found_files) > 0:
             raise ValueError(f"The following files could not be found: {not_found_files}")
+        LOG.info(f"Listing resolved input files. Command: {self.cmd_type}, Files: {resolved_files}")
         return resolved_files
 
     def run(self):

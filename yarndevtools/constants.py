@@ -20,7 +20,6 @@ ANY_JIRA_ID_PATTERN = re.compile(r"([A-Z]+-\d+)")
 
 # Symlink names
 LATEST_LOG_LINK_NAME = "latest-log"
-LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME = "latest-session-branchcomparator"
 LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
 DEFAULT_COMMAND_DATA_FILE_NAME = "command_data.zip"
 

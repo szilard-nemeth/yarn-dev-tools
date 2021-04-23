@@ -16,21 +16,30 @@ else:
 
 
 class CommandType(Enum):
-    SAVE_PATCH = "save_patch"
-    CREATE_REVIEW_BRANCH = "create_review_branch"
-    BACKPORT_C6 = "backport_c6"
-    UPSTREAM_PR_FETCH = "upstream_pr_fetch"
-    SAVE_DIFF_AS_PATCHES = "save_diff_as_patches"
-    DIFF_PATCHES_OF_JIRA = "diff_patches_of_jira"
-    FETCH_JIRA_UMBRELLA_DATA = "fetch_jira_umbrella_data"
-    BRANCH_COMPARATOR = "compare_branches"
-    ZIP_LATEST_COMMAND_DATA = "zip_latest_command_data"
-    SEND_LATEST_COMMAND_DATA = "send_latest_command_data"
-    JENKINS_TEST_REPORTER = "jenkins_test_reporter"
+    SAVE_PATCH = ("save_patch", False)
+    CREATE_REVIEW_BRANCH = ("create_review_branch", False)
+    BACKPORT_C6 = ("backport_c6", False)
+    UPSTREAM_PR_FETCH = ("upstream_pr_fetch", False)
+    SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", False)
+    DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", False)
+    FETCH_JIRA_UMBRELLA_DATA = ("fetch_jira_umbrella_data", "latest-session-upstream-umbrella-fetcher")
+    BRANCH_COMPARATOR = ("branch_comparator", True, "latest-session-branchcomparator")
+    ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
+    SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
+    JENKINS_TEST_REPORTER = ("jenkins_test_reporter", False)
+
+    def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
+        self.val = value
+        self.session_based = session_based
+
+        if session_link_name:
+            self.session_link_name = session_link_name
+        else:
+            self.session_link_name = f"latest-session-{value}"
 
     @staticmethod
     def from_str(val):
-        val_to_enum = {ct.value: ct for ct in CommandType}
+        val_to_enum = {ct.val: ct for ct in CommandType}
         if val in val_to_enum:
             return val_to_enum[val]
         else:
@@ -53,6 +62,7 @@ class ArgParser:
             required=True,
             dest="command",
         )
+        # TODO Pass functions here instead of yarn_dev_tools
         ArgParser.add_save_patch_parser(subparsers, yarn_dev_tools)
         ArgParser.add_create_review_branch_parser(subparsers, yarn_dev_tools)
         ArgParser.add_backport_c6_parser(subparsers, yarn_dev_tools)
@@ -93,14 +103,14 @@ class ArgParser:
     @staticmethod
     def add_save_patch_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.SAVE_PATCH.value, help="Saves patch from upstream repository to yarn patches dir"
+            CommandType.SAVE_PATCH.val, help="Saves patch from upstream repository to yarn patches dir"
         )
         parser.set_defaults(func=yarn_dev_tools.save_patch)
 
     @staticmethod
     def add_create_review_branch_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.CREATE_REVIEW_BRANCH.value, help="Creates review branch from upstream patch file"
+            CommandType.CREATE_REVIEW_BRANCH.val, help="Creates review branch from upstream patch file"
         )
         parser.add_argument("patch_file", type=str, help="Path to patch file")
         parser.set_defaults(func=yarn_dev_tools.create_review_branch)
@@ -108,7 +118,7 @@ class ArgParser:
     @staticmethod
     def add_backport_c6_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.BACKPORT_C6.value,
+            CommandType.BACKPORT_C6.val,
             help="Backports upstream commit to C6 branch, " "Example usage: <command> YARN-7948 CDH-64201 cdh6.x",
         )
         parser.add_argument("upstream_jira_id", type=str, help="Upstream jira id. Example: YARN-4567")
@@ -127,7 +137,7 @@ class ArgParser:
     @staticmethod
     def add_upstream_pull_request_fetcher(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.UPSTREAM_PR_FETCH.value,
+            CommandType.UPSTREAM_PR_FETCH.val,
             help="Fetches upstream changes from a repo then cherry-picks single commit."
             "Example usage: <command> szilard-nemeth YARN-9999",
         )
@@ -138,7 +148,7 @@ class ArgParser:
     @staticmethod
     def add_save_diff_as_patches(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.SAVE_DIFF_AS_PATCHES.value,
+            CommandType.SAVE_DIFF_AS_PATCHES.val,
             help="Diffs branches and creates patch files with "
             "git format-patch and saves them to a directory."
             "Example: <command> master gpu",
@@ -152,7 +162,7 @@ class ArgParser:
     @staticmethod
     def diff_patches_of_jira(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.DIFF_PATCHES_OF_JIRA.value,
+            CommandType.DIFF_PATCHES_OF_JIRA.val,
             help="Diffs patches of a particular jira, for the provided branches."
             "Example: YARN-7913 trunk branch-3.2 branch-3.1",
         )
@@ -163,7 +173,7 @@ class ArgParser:
     @staticmethod
     def add_fetch_jira_umbrella_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.FETCH_JIRA_UMBRELLA_DATA.value,
+            CommandType.FETCH_JIRA_UMBRELLA_DATA.val,
             help="Fetches jira umbrella data for a provided Jira ID." "Example: fetch_jira_umbrella_data YARN-5734",
         )
         parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
@@ -181,7 +191,7 @@ class ArgParser:
     @staticmethod
     def add_branch_comparator(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.BRANCH_COMPARATOR.value,
+            CommandType.BRANCH_COMPARATOR.val,
             help="Branch comparator."
             "Usage: <algorithm> <feature branch> <master branch>"
             "Example: simple CDH-7.1-maint cdpd-master"
@@ -218,8 +228,14 @@ class ArgParser:
     @staticmethod
     def add_zip_latest_command_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.ZIP_LATEST_COMMAND_DATA.value,
+            CommandType.ZIP_LATEST_COMMAND_DATA.val,
             help="Zip latest command data." "Example: --dest_dir /tmp",
+        )
+        parser.add_argument(
+            "cmd_type",
+            type=str,
+            choices=[e.val for e in CommandType if e.session_based],
+            help="Type of command. The Command itself should be session-based.",
         )
         parser.add_argument("--dest_dir", required=False, type=str, help="Directory to create the zip file into")
         parser.add_argument(
@@ -230,7 +246,7 @@ class ArgParser:
     @staticmethod
     def add_send_latest_command_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.SEND_LATEST_COMMAND_DATA.value,
+            CommandType.SEND_LATEST_COMMAND_DATA.val,
             help="Sends latest command data in email." "Example: --dest_dir /tmp",
         )
         ArgParser.add_email_arguments(parser)
@@ -239,7 +255,7 @@ class ArgParser:
     @staticmethod
     def add_jenkins_test_reporter(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.JENKINS_TEST_REPORTER.value,
+            CommandType.JENKINS_TEST_REPORTER.val,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
             "Example: "
             "--job-name {job_name} "

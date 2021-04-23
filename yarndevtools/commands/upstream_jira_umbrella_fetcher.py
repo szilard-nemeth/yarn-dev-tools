@@ -221,6 +221,7 @@ class BackportedCommit:
 
 # TODO Add documentation
 class UpstreamJiraUmbrellaFetcher:
+    # TODO Make this session-based like BranchComparator
     def __init__(self, args, upstream_repo, downstream_repo, basedir, upstream_base_branch):
         self.execution_mode = (
             ExecutionMode.MANUAL_BRANCH_MODE

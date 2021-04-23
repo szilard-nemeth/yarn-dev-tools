@@ -1,3 +1,4 @@
+from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
@@ -35,7 +36,7 @@ class CdswRunner(CdswRunnerBase):
             algorithm=algorithm,
             run_legacy_script=run_legacy_script,
         )
-        self._run_zipper(debug=True)
+        self._run_zipper(CommandType.BRANCH_COMPARATOR, debug=True)
 
         subject_suffix = f" [{algorithm} algorithm, start date: {date_str}]"
         self._send_latest_command_data_in_email(subject_suffix=subject_suffix, attachment_filename=attachment_fnname)
@@ -47,15 +48,18 @@ class CdswRunner(CdswRunnerBase):
         run_legacy_script_str = "--run-legacy-script" if run_legacy_script else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
-            f"compare_branches {algorithm} {feature_branch} {master_branch} "
+            f"{CommandType.BRANCH_COMPARATOR.val} {algorithm} {feature_branch} {master_branch} "
             f"--commit_author_exceptions {authors_to_filter} "
             f"{run_legacy_script_str}"
         )
 
-    def _run_zipper(self, debug=False):
+    def _run_zipper(self, command_type: CommandType, debug=False):
         debug_mode = "--debug" if debug else ""
         self.execute_yarndevtools_script(
-            f"{debug_mode} " f"zip_latest_command_data " f"--dest_dir /tmp " f"--dest_filename command_data.zip "
+            f"{debug_mode} "
+            f"{CommandType.ZIP_LATEST_COMMAND_DATA.val} {command_type.val} "
+            f"--dest_dir /tmp "
+            f"--dest_filename command_data.zip "
         )
 
     def _send_latest_command_data_in_email(

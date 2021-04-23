@@ -34,7 +34,6 @@ from yarndevtools.constants import (
     GERRIT_REVIEWER_LIST,
     HADOOP_REPO_TEMPLATE,
     LATEST_LOG_LINK_NAME,
-    LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME,
     LATEST_DATA_ZIP_LINK_NAME,
     YARN_TASKS,
     JIRA_UMBRELLA_DATA,
@@ -212,12 +211,15 @@ class YarnDevTools:
         jira_umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
             args, self.upstream_repo, self.downstream_repo, self.jira_umbrella_data_dir, DEFAULT_BASE_BRANCH
         )
+        FileUtils.create_symlink_path_dir(
+            CommandType.FETCH_JIRA_UMBRELLA_DATA.session_link_name, jira_umbrella_fetcher.basedir, self.project_out_root
+        )
         jira_umbrella_fetcher.run()
 
     def branch_comparator(self, args):
         branch_comparator = BranchComparator(args, self.downstream_repo, self.branch_comparator_output_dir)
         FileUtils.create_symlink_path_dir(
-            LATEST_SESSION_BRANCHCOMPARATOR_LINK_NAME, branch_comparator.config.output_dir, self.project_out_root
+            CommandType.BRANCH_COMPARATOR.session_link_name, branch_comparator.config.output_dir, self.project_out_root
         )
         branch_comparator.run()
 

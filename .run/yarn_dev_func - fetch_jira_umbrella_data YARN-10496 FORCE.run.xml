@@ -9,12 +9,12 @@
       <env name="CLOUDERA_HADOOP_ROOT" value="$PROJECT_DIR$/../../cloudera//hadoop/" />
     </envs>
     <option name="SDK_HOME" value="" />
-    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/yarndevtools" />
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/workplace-specific/cloudera/scripts/yarn/python/yarndevfunc/yarn_dev_func.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/yarndevtools/yarn_dev_tools.py" />
     <option name="PARAMETERS" value="fetch_jira_umbrella_data --force-mode YARN-10496" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
