@@ -1,7 +1,7 @@
 import logging
 import os
 
-from pythoncommons.email import EmailService
+from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
@@ -14,6 +14,9 @@ class SendLatestCommandDataInEmailConfig:
     def __init__(self, args, attachment_file):
         self.email: FullEmailConfig = FullEmailConfig(args, attachment_file)
         self.email_body_file: str = args.email_body_file
+
+    def __str__(self):
+        return f"Email config: {self.email}\n" f"Email body file: {self.email_body_file}\n"
 
 
 class SendLatestCommandDataInEmail:
@@ -31,6 +34,7 @@ class SendLatestCommandDataInEmail:
         FileUtils.ensure_file_exists(email_body_file)
         email_body_contents: str = FileUtils.read_file(email_body_file)
 
+        body_mimetype: EmailMimeType = self._determine_body_mimetype_by_attachment()
         email_service = EmailService(self.config.email.email_conf)
         email_service.send_mail(
             self.config.email.sender,
@@ -38,7 +42,13 @@ class SendLatestCommandDataInEmail:
             email_body_contents,
             self.config.email.recipients,
             self.config.email.attachment_file,
-            body_mimetype="html",
+            body_mimetype=body_mimetype,
             override_attachment_filename=self.config.email.attachment_filename,
         )
         LOG.info("Finished sending email to recipients")
+
+    def _determine_body_mimetype_by_attachment(self) -> EmailMimeType:
+        if self.config.email.attachment_file.endswith(".html"):
+            return EmailMimeType.HTML
+        else:
+            return EmailMimeType.PLAIN
