@@ -258,7 +258,9 @@ class UpstreamJiraUmbrellaFetcherConfig:
                     )
 
     def __str__(self):
-        downstream_branches_to_check = ", ".join(self.downstream_branches)
+        downstream_branches_to_check = "N/A"
+        if self.downstream_branches:
+            downstream_branches_to_check = ", ".join(self.downstream_branches)
         return (
             f"Full command was: {self.full_cmd} \n"
             f"Upstream jira: {self.jira_id}\n"
