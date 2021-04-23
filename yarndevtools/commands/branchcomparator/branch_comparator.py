@@ -1,10 +1,10 @@
 import logging
-import sys
 from enum import Enum
 from typing import Dict, List
 
 from git import Commit
 from pythoncommons.collection_utils import CollectionUtils
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
@@ -264,8 +264,7 @@ class BranchComparator:
         self.branches: Branches = Branches(self.config, self.repo, branch_names)
 
     def run(self):
-        # TODO move this to python-commons
-        self.config.full_cmd = " ".join(sys.argv)
+        self.config.full_cmd = OsUtils.determine_full_command()
         LOG.info(f"Starting Branch comparator... \n{str(self.config)}")
         self.validate_branches()
         # TODO Make fetching optional, argparse argument

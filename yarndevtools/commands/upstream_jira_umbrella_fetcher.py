@@ -4,6 +4,7 @@ import sys
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.jira_utils import JiraUtils
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
 from pythoncommons.project_utils import ProjectUtils
@@ -283,8 +284,7 @@ class UpstreamJiraUmbrellaFetcher:
         self.data: JiraUmbrellaData or None = None
 
     def run(self):
-        # TODO move this to python-commons
-        self.config.full_cmd = " ".join(sys.argv)
+        self.config.full_cmd = OsUtils.determine_full_command()
         LOG.info(f"Starting umbrella jira fetcher... \n{str(self.config)}")
         self.log_current_branch()
         self.upstream_repo.fetch(all=True)

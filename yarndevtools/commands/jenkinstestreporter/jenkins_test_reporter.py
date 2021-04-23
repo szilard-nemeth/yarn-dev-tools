@@ -2,15 +2,14 @@
 import json
 import os
 import sys
-import platform
 import traceback
 import datetime
 import json as simplejson
 import logging
 import time
-from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.common.shared_command_utils import FullEmailConfig
@@ -305,14 +304,7 @@ class JenkinsTestReporterConfig:
         self.num_prev_days = args.num_prev_days
         self.tc_filter = args.tc_filter
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
-        self.full_cmd: str = self._determine_full_command()
-
-    # TODO move this to python-commons
-    @staticmethod
-    def _determine_full_command():
-        split_res = " ".join(sys.argv).split("password ")
-        # Chop the first word from the 2nd string, that word should be the password.
-        return split_res[0] + "password ****** " + " ".join(split_res[1].split(" ")[1:])
+        self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
     def __str__(self):
         return (
@@ -333,9 +325,6 @@ class JenkinsTestReporter:
         self.main()
 
     def main(self):
-        import sys
-
-        print("Arguments: " + str(sys.argv[1:]))
         global numRunsToExamine
         configure_logging()
         LOG.info("****Recently FAILED builds in url: " + self.config.jenkins_url + "/job/" + self.config.job_name + "")
