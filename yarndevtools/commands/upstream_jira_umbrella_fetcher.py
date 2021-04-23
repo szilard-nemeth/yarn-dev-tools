@@ -1,11 +1,12 @@
 import logging
 import os
 import sys
-
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
+from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.result_printer import ResultPrinter
 from pythoncommons.string_utils import StringUtils, auto_str
 
@@ -219,58 +220,76 @@ class BackportedCommit:
         self.branches = branches
 
 
-# TODO Add documentation
-class UpstreamJiraUmbrellaFetcher:
-    # TODO Make this session-based like BranchComparator
-    def __init__(self, args, upstream_repo, downstream_repo, basedir, upstream_base_branch):
+class UpstreamJiraUmbrellaFetcherConfig:
+    def __init__(
+        self, output_dir: str, args, upstream_base_branch: str, upstream_repo: GitWrapper, downstream_repo: GitWrapper
+    ):
+        self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.execution_mode = (
             ExecutionMode.MANUAL_BRANCH_MODE
             if hasattr(args, "branches") and args.branches
             else ExecutionMode.AUTO_BRANCH_MODE
         )
         self.downstream_branches = args.branches if hasattr(args, "branches") else []
+        self.upstream_repo_path = upstream_repo.repo_path
+        self.downstream_repo_path = downstream_repo.repo_path
         self.jira_id = args.jira_id
-        self.upstream_repo = upstream_repo
-        self.downstream_repo = downstream_repo
-        self.basedir = basedir
+        self.output_dir = output_dir
         self.upstream_base_branch = upstream_base_branch
         self.force_mode = True if args.force_mode else False
-        # These fields will be assigned when data is fetched
-        self.data: JiraUmbrellaData or None = None
-        self.result_basedir = None
+        self.full_cmd: str or None = None
+        self._validate(downstream_repo)
+        self.umbrella_result_basedir = FileUtils.join_path(self.output_dir, self.jira_id)
 
-    def run(self):
-        LOG.info(
-            "Starting umbrella jira fetcher... \n "
-            "Upstream Jira: %s\n "
-            "Upstream repo: %s\n "
-            "Downstream repo: %s\n "
-            "Execution mode: %s\n"
-            "Downstream branches to check: %s",
-            self.jira_id,
-            self.upstream_repo.repo_path,
-            self.downstream_repo.repo_path,
-            self.execution_mode.name,
-            ", ".join(self.downstream_branches),
-        )
-
+    def _validate(self, downstream_repo: GitWrapper):
         if self.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
             if not self.downstream_branches:
                 raise ValueError("Execution mode is 'manual-branch' but no branch was provided. Exiting...")
 
             LOG.info("Manual branch execution mode, validating provided branches..")
             for branch in self.downstream_branches:
-                if not self.downstream_repo.is_branch_exist(branch):
+                if not downstream_repo.is_branch_exist(branch):
                     raise ValueError(
                         "Cannot find branch called '{}' in downstream repository {}. "
                         "Please verify the provided branch names!"
                     )
 
-        self.result_basedir = FileUtils.join_path(self.basedir, self.jira_id)
+    def __str__(self):
+        downstream_branches_to_check = ", ".join(self.downstream_branches)
+        return (
+            f"Full command was: {self.full_cmd} \n"
+            f"Upstream jira: {self.jira_id}\n"
+            f"Upstream repo: {self.upstream_repo_path}\n"
+            f"Downstream repo: {self.downstream_repo_path}\n"
+            f"Execution mode: {self.execution_mode.name} \n"
+            f"Output dir: {self.output_dir} \n"
+            f"Umbrella result basedir: {self.umbrella_result_basedir} \n"
+            f"Downstream branches to check: {downstream_branches_to_check} \n"
+        )
+
+
+# TODO Add documentation
+class UpstreamJiraUmbrellaFetcher:
+    def __init__(
+        self, args, upstream_repo: GitWrapper, downstream_repo: GitWrapper, output_dir: str, upstream_base_branch: str
+    ):
+        self.upstream_repo = upstream_repo
+        self.downstream_repo = downstream_repo
+        self.config = UpstreamJiraUmbrellaFetcherConfig(
+            output_dir, args, upstream_base_branch, upstream_repo, downstream_repo
+        )
+
+        # These fields will be assigned when data is fetched
+        self.data: JiraUmbrellaData or None = None
+
+    def run(self):
+        # TODO move this to python-commons
+        self.config.full_cmd = " ".join(sys.argv)
+        LOG.info(f"Starting umbrella jira fetcher... \n{str(self.config)}")
         self.log_current_branch()
         self.upstream_repo.fetch(all=True)
         self.downstream_repo.fetch(all=True)
-        if self.force_mode:
+        if self.config.force_mode:
             LOG.info("FORCE MODE is on")
             self.do_fetch()
         else:
@@ -283,43 +302,43 @@ class UpstreamJiraUmbrellaFetcher:
 
     @property
     def jira_html_file(self):
-        return FileUtils.join_path(self.result_basedir, "jira.html")
+        return FileUtils.join_path(self.config.umbrella_result_basedir, "jira.html")
 
     @property
     def jira_list_file(self):
-        return FileUtils.join_path(self.result_basedir, "jira-list.txt")
+        return FileUtils.join_path(self.config.umbrella_result_basedir, "jira-list.txt")
 
     @property
     def commits_file(self):
-        return FileUtils.join_path(self.result_basedir, "commit-hashes.txt")
+        return FileUtils.join_path(self.config.umbrella_result_basedir, "commit-hashes.txt")
 
     @property
     def changed_files_file(self):
-        return FileUtils.join_path(self.result_basedir, "changed-files.txt")
+        return FileUtils.join_path(self.config.umbrella_result_basedir, "changed-files.txt")
 
     @property
     def summary_file(self):
-        return FileUtils.join_path(self.result_basedir, SUMMARY_FILE_TXT)
+        return FileUtils.join_path(self.config.umbrella_result_basedir, SUMMARY_FILE_TXT)
 
     @property
     def intermediate_results_file(self):
-        return FileUtils.join_path(self.result_basedir, "intermediate-results.txt")
+        return FileUtils.join_path(self.config.umbrella_result_basedir, "intermediate-results.txt")
 
     @property
     def pickled_data_file(self):
-        return FileUtils.join_path(self.result_basedir, PICKLED_DATA_FILENAME)
+        return FileUtils.join_path(self.config.umbrella_result_basedir, PICKLED_DATA_FILENAME)
 
     def do_fetch(self):
         LOG.info("Fetching jira umbrella data...")
         self.data = JiraUmbrellaData()
         self.fetch_jira_ids()
         self.find_upstream_commits_and_save_to_file()
-        if self.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
+        if self.config.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
             self.find_downstream_commits_auto_mode()
-        elif self.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
+        elif self.config.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
             self.find_downstream_commits_manual_mode()
-        self.data.execution_mode = self.execution_mode
-        self.data.downstream_branches = self.downstream_branches
+        self.data.execution_mode = self.config.execution_mode
+        self.data.downstream_branches = self.config.downstream_branches
         self.save_changed_files_to_file()
         # TODO Only render summary once, store and print later (print_summary)
         self.write_summary_file()
@@ -339,20 +358,20 @@ class UpstreamJiraUmbrellaFetcher:
     def log_current_branch(self):
         curr_branch = self.upstream_repo.get_current_branch_name()
         LOG.info("Current branch: %s", curr_branch)
-        if curr_branch != self.upstream_base_branch:
-            raise ValueError(f"Current branch is not {self.upstream_base_branch}. Exiting!")
+        if curr_branch != self.config.upstream_base_branch:
+            raise ValueError(f"Current branch is not {self.config.upstream_base_branch}. Exiting!")
 
     def fetch_jira_ids(self):
-        LOG.info("Fetching HTML of jira: %s", self.jira_id)
+        LOG.info("Fetching HTML of jira: %s", self.config.jira_id)
         self.data.jira_html = JiraUtils.download_jira_html(
-            "https://issues.apache.org/jira/browse/", self.jira_id, self.jira_html_file
+            "https://issues.apache.org/jira/browse/", self.config.jira_id, self.jira_html_file
         )
         self.data.jira_ids_and_titles = JiraUtils.parse_subjiras_and_jira_titles_from_umbrella_html(
-            self.data.jira_html, self.jira_list_file, filter_ids=[self.jira_id]
+            self.data.jira_html, self.jira_list_file, filter_ids=[self.config.jira_id]
         )
         self.data.subjira_ids = list(self.data.jira_ids_and_titles.keys())
         if not self.data.subjira_ids:
-            raise ValueError(f"Cannot find subjiras for jira with id: {self.jira_id}")
+            raise ValueError(f"Cannot find subjiras for jira with id: {self.config.jira_id}")
         LOG.info("Found %d subjiras: %s", len(self.data.subjira_ids), self.data.subjira_ids)
         self.data.piped_jira_ids = "|".join(self.data.subjira_ids)
 
@@ -366,7 +385,7 @@ class UpstreamJiraUmbrellaFetcher:
         modified_log_lines = self._find_missing_upstream_commits_by_message(git_log_result, normal_commit_lines)
         self.data.matched_upstream_commit_list = normal_commit_lines + modified_log_lines
         if not self.data.matched_upstream_commit_list:
-            raise ValueError(f"Cannot find any commits for jira: {self.jira_id}")
+            raise ValueError(f"Cannot find any commits for jira: {self.config.jira_id}")
 
         LOG.info("Number of matched commits: %s", self.data.no_of_matched_commits)
         LOG.debug("Matched commits: \n%s", StringUtils.list_to_multiline_string(self.data.matched_upstream_commit_list))
@@ -391,7 +410,11 @@ class UpstreamJiraUmbrellaFetcher:
         LOG.debug("Not found jira ids in git log: %s", not_found_jira_ids)
         LOG.debug("Trying to find commits by jira titles from git log: %s", not_found_jira_titles)
         cmd, output = CommandRunner.egrep_with_cli(
-            git_log_result, self.intermediate_results_file, "|".join(not_found_jira_titles)
+            git_log_result,
+            self.intermediate_results_file,
+            "|".join(not_found_jira_titles),
+            escape_single_quotes=False,
+            escape_double_quotes=True,
         )
         output_lines2 = output.split("\n")
         # For these special commits, prepend Jira ID to commit message if it was there
@@ -457,7 +480,7 @@ class UpstreamJiraUmbrellaFetcher:
                 LOG.info("%s Finished checking downstream backport for jira: %s", progress, jira_id)
 
     def find_downstream_commits_manual_mode(self):
-        for branch in self.downstream_branches:
+        for branch in self.config.downstream_branches:
             git_log_result = self.downstream_repo.log(branch, oneline_with_date=True)
             # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
             cmd, output = CommandRunner.egrep_with_cli(
@@ -521,7 +544,7 @@ class UpstreamJiraUmbrellaFetcher:
         )
 
     def write_summary_file(self):
-        FileUtils.save_to_file(self.summary_file, self.data.render_summary_string(self.result_basedir))
+        FileUtils.save_to_file(self.summary_file, self.data.render_summary_string(self.config.umbrella_result_basedir))
 
     def write_all_changes_files(self):
         """
@@ -531,7 +554,9 @@ class UpstreamJiraUmbrellaFetcher:
         """
         LOG.info("Recording changes of individual files...")
         for idx, changed_file in enumerate(self.data.list_of_changed_files):
-            target_file = FileUtils.join_path(self.result_basedir, "changes", os.path.basename(changed_file))
+            target_file = FileUtils.join_path(
+                self.config.umbrella_result_basedir, "changes", os.path.basename(changed_file)
+            )
             FileUtils.ensure_file_exists(target_file, create=True)
 
             # NOTE: It seems impossible to call the following command with gitpython:
@@ -559,7 +584,7 @@ class UpstreamJiraUmbrellaFetcher:
                 sys.exit(1)
 
     def print_summary(self):
-        LOG.info(self.data.render_summary_string(self.result_basedir))
+        LOG.info(self.data.render_summary_string(self.config.umbrella_result_basedir))
 
     def pickle_umbrella_data(self):
         LOG.debug("Final umbrella data object: %s", self.data)

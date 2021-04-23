@@ -5,7 +5,7 @@ from typing import Dict, List
 
 from git import Commit
 from pythoncommons.collection_utils import CollectionUtils
-from pythoncommons.date_utils import DateUtils
+from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -66,9 +66,7 @@ class CommitMatchingAlgorithm(Enum):
 
 class BranchComparatorConfig:
     def __init__(self, output_dir: str, args, branch_names: Dict[BranchType, str]):
-        self.output_dir = FileUtils.ensure_dir_created(
-            FileUtils.join_path(output_dir, f"session-{DateUtils.now_formatted('%Y%m%d_%H%M%S')}")
-        )
+        self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.commit_author_exceptions = args.commit_author_exceptions
         self.console_mode = True if "console_mode" in args and args.console_mode else False
         self.save_to_file = not self.console_mode
@@ -266,7 +264,7 @@ class BranchComparator:
         self.branches: Branches = Branches(self.config, self.repo, branch_names)
 
     def run(self):
-        # TODO move this to python-commons`
+        # TODO move this to python-commons
         self.config.full_cmd = " ".join(sys.argv)
         LOG.info(f"Starting Branch comparator... \n{str(self.config)}")
         self.validate_branches()

@@ -11,6 +11,8 @@ import time
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.project_utils import ProjectUtils
+
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 
@@ -302,10 +304,7 @@ class JenkinsTestReporterConfig:
         self.job_name = args.job_name
         self.num_prev_days = args.num_prev_days
         self.tc_filter = args.tc_filter
-
-        self.output_dir = FileUtils.ensure_dir_created(
-            FileUtils.join_path(output_dir, f"session-{DateUtils.now_formatted('%Y%m%d_%H%M%S')}")
-        )
+        self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = self._determine_full_command()
 
     # TODO move this to python-commons

@@ -22,7 +22,7 @@ class CommandType(Enum):
     UPSTREAM_PR_FETCH = ("upstream_pr_fetch", False)
     SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", False)
     DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", False)
-    FETCH_JIRA_UMBRELLA_DATA = ("fetch_jira_umbrella_data", "latest-session-upstream-umbrella-fetcher")
+    FETCH_JIRA_UMBRELLA_DATA = ("fetch_jira_umbrella_data", True, "latest-session-upstream-umbrella-fetcher")
     BRANCH_COMPARATOR = ("branch_comparator", True, "latest-session-branchcomparator")
     ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)

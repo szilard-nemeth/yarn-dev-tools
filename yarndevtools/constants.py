@@ -41,6 +41,7 @@ PATCH_FILE_REGEX = "\\.\\d.*\\.patch$"
 PATCH_EXTENSION = ".patch"
 FIRST_PATCH_NUMBER = "001"
 
+# TODO Move all CommandType-based property to Enum itself
 YARN_TASKS = "yarn-tasks"
 JIRA_UMBRELLA_DATA = "jira-umbrella-data"
 JIRA_PATCH_DIFFER = "jira-patch-differ"

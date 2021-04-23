@@ -212,7 +212,9 @@ class YarnDevTools:
             args, self.upstream_repo, self.downstream_repo, self.jira_umbrella_data_dir, DEFAULT_BASE_BRANCH
         )
         FileUtils.create_symlink_path_dir(
-            CommandType.FETCH_JIRA_UMBRELLA_DATA.session_link_name, jira_umbrella_fetcher.basedir, self.project_out_root
+            CommandType.FETCH_JIRA_UMBRELLA_DATA.session_link_name,
+            jira_umbrella_fetcher.config.output_dir,
+            self.project_out_root,
         )
         jira_umbrella_fetcher.run()
 
