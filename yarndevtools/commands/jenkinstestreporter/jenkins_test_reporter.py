@@ -19,9 +19,11 @@ EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 # Configuration
 SECONDS_PER_DAY = 86400
 
+# TODO eliminate this
 # total number of runs to examine
 numRunsToExamine = 0
 
+# TODO move this to config
 # Whether to enable file cache for testreport JSON responses
 enable_file_cache = True
 
