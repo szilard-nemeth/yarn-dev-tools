@@ -241,8 +241,8 @@ class UpstreamJiraUmbrellaFetcherConfig:
         self.jira_id = args.jira_id
         self.output_dir = output_dir
         self.upstream_base_branch = upstream_base_branch
-        self.force_mode = True if args.force_mode else False
-        self.ignore_changes = True if args.ignore_changes else False
+        self.force_mode = args.force_mode if hasattr(args, "force_mode") else False
+        self.ignore_changes = args.ignore_changes if hasattr(args, "ignore_changes") else False
         self.full_cmd: str or None = None
         self._validate(downstream_repo)
         self.umbrella_result_basedir = FileUtils.join_path(self.output_dir, self.jira_id)

@@ -2,9 +2,10 @@ import logging
 import unittest
 
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevtools.constants import TRUNK
+from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA
 from tests.test_utilities import TestUtilities, Object
 
 # Umbrella: OrgQueue for easy CapacityScheduler queue configuration management
@@ -45,6 +46,9 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         cls.repo_wrapper = cls.utils.repo_wrapper
         cls.saved_patches_dir = cls.utils.saved_patches_dir
         cls.base_branch = TRUNK
+
+        # Invoke this to setup main output directory and avoid test failures while initing config
+        ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
 
     def cleanup_and_checkout_branch(self, test_branch):
         self.utils.cleanup_and_checkout_test_branch(pull=False)
