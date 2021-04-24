@@ -380,7 +380,7 @@ class UpstreamJiraUmbrellaFetcher:
             "https://issues.apache.org/jira/browse/", self.config.jira_id, self.jira_html_file
         )
         self.data.jira_ids_and_titles = JiraUtils.parse_subjiras_and_jira_titles_from_umbrella_html(
-            self.data.jira_html, self.jira_list_file, filter_ids=[self.config.jira_id]
+            self.data.jira_html, self.jira_list_file, filter_ids=[self.config.jira_id], find_all_links=False
         )
         self.data.subjira_ids = list(self.data.jira_ids_and_titles.keys())
         if not self.data.subjira_ids:
