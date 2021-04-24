@@ -184,13 +184,13 @@ class ArgParser:
             help="Force fetching data from jira and use git log commands to find all changes.",
         )
         parser.add_argument(
-            "--branches", required=False, type=str, nargs="+", help="Check backports againtst these branches"
-        )
-        parser.add_argument(
             "--ignore-changes",
-            required=False,
+            dest="ignore_changes",
             action="store_true",
             help="If specified, changes of individual files won't be tracked and written to file.",
+        )
+        parser.add_argument(
+            "--branches", required=False, type=str, nargs="+", help="Check backports againtst these branches"
         )
         parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)
 
