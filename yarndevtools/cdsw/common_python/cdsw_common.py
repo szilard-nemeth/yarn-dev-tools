@@ -127,26 +127,30 @@ class CdswRunnerBase(ABC):
     def current_date_formatted():
         return DateUtils.get_current_datetime()
 
-    def run_zipper(self, command_type: CommandType, debug=False):
+    def run_zipper(self, command_type: CommandType, debug=False, ignore_filetypes: str = "java js"):
         debug_mode = "--debug" if debug else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
             f"{CommandType.ZIP_LATEST_COMMAND_DATA.val} {command_type.val} "
             f"--dest_dir /tmp "
             f"--dest_filename command_data.zip "
+            f"--ignore-filetypes {ignore_filetypes} "
         )
 
     def send_latest_command_data_in_email(
-        self, sender, subject, recipients=MAIL_ADDR_YARN_ENG_BP, attachment_filename=None
+        self, sender, subject, recipients=MAIL_ADDR_YARN_ENG_BP, attachment_filename=None, email_body_file: str = None
     ):
+
         attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
+        email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
         self.execute_yarndevtools_script(
             f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.val} "
             f"{self.common_mail_config.as_arguments()}"
             f'--subject "{subject}" '
             f'--sender "{sender}" '
             f'--recipients "{recipients}" '
-            f"--attachment-filename {attachment_filename_val}"
+            f"--attachment-filename {attachment_filename_val} "
+            f"{email_body_file_param}"
         )
 
 

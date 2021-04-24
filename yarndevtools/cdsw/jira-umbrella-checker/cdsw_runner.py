@@ -9,6 +9,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     MAIL_ADDR_YARN_ENG_BP,
 )
 from yarndevtools.cdsw.common_python.constants import EnvVar
+from yarndevtools.constants import SUMMARY_FILE_TXT
 
 DEFAULT_BRANCHES = "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x"
 
@@ -39,7 +40,11 @@ class CdswRunner(CdswRunnerBase):
         subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira} ({additional_info}), start date: {date_str}]"
         attachment_fname: str = f"command_data_{date_str}.zip"
         self.send_latest_command_data_in_email(
-            sender=sender, subject=subject, attachment_filename=attachment_fname, recipients=MAIL_ADDR_YARN_ENG_BP
+            sender=sender,
+            subject=subject,
+            attachment_filename=attachment_fname,
+            recipients=MAIL_ADDR_YARN_ENG_BP,
+            email_body_file=SUMMARY_FILE_TXT,
         )
 
     def _run_upstream_umbrella_checker(self, umbrella_jira, branches, force=True):
