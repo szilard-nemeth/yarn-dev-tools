@@ -47,18 +47,20 @@ class CdswRunner(CdswRunnerBase):
             email_body_file=SUMMARY_FILE_TXT,
         )
 
-    def _run_upstream_umbrella_checker(self, umbrella_jira, branches, force=True):
+    def _run_upstream_umbrella_checker(self, umbrella_jira, branches, force=True, ignore_changes=True):
         if not umbrella_jira:
             raise ValueError("Umbrella jira should be specified")
         if not branches:
             raise ValueError("Branches should be specified")
 
         exec_mode = "--force" if force else ""
+        ignore_changes = "--ignore-changes" if ignore_changes else ""
         self.execute_yarndevtools_script(
             f"--debug {CommandType.FETCH_JIRA_UMBRELLA_DATA.val} "
             f"{umbrella_jira} "
             f"{exec_mode} "
-            f"--branches {branches}"
+            f"--branches {branches} "
+            f"{ignore_changes}"
         )
 
 

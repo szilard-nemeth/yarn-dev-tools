@@ -186,6 +186,12 @@ class ArgParser:
         parser.add_argument(
             "--branches", required=False, type=str, nargs="+", help="Check backports againtst these branches"
         )
+        parser.add_argument(
+            "--ignore-changes",
+            required=False,
+            type=bool,
+            help="If specified, changes of individual files won't be tracked and written to file.",
+        )
         parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)
 
     @staticmethod

@@ -242,6 +242,7 @@ class UpstreamJiraUmbrellaFetcherConfig:
         self.output_dir = output_dir
         self.upstream_base_branch = upstream_base_branch
         self.force_mode = True if args.force_mode else False
+        self.ignore_changes = True if args.ignore_changes else False
         self.full_cmd: str or None = None
         self._validate(downstream_repo)
         self.umbrella_result_basedir = FileUtils.join_path(self.output_dir, self.jira_id)
@@ -272,6 +273,7 @@ class UpstreamJiraUmbrellaFetcherConfig:
             f"Output dir: {self.output_dir} \n"
             f"Umbrella result basedir: {self.umbrella_result_basedir} \n"
             f"Downstream branches to check: {downstream_branches_to_check} \n"
+            f"Ignore changes: {self.ignore_changes} \n"
         )
 
 
@@ -345,9 +347,14 @@ class UpstreamJiraUmbrellaFetcher:
             self.find_downstream_commits_manual_mode()
         self.data.execution_mode = self.config.execution_mode
         self.data.downstream_branches = self.config.downstream_branches
-        self.save_changed_files_to_file()
+
+        if self.config.ignore_changes:
+            self.data.list_of_changed_files = []
+        else:
+            self.save_changed_files_to_file()
         # TODO Only render summary once, store and print later (print_summary)
         self.write_summary_file()
+
         self.write_all_changes_files()
         self.pickle_umbrella_data()
         self.print_summary()
@@ -568,6 +575,8 @@ class UpstreamJiraUmbrellaFetcher:
             # NOTE: It seems impossible to call the following command with gitpython:
             # git log --follow --oneline -- <file>
             # Use a simple CLI command instead
+
+            # TODO check if change file exists - It can happen that it was deleted
             cli_command = (
                 f"cd {self.upstream_repo.repo_path} && "
                 f"git log {ORIGIN_TRUNK} --follow --oneline -- {changed_file} | "
