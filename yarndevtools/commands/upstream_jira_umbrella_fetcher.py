@@ -422,13 +422,21 @@ class UpstreamJiraUmbrellaFetcher:
         LOG.debug("Found jira ids in git log: %s", found_jira_ids)
         LOG.debug("Not found jira ids in git log: %s", not_found_jira_ids)
         LOG.debug("Trying to find commits by jira titles from git log: %s", not_found_jira_titles)
+
+        # If the not_found_jira_titles are all unresolved jiras,
+        # egrep would fail so we don't want to fail the whole script here,
+        # so disabling fail_on_error / fail_on_empty_output
         cmd, output = CommandRunner.egrep_with_cli(
             git_log_result,
             self.intermediate_results_file,
             "|".join(not_found_jira_titles),
             escape_single_quotes=False,
             escape_double_quotes=True,
+            fail_on_empty_output=False,
+            fail_on_error=False,
         )
+        if not output:
+            return []
         output_lines2 = output.split("\n")
         # For these special commits, prepend Jira ID to commit message if it was there
         # Create reverse-dict
