@@ -189,7 +189,7 @@ class ArgParser:
         parser.add_argument(
             "--ignore-changes",
             required=False,
-            type=bool,
+            action="store_true",
             help="If specified, changes of individual files won't be tracked and written to file.",
         )
         parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)
