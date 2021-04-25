@@ -185,7 +185,7 @@ class TestUtilities:
             TESTCASE.assertIn("cherry picked from commit ", commit_msg)
 
     def assert_files_not_empty(self, basedir, expected_files=None):
-        found_files = FileUtils.find_files(basedir, ".*", single_level=True, full_path_result=True)
+        found_files = FileUtils.find_files(basedir, regex=".*", single_level=True, full_path_result=True)
         for f in found_files:
             self.assert_file_not_empty(f)
         if expected_files:

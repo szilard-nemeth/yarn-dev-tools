@@ -80,7 +80,10 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
             self.utils.jira_umbrella_data_dir,
             self.base_branch,
         )
-        umbrella_fetcher.run()
+        try:
+            umbrella_fetcher.run()
+        except ValueError as e:
+            self.assertTrue("Cannot find subjiras for jira with id" in str(e))
 
     def test_fetch_with_upstream_jira_not_existing(self):
         self.utils.checkout_trunk()
