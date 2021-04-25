@@ -36,6 +36,9 @@ jobs:
         run: pip install .
       - name: Test with pytest
         run: pytest --doctest-ignore-import-errors --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml --cov=./ --cov-report=xml --cov-report=html
+        env:
+          MAIL_ACC_USER: test_mail_acc_user
+          MAIL_ACC_PASSWORD: test_mail_acc_pass
       - name: Upload coverage
         uses: codecov/codecov-action@v1
       - name: Upload pytest test results
