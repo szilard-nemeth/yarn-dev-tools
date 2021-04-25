@@ -2,9 +2,11 @@ import logging
 import os
 import sys
 import unittest
+from enum import Enum
 from typing import Dict
 from pythoncommons.docker_wrapper import DockerTestSetup
 from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 
@@ -13,8 +15,10 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CDSW_BASEDIR,
     YARN_DEV_TOOLS_ROOT_DIR,
     YARN_DEV_TOOLS_CDSW_ROOT_DIR,
+    HADOOP_UPSTREAM_BASEDIR,
 )
-from yarndevtools.cdsw.common_python.constants import EnvVar, BRANCH_DIFF_REPORTER_DIR_NAME
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
+from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 
 CREATE_IMAGE = True
 
@@ -28,7 +32,7 @@ CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 CDSW_RUNNER_PY = "cdsw_runner.py"
 BRANCH_DIFF_SCRIPT_CONTAINER = FileUtils.join_path(
-    YARN_DEV_TOOLS_CDSW_ROOT_DIR, BRANCH_DIFF_REPORTER_DIR_NAME, "cdsw_runner.py"
+    YARN_DEV_TOOLS_CDSW_ROOT_DIR, BRANCH_DIFF_REPORTER_DIR_NAME, CDSW_RUNNER_PY
 )
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 LOG = logging.getLogger(__name__)
@@ -37,12 +41,17 @@ CMD_LOG = logging.getLogger(__name__)
 CONTAINER_SLEEP = 300
 
 
+class TestExecMode(Enum):
+    CLOUDERA = "cloudera"
+    UPSTREAM = "upstream"
+
+
 class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Test expects that MAIL_ACC_PASSWORD is set with env var
-        if EnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
-            raise ValueError(f"Please set '{EnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
+        if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
+            raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
         cls._setup_logging()
         cls.repo_root_dir = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME)
         found_cdsw_dirs = FileUtils.find_files(
@@ -68,8 +77,17 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             DOCKER_IMAGE, create_image=CREATE_IMAGE, dockerfile_location=cls.repo_cdsw_root_dir, logger=CMD_LOG
         )
 
-        # !! WARNING: User-specific setting !!
-        os.environ[EnvVar.CLOUDERA_HADOOP_ROOT.value] = "/Users/snemeth/development/cloudera/hadoop/"
+        exec_mode_env: str = OsUtils.get_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, TestExecMode.CLOUDERA.value)
+        cls.exec_mode: TestExecMode = TestExecMode[exec_mode_env.upper()]
+
+        # !! WARNING: User-specific settings !!
+        if cls.exec_mode == TestExecMode.CLOUDERA:
+            os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value] = "/Users/snemeth/development/cloudera/hadoop/"
+        elif cls.exec_mode == TestExecMode.UPSTREAM:
+            os.environ[CdswEnvVar.HADOOP_DEV_DIR.value] = "/Users/snemeth/development/apache/hadoop"
+            os.environ[BranchComparatorEnvVar.REPO_TYPE.value] = RepoType.UPSTREAM.value
+            os.environ[BranchComparatorEnvVar.FEATURE_BRANCH.value] = "branch-3.3"
+            os.environ[BranchComparatorEnvVar.MASTER_BRANCH.value] = "trunk"
 
     @classmethod
     def _setup_logging(cls):
@@ -93,10 +111,16 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         # Mount dev dir so source code changes are visible in container immediately
         self.docker_test_setup.mount_dir(self.repo_root_dir, YARN_DEV_TOOLS_ROOT_DIR, mode=MOUNT_MODE_RW)
 
-        # Mount local Cloudera Hadoop dir so that container won't clone it again and again
-        self.docker_test_setup.mount_dir(
-            os.environ[EnvVar.CLOUDERA_HADOOP_ROOT.value], HADOOP_CLOUDERA_BASEDIR, mode=MOUNT_MODE_RW
-        )
+        if self.exec_mode == TestExecMode.CLOUDERA:
+            # Mount local Cloudera Hadoop dir so that container won't clone it again and again
+            self.docker_test_setup.mount_dir(
+                os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value], HADOOP_CLOUDERA_BASEDIR, mode=MOUNT_MODE_RW
+            )
+        elif self.exec_mode == TestExecMode.UPSTREAM:
+            # Mount local upstream Hadoop dir so that container won't clone it again and again
+            self.docker_test_setup.mount_dir(
+                os.environ[CdswEnvVar.HADOOP_DEV_DIR.value], HADOOP_UPSTREAM_BASEDIR, mode=MOUNT_MODE_RW
+            )
         # Mount results dir so all output files will be available on the host
         self.docker_test_setup.mount_dir(
             self.yarn_dev_tools_results_dir, YARN_DEV_TOOLS_OUTPUT_CONTAINER_DIR, mode=MOUNT_MODE_RW
@@ -136,8 +160,15 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def cdsw_runner_env_dict(cls):
         env_dict = {
-            EnvVar.MAIL_ACC_USER.value: os.environ[EnvVar.MAIL_ACC_USER.value],
-            EnvVar.MAIL_ACC_PASSWORD.value: os.environ[EnvVar.MAIL_ACC_PASSWORD.value],
+            e.value: OsUtils.get_env_value(e.value, None)
+            for e in [
+                CdswEnvVar.MAIL_ACC_USER,
+                CdswEnvVar.MAIL_ACC_PASSWORD,
+                BranchComparatorEnvVar.REPO_TYPE,
+                BranchComparatorEnvVar.MASTER_BRANCH,
+                BranchComparatorEnvVar.FEATURE_BRANCH,
+                EnvVar.IGNORE_SMTP_AUTH_ERROR,
+            ]
         }
         # Manually fix PYTHONPATH like CDSW init script does
         env_dict.update([cls.create_python_path_env_var(YARN_DEV_TOOLS_ROOT_DIR)])
@@ -146,11 +177,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @staticmethod
     def create_python_path_env_var(new_dir, fresh=True):
         if not fresh:
-            curr_pythonpath = os.environ[EnvVar.PYTHONPATH.value]
+            curr_pythonpath = os.environ[CdswEnvVar.PYTHONPATH.value]
             new_pythonpath = f"{curr_pythonpath}:{new_dir}"
         else:
             new_pythonpath = new_dir
-        return EnvVar.PYTHONPATH.value, new_pythonpath
+        return CdswEnvVar.PYTHONPATH.value, new_pythonpath
 
     def test_streaming_cmd_output(self):
         captured_output = []
