@@ -86,8 +86,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         elif cls.exec_mode == TestExecMode.UPSTREAM:
             os.environ[CdswEnvVar.HADOOP_DEV_DIR.value] = "/Users/snemeth/development/apache/hadoop"
             os.environ[BranchComparatorEnvVar.REPO_TYPE.value] = RepoType.UPSTREAM.value
-            os.environ[BranchComparatorEnvVar.FEATURE_BRANCH.value] = "branch-3.3"
-            os.environ[BranchComparatorEnvVar.MASTER_BRANCH.value] = "trunk"
+            os.environ[BranchComparatorEnvVar.FEATURE_BRANCH.value] = "origin/branch-3.3"
+            os.environ[BranchComparatorEnvVar.MASTER_BRANCH.value] = "origin/trunk"
 
     @classmethod
     def _setup_logging(cls):
