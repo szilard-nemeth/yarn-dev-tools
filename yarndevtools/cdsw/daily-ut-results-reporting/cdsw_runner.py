@@ -6,7 +6,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
     YARN_DEV_TOOLS_ROOT_DIR,
 )
-from yarndevtools.cdsw.common_python.constants import EnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
@@ -42,7 +42,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
-    basedir = CdswSetup.initial_setup(mandatory_env_vars=[EnvVar.MAIL_ACC_USER, EnvVar.MAIL_ACC_PASSWORD])
+    basedir = CdswSetup.initial_setup(mandatory_env_vars=[CdswEnvVar.MAIL_ACC_USER, CdswEnvVar.MAIL_ACC_PASSWORD])
     LOG.info(f"YARN Dev tools mirror root dir: {YARN_DEV_TOOLS_ROOT_DIR}")
     runner = CdswRunner()
     runner.start(basedir)

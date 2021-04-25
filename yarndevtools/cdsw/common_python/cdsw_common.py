@@ -12,7 +12,7 @@ from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.constants import EnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 
 from pythoncommons.process import SubprocessCommandRunner
 
@@ -63,7 +63,7 @@ class CdswSetup:
         return os.environ[PYPATH]
 
     @staticmethod
-    def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[EnvVar] = None):
+    def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[CdswEnvVar] = None):
         LOG.info(f"Python version info: {sys.version}")
         CdswSetup.setup_logging()
         if not env_var_dict:
@@ -76,8 +76,8 @@ class CdswSetup:
 
         env_var_dict.update(
             {
-                EnvVar.CLOUDERA_HADOOP_ROOT.value: HADOOP_CLOUDERA_BASEDIR,
-                EnvVar.HADOOP_DEV_DIR.value: HADOOP_UPSTREAM_BASEDIR,
+                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value: HADOOP_CLOUDERA_BASEDIR,
+                CdswEnvVar.HADOOP_DEV_DIR.value: HADOOP_UPSTREAM_BASEDIR,
             }
         )
 
@@ -90,7 +90,7 @@ class CdswSetup:
         return basedir
 
     @staticmethod
-    def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[EnvVar] = None):
+    def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[CdswEnvVar] = None):
         for k, v in env_var_dict.items():
             LOG.info(f"Setting env var. {k}={v}")
             os.environ[k] = v
@@ -158,8 +158,8 @@ class CommonMailConfig:
     def __init__(self):
         self.smtp_server = "smtp.gmail.com"
         self.smtp_port = 465
-        self.account_user = os.environ[EnvVar.MAIL_ACC_USER.value]
-        self.account_password = os.environ[EnvVar.MAIL_ACC_PASSWORD.value]
+        self.account_user = os.environ[CdswEnvVar.MAIL_ACC_USER.value]
+        self.account_password = os.environ[CdswEnvVar.MAIL_ACC_PASSWORD.value]
 
     def as_arguments(self):
         return (

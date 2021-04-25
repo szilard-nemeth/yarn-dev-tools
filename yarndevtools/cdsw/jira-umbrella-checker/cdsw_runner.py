@@ -8,7 +8,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     YARN_DEV_TOOLS_ROOT_DIR,
     MAIL_ADDR_YARN_ENG_BP,
 )
-from yarndevtools.cdsw.common_python.constants import EnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import SUMMARY_FILE_TXT
 
 DEFAULT_BRANCHES = "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x"
@@ -65,7 +65,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
-    basedir = CdswSetup.initial_setup(mandatory_env_vars=[EnvVar.MAIL_ACC_USER, EnvVar.MAIL_ACC_PASSWORD])
+    basedir = CdswSetup.initial_setup(mandatory_env_vars=[CdswEnvVar.MAIL_ACC_USER, CdswEnvVar.MAIL_ACC_PASSWORD])
     LOG.info(f"YARN Dev tools mirror root dir: {YARN_DEV_TOOLS_ROOT_DIR}")
     runner = CdswRunner()
     runner.start(basedir)
