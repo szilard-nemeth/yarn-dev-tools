@@ -4,7 +4,7 @@ import sys
 import unittest
 from typing import Dict
 from pythoncommons.docker_wrapper import DockerTestSetup
-from pythoncommons.file_utils import FileUtils
+from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 
@@ -44,8 +44,22 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         if EnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
             raise ValueError(f"Please set '{EnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
         cls._setup_logging()
-        cls.repo_cdsw_root_dir = FileUtils.find_repo_root_dir(__file__, CDSW_DIRNAME)
         cls.repo_root_dir = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME)
+        found_cdsw_dirs = FileUtils.find_files(
+            cls.repo_root_dir,
+            find_type=FindResultType.DIRS,
+            regex=CDSW_DIRNAME,
+            parent_dir="yarndevtools",
+            single_level=False,
+            full_path_result=True,
+        )
+        if len(found_cdsw_dirs) != 1:
+            raise ValueError(
+                f"Expected to find 1 dir with name {CDSW_DIRNAME} "
+                f"and parent dir 'yarndevtools'. "
+                f"Actual results: {found_cdsw_dirs}"
+            )
+        cls.repo_cdsw_root_dir = found_cdsw_dirs[0]
         cls.yarn_dev_tools_results_dir = FileUtils.join_path(cls.repo_cdsw_root_dir, "yarndevtools-results")
         cls.branchdiff_cdsw_runner_script = YarnCdswBranchDiffTests.find_cdsw_runner_script(
             os.path.join(cls.repo_cdsw_root_dir, BRANCH_DIFF_REPORTER_DIR_NAME)
