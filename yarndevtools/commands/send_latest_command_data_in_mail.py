@@ -1,11 +1,13 @@
 import logging
 import os
+from smtplib import SMTPAuthenticationError
 
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
-from yarndevtools.common.shared_command_utils import FullEmailConfig
+from yarndevtools.common.shared_command_utils import FullEmailConfig, EnvVar
 
 LOG = logging.getLogger(__name__)
 
@@ -36,15 +38,27 @@ class SendLatestCommandDataInEmail:
 
         body_mimetype: EmailMimeType = self._determine_body_mimetype_by_attachment()
         email_service = EmailService(self.config.email.email_conf)
-        email_service.send_mail(
-            self.config.email.sender,
-            self.config.email.subject,
-            email_body_contents,
-            self.config.email.recipients,
-            self.config.email.attachment_file,
-            body_mimetype=body_mimetype,
-            override_attachment_filename=self.config.email.attachment_filename,
-        )
+        try:
+            email_service.send_mail(
+                self.config.email.sender,
+                self.config.email.subject,
+                email_body_contents,
+                self.config.email.recipients,
+                self.config.email.attachment_file,
+                body_mimetype=body_mimetype,
+                override_attachment_filename=self.config.email.attachment_filename,
+            )
+        except SMTPAuthenticationError as smtpe:
+            ignore_smpth_auth_env: str = OsUtils.get_env_value(EnvVar.IGNORE_SMTP_AUTH_ERROR.value, "")
+            LOG.info(f"Recognized env var '{EnvVar.IGNORE_SMTP_AUTH_ERROR.value}': {ignore_smpth_auth_env}")
+            if not ignore_smpth_auth_env:
+                raise smtpe
+            else:
+                # Swallow exeption
+                LOG.exception(
+                    f"SMTP auth error occurred but env var " f"'{EnvVar.IGNORE_SMTP_AUTH_ERROR.value}' was set",
+                    exc_info=True,
+                )
         LOG.info("Finished sending email to recipients")
 
     def _determine_body_mimetype_by_attachment(self) -> EmailMimeType:
