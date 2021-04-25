@@ -25,3 +25,7 @@ TRUNK_BRANCH="origin/trunk"
 REPOS_ROOT="/home/cdsw/repos"
 
 clone-fetch-hadoop
+
+# Install python requirements
+cd $REPOS_ROOT/snemeth/yarn-dev-tools
+pip3 install -r requirements.txt --force-reinstall
