@@ -1,5 +1,16 @@
+from enum import Enum
+
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
+
+
+class EnvVar(Enum):
+    IGNORE_SMTP_AUTH_ERROR = "IGNORE_SMTP_AUTH_ERROR"
+
+
+class RepoType(Enum):
+    DOWNSTREAM = "downstream"
+    UPSTREAM = "upstream"
 
 
 class FullEmailConfig:

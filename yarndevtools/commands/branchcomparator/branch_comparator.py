@@ -32,6 +32,7 @@ from yarndevtools.commands_common import (
     JiraIdTypePreference,
     JiraIdChoosePreference,
 )
+from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
 
 LOG = logging.getLogger(__name__)
@@ -75,6 +76,9 @@ class BranchComparatorConfig:
         self.legacy_compare_script_path = BranchComparatorConfig.find_git_compare_script()
         self.matching_algorithm: CommitMatchingAlgorithm = args.algorithm
         self.branch_names = branch_names
+        self.repo_type: RepoType = (
+            RepoType[args.repo_type.upper()] if hasattr(args, "repo_type") else RepoType.DOWNSTREAM
+        )
         self.full_cmd: str or None = None
 
     def __str__(self):
@@ -83,6 +87,7 @@ class BranchComparatorConfig:
             f"Matching algorithm / class: {self.matching_algorithm} / "
             f"{self.matching_algorithm.matcher_class.__name__} \n"
             f"Output dir: {self.output_dir} \n"
+            f"Repo type: {self.repo_type} \n"
             f"Master branch: {self.branch_names[BranchType.MASTER]}\n"
             f"Feature branch: {self.branch_names[BranchType.FEATURE]}\n"
             f"Commit author exceptions: {self.commit_author_exceptions}\n"
@@ -254,13 +259,16 @@ class Branches:
 
 # TODO Add generic documentation
 class BranchComparator:
-    def __init__(self, args, downstream_repo, output_dir: str):
+    def __init__(self, args, downstream_repo, upstream_repo, output_dir: str):
         branch_names: Dict[BranchType, str] = {
             BranchType.FEATURE: args.feature_branch,
             BranchType.MASTER: args.master_branch,
         }
-        self.repo = downstream_repo
         self.config = BranchComparatorConfig(output_dir, args, branch_names)
+        if self.config.repo_type == RepoType.DOWNSTREAM:
+            self.repo = downstream_repo
+        elif self.config.repo_type == RepoType.UPSTREAM:
+            self.repo = upstream_repo
         self.branches: Branches = Branches(self.config, self.repo, branch_names)
 
     def run(self):

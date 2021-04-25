@@ -3,6 +3,7 @@ import sys
 from enum import Enum
 
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
+from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
@@ -228,6 +229,14 @@ class ArgParser:
             action="store_true",
             default=False,
             help="Console mode: Instead of writing output files, print everything to the console",
+        )
+
+        repo_types = [rt.value for rt in RepoType]
+        parser.add_argument(
+            "--repo-type",
+            default=RepoType.DOWNSTREAM,
+            choices=repo_types,
+            help=f"Repo type, can be one of: {repo_types}",
         )
         parser.set_defaults(func=yarn_dev_tools.branch_comparator)
 
