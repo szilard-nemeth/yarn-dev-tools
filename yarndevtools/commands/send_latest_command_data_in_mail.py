@@ -36,7 +36,7 @@ class SendLatestCommandDataInEmail:
         FileUtils.ensure_file_exists(email_body_file)
         email_body_contents: str = FileUtils.read_file(email_body_file)
 
-        body_mimetype: EmailMimeType = self._determine_body_mimetype_by_attachment()
+        body_mimetype: EmailMimeType = self._determine_body_mimetype_by_attachment(email_body_file)
         email_service = EmailService(self.config.email.email_conf)
         try:
             email_service.send_mail(
@@ -61,8 +61,9 @@ class SendLatestCommandDataInEmail:
                 )
         LOG.info("Finished sending email to recipients")
 
-    def _determine_body_mimetype_by_attachment(self) -> EmailMimeType:
-        if self.config.email.attachment_file.endswith(".html"):
+    @staticmethod
+    def _determine_body_mimetype_by_attachment(email_body_file: str) -> EmailMimeType:
+        if email_body_file.endswith(".html"):
             return EmailMimeType.HTML
         else:
             return EmailMimeType.PLAIN
