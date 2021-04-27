@@ -7,7 +7,7 @@ import datetime
 import json as simplejson
 import logging
 import time
-from pythoncommons.email import EmailService
+from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
@@ -213,11 +213,11 @@ def gather_report_data_for_build(build_number, job_name, test_report_api_json):
 def parse_job_data(data, build_link, build_number, job_console_output_url):
     failed_testcases = set()
     for suite in data["suites"]:
-        for cs in suite["cases"]:
-            status = cs["status"]
-            err_details = cs["errorDetails"]
+        for case in suite["cases"]:
+            status = case["status"]
+            err_details = case["errorDetails"]
             if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
-                failed_testcases.add(cs["className"] + "." + cs["name"])
+                failed_testcases.add(case["className"] + "." + case["name"])
     if len(failed_testcases) == 0:
         LOG.info(
             "    No failed tests in test Report, check " + job_console_output_url + " for why it was reported failed."
@@ -372,7 +372,7 @@ class JenkinsTestReporter:
             email_subject,
             report_text,
             self.config.full_email_conf.recipients,
-            body_mimetype="plain",
+            body_mimetype=EmailMimeType.PLAIN,
         )
         LOG.info("Finished sending email to recipients")
 
