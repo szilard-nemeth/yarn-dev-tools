@@ -234,7 +234,7 @@ class ArgParser:
         repo_types = [rt.value for rt in RepoType]
         parser.add_argument(
             "--repo-type",
-            default=RepoType.DOWNSTREAM,
+            default=RepoType.DOWNSTREAM.value,
             choices=repo_types,
             help=f"Repo type, can be one of: {repo_types}",
         )
