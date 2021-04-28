@@ -154,8 +154,7 @@ def configure_logging():
 
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
-        # TODO make this parameterized
-        self.request_limit = 1
+        self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         self.jenkins_url = args.jenkins_url
         self.job_name = args.job_name
@@ -370,6 +369,7 @@ class JenkinsTestReporter:
         tc_to_fail_count: Dict[str, int] = {}
         for i, failed_build_with_time in enumerate(failed_build_data):
             if i >= self.config.request_limit:
+                LOG.error(f"Reached request limit: {i}")
                 break
             failed_build = failed_build_with_time[0]
 

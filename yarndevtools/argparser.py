@@ -324,6 +324,14 @@ class ArgParser:
             help="Number of days to examine",
             default=14,
         )
+        parser.add_argument(
+            "-rl",
+            "--request-limit",
+            type=int,
+            dest="req_limit",
+            help="Request limit",
+            default=1,
+        )
 
         def tc_filter_validator(value):
             strval = str(value)
