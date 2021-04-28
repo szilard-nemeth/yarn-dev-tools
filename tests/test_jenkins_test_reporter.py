@@ -263,18 +263,19 @@ class TestJenkinsTestReporter(unittest.TestCase):
         return report_json
 
     @staticmethod
-    def _get_default_jenkins_builds_as_json():
-        build_id = 200
+    def _get_default_jenkins_builds_as_json(build_id=200):
         builds: JenkinsBuilds = JenkinsBuildsGenerator.generate(BUILD_URL_MAWO_7X_TEMPLATE, latest_build_num=build_id)
         builds_as_dict = dataclasses.asdict(builds)
         builds_json = json.dumps(builds_as_dict, indent=4)
         return build_id, builds_json
 
     @staticmethod
-    def _mock_jenkins_report_api(report_json):
+    def _mock_jenkins_report_api(report_json, build_id=200):
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(r"http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/200/testReport/api/json.*"),
+            re.compile(
+                rf"http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/{build_id}/testReport/api/json.*"
+            ),
             body=report_json,
         )
 
@@ -295,11 +296,20 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self.assertSetEqual(failed_tests, all_failed_tests_in_jenkins_report)
 
     def _assert_num_filtered_testcases_single_build(
-        self, reporter, expected_build_data_count=-1, expected_filtered_testcases=-1
+        self,
+        reporter,
+        expected_num_build_data=-1,
+        expected_num_filtered_testcases=-1,
+        expected_failed_testcases: List[str] = None,
     ):
+        if not expected_failed_testcases:
+            expected_failed_testcases = []
         self.assertEqual(HADOOP_TC_FILTER, reporter.testcase_filter)
-        self.assertEqual(expected_build_data_count, reporter.num_build_data)
-        self.assertEqual(expected_filtered_testcases, len(reporter.get_filtered_testcases_from_build(0)))
+        self.assertEqual(expected_num_build_data, reporter.num_build_data)
+
+        actual_failed_testcases = reporter.get_filtered_testcases_from_build(0)
+        self.assertEqual(expected_num_filtered_testcases, len(actual_failed_testcases))
+        self.assertListEqual(sorted(actual_failed_testcases), sorted(expected_failed_testcases))
 
     def test_successful_api_response_verify_failed_testcases(self):
         spec = JenkinsReportJsonSpec(
@@ -307,14 +317,36 @@ class TestJenkinsTestReporter(unittest.TestCase):
             skipped={"org.somepackage1": 10, "org.somepackage2": 20},
             passed={"org.somepackage1": 10, "org.somepackage2": 20},
         )
-        build_id, builds_json = self._get_default_jenkins_builds_as_json()
+        build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
         report_json = self._get_jenkins_report_as_json(spec)
         self._mock_jenkins_build_api(builds_json)
-        self._mock_jenkins_report_api(report_json)
+        self._mock_jenkins_report_api(report_json, build_id=200)
 
         reporter = JenkinsTestReporter(self.args, self.output_dir)
         reporter.run()
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
         self._assert_num_filtered_testcases_single_build(
-            reporter, expected_build_data_count=1, expected_filtered_testcases=0
+            reporter, expected_num_build_data=1, expected_num_filtered_testcases=0
+        )
+
+    def test_successful_api_response_verify_filtered_testcases(self):
+        spec = JenkinsReportJsonSpec(
+            failed={"org.somepackage3": 10, "org.somepackage4": 20, DEFAULT_TC_FILTER: 25},
+            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
+            passed={"org.somepackage1": 10, "org.somepackage2": 20},
+        )
+        failed_testcases: List[str] = spec.get_failed_testcases(DEFAULT_TC_FILTER)
+        build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
+        report_json = self._get_jenkins_report_as_json(spec)
+        self._mock_jenkins_build_api(builds_json)
+        self._mock_jenkins_report_api(report_json, build_id=200)
+
+        reporter = JenkinsTestReporter(self.args, self.output_dir)
+        reporter.run()
+        self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
+        self._assert_num_filtered_testcases_single_build(
+            reporter,
+            expected_num_build_data=1,
+            expected_num_filtered_testcases=25,
+            expected_failed_testcases=failed_testcases,
         )
