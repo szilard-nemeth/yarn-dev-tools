@@ -1,5 +1,6 @@
 import dataclasses
 import json
+import logging
 import random
 import re
 import unittest
@@ -17,8 +18,9 @@ from test_utilities import Object
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
 
-HADOOP_TC_FILTER = "org.apache.hadoop.yarn"
-DEFAULT_TC_FILTER = HADOOP_TC_FILTER
+YARN_TC_FILTER = "YARN:org.apache.hadoop.yarn"
+MAPRED_TC_FILTER = "MAPREDUCE:org.apache.hadoop.mapreduce"
+MULTI_FILTER = [YARN_TC_FILTER, MAPRED_TC_FILTER]
 
 JENKINS_MAIN_URL = "http://build.infra.cloudera.com"
 MAWO_JOB_NAME_7X = "Mawo-UT-hadoop-CDPD-7.x"
@@ -28,6 +30,10 @@ BUILD_URL_MAWO_7X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_7X}/{{{BUIL
 BUILD_URL_MAWO_71X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_71X}/{{{BUILD_URL_ID_KEY}}}/"
 
 USE_REAL_API = False
+
+LOG = logging.getLogger(__name__)
+logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
+LOG.setLevel(logging.DEBUG)
 
 
 class TestCaseStatus(Enum):
@@ -232,17 +238,15 @@ class TestJenkinsTestReporter(unittest.TestCase):
             # reset HTTPretty state (clean up registered urls and request history)
             httpretty.reset()
 
-    # TODO test missing args data: account password, etc?
-    # TODO test if jenkins is not available, i.e. won't return list of builds
-    # TODO test if all builds are out of date range (last N days)
-
     @staticmethod
     def generate_args(
-        tc_filter: str = DEFAULT_TC_FILTER,
+        tc_filters: List[str] = None,
         job_name: str = MAWO_JOB_NAME_7X,
         jenkins_url: str = JENKINS_MAIN_URL,
         num_prev_days: int = 14,
     ):
+        if not tc_filters:
+            tc_filters = [YARN_TC_FILTER]
         args = Object()
         args.account_user = "test_user@gmail.com"
         args.account_password = "dummy"
@@ -253,7 +257,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.jenkins_url = jenkins_url
         args.job_name = job_name
         args.num_prev_days = num_prev_days
-        args.tc_filter = tc_filter
+        args.tc_filters = tc_filters
         args.skip_mail = True
         args.disable_file_cache = True
         return args
@@ -306,18 +310,32 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def _assert_num_filtered_testcases_single_build(
         self,
         reporter,
+        filters: List[str] = None,
         expected_num_build_data=-1,
-        expected_num_filtered_testcases=-1,
-        expected_failed_testcases: List[str] = None,
+        expected_failed_testcases_dict: Dict[str, List[str]] = None,
     ):
-        if not expected_failed_testcases:
-            expected_failed_testcases = []
-        self.assertEqual(HADOOP_TC_FILTER, reporter.testcase_filter)
+        if not expected_failed_testcases_dict:
+            expected_failed_testcases_dict = {}
+        if not filters:
+            filters = [YARN_TC_FILTER]
+        # Sanity check
+        for f in filters:
+            if f not in expected_failed_testcases_dict.keys():
+                raise ValueError(
+                    "Found filter that is not addded to expected_failed_testcases!"
+                    f"Filter: {f}"
+                    f"Exepcted failed testcases dict: {expected_failed_testcases_dict}"
+                )
+
+        self.assertEqual(filters, reporter.testcase_filters)
         self.assertEqual(expected_num_build_data, reporter.num_build_data)
 
-        actual_failed_testcases = reporter.get_filtered_testcases_from_build(0)
-        self.assertEqual(expected_num_filtered_testcases, len(actual_failed_testcases))
-        self.assertListEqual(sorted(actual_failed_testcases), sorted(expected_failed_testcases))
+        for tc_filter in filters:
+            package = self._get_package_from_filter(tc_filter)
+            actual_failed_testcases = reporter.get_filtered_testcases_from_build(0, package)
+            expected_failed_testcases: List[str] = expected_failed_testcases_dict[tc_filter]
+            self.assertEqual(len(expected_failed_testcases), len(actual_failed_testcases))
+            self.assertListEqual(sorted(actual_failed_testcases), sorted(expected_failed_testcases))
 
     def test_successful_api_response_verify_failed_testcases(self):
         spec = JenkinsReportJsonSpec(
@@ -332,18 +350,22 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
+        LOG.info("Report result: %s", reporter.report_text)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
         self._assert_num_filtered_testcases_single_build(
-            reporter, expected_num_build_data=1, expected_num_filtered_testcases=0
+            reporter,
+            filters=[YARN_TC_FILTER],
+            expected_num_build_data=1,
+            expected_failed_testcases_dict={YARN_TC_FILTER: []},
         )
 
     def test_successful_api_response_verify_filtered_testcases(self):
         spec = JenkinsReportJsonSpec(
-            failed={"org.somepackage3": 10, "org.somepackage4": 20, DEFAULT_TC_FILTER: 25},
+            failed={"org.somepackage3": 10, "org.somepackage4": 20, self._get_package_from_filter(YARN_TC_FILTER): 25},
             skipped={"org.somepackage1": 10, "org.somepackage2": 20},
             passed={"org.somepackage1": 10, "org.somepackage2": 20},
         )
-        failed_testcases: List[str] = spec.get_failed_testcases(DEFAULT_TC_FILTER)
+        failed_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(YARN_TC_FILTER))
         build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
         report_json = self._get_jenkins_report_as_json(spec)
         self._mock_jenkins_build_api(builds_json)
@@ -351,10 +373,51 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
+        LOG.info("Report result: %s", reporter.report_text)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
         self._assert_num_filtered_testcases_single_build(
             reporter,
+            filters=[YARN_TC_FILTER],
             expected_num_build_data=1,
-            expected_num_filtered_testcases=25,
-            expected_failed_testcases=failed_testcases,
+            expected_failed_testcases_dict={YARN_TC_FILTER: failed_testcases},
         )
+
+    def test_successful_api_response_verify_multi_filtered(self):
+        spec = JenkinsReportJsonSpec(
+            failed={
+                "org.somepackage3": 10,
+                "org.somepackage4": 20,
+                self._get_package_from_filter(YARN_TC_FILTER): 5,
+                self._get_package_from_filter(MAPRED_TC_FILTER): 10,
+            },
+            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
+            passed={"org.somepackage1": 10, "org.somepackage2": 20},
+        )
+        failed_yarn_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(YARN_TC_FILTER))
+        failed_mr_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(MAPRED_TC_FILTER))
+        build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
+        report_json = self._get_jenkins_report_as_json(spec)
+        self._mock_jenkins_build_api(builds_json)
+        self._mock_jenkins_report_api(report_json, build_id=200)
+
+        reporter = JenkinsTestReporter(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
+        reporter.run()
+        LOG.info("Report result: %s", reporter.report_text)
+        self._assert_all_failed_testcases(reporter, spec, expected_failed_count=45)
+        self._assert_num_filtered_testcases_single_build(
+            reporter,
+            filters=MULTI_FILTER,
+            expected_num_build_data=1,
+            expected_failed_testcases_dict={
+                YARN_TC_FILTER: failed_yarn_testcases,
+                MAPRED_TC_FILTER: failed_mr_testcases,
+            },
+        )
+
+    # @staticmethod
+    # def _get_package_from_filters_list(filters: List[str]):
+    #     return filters[0].split(":")[-1]
+
+    @staticmethod
+    def _get_package_from_filter(filter: str):
+        return filter.split(":")[-1]

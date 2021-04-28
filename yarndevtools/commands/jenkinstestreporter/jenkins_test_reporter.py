@@ -7,6 +7,7 @@ import datetime
 import json as simplejson
 import logging
 import time
+from dataclasses import dataclass
 from typing import List, Dict
 
 from pythoncommons.email import EmailService, EmailMimeType
@@ -33,6 +34,29 @@ ENABLE_FILE_CACHE = True
 LOG = logging.getLogger(__name__)
 
 
+@dataclass
+class TestcaseFilter:
+    project_name: str
+    filter_expr: str
+
+    @property
+    def as_filter_spec(self):
+        return f"{self.project_name}:{self.filter_expr}"
+
+
+@dataclass
+class FilteredResult:
+    filter: TestcaseFilter
+    testcases: List[str]
+
+    def __str__(self):
+        tcs = "\n".join(self.testcases)
+        s = f"FILTER: Project: {self.filter.project_name}, expression: {self.filter.filter_expr}\n"
+        s += f"Number of failed testcases in filter: {len(self.testcases)}\n"
+        s += f"Failed testcases in filter: \n {tcs}"
+        return s
+
+
 class Report:
     def __init__(self, job_build_datas, all_failing_tests):
         self.job_build_datas = job_build_datas
@@ -55,20 +79,27 @@ class JobBuildData:
         self.build_number = build_number
         self.build_link = build_link
         self.counters = counters
-        self.testcases = testcases
-        self.tc_filter = None
-        self.filtered_testcases = None
+        self.testcases: List[str] = testcases
+        self.filtered_testcases: List[FilteredResult] = []
+        self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
         self.no_of_failed_filtered_tc = None
         self.empty_or_not_found = empty_or_not_found
 
     def has_failed_testcases(self):
         return len(self.testcases) > 0
 
-    def filter_testcases(self, tc_filter):
-        self.tc_filter = tc_filter
-        if tc_filter:
-            self.filtered_testcases = list(filter(lambda tc: tc_filter in tc, self.testcases))
-            self.no_of_failed_filtered_tc = len(self.filtered_testcases)
+    def filter_testcases(self, tc_filters: List[TestcaseFilter]):
+        for tcf in tc_filters:
+            matched_tcs = list(filter(lambda tc: tcf.filter_expr in tc, self.testcases))
+            self.filtered_testcases.append(FilteredResult(tcf, matched_tcs))
+            if tcf.filter_expr not in self.filtered_testcases_by_expr:
+                self.filtered_testcases_by_expr[tcf.filter_expr] = []
+            self.filtered_testcases_by_expr[tcf.filter_expr].extend(matched_tcs)
+        self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
+
+    @property
+    def tc_filters(self):
+        return [res.filter for res in self.filtered_testcases]
 
     def __str__(self):
         if self.empty_or_not_found:
@@ -87,16 +118,12 @@ Build link: {build_link}
         )
 
     def _str_normal_report(self):
-        filtered_testcases = ""
-        if self.tc_filter and self.filter_testcases:
-            filtered_testcases += "FILTER: {}\n".format(self.tc_filter)
-            filtered_testcases += "Number of failed testcases (filtered): {}\n".format(len(self.filtered_testcases))
-            filtered_testcases += "Failed testcases (filtered): \n {testcases}".format(
-                testcases="\n".join(self.filtered_testcases)
-            )
-        if filtered_testcases:
-            filtered_testcases = "\n" + filtered_testcases
-            filtered_testcases += "\n"
+        filtered_tcs: str = ""
+        if self.tc_filters:
+            for ftcs in self.filtered_testcases:
+                filtered_tcs += f"{str(ftcs)}\n"
+        if filtered_tcs:
+            filtered_tcs = f"\n{filtered_tcs}\n"
         return """Counters:
 {ctr}
 
@@ -110,7 +137,7 @@ Failed testcases: {testcases}
             build_number=self.build_number,
             build_link=self.build_link,
             testcases="\n".join(self.testcases),
-            filtered_testcases=filtered_testcases,
+            filtered_testcases=filtered_tcs,
         )
 
 
@@ -232,7 +259,7 @@ def parse_job_data(data, build_link, build_number, job_console_output_url):
         return JobBuildData(build_number, build_link, counters, failed_testcases)
 
 
-def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_filter):
+def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
     """ Iterate runs of specified job within num_prev_days and collect results """
     global numRunsToExamine
     # First list all builds
@@ -279,7 +306,7 @@ def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_fil
         LOG.info("===>%s" % str(test_report) + " (" + st + ")")
 
         job_data = find_failing_tests(test_report_api_json, job_console_output, failed_build, job_name, build_number)
-        job_data.filter_testcases(tc_filter)
+        job_data.filter_testcases(tc_filters)
         job_datas.append(job_data)
 
         if job_data.has_failed_testcases():
@@ -306,7 +333,11 @@ class JenkinsTestReporterConfig:
         self.jenkins_url = args.jenkins_url
         self.job_name = args.job_name
         self.num_prev_days = args.num_prev_days
-        self.tc_filter = args.tc_filter
+        tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
+        self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
+        if not self.tc_filters:
+            LOG.warning("TESTCASE FILTER IS NOT SET!")
+
         self.send_mail: bool = not args.skip_mail
         self.enable_file_cache: bool = not args.disable_file_cache
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
@@ -321,7 +352,7 @@ class JenkinsTestReporterConfig:
             f"Jenkins URL: {self.jenkins_url}\n"
             f"Jenkins job name: {self.job_name}\n"
             f"Number of days to check: {self.num_prev_days}\n"
-            f"Testcase filter: {self.tc_filter}\n"
+            f"Testcase filters: {self.tc_filters}\n"
         )
 
 
@@ -346,11 +377,23 @@ class JenkinsTestReporter:
         return len(self.report.job_build_datas)
 
     @property
-    def testcase_filter(self):
-        return self.config.tc_filter
+    def testcase_filters(self) -> List[str]:
+        return [tcf.as_filter_spec for tcf in self.config.tc_filters]
 
-    def get_filtered_testcases_from_build(self, build_data_idx: int):
-        return self.report.job_build_datas[build_data_idx].filtered_testcases
+    def get_all_filtered_testcases_from_build(self, build_data_idx: int):
+        return [
+            tc
+            for filtered_res in self.report.job_build_datas[build_data_idx].filtered_testcases
+            for tc in filtered_res.testcases
+        ]
+
+    def get_filtered_testcases_from_build(self, build_data_idx: int, package: str):
+        return [
+            tc
+            for filtered_res in self.report.job_build_datas[build_data_idx].filtered_testcases
+            for tc in filtered_res.testcases
+            if package in tc
+        ]
 
     def main(self):
         global numRunsToExamine
@@ -358,11 +401,12 @@ class JenkinsTestReporter:
         LOG.info("****Recently FAILED builds in url: " + self.config.jenkins_url + "/job/" + self.config.job_name + "")
         request_limit = 1
 
-        tc_filter = self.config.tc_filter if self.config.tc_filter else ""
-        if not tc_filter:
-            LOG.warning("TESTCASE FILTER IS NOT SET!")
         self.report = find_flaky_tests(
-            self.config.jenkins_url, self.config.job_name, self.config.num_prev_days, request_limit, tc_filter
+            self.config.jenkins_url,
+            self.config.job_name,
+            self.config.num_prev_days,
+            request_limit,
+            self.config.tc_filters,
         )
 
         build_idx = 0

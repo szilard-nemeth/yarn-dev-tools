@@ -325,12 +325,19 @@ class ArgParser:
             default=14,
         )
 
+        def tc_filter_validator(value):
+            strval = str(value)
+            if ":" not in strval:
+                raise ValueError("Filter specification should be in this format: '<project>:<filter statement>'")
+            return strval
+
         parser.add_argument(
             "-t",
             "--testcase-filter",
-            dest="tc_filter",
-            type=str,
-            help="Testcase filters in format <project>:<filter value>",
+            dest="tc_filters",
+            nargs="+",
+            type=tc_filter_validator,
+            help="Testcase filters in format: <project:filter statement>",
         )
 
         parser.add_argument(
