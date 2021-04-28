@@ -17,6 +17,7 @@ from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
+from urllib.error import HTTPError
 
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 
@@ -84,7 +85,7 @@ class JobBuildData:
         self.filtered_testcases: List[FilteredResult] = []
         self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
         self.no_of_failed_filtered_tc = None
-        self.unmatched_testcases: Set[str] = None
+        self.unmatched_testcases: Set[str] = set()
         self.empty_or_not_found = empty_or_not_found
 
     def has_failed_testcases(self):
@@ -301,11 +302,12 @@ class JenkinsTestReporter:
         try:
             data = self.load_url_data(url)
         except Exception:
-            logging.error("Could not fetch: %s" % url)
+            LOG.error("Could not fetch: %s" % url)
             raise
         return data["builds"]
 
-    def get_file_name_for_report(self, job_name, build_number):
+    @staticmethod
+    def get_file_name_for_report(job_name, build_number):
         # TODO utilize pythoncommon ProjectUtils to get output dir
         cwd = os.getcwd()
         job_name = job_name.replace(".", "_")
@@ -319,6 +321,7 @@ class JenkinsTestReporter:
         with open(target_file_path, "w") as target_file:
             json.dump(data, target_file)
 
+    # TODO move to pythoncommons
     def read_test_report_from_file(self, file_path):
         with open(file_path) as json_file:
             return json.load(json_file)
@@ -329,7 +332,7 @@ class JenkinsTestReporter:
             data = self.load_url_data(test_report_api_json)
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                logging.error("Test report cannot be found for build URL (HTTP 404): %s", test_report_api_json)
+                LOG.error("Test report cannot be found for build URL (HTTP 404): %s", test_report_api_json)
                 return {}
             else:
                 raise e
@@ -346,9 +349,7 @@ class JenkinsTestReporter:
             data = self.gather_report_data_for_build(build_number, job_name, test_report_api_json)
         except Exception:
             traceback.print_exc()
-            logging.error(
-                "    Could not open test report, check " + job_console_output + " for why it was reported failed"
-            )
+            LOG.error("    Could not open test report, check " + job_console_output + " for why it was reported failed")
             return JobBuildData(build_number, build_link, None, set())
         if not data or len(data) == 0:
             return JobBuildData(build_number, build_link, None, [], empty_or_not_found=True)
