@@ -7,7 +7,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Tuple
 
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
@@ -243,7 +243,6 @@ class JenkinsTestReporter:
                 LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
 
         self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
-        # TODO idea: Attach zipped json + html jenkins report to email
         if self.config.send_mail:
             self.send_mail(build_idx)
         else:
@@ -356,26 +355,20 @@ class JenkinsTestReporter:
         """ Iterate runs of specified job within num_prev_days and collect results """
         # First list all builds
         builds = self.list_builds()
-
-        # Select only those in the last N days
-        min_time = int(time.time()) - SECONDS_PER_DAY * self.config.num_prev_days
-        builds = [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
-
-        # Filter out only those that failed
-        failing_build_urls = [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
-        failing_build_urls = sorted(failing_build_urls, key=lambda tup: tup[0], reverse=True)
-
         self.total_no_of_builds = len(builds)
-        num = len(failing_build_urls)
+        last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_prev_days)
+        failed_build_data: List[Tuple[str, int]] = self._get_failed_build_urls(last_n_builds)
+        failed_build_data = sorted(failed_build_data, key=lambda tup: tup[0], reverse=True)
         LOG.info(
-            f"THERE ARE {num} builds (out of {self.total_no_of_builds}) that have failed tests "
+            f"THERE ARE {len(failed_build_data)} builds "
+            f"(out of {self.total_no_of_builds}) that have failed tests "
             f"in the past {self.config.num_prev_days} days."
         )
         # TODO print job URLs here as they are not listed, actually
 
         job_datas = []
-        all_failing: Dict[str, int] = dict()
-        for i, failed_build_with_time in enumerate(failing_build_urls):
+        tc_to_fail_count: Dict[str, int] = {}
+        for i, failed_build_with_time in enumerate(failed_build_data):
             if i >= self.config.request_limit:
                 break
             failed_build = failed_build_with_time[0]
@@ -396,11 +389,21 @@ class JenkinsTestReporter:
             job_datas.append(job_data)
 
             if job_data.has_failed_testcases():
-                for ftest in job_data.testcases:
-                    LOG.info(f"Failed test: {ftest}")
-                    all_failing[ftest] = all_failing.get(ftest, 0) + 1
+                for failed_testcase in job_data.testcases:
+                    LOG.info(f"Failed test: {failed_testcase}")
+                    tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
-        return Report(job_datas, all_failing)
+        return Report(job_datas, tc_to_fail_count)
+
+    @staticmethod
+    def _get_failed_build_urls(builds):
+        return [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
+
+    @staticmethod
+    def _filter_builds_last_n_days(builds, days):
+        # Select only those in the last N days
+        min_time = int(time.time()) - SECONDS_PER_DAY * days
+        return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
     def send_mail(self, build_idx):
         email_subject = self._get_email_subject(build_idx, self.report)
