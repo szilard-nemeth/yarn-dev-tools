@@ -23,10 +23,6 @@ EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 # Configuration
 SECONDS_PER_DAY = 86400
 
-# TODO eliminate this - move to config
-# total number of runs to examine
-numRunsToExamine = 0
-
 # TODO move this to config
 # Whether to enable file cache for testreport JSON responses
 ENABLE_FILE_CACHE = True
@@ -234,7 +230,6 @@ class JenkinsTestReporter:
         ]
 
     def main(self):
-        global numRunsToExamine
         configure_logging()
         LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
         self.report = self.find_flaky_tests()
@@ -251,7 +246,7 @@ class JenkinsTestReporter:
             LOG.info("Report contains more than 1 build result, using the first build result while sending the mail.")
 
         if self.report.is_valid_build(build_idx):
-            LOG.info(f"\nAmong {numRunsToExamine} runs examined, all failed tests <#failedRuns: testName>:")
+            LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
             # Print summary section: all failed tests sorted by how many times they failed
             LOG.info("TESTCASE SUMMARY:")
             for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
@@ -369,7 +364,6 @@ class JenkinsTestReporter:
 
     def find_flaky_tests(self):
         """ Iterate runs of specified job within num_prev_days and collect results """
-        global numRunsToExamine
         # First list all builds
         builds = self.list_builds()
 
@@ -381,11 +375,10 @@ class JenkinsTestReporter:
         failing_build_urls = [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
         failing_build_urls = sorted(failing_build_urls, key=lambda tup: tup[0], reverse=True)
 
-        total_no_of_builds = len(builds)
+        self.total_no_of_builds = len(builds)
         num = len(failing_build_urls)
-        numRunsToExamine = total_no_of_builds
         LOG.info(
-            f"THERE ARE {num} builds (out of {total_no_of_builds}) that have failed tests "
+            f"THERE ARE {num} builds (out of {self.total_no_of_builds}) that have failed tests "
             f"in the past {self.config.num_prev_days} days."
         )
         # TODO print job URLs here as they are not listed, actually
