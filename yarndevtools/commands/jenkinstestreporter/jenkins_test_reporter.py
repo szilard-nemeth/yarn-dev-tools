@@ -24,7 +24,7 @@ EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 # Configuration
 SECONDS_PER_DAY = 86400
 
-# TODO eliminate this
+# TODO eliminate this - move to config
 # total number of runs to examine
 numRunsToExamine = 0
 
@@ -236,11 +236,11 @@ class JenkinsTestReporter:
         global numRunsToExamine
         configure_logging()
         LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
+        # TODO move to config
         request_limit = 1
 
         self.report = self.find_flaky_tests(
             request_limit,
-            self.config.tc_filters,
         )
 
         build_idx = 0
@@ -305,12 +305,14 @@ class JenkinsTestReporter:
         return os.path.join(job_dir_path, f"{build_number}-testreport.json")
 
     # TODO move to pythoncommons
-    def write_test_report_to_file(self, data, target_file_path):
+    @staticmethod
+    def write_test_report_to_file(data, target_file_path):
         with open(target_file_path, "w") as target_file:
             json.dump(data, target_file)
 
     # TODO move to pythoncommons
-    def read_test_report_from_file(self, file_path):
+    @staticmethod
+    def read_test_report_from_file(file_path):
         with open(file_path) as json_file:
             return json.load(json_file)
 
@@ -372,7 +374,7 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self, request_limit, tc_filters: List[TestcaseFilter]):
+    def find_flaky_tests(self, request_limit):
         """ Iterate runs of specified job within num_prev_days and collect results """
         global numRunsToExamine
         # First list all builds
@@ -414,7 +416,7 @@ class JenkinsTestReporter:
             LOG.info(f"===>{test_report} ({st})")
 
             job_data = self.find_failing_tests(test_report_api_json, job_console_output, failed_build, build_number)
-            job_data.filter_testcases(tc_filters)
+            job_data.filter_testcases(self.config.tc_filters)
             job_datas.append(job_data)
 
             if job_data.has_failed_testcases():
