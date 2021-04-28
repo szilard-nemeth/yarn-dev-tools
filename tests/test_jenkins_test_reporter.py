@@ -14,7 +14,7 @@ from coolname import generate_slug
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from test_utilities import Object
+from tests.test_utilities import Object
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
 
