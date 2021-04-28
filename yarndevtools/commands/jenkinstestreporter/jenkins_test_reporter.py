@@ -444,8 +444,6 @@ class JenkinsTestReporter:
                 LOG.info("    " + str(self.report.all_failing_tests[tn]) + ": " + tn)
 
         self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
-
-        LOG.info("blabla")
         # TODO idea: Attach zipped json + html jenkins report to email
         if self.config.send_mail:
             self.send_mail(build_idx)
