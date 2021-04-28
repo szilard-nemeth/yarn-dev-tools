@@ -135,6 +135,8 @@ def load_url_data(url):
 
 def list_builds(jenkins_url, job_name):
     """ List all builds of the target project. """
+    if jenkins_url.endswith("/"):
+        jenkins_url = jenkins_url[:-1]
     url = "%(jenkins)s/job/%(job_name)s/api/json?tree=builds[url,result,timestamp]" % dict(
         jenkins=jenkins_url, job_name=job_name
     )

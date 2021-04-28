@@ -20,10 +20,12 @@ from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
 HADOOP_TC_FILTER = "org.apache.hadoop.yarn"
 DEFAULT_TC_FILTER = HADOOP_TC_FILTER
 
+JENKINS_MAIN_URL = "http://build.infra.cloudera.com"
 MAWO_JOB_NAME_7X = "Mawo-UT-hadoop-CDPD-7.x"
+MAWO_JOB_NAME_71X = "Mawo-UT-hadoop-CDPD-7.1.x"
 BUILD_URL_ID_KEY = "build_id"
-BUILD_URL_MAWO_7X_TEMPLATE = "http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/{" + BUILD_URL_ID_KEY + "}/"
-BUILD_URL_MAWO_71X_TEMPLATE = "http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.1.x/{build_id}/"
+BUILD_URL_MAWO_7X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_7X}/{{{BUILD_URL_ID_KEY}}}/"
+BUILD_URL_MAWO_71X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_71X}/{{{BUILD_URL_ID_KEY}}}/"
 
 USE_REAL_API = False
 
@@ -234,8 +236,13 @@ class TestJenkinsTestReporter(unittest.TestCase):
     # TODO test if jenkins is not available, i.e. won't return list of builds
     # TODO test if all builds are out of date range (last N days)
 
-    @property
-    def args(self):
+    @staticmethod
+    def generate_args(
+        tc_filter: str = DEFAULT_TC_FILTER,
+        job_name: str = MAWO_JOB_NAME_7X,
+        jenkins_url: str = JENKINS_MAIN_URL,
+        num_prev_days: int = 14,
+    ):
         args = Object()
         args.account_user = "test_user@gmail.com"
         args.account_password = "dummy"
@@ -243,10 +250,10 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.smtp_server = "smtp.gmail.com"
         args.recipients = ["test@recipient.com"]
         args.sender = "Jenkins test reporter"
-        args.jenkins_url = "http://build.infra.cloudera.com/"
-        args.job_name = MAWO_JOB_NAME_7X
-        args.num_prev_days = 14
-        args.tc_filter = DEFAULT_TC_FILTER
+        args.jenkins_url = jenkins_url
+        args.job_name = job_name
+        args.num_prev_days = num_prev_days
+        args.tc_filter = tc_filter
         args.skip_mail = True
         args.disable_file_cache = True
         return args
@@ -270,21 +277,22 @@ class TestJenkinsTestReporter(unittest.TestCase):
         return build_id, builds_json
 
     @staticmethod
-    def _mock_jenkins_report_api(report_json, build_id=200):
+    def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, build_id=200):
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(
-                rf"http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/{build_id}/testReport/api/json.*"
-            ),
+            re.compile(rf"{jenkins_url}/job/Mawo-UT-hadoop-CDPD-7.x/{build_id}/testReport/api/json.*"),
             body=report_json,
         )
 
     @staticmethod
-    def _mock_jenkins_build_api(builds_json):
-        # TODO fix double slash (by removing it mocking API would fail)
+    def _mock_jenkins_build_api(builds_json, jenkins_url=JENKINS_MAIN_URL):
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(r"http://build.infra.cloudera.com//job/Mawo-UT-hadoop-CDPD-7.x/api/json.*"),
+            re.compile(rf"{jenkins_url}/job/Mawo-UT-hadoop-CDPD-7.x/api/json.*"),
             body=builds_json,
         )
 
@@ -322,7 +330,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.args, self.output_dir)
+        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
         self._assert_num_filtered_testcases_single_build(
@@ -341,7 +349,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.args, self.output_dir)
+        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
         self._assert_num_filtered_testcases_single_build(
