@@ -12,7 +12,8 @@ LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 TC_FILTER_YARN = "YARN:org.apache.hadoop.yarn"
 TC_FILTER_MR = "MAPREDUCE:org.apache.hadoop.mapreduce"
-TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN}"
+TC_FILTER_HDFS = "HDFS:org.apache.hadoop.hdfs"
+TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS}"
 
 
 class CdswRunner(CdswRunnerBase):
