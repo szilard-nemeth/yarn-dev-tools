@@ -10,7 +10,9 @@ from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
-TC_FILTER_DEFAULT = "org.apache.hadoop.yarn"
+TC_FILTER_YARN = "YARN:org.apache.hadoop.yarn"
+TC_FILTER_MR = "MAPREDUCE:org.apache.hadoop.mapreduce"
+TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN}"
 
 
 class CdswRunner(CdswRunnerBase):
@@ -23,9 +25,7 @@ class CdswRunner(CdswRunnerBase):
         self.run_test_reporter(job_name=cdpd_master_job)
         self.run_test_reporter(job_name=cdh_71_maint_job)
 
-    def run_test_reporter(
-        self, job_name: str, recipients=MAIL_ADDR_YARN_ENG_BP, testcase_filter: str = TC_FILTER_DEFAULT
-    ):
+    def run_test_reporter(self, job_name: str, recipients=MAIL_ADDR_YARN_ENG_BP, testcase_filter: str = TC_FILTER_YARN):
         if not job_name:
             raise ValueError("Jenkins job name should be specified")
 
