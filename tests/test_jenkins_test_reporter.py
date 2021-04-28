@@ -20,6 +20,7 @@ from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
 HADOOP_TC_FILTER = "org.apache.hadoop.yarn"
 DEFAULT_TC_FILTER = HADOOP_TC_FILTER
 
+MAWO_JOB_NAME_7X = "Mawo-UT-hadoop-CDPD-7.x"
 BUILD_URL_ID_KEY = "build_id"
 BUILD_URL_MAWO_7X_TEMPLATE = "http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/{" + BUILD_URL_ID_KEY + "}/"
 BUILD_URL_MAWO_71X_TEMPLATE = "http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.1.x/{build_id}/"
@@ -243,7 +244,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.recipients = ["test@recipient.com"]
         args.sender = "Jenkins test reporter"
         args.jenkins_url = "http://build.infra.cloudera.com/"
-        args.job_name = "Mawo-UT-hadoop-CDPD-7.x"
+        args.job_name = MAWO_JOB_NAME_7X
         args.num_prev_days = 14
         args.tc_filter = DEFAULT_TC_FILTER
         args.skip_mail = True
@@ -254,31 +255,48 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def output_dir(self):
         return ProjectUtils.get_test_output_child_dir(JENKINS_TEST_REPORTER)
 
-    def test_successful_api_response_verify_failed_testcases(self):
-        spec = JenkinsReportJsonSpec(
-            failed={"org.somepackage3": 10, "org.somepackage4": 20},
-            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
-            passed={"org.somepackage1": 10, "org.somepackage2": 20},
-        )
+    @staticmethod
+    def _get_jenkins_report_as_json(spec):
         report: JenkinsTestReport = JenkinsReportGenerator.generate(spec)
         report_as_dict = dataclasses.asdict(report)
         report_json = json.dumps(report_as_dict, indent=4)
+        return report_json
 
-        builds: JenkinsBuilds = JenkinsBuildsGenerator.generate(BUILD_URL_MAWO_7X_TEMPLATE, latest_build_num=200)
+    @staticmethod
+    def _get_default_jenkins_builds_as_json():
+        build_id = 200
+        builds: JenkinsBuilds = JenkinsBuildsGenerator.generate(BUILD_URL_MAWO_7X_TEMPLATE, latest_build_num=build_id)
         builds_as_dict = dataclasses.asdict(builds)
         builds_json = json.dumps(builds_as_dict, indent=4)
+        return build_id, builds_json
 
+    @staticmethod
+    def _mock_jenkins_report_api(report_json):
+        httpretty.register_uri(
+            httpretty.GET,
+            re.compile(r"http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/200/testReport/api/json.*"),
+            body=report_json,
+        )
+
+    @staticmethod
+    def _mock_jenkins_build_api(builds_json):
+        # TODO fix double slash (by removing it mocking API would fail)
         httpretty.register_uri(
             httpretty.GET,
             re.compile(r"http://build.infra.cloudera.com//job/Mawo-UT-hadoop-CDPD-7.x/api/json.*"),
             body=builds_json,
         )
 
-        httpretty.register_uri(
-            httpretty.GET,
-            re.compile(r"http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/200/testReport/api/json.*"),
-            body=report_json,
+    def test_successful_api_response_verify_failed_testcases(self):
+        spec = JenkinsReportJsonSpec(
+            failed={"org.somepackage3": 10, "org.somepackage4": 20},
+            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
+            passed={"org.somepackage1": 10, "org.somepackage2": 20},
         )
+        build_id, builds_json = self._get_default_jenkins_builds_as_json()
+        report_json = self._get_jenkins_report_as_json(spec)
+        self._mock_jenkins_build_api(builds_json)
+        self._mock_jenkins_report_api(report_json)
 
         reporter = JenkinsTestReporter(self.args, self.output_dir)
         reporter.run()
