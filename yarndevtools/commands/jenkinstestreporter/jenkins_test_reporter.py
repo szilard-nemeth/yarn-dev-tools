@@ -51,9 +51,10 @@ class FilteredResult:
 
     def __str__(self):
         tcs = "\n".join(self.testcases)
-        s = f"FILTER: Project: {self.filter.project_name}, expression: {self.filter.filter_expr}\n"
-        s += f"Number of failed testcases in filter: {len(self.testcases)}\n"
-        s += f"Failed testcases in filter: \n {tcs}"
+        s = f"Project: {self.filter.project_name}\n"
+        s += f"Filter expression: {self.filter.filter_expr}\n"
+        s += f"Number of failed testcases: {len(self.testcases)}\n"
+        s += f"Failed testcases (fully qualified name):\n{tcs}"
         return s
 
 
@@ -110,7 +111,7 @@ class JobBuildData:
     def _str_empty_report(self):
         return """
 Build number: {build_number}
-Build link: {build_link}
+Build URL: {build_link}
 !!REPORT WAS NOT FOUND OR IT IS EMPTY!!
         """.format(
             build_number=self.build_number,
@@ -120,18 +121,17 @@ Build link: {build_link}
     def _str_normal_report(self):
         filtered_tcs: str = ""
         if self.tc_filters:
-            for ftcs in self.filtered_testcases:
-                filtered_tcs += f"{str(ftcs)}\n"
+            for idx, ftcs in enumerate(self.filtered_testcases):
+                filtered_tcs += f"\nFILTER #{idx + 1}\n{str(ftcs)}\n"
         if filtered_tcs:
             filtered_tcs = f"\n{filtered_tcs}\n"
         return """Counters:
 {ctr}
 
 Build number: {build_number}
-
-Build link: {build_link}
+Build URL: {build_link}
 {filtered_testcases}
-Failed testcases: {testcases}
+ALL Failed testcases:\n{testcases}
         """.format(
             ctr=self.counters,
             build_number=self.build_number,
@@ -286,6 +286,7 @@ def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_fil
         + " days"
         + ((".", ", as listed below:\n")[num > 0])
     )
+    # TODO print job URLs here as they are not listed, actually
 
     job_datas = []
     all_failing: Dict[str, int] = dict()
@@ -324,7 +325,8 @@ def configure_logging():
     sh.setLevel(logging.INFO)
     logger = logging.getLogger()
     logger.removeHandler(logger.handlers[0])
-    logger.addHandler(sh)
+    # TODO sort this out later, it added two handlers to RootLogger so all messages were duped to stdout
+    # logger.addHandler(sh)
 
 
 class JenkinsTestReporterConfig:
@@ -432,6 +434,7 @@ class JenkinsTestReporter:
 
         self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
 
+        LOG.info("blabla")
         # TODO idea: Attach zipped json + html jenkins report to email
         if self.config.send_mail:
             self.send_mail(build_idx)
@@ -440,7 +443,8 @@ class JenkinsTestReporter:
 
     def send_mail(self, build_idx):
         email_subject = self._get_email_subject(build_idx, self.report)
-        LOG.info("Trying to send report in email. Report text: %s", self.report_text)
+        LOG.info("\nPRINTING REPORT: \n\n%s", self.report_text)
+        LOG.info("Sending report in email")
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
             self.config.full_email_conf.sender,
