@@ -287,6 +287,20 @@ class TestJenkinsTestReporter(unittest.TestCase):
             body=builds_json,
         )
 
+    def _assert_all_failed_testcases(self, reporter, spec, expected_failed_count=-1):
+        all_failed_tests_in_jenkins_report: Set[str] = set(spec.get_all_failed_testcases())
+        failed_tests: Set[str] = set(reporter.failed_tests)
+        self.assertEqual(expected_failed_count, len(failed_tests))
+        self.assertEqual(expected_failed_count, len(all_failed_tests_in_jenkins_report))
+        self.assertSetEqual(failed_tests, all_failed_tests_in_jenkins_report)
+
+    def _assert_num_filtered_testcases_single_build(
+        self, reporter, expected_build_data_count=-1, expected_filtered_testcases=-1
+    ):
+        self.assertEqual(HADOOP_TC_FILTER, reporter.testcase_filter)
+        self.assertEqual(expected_build_data_count, reporter.num_build_data)
+        self.assertEqual(expected_filtered_testcases, len(reporter.get_filtered_testcases_from_build(0)))
+
     def test_successful_api_response_verify_failed_testcases(self):
         spec = JenkinsReportJsonSpec(
             failed={"org.somepackage3": 10, "org.somepackage4": 20},
@@ -300,15 +314,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = JenkinsTestReporter(self.args, self.output_dir)
         reporter.run()
-
-        # Assert all failed testcases
-        all_failed_tests_in_jenkins_report: Set[str] = set(spec.get_all_failed_testcases())
-        failed_tests: Set[str] = set(reporter.failed_tests)
-        self.assertEqual(30, len(failed_tests))
-        self.assertEqual(30, len(all_failed_tests_in_jenkins_report))
-        self.assertSetEqual(failed_tests, all_failed_tests_in_jenkins_report)
-
-        # Assert filtered testcases
-        self.assertEqual(HADOOP_TC_FILTER, reporter.testcase_filter)
-        self.assertEqual(1, reporter.num_build_data)
-        self.assertEqual(0, len(reporter.get_filtered_testcases_from_build(0)))
+        self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
+        self._assert_num_filtered_testcases_single_build(
+            reporter, expected_build_data_count=1, expected_filtered_testcases=0
+        )
