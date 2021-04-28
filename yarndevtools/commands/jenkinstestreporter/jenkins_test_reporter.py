@@ -162,173 +162,6 @@ class JobBuildDataCounters:
         return "Failed: {}, Passed: {}, Skipped: {}".format(self.failed, self.passed, self.skipped)
 
 
-def load_url_data(url):
-    """ Load data from specified url """
-    ourl = urllib.request.urlopen(url)
-    codec = ourl.info().get_param("charset")
-    content = ourl.read().decode(codec)
-    data = simplejson.loads(content, strict=False)
-    return data
-
-
-def list_builds(jenkins_url, job_name):
-    """ List all builds of the target project. """
-    if jenkins_url.endswith("/"):
-        jenkins_url = jenkins_url[:-1]
-    url = "%(jenkins)s/job/%(job_name)s/api/json?tree=builds[url,result,timestamp]" % dict(
-        jenkins=jenkins_url, job_name=job_name
-    )
-    try:
-        data = load_url_data(url)
-    except Exception:
-        logging.error("Could not fetch: %s" % url)
-        raise
-    return data["builds"]
-
-
-def get_file_name_for_report(job_name, build_number):
-    # TODO utilize pythoncommon ProjectUtils to get output dir
-    cwd = os.getcwd()
-    job_name = job_name.replace(".", "_")
-    job_dir_path = os.path.join(cwd, "workdir", "reports", job_name)
-    if not os.path.exists(job_dir_path):
-        os.makedirs(job_dir_path)
-
-    return os.path.join(job_dir_path, build_number + "-testreport.json")
-
-
-def write_test_report_to_file(data, target_file_path):
-    with open(target_file_path, "w") as target_file:
-        json.dump(data, target_file)
-
-
-def read_test_report_from_file(file_path):
-    with open(file_path) as json_file:
-        return json.load(json_file)
-
-
-def download_test_report(test_report_api_json, target_file_path):
-    LOG.info("Loading test report from URL: %s", test_report_api_json)
-    try:
-        data = load_url_data(test_report_api_json)
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            logging.error("Test report cannot be found for build URL (HTTP 404): %s", test_report_api_json)
-            return {}
-        else:
-            raise e
-
-    if target_file_path:
-        LOG.info("Saving test report response JSON to cache: %s", target_file_path)
-        write_test_report_to_file(data, target_file_path)
-
-    return data
-
-
-def find_failing_tests(test_report_api_json, job_console_output, build_link, job_name, build_number):
-    """ Find the names of any tests which failed in the given build output URL. """
-    try:
-        data = gather_report_data_for_build(build_number, job_name, test_report_api_json)
-    except Exception:
-        traceback.print_exc()
-        logging.error("    Could not open test report, check " + job_console_output + " for why it was reported failed")
-        return JobBuildData(build_number, build_link, None, set())
-    if not data or len(data) == 0:
-        return JobBuildData(build_number, build_link, None, [], empty_or_not_found=True)
-
-    return parse_job_data(data, build_link, build_number, job_console_output)
-
-
-def gather_report_data_for_build(build_number, job_name, test_report_api_json):
-    if ENABLE_FILE_CACHE:
-        target_file_path = get_file_name_for_report(job_name, build_number)
-        if os.path.exists(target_file_path):
-            LOG.info("Loading cached test report from file: %s", target_file_path)
-            data = read_test_report_from_file(target_file_path)
-        else:
-            data = download_test_report(test_report_api_json, target_file_path)
-    else:
-        data = download_test_report(test_report_api_json, None)
-    return data
-
-
-def parse_job_data(data, build_link, build_number, job_console_output_url):
-    failed_testcases = set()
-    for suite in data["suites"]:
-        for case in suite["cases"]:
-            status = case["status"]
-            err_details = case["errorDetails"]
-            if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
-                failed_testcases.add(case["className"] + "." + case["name"])
-    if len(failed_testcases) == 0:
-        LOG.info(
-            "    No failed tests in test Report, check " + job_console_output_url + " for why it was reported failed."
-        )
-        return JobBuildData(build_number, build_link, None, failed_testcases)
-    else:
-        counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
-        return JobBuildData(build_number, build_link, counters, failed_testcases)
-
-
-def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
-    """ Iterate runs of specified job within num_prev_days and collect results """
-    global numRunsToExamine
-    # First list all builds
-    builds = list_builds(jenkins_url, job_name)
-
-    # Select only those in the last N days
-    min_time = int(time.time()) - SECONDS_PER_DAY * num_prev_days
-    builds = [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
-
-    # Filter out only those that failed
-    failing_build_urls = [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
-    failing_build_urls = sorted(failing_build_urls, key=lambda tup: tup[0], reverse=True)
-
-    total_no_of_builds = len(builds)
-    num = len(failing_build_urls)
-    numRunsToExamine = total_no_of_builds
-    LOG.info(
-        "    THERE ARE "
-        + str(num)
-        + " builds (out of "
-        + str(total_no_of_builds)
-        + ") that have failed tests in the past "
-        + str(num_prev_days)
-        + " days"
-        + ((".", ", as listed below:\n")[num > 0])
-    )
-    # TODO print job URLs here as they are not listed, actually
-
-    job_datas = []
-    all_failing: Dict[str, int] = dict()
-    for i, failed_build_with_time in enumerate(failing_build_urls):
-        if i >= request_limit:
-            break
-        failed_build = failed_build_with_time[0]
-
-        # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
-        build_number = failed_build.rsplit("/")[-2]
-        job_console_output = failed_build + "Console"
-        test_report = failed_build + "testReport"
-        test_report_api_json = test_report + "/api/json"
-        test_report_api_json += "?pretty=true"
-
-        ts = float(failed_build_with_time[1]) / 1000.0
-        st = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-        LOG.info("===>%s" % str(test_report) + " (" + st + ")")
-
-        job_data = find_failing_tests(test_report_api_json, job_console_output, failed_build, job_name, build_number)
-        job_data.filter_testcases(tc_filters)
-        job_datas.append(job_data)
-
-        if job_data.has_failed_testcases():
-            for ftest in job_data.testcases:
-                LOG.info("    Failed test: %s" % ftest)
-                all_failing[ftest] = all_failing.get(ftest, 0) + 1
-
-    return Report(job_datas, all_failing)
-
-
 def configure_logging():
     logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
     # set up logger to write to stdout
@@ -414,7 +247,7 @@ class JenkinsTestReporter:
         LOG.info("****Recently FAILED builds in url: " + self.config.jenkins_url + "/job/" + self.config.job_name + "")
         request_limit = 1
 
-        self.report = find_flaky_tests(
+        self.report = self.find_flaky_tests(
             self.config.jenkins_url,
             self.config.job_name,
             self.config.num_prev_days,
@@ -449,6 +282,169 @@ class JenkinsTestReporter:
             self.send_mail(build_idx)
         else:
             LOG.info("Not sending email, as per configuration.")
+
+    def load_url_data(self, url):
+        """ Load data from specified url """
+        ourl = urllib.request.urlopen(url)
+        codec = ourl.info().get_param("charset")
+        content = ourl.read().decode(codec)
+        data = simplejson.loads(content, strict=False)
+        return data
+
+    def list_builds(self, jenkins_url, job_name):
+        """ List all builds of the target project. """
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
+        url = "%(jenkins)s/job/%(job_name)s/api/json?tree=builds[url,result,timestamp]" % dict(
+            jenkins=jenkins_url, job_name=job_name
+        )
+        try:
+            data = self.load_url_data(url)
+        except Exception:
+            logging.error("Could not fetch: %s" % url)
+            raise
+        return data["builds"]
+
+    def get_file_name_for_report(self, job_name, build_number):
+        # TODO utilize pythoncommon ProjectUtils to get output dir
+        cwd = os.getcwd()
+        job_name = job_name.replace(".", "_")
+        job_dir_path = os.path.join(cwd, "workdir", "reports", job_name)
+        if not os.path.exists(job_dir_path):
+            os.makedirs(job_dir_path)
+
+        return os.path.join(job_dir_path, build_number + "-testreport.json")
+
+    def write_test_report_to_file(self, data, target_file_path):
+        with open(target_file_path, "w") as target_file:
+            json.dump(data, target_file)
+
+    def read_test_report_from_file(self, file_path):
+        with open(file_path) as json_file:
+            return json.load(json_file)
+
+    def download_test_report(self, test_report_api_json, target_file_path):
+        LOG.info("Loading test report from URL: %s", test_report_api_json)
+        try:
+            data = self.load_url_data(test_report_api_json)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                logging.error("Test report cannot be found for build URL (HTTP 404): %s", test_report_api_json)
+                return {}
+            else:
+                raise e
+
+        if target_file_path:
+            LOG.info("Saving test report response JSON to cache: %s", target_file_path)
+            self.write_test_report_to_file(data, target_file_path)
+
+        return data
+
+    def find_failing_tests(self, test_report_api_json, job_console_output, build_link, job_name, build_number):
+        """ Find the names of any tests which failed in the given build output URL. """
+        try:
+            data = self.gather_report_data_for_build(build_number, job_name, test_report_api_json)
+        except Exception:
+            traceback.print_exc()
+            logging.error(
+                "    Could not open test report, check " + job_console_output + " for why it was reported failed"
+            )
+            return JobBuildData(build_number, build_link, None, set())
+        if not data or len(data) == 0:
+            return JobBuildData(build_number, build_link, None, [], empty_or_not_found=True)
+
+        return self.parse_job_data(data, build_link, build_number, job_console_output)
+
+    def gather_report_data_for_build(self, build_number, job_name, test_report_api_json):
+        if ENABLE_FILE_CACHE:
+            target_file_path = self.get_file_name_for_report(job_name, build_number)
+            if os.path.exists(target_file_path):
+                LOG.info("Loading cached test report from file: %s", target_file_path)
+                data = self.read_test_report_from_file(target_file_path)
+            else:
+                data = self.download_test_report(test_report_api_json, target_file_path)
+        else:
+            data = self.download_test_report(test_report_api_json, None)
+        return data
+
+    def parse_job_data(self, data, build_link, build_number, job_console_output_url):
+        failed_testcases = set()
+        for suite in data["suites"]:
+            for case in suite["cases"]:
+                status = case["status"]
+                err_details = case["errorDetails"]
+                if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
+                    failed_testcases.add(case["className"] + "." + case["name"])
+        if len(failed_testcases) == 0:
+            LOG.info(
+                "    No failed tests in test Report, check "
+                + job_console_output_url
+                + " for why it was reported failed."
+            )
+            return JobBuildData(build_number, build_link, None, failed_testcases)
+        else:
+            counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
+            return JobBuildData(build_number, build_link, counters, failed_testcases)
+
+    def find_flaky_tests(self, jenkins_url, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
+        """ Iterate runs of specified job within num_prev_days and collect results """
+        global numRunsToExamine
+        # First list all builds
+        builds = self.list_builds(jenkins_url, job_name)
+
+        # Select only those in the last N days
+        min_time = int(time.time()) - SECONDS_PER_DAY * num_prev_days
+        builds = [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
+
+        # Filter out only those that failed
+        failing_build_urls = [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
+        failing_build_urls = sorted(failing_build_urls, key=lambda tup: tup[0], reverse=True)
+
+        total_no_of_builds = len(builds)
+        num = len(failing_build_urls)
+        numRunsToExamine = total_no_of_builds
+        LOG.info(
+            "    THERE ARE "
+            + str(num)
+            + " builds (out of "
+            + str(total_no_of_builds)
+            + ") that have failed tests in the past "
+            + str(num_prev_days)
+            + " days"
+            + ((".", ", as listed below:\n")[num > 0])
+        )
+        # TODO print job URLs here as they are not listed, actually
+
+        job_datas = []
+        all_failing: Dict[str, int] = dict()
+        for i, failed_build_with_time in enumerate(failing_build_urls):
+            if i >= request_limit:
+                break
+            failed_build = failed_build_with_time[0]
+
+            # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
+            build_number = failed_build.rsplit("/")[-2]
+            job_console_output = failed_build + "Console"
+            test_report = failed_build + "testReport"
+            test_report_api_json = test_report + "/api/json"
+            test_report_api_json += "?pretty=true"
+
+            ts = float(failed_build_with_time[1]) / 1000.0
+            st = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            LOG.info("===>%s" % str(test_report) + " (" + st + ")")
+
+            job_data = self.find_failing_tests(
+                test_report_api_json, job_console_output, failed_build, job_name, build_number
+            )
+            job_data.filter_testcases(tc_filters)
+            job_datas.append(job_data)
+
+            if job_data.has_failed_testcases():
+                for ftest in job_data.testcases:
+                    LOG.info("    Failed test: %s" % ftest)
+                    all_failing[ftest] = all_failing.get(ftest, 0) + 1
+
+        return Report(job_datas, all_failing)
 
     def send_mail(self, build_idx):
         email_subject = self._get_email_subject(build_idx, self.report)
