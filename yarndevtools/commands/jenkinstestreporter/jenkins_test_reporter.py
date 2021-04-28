@@ -239,7 +239,6 @@ class JenkinsTestReporter:
         request_limit = 1
 
         self.report = self.find_flaky_tests(
-            self.config.jenkins_url,
             self.config.job_name,
             self.config.num_prev_days,
             request_limit,
@@ -271,6 +270,7 @@ class JenkinsTestReporter:
         else:
             LOG.info("Not sending email, as per configuration.")
 
+    # TODO move to pythoncommons but debug this before.
     def load_url_data(self, url):
         """ Load data from specified url """
         ourl = urllib.request.urlopen(url)
@@ -279,17 +279,22 @@ class JenkinsTestReporter:
         data = simplejson.loads(content, strict=False)
         return data
 
-    def list_builds(self, jenkins_url, job_name):
+    def list_builds(self, job_name):
         """ List all builds of the target project. """
-        if jenkins_url.endswith("/"):
-            jenkins_url = jenkins_url[:-1]
-        url = f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
+        url = self.get_jenkins_list_builds_url(job_name)
         try:
             data = self.load_url_data(url)
         except Exception:
             LOG.error(f"Could not fetch: {url}")
             raise
         return data["builds"]
+
+    def get_jenkins_list_builds_url(self, job_name) -> str:
+        jenkins_url = self.config.jenkins_url
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
+        url = f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
+        return url
 
     @staticmethod
     def get_file_name_for_report(job_name, build_number):
@@ -302,6 +307,7 @@ class JenkinsTestReporter:
 
         return os.path.join(job_dir_path, f"{build_number}-testreport.json")
 
+    # TODO move to pythoncommons
     def write_test_report_to_file(self, data, target_file_path):
         with open(target_file_path, "w") as target_file:
             json.dump(data, target_file)
@@ -311,6 +317,7 @@ class JenkinsTestReporter:
         with open(file_path) as json_file:
             return json.load(json_file)
 
+    # TODO move to pythoncommons
     def download_test_report(self, test_report_api_json, target_file_path):
         LOG.info(f"Loading test report from URL: {test_report_api_json}")
         try:
@@ -368,11 +375,11 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self, jenkins_url, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
+    def find_flaky_tests(self, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
         """ Iterate runs of specified job within num_prev_days and collect results """
         global numRunsToExamine
         # First list all builds
-        builds = self.list_builds(jenkins_url, job_name)
+        builds = self.list_builds(job_name)
 
         # Select only those in the last N days
         min_time = int(time.time()) - SECONDS_PER_DAY * num_prev_days
