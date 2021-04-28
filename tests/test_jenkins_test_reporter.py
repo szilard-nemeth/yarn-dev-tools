@@ -18,6 +18,14 @@ from tests.test_utilities import Object
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
 
+P1 = "org.somepackage1"
+P2 = "org.somepackage2"
+P3 = "org.somepackage3"
+P4 = "org.somepackage4"
+STDOUT = "stdout"
+STDERR = "stderrr"
+
+
 YARN_TC_FILTER = "YARN:org.apache.hadoop.yarn"
 MAPRED_TC_FILTER = "MAPREDUCE:org.apache.hadoop.mapreduce"
 MULTI_FILTER = [YARN_TC_FILTER, MAPRED_TC_FILTER]
@@ -173,8 +181,8 @@ class JenkinsReportGenerator:
         for suite, tc_tuples in spec.testcases_by_suites.items():
             testcases: List[JenkinsTestCase] = []
             for tc_name, tc_status in tc_tuples:
-                stdout = f"{tc_name}::stdout"
-                stderr = f"{tc_name}::stderr"
+                stdout = f"{tc_name}::{STDOUT}"
+                stderr = f"{tc_name}::{STDERR}"
                 duration: float = random.uniform(1.5, 10.0) * 10
                 skipped = True if tc_status == TestCaseStatus.SKIPPED else False
                 testcases.append(
@@ -189,8 +197,8 @@ class JenkinsReportGenerator:
                     )
                 )
 
-            stdout_suite = f"{suite}::stdout"
-            stderr_suite = f"{suite}::stderr"
+            stdout_suite = f"{suite}::{STDOUT}"
+            stderr_suite = f"{suite}::{STDERR}"
             duration_suite: float = random.uniform(1.5, 10.0) * 10
             suites.append(
                 JenkinsTestSuite(testcases, suite, duration=duration_suite, stdout=stdout_suite, stderr=stderr_suite)
@@ -281,22 +289,26 @@ class TestJenkinsTestReporter(unittest.TestCase):
         return build_id, builds_json
 
     @staticmethod
-    def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, build_id=200):
+    def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, job_name=MAWO_JOB_NAME_7X, build_id=200):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(rf"{jenkins_url}/job/Mawo-UT-hadoop-CDPD-7.x/{build_id}/testReport/api/json.*"),
+            re.compile(rf"{jenkins_url}/job/{job_name}/{build_id}/testReport/api/json.*"),
             body=report_json,
         )
 
     @staticmethod
-    def _mock_jenkins_build_api(builds_json, jenkins_url=JENKINS_MAIN_URL):
+    def _mock_jenkins_build_api(
+        builds_json,
+        jenkins_url=JENKINS_MAIN_URL,
+        job_name=MAWO_JOB_NAME_7X,
+    ):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(rf"{jenkins_url}/job/Mawo-UT-hadoop-CDPD-7.x/api/json.*"),
+            re.compile(rf"{jenkins_url}/job/{job_name}/api/json.*"),
             body=builds_json,
         )
 
@@ -324,7 +336,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
                 raise ValueError(
                     "Found filter that is not addded to expected_failed_testcases!"
                     f"Filter: {f}"
-                    f"Exepcted failed testcases dict: {expected_failed_testcases_dict}"
+                    f"Expected failed testcases dict: {expected_failed_testcases_dict}"
                 )
 
         self.assertEqual(filters, reporter.testcase_filters)
@@ -339,9 +351,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     def test_successful_api_response_verify_failed_testcases(self):
         spec = JenkinsReportJsonSpec(
-            failed={"org.somepackage3": 10, "org.somepackage4": 20},
-            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
-            passed={"org.somepackage1": 10, "org.somepackage2": 20},
+            failed={P3: 10, P4: 20},
+            skipped={P1: 10, P2: 20},
+            passed={P1: 10, P2: 20},
         )
         build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
         report_json = self._get_jenkins_report_as_json(spec)
@@ -361,9 +373,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     def test_successful_api_response_verify_filtered_testcases(self):
         spec = JenkinsReportJsonSpec(
-            failed={"org.somepackage3": 10, "org.somepackage4": 20, self._get_package_from_filter(YARN_TC_FILTER): 25},
-            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
-            passed={"org.somepackage1": 10, "org.somepackage2": 20},
+            failed={P3: 10, P4: 20, self._get_package_from_filter(YARN_TC_FILTER): 25},
+            skipped={P1: 10, P2: 20},
+            passed={P1: 10, P2: 20},
         )
         failed_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(YARN_TC_FILTER))
         build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
@@ -385,13 +397,13 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def test_successful_api_response_verify_multi_filtered(self):
         spec = JenkinsReportJsonSpec(
             failed={
-                "org.somepackage3": 10,
-                "org.somepackage4": 20,
+                P3: 10,
+                P4: 20,
                 self._get_package_from_filter(YARN_TC_FILTER): 5,
                 self._get_package_from_filter(MAPRED_TC_FILTER): 10,
             },
-            skipped={"org.somepackage1": 10, "org.somepackage2": 20},
-            passed={"org.somepackage1": 10, "org.somepackage2": 20},
+            skipped={P1: 10, P2: 20},
+            passed={P1: 10, P2: 20},
         )
         failed_yarn_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(YARN_TC_FILTER))
         failed_mr_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(MAPRED_TC_FILTER))
@@ -413,10 +425,6 @@ class TestJenkinsTestReporter(unittest.TestCase):
                 MAPRED_TC_FILTER: failed_mr_testcases,
             },
         )
-
-    # @staticmethod
-    # def _get_package_from_filters_list(filters: List[str]):
-    #     return filters[0].split(":")[-1]
 
     @staticmethod
     def _get_package_from_filter(filter: str):
