@@ -25,7 +25,7 @@ class CdswRunner(CdswRunnerBase):
         self.run_test_reporter(job_name=cdpd_master_job)
         self.run_test_reporter(job_name=cdh_71_maint_job)
 
-    def run_test_reporter(self, job_name: str, recipients=MAIL_ADDR_YARN_ENG_BP, testcase_filter: str = TC_FILTER_YARN):
+    def run_test_reporter(self, job_name: str, recipients=MAIL_ADDR_YARN_ENG_BP, testcase_filter: str = TC_FILTER_ALL):
         if not job_name:
             raise ValueError("Jenkins job name should be specified")
 
