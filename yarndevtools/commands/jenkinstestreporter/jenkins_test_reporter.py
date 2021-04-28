@@ -8,7 +8,7 @@ import json as simplejson
 import logging
 import time
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Set
 
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
@@ -84,19 +84,23 @@ class JobBuildData:
         self.filtered_testcases: List[FilteredResult] = []
         self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
         self.no_of_failed_filtered_tc = None
+        self.unmatched_testcases: Set[str] = None
         self.empty_or_not_found = empty_or_not_found
 
     def has_failed_testcases(self):
         return len(self.testcases) > 0
 
     def filter_testcases(self, tc_filters: List[TestcaseFilter]):
+        matched_testcases = set()
         for tcf in tc_filters:
-            matched_tcs = list(filter(lambda tc: tcf.filter_expr in tc, self.testcases))
-            self.filtered_testcases.append(FilteredResult(tcf, matched_tcs))
+            matched_for_filter = list(filter(lambda tc: tcf.filter_expr in tc, self.testcases))
+            self.filtered_testcases.append(FilteredResult(tcf, matched_for_filter))
             if tcf.filter_expr not in self.filtered_testcases_by_expr:
                 self.filtered_testcases_by_expr[tcf.filter_expr] = []
-            self.filtered_testcases_by_expr[tcf.filter_expr].extend(matched_tcs)
+            self.filtered_testcases_by_expr[tcf.filter_expr].extend(matched_for_filter)
+            matched_testcases.update(matched_for_filter)
         self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
+        self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
 
     @property
     def tc_filters(self):
@@ -125,12 +129,16 @@ Build URL: {build_link}
                 filtered_tcs += f"\nFILTER #{idx + 1}\n{str(ftcs)}\n"
         if filtered_tcs:
             filtered_tcs = f"\n{filtered_tcs}\n"
+
         return """Counters:
 {ctr}
 
 Build number: {build_number}
 Build URL: {build_link}
+Matched testcases: {num_matched_tcs}
+Unmatched testcases: {num_unmatched_tcs}
 {filtered_testcases}
+Unmatched testcases:\n{unmatched_testcases}\n
 ALL Failed testcases:\n{testcases}
         """.format(
             ctr=self.counters,
@@ -138,6 +146,9 @@ ALL Failed testcases:\n{testcases}
             build_link=self.build_link,
             testcases="\n".join(self.testcases),
             filtered_testcases=filtered_tcs,
+            num_matched_tcs=self.no_of_failed_filtered_tc,
+            num_unmatched_tcs=len(self.unmatched_testcases),
+            unmatched_testcases="\n".join(self.unmatched_testcases),
         )
 
 
