@@ -7,6 +7,8 @@ import datetime
 import json as simplejson
 import logging
 import time
+from typing import List, Dict
+
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
@@ -26,7 +28,7 @@ numRunsToExamine = 0
 
 # TODO move this to config
 # Whether to enable file cache for testreport JSON responses
-enable_file_cache = True
+ENABLE_FILE_CACHE = True
 
 LOG = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ LOG = logging.getLogger(__name__)
 class Report:
     def __init__(self, job_build_datas, all_failing_tests):
         self.job_build_datas = job_build_datas
-        self.all_failing_tests = all_failing_tests
+        self.all_failing_tests: Dict[str, int] = all_failing_tests
 
     def convert_to_text(self, build_data_idx=-1):
         if build_data_idx > -1:
@@ -198,7 +200,7 @@ def find_failing_tests(test_report_api_json, job_console_output, build_link, job
 
 
 def gather_report_data_for_build(build_number, job_name, test_report_api_json):
-    if enable_file_cache:
+    if ENABLE_FILE_CACHE:
         target_file_path = get_file_name_for_report(job_name, build_number)
         if os.path.exists(target_file_path):
             LOG.info("Loading cached test report from file: %s", target_file_path)
@@ -257,7 +259,7 @@ def find_flaky_tests(jenkins_url, job_name, num_prev_days, request_limit, tc_fil
     )
 
     job_datas = []
-    all_failing = dict()
+    all_failing: Dict[str, int] = dict()
     for i, failed_build_with_time in enumerate(failing_build_urls):
         if i >= request_limit:
             break
@@ -303,8 +305,13 @@ class JenkinsTestReporterConfig:
         self.job_name = args.job_name
         self.num_prev_days = args.num_prev_days
         self.tc_filter = args.tc_filter
+        self.send_mail: bool = not args.skip_mail
+        self.enable_file_cache: bool = not args.disable_file_cache
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
+
+        current_module = sys.modules[__name__]
+        current_module.ENABLE_FILE_CACHE = self.enable_file_cache
 
     def __str__(self):
         return (
@@ -319,10 +326,29 @@ class JenkinsTestReporterConfig:
 class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
+        self.report: Report or None = None
+        self.report_text: str or None = None
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
         self.main()
+
+    @property
+    def failed_tests(self) -> List[str]:
+        if not self.report:
+            raise ValueError("Report is not queried yet or it is None!")
+        return list(self.report.all_failing_tests.keys())
+
+    @property
+    def num_build_data(self):
+        return len(self.report.job_build_datas)
+
+    @property
+    def testcase_filter(self):
+        return self.config.tc_filter
+
+    def get_filtered_testcases_from_build(self, build_data_idx: int):
+        return self.report.job_build_datas[build_data_idx].filtered_testcases
 
     def main(self):
         global numRunsToExamine
@@ -333,44 +359,47 @@ class JenkinsTestReporter:
         tc_filter = self.config.tc_filter if self.config.tc_filter else ""
         if not tc_filter:
             LOG.warning("TESTCASE FILTER IS NOT SET!")
-        report = find_flaky_tests(
+        self.report = find_flaky_tests(
             self.config.jenkins_url, self.config.job_name, self.config.num_prev_days, request_limit, tc_filter
         )
 
         build_idx = 0
-        if len(report.all_failing_tests) == 0 and report.is_valid_build(build_data_idx=build_idx):
+        if len(self.report.all_failing_tests) == 0 and self.report.is_valid_build(build_data_idx=build_idx):
             LOG.info("Report is valid and does not contain any failed tests. Won't send mail, exiting...")
             raise SystemExit(0)
 
         # We have some failed tests OR the build is invalid
         LOG.info("Report is not valid or contains failed tests!")
 
-        if len(report.job_build_datas) > 1:
+        if len(self.report.job_build_datas) > 1:
             LOG.info("Report contains more than 1 build result, using the first build result while sending the mail.")
 
-        if report.is_valid_build(build_idx):
+        if self.report.is_valid_build(build_idx):
             LOG.info(
                 "\nAmong " + str(numRunsToExamine) + " runs examined, all failed " + "tests <#failedRuns: testName>:"
             )
 
             # Print summary section: all failed tests sorted by how many times they failed
             LOG.info("TESTCASE SUMMARY:")
-            for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
-                LOG.info("    " + str(report.all_failing_tests[tn]) + ": " + tn)
+            for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
+                LOG.info("    " + str(self.report.all_failing_tests[tn]) + ": " + tn)
 
-        # TODO idea: Attach raw json / html jenkins report to email
-        self.send_mail(report, build_idx)
+        self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
 
-    def send_mail(self, report, build_idx):
-        report_text = report.convert_to_text(build_data_idx=build_idx)
-        email_subject = self._get_email_subject(build_idx, report)
+        # TODO idea: Attach zipped json + html jenkins report to email
+        if self.config.send_mail:
+            self.send_mail(build_idx)
+        else:
+            LOG.info("Not sending email, as per configuration.")
 
-        LOG.info("Trying to send report in email. Report text: %s", report_text)
+    def send_mail(self, build_idx):
+        email_subject = self._get_email_subject(build_idx, self.report)
+        LOG.info("Trying to send report in email. Report text: %s", self.report_text)
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
             self.config.full_email_conf.sender,
             email_subject,
-            report_text,
+            self.report_text,
             self.config.full_email_conf.recipients,
             body_mimetype=EmailMimeType.PLAIN,
         )

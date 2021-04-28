@@ -34,7 +34,8 @@ TESTCASE = unittest.TestCase("__init__")
 
 
 class Object(object):
-    pass
+    def __contains__(self, key):
+        return key in self.__dict__
 
 
 class TestUtilities:

@@ -332,6 +332,23 @@ class ArgParser:
             type=str,
             help="Testcase filters in format <project>:<filter value>",
         )
+
+        parser.add_argument(
+            "-s",
+            "--skip-sending-mail",
+            dest="skip_mail",
+            type=bool,
+            help="Whether to skip sending email report",
+        )
+
+        parser.add_argument(
+            "-d",
+            "--disable-file-cache",
+            dest="disable_file_cache",
+            type=bool,
+            help="Whether to disable Jenkins report file cache",
+        )
+
         parser.set_defaults(func=yarn_dev_tools.fetch_send_jenkins_test_report)
 
     @staticmethod
