@@ -1,10 +1,9 @@
 #!/usr/local/bin/python3
-import json
 import os
 import sys
 import traceback
 import datetime
-import json as simplejson
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -274,25 +273,22 @@ class JenkinsTestReporter:
         ourl = urllib.request.urlopen(url)
         codec = ourl.info().get_param("charset")
         content = ourl.read().decode(codec)
-        data = simplejson.loads(content, strict=False)
-        return data
+        return json.loads(content, strict=False)
 
     def list_builds(self):
         """ List all builds of the target project. """
         url = self.get_jenkins_list_builds_url()
         try:
-            data = self.load_url_data(url)
+            return self.load_url_data(url)["builds"]
         except Exception:
             LOG.error(f"Could not fetch: {url}")
             raise
-        return data["builds"]
 
     def get_jenkins_list_builds_url(self) -> str:
         jenkins_url = self.config.jenkins_url
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        url = f"{jenkins_url}/job/{self.config.job_name}/api/json?tree=builds[url,result,timestamp]"
-        return url
+        return f"{jenkins_url}/job/{self.config.job_name}/api/json?tree=builds[url,result,timestamp]"
 
     def get_file_name_for_report(self, build_number):
         # TODO utilize pythoncommon ProjectUtils to get output dir
