@@ -18,16 +18,9 @@ from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 from urllib.error import HTTPError
 
-EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
-
-# Configuration
-SECONDS_PER_DAY = 86400
-
-# TODO move this to config
-# Whether to enable file cache for testreport JSON responses
-ENABLE_FILE_CACHE = True
-
 LOG = logging.getLogger(__name__)
+EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
+SECONDS_PER_DAY = 86400
 
 
 @dataclass
@@ -176,9 +169,6 @@ class JenkinsTestReporterConfig:
         self.enable_file_cache: bool = not args.disable_file_cache
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
-
-        current_module = sys.modules[__name__]
-        current_module.ENABLE_FILE_CACHE = self.enable_file_cache
 
     def __str__(self):
         return (
@@ -336,7 +326,7 @@ class JenkinsTestReporter:
         return self.parse_job_data(data, build_url, build_number, job_console_output)
 
     def gather_report_data_for_build(self, build_number, test_report_api_json):
-        if ENABLE_FILE_CACHE:
+        if self.config.enable_file_cache:
             target_file_path = self.get_file_name_for_report(build_number)
             if os.path.exists(target_file_path):
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
