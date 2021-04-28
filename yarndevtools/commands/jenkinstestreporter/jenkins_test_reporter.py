@@ -72,14 +72,14 @@ class Report:
         if build_data_idx > -1:
             return not self.job_build_datas[build_data_idx].empty_or_not_found
 
-    def get_build_link(self, build_data_idx):
-        return self.job_build_datas[build_data_idx].build_link
+    def get_build_url(self, build_data_idx):
+        return self.job_build_datas[build_data_idx].build_url
 
 
 class JobBuildData:
-    def __init__(self, build_number, build_link, counters, testcases, empty_or_not_found=False):
+    def __init__(self, build_number, build_url, counters, testcases, empty_or_not_found=False):
         self.build_number = build_number
-        self.build_link = build_link
+        self.build_url = build_url
         self.counters = counters
         self.testcases: List[str] = testcases
         self.filtered_testcases: List[FilteredResult] = []
@@ -116,11 +116,11 @@ class JobBuildData:
     def _str_empty_report(self):
         return """
 Build number: {build_number}
-Build URL: {build_link}
+Build URL: {build_url}
 !!REPORT WAS NOT FOUND OR IT IS EMPTY!!
         """.format(
             build_number=self.build_number,
-            build_link=self.build_link,
+            build_url=self.build_url,
         )
 
     def _str_normal_report(self):
@@ -135,7 +135,7 @@ Build URL: {build_link}
 {ctr}
 
 Build number: {build_number}
-Build URL: {build_link}
+Build URL: {build_url}
 Matched testcases: {num_matched_tcs}
 Unmatched testcases: {num_unmatched_tcs}
 {filtered_testcases}
@@ -144,7 +144,7 @@ ALL Failed testcases:\n{testcases}
         """.format(
             ctr=self.counters,
             build_number=self.build_number,
-            build_link=self.build_link,
+            build_url=self.build_url,
             testcases="\n".join(self.testcases),
             filtered_testcases=filtered_tcs,
             num_matched_tcs=self.no_of_failed_filtered_tc,
@@ -343,18 +343,18 @@ class JenkinsTestReporter:
 
         return data
 
-    def find_failing_tests(self, test_report_api_json, job_console_output, build_link, job_name, build_number):
+    def find_failing_tests(self, test_report_api_json, job_console_output, build_url, job_name, build_number):
         """ Find the names of any tests which failed in the given build output URL. """
         try:
             data = self.gather_report_data_for_build(build_number, job_name, test_report_api_json)
         except Exception:
             traceback.print_exc()
             LOG.error("    Could not open test report, check " + job_console_output + " for why it was reported failed")
-            return JobBuildData(build_number, build_link, None, set())
+            return JobBuildData(build_number, build_url, None, set())
         if not data or len(data) == 0:
-            return JobBuildData(build_number, build_link, None, [], empty_or_not_found=True)
+            return JobBuildData(build_number, build_url, None, [], empty_or_not_found=True)
 
-        return self.parse_job_data(data, build_link, build_number, job_console_output)
+        return self.parse_job_data(data, build_url, build_number, job_console_output)
 
     def gather_report_data_for_build(self, build_number, job_name, test_report_api_json):
         if ENABLE_FILE_CACHE:
@@ -368,7 +368,7 @@ class JenkinsTestReporter:
             data = self.download_test_report(test_report_api_json, None)
         return data
 
-    def parse_job_data(self, data, build_link, build_number, job_console_output_url):
+    def parse_job_data(self, data, build_url, build_number, job_console_output_url):
         failed_testcases = set()
         for suite in data["suites"]:
             for case in suite["cases"]:
@@ -382,10 +382,10 @@ class JenkinsTestReporter:
                 + job_console_output_url
                 + " for why it was reported failed."
             )
-            return JobBuildData(build_number, build_link, None, failed_testcases)
+            return JobBuildData(build_number, build_url, None, failed_testcases)
         else:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
-            return JobBuildData(build_number, build_link, counters, failed_testcases)
+            return JobBuildData(build_number, build_url, counters, failed_testcases)
 
     def find_flaky_tests(self, jenkins_url, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
         """ Iterate runs of specified job within num_prev_days and collect results """
@@ -463,9 +463,9 @@ class JenkinsTestReporter:
 
     @staticmethod
     def _get_email_subject(build_idx, report):
-        build_link = report.get_build_link(build_data_idx=build_idx)
+        build_url = report.get_build_url(build_data_idx=build_idx)
         if report.is_valid_build(build_data_idx=build_idx):
-            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_link}"
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_url}"
         else:
-            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, build is invalid: {build_link}"
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, build is invalid: {build_url}"
         return email_subject
