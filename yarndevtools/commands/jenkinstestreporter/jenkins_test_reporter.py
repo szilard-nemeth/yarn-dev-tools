@@ -165,6 +165,8 @@ def configure_logging():
 
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
+        # TODO make this parameterized
+        self.request_limit = 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         self.jenkins_url = args.jenkins_url
         self.job_name = args.job_name
@@ -235,12 +237,7 @@ class JenkinsTestReporter:
         global numRunsToExamine
         configure_logging()
         LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
-        # TODO move to config
-        request_limit = 1
-
-        self.report = self.find_flaky_tests(
-            request_limit,
-        )
+        self.report = self.find_flaky_tests()
 
         build_idx = 0
         if len(self.report.all_failing_tests) == 0 and self.report.is_valid_build(build_data_idx=build_idx):
@@ -370,7 +367,7 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self, request_limit):
+    def find_flaky_tests(self):
         """ Iterate runs of specified job within num_prev_days and collect results """
         global numRunsToExamine
         # First list all builds
@@ -396,7 +393,7 @@ class JenkinsTestReporter:
         job_datas = []
         all_failing: Dict[str, int] = dict()
         for i, failed_build_with_time in enumerate(failing_build_urls):
-            if i >= request_limit:
+            if i >= self.config.request_limit:
                 break
             failed_build = failed_build_with_time[0]
 
