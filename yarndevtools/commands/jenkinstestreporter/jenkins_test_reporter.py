@@ -235,7 +235,7 @@ class JenkinsTestReporter:
     def main(self):
         global numRunsToExamine
         configure_logging()
-        LOG.info("****Recently FAILED builds in url: " + self.config.jenkins_url + "/job/" + self.config.job_name + "")
+        LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
         request_limit = 1
 
         self.report = self.find_flaky_tests(
@@ -258,14 +258,11 @@ class JenkinsTestReporter:
             LOG.info("Report contains more than 1 build result, using the first build result while sending the mail.")
 
         if self.report.is_valid_build(build_idx):
-            LOG.info(
-                "\nAmong " + str(numRunsToExamine) + " runs examined, all failed " + "tests <#failedRuns: testName>:"
-            )
-
+            LOG.info(f"\nAmong {numRunsToExamine} runs examined, all failed tests <#failedRuns: testName>:")
             # Print summary section: all failed tests sorted by how many times they failed
             LOG.info("TESTCASE SUMMARY:")
             for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
-                LOG.info("    " + str(self.report.all_failing_tests[tn]) + ": " + tn)
+                LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
 
         self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
         # TODO idea: Attach zipped json + html jenkins report to email
@@ -303,7 +300,7 @@ class JenkinsTestReporter:
         if not os.path.exists(job_dir_path):
             os.makedirs(job_dir_path)
 
-        return os.path.join(job_dir_path, build_number + "-testreport.json")
+        return os.path.join(job_dir_path, f"{build_number}-testreport.json")
 
     def write_test_report_to_file(self, data, target_file_path):
         with open(target_file_path, "w") as target_file:
@@ -337,7 +334,7 @@ class JenkinsTestReporter:
             data = self.gather_report_data_for_build(build_number, job_name, test_report_api_json)
         except Exception:
             traceback.print_exc()
-            LOG.error("    Could not open test report, check " + job_console_output + " for why it was reported failed")
+            LOG.error(f"Could not open test report, check {job_console_output} for reason why it was reported failed")
             return JobBuildData(build_number, build_url, None, set())
         if not data or len(data) == 0:
             return JobBuildData(build_number, build_url, None, [], empty_or_not_found=True)
@@ -363,13 +360,9 @@ class JenkinsTestReporter:
                 status = case["status"]
                 err_details = case["errorDetails"]
                 if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
-                    failed_testcases.add(case["className"] + "." + case["name"])
+                    failed_testcases.add(f"{case['className']}.{case['name']}")
         if len(failed_testcases) == 0:
-            LOG.info(
-                "    No failed tests in test Report, check "
-                + job_console_output_url
-                + " for why it was reported failed."
-            )
+            LOG.info(f"No failed tests in test report, check {job_console_output_url} for why it was reported failed.")
             return JobBuildData(build_number, build_url, None, failed_testcases)
         else:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
@@ -393,14 +386,8 @@ class JenkinsTestReporter:
         num = len(failing_build_urls)
         numRunsToExamine = total_no_of_builds
         LOG.info(
-            "    THERE ARE "
-            + str(num)
-            + " builds (out of "
-            + str(total_no_of_builds)
-            + ") that have failed tests in the past "
-            + str(num_prev_days)
-            + " days"
-            + ((".", ", as listed below:\n")[num > 0])
+            f"THERE ARE {num} builds (out of {total_no_of_builds}) that have failed tests "
+            f"in the past {num_prev_days} days."
         )
         # TODO print job URLs here as they are not listed, actually
 
@@ -430,7 +417,7 @@ class JenkinsTestReporter:
 
             if job_data.has_failed_testcases():
                 for ftest in job_data.testcases:
-                    LOG.info(f"    Failed test: {ftest}")
+                    LOG.info(f"Failed test: {ftest}")
                     all_failing[ftest] = all_failing.get(ftest, 0) + 1
 
         return Report(job_datas, all_failing)
