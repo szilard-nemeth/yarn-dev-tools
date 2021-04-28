@@ -239,7 +239,6 @@ class JenkinsTestReporter:
         request_limit = 1
 
         self.report = self.find_flaky_tests(
-            self.config.num_prev_days,
             request_limit,
             self.config.tc_filters,
         )
@@ -373,14 +372,14 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
+    def find_flaky_tests(self, request_limit, tc_filters: List[TestcaseFilter]):
         """ Iterate runs of specified job within num_prev_days and collect results """
         global numRunsToExamine
         # First list all builds
         builds = self.list_builds()
 
         # Select only those in the last N days
-        min_time = int(time.time()) - SECONDS_PER_DAY * num_prev_days
+        min_time = int(time.time()) - SECONDS_PER_DAY * self.config.num_prev_days
         builds = [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
         # Filter out only those that failed
@@ -392,7 +391,7 @@ class JenkinsTestReporter:
         numRunsToExamine = total_no_of_builds
         LOG.info(
             f"THERE ARE {num} builds (out of {total_no_of_builds}) that have failed tests "
-            f"in the past {num_prev_days} days."
+            f"in the past {self.config.num_prev_days} days."
         )
         # TODO print job URLs here as they are not listed, actually
 
