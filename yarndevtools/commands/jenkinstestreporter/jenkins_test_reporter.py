@@ -114,42 +114,32 @@ class JobBuildData:
             return self._str_normal_report()
 
     def _str_empty_report(self):
-        return """
-Build number: {build_number}
-Build URL: {build_url}
-!!REPORT WAS NOT FOUND OR IT IS EMPTY!!
-        """.format(
-            build_number=self.build_number,
-            build_url=self.build_url,
+        return (
+            f"Build number: {self.build_number}"
+            f"Build URL: {self.build_url}"
+            f"!!REPORT WAS NOT FOUND OR IT IS EMPTY!!"
         )
 
     def _str_normal_report(self):
-        filtered_tcs: str = ""
+        filtered_testcases: str = ""
         if self.tc_filters:
             for idx, ftcs in enumerate(self.filtered_testcases):
-                filtered_tcs += f"\nFILTER #{idx + 1}\n{str(ftcs)}\n"
-        if filtered_tcs:
-            filtered_tcs = f"\n{filtered_tcs}\n"
+                filtered_testcases += f"\nFILTER #{idx + 1}\n{str(ftcs)}\n"
+        if filtered_testcases:
+            filtered_testcases = f"\n{filtered_testcases}\n"
 
-        return """Counters:
-{ctr}
-
-Build number: {build_number}
-Build URL: {build_url}
-Matched testcases: {num_matched_tcs}
-Unmatched testcases: {num_unmatched_tcs}
-{filtered_testcases}
-Unmatched testcases:\n{unmatched_testcases}\n
-ALL Failed testcases:\n{testcases}
-        """.format(
-            ctr=self.counters,
-            build_number=self.build_number,
-            build_url=self.build_url,
-            testcases="\n".join(self.testcases),
-            filtered_testcases=filtered_tcs,
-            num_matched_tcs=self.no_of_failed_filtered_tc,
-            num_unmatched_tcs=len(self.unmatched_testcases),
-            unmatched_testcases="\n".join(self.unmatched_testcases),
+        all_failed_testcases = "\n".join(self.testcases)
+        unmatched_testcases = "\n".join(self.unmatched_testcases)
+        return (
+            f"Counters:\n"
+            f"{self.counters}"
+            f"Build number: {self.build_number}\n"
+            f"Build URL: {self.build_url}\n"
+            f"Matched testcases: {self.no_of_failed_filtered_tc}\n"
+            f"Unmatched testcases: {len(self.unmatched_testcases)}\n"
+            f"{filtered_testcases}\n"
+            f"Unmatched testcases:\n{unmatched_testcases}\n"
+            f"ALL Failed testcases:\n{all_failed_testcases}"
         )
 
 
@@ -160,7 +150,7 @@ class JobBuildDataCounters:
         self.skipped = skipped
 
     def __str__(self):
-        return "Failed: {}, Passed: {}, Skipped: {}".format(self.failed, self.passed, self.skipped)
+        return f"Failed: {self.failed}, Passed: {self.passed}, Skipped: {self.skipped}"
 
 
 def configure_logging():
@@ -296,13 +286,11 @@ class JenkinsTestReporter:
         """ List all builds of the target project. """
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        url = "%(jenkins)s/job/%(job_name)s/api/json?tree=builds[url,result,timestamp]" % dict(
-            jenkins=jenkins_url, job_name=job_name
-        )
+        url = f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
         try:
             data = self.load_url_data(url)
         except Exception:
-            LOG.error("Could not fetch: %s" % url)
+            LOG.error(f"Could not fetch: {url}")
             raise
         return data["builds"]
 
@@ -327,18 +315,18 @@ class JenkinsTestReporter:
             return json.load(json_file)
 
     def download_test_report(self, test_report_api_json, target_file_path):
-        LOG.info("Loading test report from URL: %s", test_report_api_json)
+        LOG.info(f"Loading test report from URL: {test_report_api_json}")
         try:
             data = self.load_url_data(test_report_api_json)
         except urllib.error.HTTPError as e:
             if e.code == 404:
-                LOG.error("Test report cannot be found for build URL (HTTP 404): %s", test_report_api_json)
+                LOG.error(f"Test report cannot be found for build URL (HTTP 404): {test_report_api_json}")
                 return {}
             else:
                 raise e
 
         if target_file_path:
-            LOG.info("Saving test report response JSON to cache: %s", target_file_path)
+            LOG.info(f"Saving test report response JSON to cache: {target_file_path}")
             self.write_test_report_to_file(data, target_file_path)
 
         return data
@@ -360,7 +348,7 @@ class JenkinsTestReporter:
         if ENABLE_FILE_CACHE:
             target_file_path = self.get_file_name_for_report(job_name, build_number)
             if os.path.exists(target_file_path):
-                LOG.info("Loading cached test report from file: %s", target_file_path)
+                LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = self.read_test_report_from_file(target_file_path)
             else:
                 data = self.download_test_report(test_report_api_json, target_file_path)
@@ -430,9 +418,9 @@ class JenkinsTestReporter:
             test_report_api_json = test_report + "/api/json"
             test_report_api_json += "?pretty=true"
 
-            ts = float(failed_build_with_time[1]) / 1000.0
-            st = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-            LOG.info("===>%s" % str(test_report) + " (" + st + ")")
+            timestamp = float(failed_build_with_time[1]) / 1000.0
+            st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+            LOG.info(f"===>{test_report} ({st})")
 
             job_data = self.find_failing_tests(
                 test_report_api_json, job_console_output, failed_build, job_name, build_number
@@ -442,14 +430,14 @@ class JenkinsTestReporter:
 
             if job_data.has_failed_testcases():
                 for ftest in job_data.testcases:
-                    LOG.info("    Failed test: %s" % ftest)
+                    LOG.info(f"    Failed test: {ftest}")
                     all_failing[ftest] = all_failing.get(ftest, 0) + 1
 
         return Report(job_datas, all_failing)
 
     def send_mail(self, build_idx):
         email_subject = self._get_email_subject(build_idx, self.report)
-        LOG.info("\nPRINTING REPORT: \n\n%s", self.report_text)
+        LOG.info(f"\nPRINTING REPORT: \n\n{self.report_text}")
         LOG.info("Sending report in email")
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
