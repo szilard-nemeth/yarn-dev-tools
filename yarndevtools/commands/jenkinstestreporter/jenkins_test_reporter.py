@@ -239,7 +239,6 @@ class JenkinsTestReporter:
         request_limit = 1
 
         self.report = self.find_flaky_tests(
-            self.config.job_name,
             self.config.num_prev_days,
             request_limit,
             self.config.tc_filters,
@@ -279,9 +278,9 @@ class JenkinsTestReporter:
         data = simplejson.loads(content, strict=False)
         return data
 
-    def list_builds(self, job_name):
+    def list_builds(self):
         """ List all builds of the target project. """
-        url = self.get_jenkins_list_builds_url(job_name)
+        url = self.get_jenkins_list_builds_url()
         try:
             data = self.load_url_data(url)
         except Exception:
@@ -289,19 +288,18 @@ class JenkinsTestReporter:
             raise
         return data["builds"]
 
-    def get_jenkins_list_builds_url(self, job_name) -> str:
+    def get_jenkins_list_builds_url(self) -> str:
         jenkins_url = self.config.jenkins_url
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        url = f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
+        url = f"{jenkins_url}/job/{self.config.job_name}/api/json?tree=builds[url,result,timestamp]"
         return url
 
-    @staticmethod
-    def get_file_name_for_report(job_name, build_number):
+    def get_file_name_for_report(self, build_number):
         # TODO utilize pythoncommon ProjectUtils to get output dir
         cwd = os.getcwd()
-        job_name = job_name.replace(".", "_")
-        job_dir_path = os.path.join(cwd, "workdir", "reports", job_name)
+        job_filename = self.config.job_name.replace(".", "_")
+        job_dir_path = os.path.join(cwd, "workdir", "reports", job_filename)
         if not os.path.exists(job_dir_path):
             os.makedirs(job_dir_path)
 
@@ -335,10 +333,10 @@ class JenkinsTestReporter:
 
         return data
 
-    def find_failing_tests(self, test_report_api_json, job_console_output, build_url, job_name, build_number):
+    def find_failing_tests(self, test_report_api_json, job_console_output, build_url, build_number):
         """ Find the names of any tests which failed in the given build output URL. """
         try:
-            data = self.gather_report_data_for_build(build_number, job_name, test_report_api_json)
+            data = self.gather_report_data_for_build(build_number, test_report_api_json)
         except Exception:
             traceback.print_exc()
             LOG.error(f"Could not open test report, check {job_console_output} for reason why it was reported failed")
@@ -348,9 +346,9 @@ class JenkinsTestReporter:
 
         return self.parse_job_data(data, build_url, build_number, job_console_output)
 
-    def gather_report_data_for_build(self, build_number, job_name, test_report_api_json):
+    def gather_report_data_for_build(self, build_number, test_report_api_json):
         if ENABLE_FILE_CACHE:
-            target_file_path = self.get_file_name_for_report(job_name, build_number)
+            target_file_path = self.get_file_name_for_report(build_number)
             if os.path.exists(target_file_path):
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = self.read_test_report_from_file(target_file_path)
@@ -375,11 +373,11 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self, job_name, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
+    def find_flaky_tests(self, num_prev_days, request_limit, tc_filters: List[TestcaseFilter]):
         """ Iterate runs of specified job within num_prev_days and collect results """
         global numRunsToExamine
         # First list all builds
-        builds = self.list_builds(job_name)
+        builds = self.list_builds()
 
         # Select only those in the last N days
         min_time = int(time.time()) - SECONDS_PER_DAY * num_prev_days
@@ -416,9 +414,7 @@ class JenkinsTestReporter:
             st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
             LOG.info(f"===>{test_report} ({st})")
 
-            job_data = self.find_failing_tests(
-                test_report_api_json, job_console_output, failed_build, job_name, build_number
-            )
+            job_data = self.find_failing_tests(test_report_api_json, job_console_output, failed_build, build_number)
             job_data.filter_testcases(tc_filters)
             job_datas.append(job_data)
 
