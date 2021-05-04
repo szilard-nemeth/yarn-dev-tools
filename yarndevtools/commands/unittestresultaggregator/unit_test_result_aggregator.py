@@ -15,10 +15,12 @@ from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.result_printer import BasicResultPrinter
 from pythoncommons.string_utils import RegexUtils
 
+
 LOG = logging.getLogger(__name__)
 
 DEFAULT_LINE_SEP = "\\r\\n"
-MATCH_ALL_LINES = ".*"
+REGEX_EVERYTHING = ".*"
+MATCH_ALL_LINES = REGEX_EVERYTHING
 
 
 class OperationMode(Enum):
@@ -50,11 +52,10 @@ class UnitTestResultAggregatorConfig:
         raw_match_expr = args.match_expression if hasattr(args, "match_expression") and args.match_expression else None
         if not raw_match_expr:
             return MATCH_ALL_LINES
-        match_expression = ".*" + raw_match_expr.replace(".", "\\.") + ".*"
+        match_expression = REGEX_EVERYTHING + raw_match_expr.replace(".", "\\.") + REGEX_EVERYTHING
         return match_expression
 
     def _validate_args(self, parser, args):
-        # TODO check existence + readability of secret file!!
         if args.gsheet and (
             args.gsheet_client_secret is None or args.gsheet_spreadsheet is None or args.gsheet_worksheet is None
         ):
@@ -112,16 +113,13 @@ class UnitTestResultAggregator:
 
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
-        # TODO Query mapreduce failures to separate sheet
-        # TODO implement caching of emails in json files
         # TODO Split by [] --> Example: org.apache.hadoop.yarn.util.resource.TestResourceCalculator.testDivisionByZeroRatioNumeratorAndDenominatorIsZero[1]
-        # TODO Add these to postprocess config object (including mimetype filtering)
+
         # TODO this query below produced some errors: Uncomment & try again
         # query = "YARN Daily branch diff report"
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
             query=self.config.gmail_query, limit=self.config.request_limit
         )
-        # TODO write a generator function to GmailThreads that generates List[GmailMessageBodyPart]
         raw_data = self.filter_data_by_regex_pattern(threads)
         self.process_data(raw_data)
 
@@ -140,9 +138,10 @@ class UnitTestResultAggregator:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
                     if not self._check_if_line_is_valid(line, self.config.skip_lines_starting_with):
-                        LOG.warning(f"Skipping line: {line}")
+                        LOG.warning(f"Skipping invalid line: {line}")
                         continue
                     if match_all_lines:
+                        LOG.debug(f"Matched line (match all=True): {line}")
                         matched_lines_of_msg.append(line)
                     elif RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
                         LOG.debug(f"[PATTERN: {self.config.match_expression}] Matched line: {line}")
