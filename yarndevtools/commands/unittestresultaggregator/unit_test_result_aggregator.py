@@ -18,6 +18,7 @@ from pythoncommons.string_utils import RegexUtils
 LOG = logging.getLogger(__name__)
 
 DEFAULT_LINE_SEP = "\\r\\n"
+MATCH_ALL_LINES = ".*"
 
 
 class OperationMode(Enum):
@@ -30,6 +31,7 @@ class UnitTestResultAggregatorConfig:
         self._validate_args(parser, args)
         self.gmail_query = args.gmail_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
+        self.match_expression = self._convert_match_expression(args)
         self.email_content_line_sep = (
             args.email_content_line_separator
             if hasattr(args, "email_content_line_separator") and args.email_content_line_separator
@@ -37,6 +39,13 @@ class UnitTestResultAggregatorConfig:
         )
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
+
+    def _convert_match_expression(self, args):
+        raw_match_expr = args.match_expression if hasattr(args, "match_expression") and args.match_expression else None
+        if not raw_match_expr:
+            return MATCH_ALL_LINES
+        match_expression = ".*" + raw_match_expr.replace(".", "\\.") + ".*"
+        return match_expression
 
     def _validate_args(self, parser, args):
         # TODO check existence + readability of secret file!!
@@ -65,6 +74,9 @@ class UnitTestResultAggregatorConfig:
     def __str__(self):
         return (
             f"Full command was: {self.full_cmd}\n"
+            f"Gmail query: {self.gmail_query}\n"
+            f"Match expression: {self.match_expression}\n"
+            f"Email line separator: {self.email_content_line_sep}\n"
             f"Request limit: {self.request_limit}\n"
             f"Operation mode: {self.operation_mode}\n"
         )
@@ -98,7 +110,6 @@ class UnitTestResultAggregator:
         # TODO implement caching of emails in json files
         # TODO Split by [] --> Example: org.apache.hadoop.yarn.util.resource.TestResourceCalculator.testDivisionByZeroRatioNumeratorAndDenominatorIsZero[1]
         # TODO Add these to postprocess config object (including mimetype filtering)
-        regex = ".*org\\.apache\\.hadoop\\.yarn.*"
         skip_lines_starting_with = ["Failed testcases:", "FILTER:"]
 
         # TODO this query below produced some errors: Uncomment & try again
@@ -107,11 +118,15 @@ class UnitTestResultAggregator:
             query=self.config.gmail_query, limit=self.config.request_limit
         )
         # TODO write a generator function to GmailThreads that generates List[GmailMessageBodyPart]
-        raw_data = self.filter_data_by_regex_pattern(threads, regex, skip_lines_starting_with)
+        raw_data = self.filter_data_by_regex_pattern(threads, skip_lines_starting_with)
         self.process_data(raw_data)
 
-    def filter_data_by_regex_pattern(self, threads, regex, skip_lines_starting_with):
+    def filter_data_by_regex_pattern(self, threads, skip_lines_starting_with):
         matched_lines: List[MatchedLinesFromMessage] = []
+        match_all_lines: bool = self.config.match_expression == MATCH_ALL_LINES
+        LOG.info(
+            "Matching all lines" if match_all_lines else f"Matching lines with regex: {self.config.match_expression}"
+        )
         for message in threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
@@ -123,8 +138,10 @@ class UnitTestResultAggregator:
                     if not self._check_if_line_is_valid(line, skip_lines_starting_with):
                         LOG.warning(f"Skipping line: {line}")
                         continue
-                    if RegexUtils.ensure_matches_pattern(line, regex):
-                        LOG.debug(f"[PATTERN: {regex}] Matched line: {line}")
+                    if match_all_lines:
+                        matched_lines_of_msg.append(line)
+                    elif RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
+                        LOG.debug(f"[PATTERN: {self.config.match_expression}] Matched line: {line}")
                         matched_lines_of_msg.append(line)
 
                 matched_lines.append(

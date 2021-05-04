@@ -405,6 +405,16 @@ class ArgParser:
         )
 
         parser.add_argument(
+            "-m",
+            "--match-expression",
+            required=False,
+            type=str,
+            help="Line matcher expression, this will be converted to a regex. "
+            "For example, if expression is org.apache, the regex will be .*org\\.apache\\.* "
+            "Only lines in the mail content matching for this expression will be considered as a valid line.",
+        )
+
+        parser.add_argument(
             "-l",
             "--request-limit",
             dest="request_limit",
