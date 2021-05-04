@@ -29,6 +29,11 @@ class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
+        self.email_content_line_sep = (
+            args.email_content_line_separator
+            if hasattr(args, "email_content_line_separator") and args.email_content_line_separator
+            else DEFAULT_LINE_SEP
+        )
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
@@ -118,12 +123,12 @@ class UnitTestResultAggregator:
         raw_data = self.filter_data_by_regex_pattern(threads, regex, skip_lines_starting_with)
         self.process_data(raw_data)
 
-    def filter_data_by_regex_pattern(self, threads, regex, skip_lines_starting_with, line_sep=DEFAULT_LINE_SEP):
+    def filter_data_by_regex_pattern(self, threads, regex, skip_lines_starting_with):
         matched_lines: List[MatchedLinesFromMessage] = []
         for message in threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
-                lines = msg_part.body.split(line_sep)
+                lines = msg_part.body.split(self.config.email_content_line_sep)
                 matched_lines_of_msg: List[str] = []
                 for line in lines:
                     line = line.strip()

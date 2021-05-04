@@ -2,6 +2,10 @@ import logging
 import sys
 from enum import Enum
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
+from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
+    UnitTestResultAggregator,
+    DEFAULT_LINE_SEP,
+)
 from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
 
@@ -399,6 +403,8 @@ class ArgParser:
             type=int,
             help="Limit the number of API requests",
         )
+
+        parser.add_argument("--email-content-line-separator", type=str, default=DEFAULT_LINE_SEP)
 
         exclusive_group = parser.add_mutually_exclusive_group(required=True)
         exclusive_group.add_argument(
