@@ -38,19 +38,6 @@ class UnitTestResultAggregatorConfig:
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
-        # TODO
-        # self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
-        # self.jenkins_url = args.jenkins_url
-        # self.job_name = args.job_name
-        # self.num_prev_days = args.num_prev_days
-        # tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
-        # self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
-        # if not self.tc_filters:
-        #     LOG.warning("TESTCASE FILTER IS NOT SET!")
-        #
-        # self.send_mail: bool = not args.skip_mail
-        # self.enable_file_cache: bool = not args.disable_file_cache
-
     def _validate_args(self, parser, args):
         # TODO check existence + readability of secret file!!
         if args.gsheet and (
