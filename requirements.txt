@@ -1,6 +1,7 @@
 gitpython
 humanize
 git+https://github.com/szilard-nemeth/python-commons.git
+git+https://github.com/szilard-nemeth/google-api-wrapper.git
 requests
 bs4
 setuptools~=54.1.2

@@ -14,6 +14,7 @@ from pythoncommons.project_utils import ProjectUtils
 from yarndevtools.commands.branchcomparator.branch_comparator import BranchComparator
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
+from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import UnitTestResultAggregator
 from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
 from yarndevtools.argparser import ArgParser, CommandType
 from yarndevtools.commands.backporter import Backporter
@@ -240,6 +241,10 @@ class YarnDevTools:
         jenkins_test_reporter = JenkinsTestReporter(args, self.jenkins_test_reporter_output_dir)
         jenkins_test_reporter.run()
 
+    def unit_test_result_aggregator(self, args, parser=None):
+        ut_results_aggregator = UnitTestResultAggregator(args, parser, self.jenkins_test_reporter_output_dir)
+        ut_results_aggregator.run()
+
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -249,7 +254,7 @@ if __name__ == "__main__":
     yarn_dev_tools = YarnDevTools()
 
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
-    args = ArgParser.parse_args(yarn_dev_tools)
+    args, parser = ArgParser.parse_args(yarn_dev_tools)
     log_file = Setup.init_logger(
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
@@ -264,7 +269,7 @@ if __name__ == "__main__":
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 
     # Call the handler function
-    args.func(args)
+    args.func(args, parser=parser)
 
     end_time = time.time()
     # TODO make a switch to turn execution time printing on
