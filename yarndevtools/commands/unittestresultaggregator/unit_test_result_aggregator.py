@@ -27,24 +27,10 @@ class OperationMode(Enum):
 
 class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
-        self._validate(parser, args)
-        self.operation_mode = args.operation_mode
-        self.validate_operation_mode()
-        self.operation_mode = args.operation_mode
+        self._validate_args(parser, args)
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
-
-    def validate_operation_mode(self):
-        if self.operation_mode == OperationMode.PRINT:
-            LOG.info("Using operation mode: %s", OperationMode.PRINT)
-        elif self.operation_mode == OperationMode.GSHEET:
-            LOG.info("Using operation mode: %s", OperationMode.GSHEET)
-        else:
-            raise ValueError(
-                "Unknown state! Operation mode should be either "
-                "{} or {} but it is {}".format(OperationMode.PRINT, OperationMode.GSHEET, self.operation_mode)
-            )
 
         # TODO
         # self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
@@ -59,8 +45,7 @@ class UnitTestResultAggregatorConfig:
         # self.send_mail: bool = not args.skip_mail
         # self.enable_file_cache: bool = not args.disable_file_cache
 
-    @staticmethod
-    def _validate(parser, args):
+    def _validate_args(self, parser, args):
         # TODO check existence + readability of secret file!!
         if args.gsheet and (
             args.gsheet_client_secret is None or args.gsheet_spreadsheet is None or args.gsheet_worksheet is None
@@ -71,25 +56,24 @@ class UnitTestResultAggregatorConfig:
             )
 
         if args.do_print:
-            args.operation_mode = OperationMode.PRINT
+            self.operation_mode = OperationMode.PRINT
         elif args.gsheet:
-            args.operation_mode = OperationMode.GSHEET
-            args.gsheet_options = GSheetOptions(
+            self.operation_mode = OperationMode.GSHEET
+            self.gsheet_options = GSheetOptions(
                 args.gsheet_client_secret, args.gsheet_spreadsheet, args.gsheet_worksheet
             )
-        else:
-            LOG.info(f"Unknown operation mode! Current args: {args}")
-        LOG.info(f"Using operation mode: {args.operation_mode}")
-        return args
+        valid_op_modes = [OperationMode.PRINT, OperationMode.GSHEET]
+        if self.operation_mode not in valid_op_modes:
+            raise ValueError(
+                f"Unknown state! "
+                f"Operation mode should be any of {valid_op_modes}, but it is set to: {self.operation_mode}"
+            )
 
     def __str__(self):
         return (
             f"Full command was: {self.full_cmd}\n"
             f"Request limit: {self.request_limit}\n"
-            # TODO
-            # f"Jenkins job name: {self.job_name}\n"
-            # f"Number of days to check: {self.num_prev_days}\n"
-            # f"Testcase filters: {self.tc_filters}\n"
+            f"Operation mode: {self.operation_mode}\n"
         )
 
 
@@ -106,8 +90,8 @@ class UnitTestResultAggregator:
     def __init__(self, args, parser, output_dir):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
-            self.gsheet_wrapper_normal = GSheetWrapper(args.gsheet_options)
-            gsheet_options = copy.copy(args.gsheet_options)
+            self.gsheet_wrapper_normal = GSheetWrapper(self.config.gsheet_options)
+            gsheet_options = copy.copy(self.config.gsheet_options)
             gsheet_options.worksheet = gsheet_options.worksheet + "_aggregated"
             self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
 
