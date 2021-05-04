@@ -387,6 +387,14 @@ class ArgParser:
         ArgParser.add_gsheet_arguments(parser)
 
         parser.add_argument(
+            "-q",
+            "--gmail-query",
+            required=True,
+            type=str,
+            help="Gmail query string that will be used to get emails to parse.",
+        )
+
+        parser.add_argument(
             "-v",
             "--verbose",
             action="store_true",

@@ -28,6 +28,7 @@ class OperationMode(Enum):
 class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
+        self.gmail_query = args.gmail_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
         self.email_content_line_sep = (
             args.email_content_line_separator
@@ -105,11 +106,10 @@ class UnitTestResultAggregator:
         self.gmail_wrapper = GmailWrapper(self.authorizer)
 
     def run(self):
-        LOG.info("Starting Unit test result aggregator. " "Config: \n" f"{str(self.config)}")
+        LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         # TODO Query mapreduce failures to separate sheet
         # TODO implement caching of emails in json files
         # TODO Split by [] --> Example: org.apache.hadoop.yarn.util.resource.TestResourceCalculator.testDivisionByZeroRatioNumeratorAndDenominatorIsZero[1]
-        query = 'subject:"YARN Daily unit test report"'
         # TODO Add these to postprocess config object (including mimetype filtering)
         regex = ".*org\\.apache\\.hadoop\\.yarn.*"
         skip_lines_starting_with = ["Failed testcases:", "FILTER:"]
@@ -117,7 +117,7 @@ class UnitTestResultAggregator:
         # TODO this query below produced some errors: Uncomment & try again
         # query = "YARN Daily branch diff report"
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
-            query=query, limit=self.config.request_limit
+            query=self.config.gmail_query, limit=self.config.request_limit
         )
         # TODO write a generator function to GmailThreads that generates List[GmailMessageBodyPart]
         raw_data = self.filter_data_by_regex_pattern(threads, regex, skip_lines_starting_with)
