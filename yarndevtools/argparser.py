@@ -415,6 +415,15 @@ class ArgParser:
         )
 
         parser.add_argument(
+            "-s",
+            "--skip-lines-starting-with",
+            required=False,
+            type=str,
+            nargs="+",
+            help="If lines starting with these strings, they will not be considered as a line to parse",
+        )
+
+        parser.add_argument(
             "-l",
             "--request-limit",
             dest="request_limit",
