@@ -392,6 +392,14 @@ class ArgParser:
             help="More verbose log",
         )
 
+        parser.add_argument(
+            "-l",
+            "--request-limit",
+            dest="request_limit",
+            type=int,
+            help="Limit the number of API requests",
+        )
+
         exclusive_group = parser.add_mutually_exclusive_group(required=True)
         exclusive_group.add_argument(
             "-p", "--print", action="store_true", dest="do_print", help="Print results to console", required=False

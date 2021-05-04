@@ -18,8 +18,6 @@ from pythoncommons.string_utils import RegexUtils
 LOG = logging.getLogger(__name__)
 
 DEFAULT_LINE_SEP = "\\r\\n"
-# REQ_LIMIT = 1000
-REQ_LIMIT = 1
 
 
 class OperationMode(Enum):
@@ -33,6 +31,7 @@ class UnitTestResultAggregatorConfig:
         self.operation_mode = args.operation_mode
         self.validate_operation_mode()
         self.operation_mode = args.operation_mode
+        self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
@@ -48,7 +47,6 @@ class UnitTestResultAggregatorConfig:
             )
 
         # TODO
-        # self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         # self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         # self.jenkins_url = args.jenkins_url
         # self.job_name = args.job_name
@@ -87,8 +85,8 @@ class UnitTestResultAggregatorConfig:
     def __str__(self):
         return (
             f"Full command was: {self.full_cmd}\n"
+            f"Request limit: {self.request_limit}\n"
             # TODO
-            # f"Jenkins URL: {self.jenkins_url}\n"
             # f"Jenkins job name: {self.job_name}\n"
             # f"Number of days to check: {self.num_prev_days}\n"
             # f"Testcase filters: {self.tc_filters}\n"
@@ -129,7 +127,9 @@ class UnitTestResultAggregator:
 
         # TODO this query below produced some errors: Uncomment & try again
         # query = "YARN Daily branch diff report"
-        threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(query=query, limit=REQ_LIMIT)
+        threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
+            query=query, limit=self.config.request_limit
+        )
         # TODO write a generator function to GmailThreads that generates List[GmailMessageBodyPart]
         raw_data = self.filter_data_by_regex_pattern(threads, regex, skip_lines_starting_with)
         self.process_data(raw_data)
