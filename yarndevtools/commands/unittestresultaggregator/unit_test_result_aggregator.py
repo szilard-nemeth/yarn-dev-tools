@@ -15,6 +15,7 @@ from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.result_printer import BasicResultPrinter
 from pythoncommons.string_utils import RegexUtils
 
+from yarndevtools.common.shared_command_utils import TOKEN_PICKLE_DIR
 
 LOG = logging.getLogger(__name__)
 
@@ -33,6 +34,11 @@ class UnitTestResultAggregatorConfig:
         self._validate_args(parser, args)
         self.gmail_query = args.gmail_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
+        self.gmail_credentials_file = (
+            args.gmail_credentials_file
+            if hasattr(args, "gmail_credentials_file") and args.gmail_credentials_file
+            else None
+        )
         self.match_expression = self._convert_match_expression(args)
         self.skip_lines_starting_with: List[str] = (
             args.skip_lines_starting_with
@@ -44,7 +50,8 @@ class UnitTestResultAggregatorConfig:
             if hasattr(args, "email_content_line_separator") and args.email_content_line_separator
             else DEFAULT_LINE_SEP
         )
-        self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
+        self.output_dir = output_dir
+        self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
     @staticmethod
@@ -77,6 +84,8 @@ class UnitTestResultAggregatorConfig:
                 f"Unknown state! "
                 f"Operation mode should be any of {valid_op_modes}, but it is set to: {self.operation_mode}"
             )
+        if hasattr(args, "gmail_credentials_file"):
+            FileUtils.ensure_file_exists(args.gmail_credentials_file)
 
     def __str__(self):
         return (
@@ -107,8 +116,12 @@ class UnitTestResultAggregator:
             gsheet_options.worksheet = gsheet_options.worksheet + "_aggregated"
             self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
 
-        # TODO pass argument: credentials_filename
-        self.authorizer = GoogleApiAuthorizer(ServiceType.GMAIL)
+        kwargs_authorizer = {
+            "token_file_path": FileUtils.join_path(TOKEN_PICKLE_DIR, "token-unittest-result-aggregator.pickle")
+        }
+        if self.config.gmail_credentials_file:
+            kwargs_authorizer["credentials_file_path"] = self.config.gmail_credentials_file
+        self.authorizer = GoogleApiAuthorizer(ServiceType.GMAIL, **kwargs_authorizer)
         self.gmail_wrapper = GmailWrapper(self.authorizer)
 
     def run(self):

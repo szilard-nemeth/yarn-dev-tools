@@ -373,8 +373,6 @@ class ArgParser:
 
     @staticmethod
     def add_test_result_aggregator(subparsers, yarn_dev_tools):
-        """This function parses and return arguments passed in"""
-
         parser = subparsers.add_parser(
             CommandType.UNIT_TEST_RESULT_AGGREGATOR.val,
             help="Aggregates unit test results from a gmail account."
@@ -385,6 +383,12 @@ class ArgParser:
             "--gsheet-worksheet 'Failed testcases'",
         )
         ArgParser.add_gsheet_arguments(parser)
+
+        parser.add_argument(
+            "--gmail-credentials-file",
+            type=str,
+            help="Path to a credentials JSON file that will be used to Gmail API auth",
+        )
 
         parser.add_argument(
             "-q",
