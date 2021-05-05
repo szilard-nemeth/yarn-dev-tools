@@ -16,6 +16,7 @@ from pythoncommons.result_printer import BasicResultPrinter
 from pythoncommons.string_utils import RegexUtils
 
 from yarndevtools.common.shared_command_utils import TOKEN_PICKLE_DIR
+from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR
 
 LOG = logging.getLogger(__name__)
 
@@ -51,6 +52,7 @@ class UnitTestResultAggregatorConfig:
             else DEFAULT_LINE_SEP
         )
         self.output_dir = output_dir
+        self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
@@ -108,7 +110,7 @@ class MatchedLinesFromMessage:
 
 
 class UnitTestResultAggregator:
-    def __init__(self, args, parser, output_dir):
+    def __init__(self, args, parser, output_dir: str):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
             self.gsheet_wrapper_normal = GSheetWrapper(self.config.gsheet_options)
@@ -117,12 +119,13 @@ class UnitTestResultAggregator:
             self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
 
         kwargs_authorizer = {
-            "token_file_path": FileUtils.join_path(TOKEN_PICKLE_DIR, "token-unittest-result-aggregator.pickle")
+            "token_file_path": FileUtils.join_path(TOKEN_PICKLE_DIR, f"token-{UNIT_TEST_RESULT_AGGREGATOR}.pickle"),
+            "project": UNIT_TEST_RESULT_AGGREGATOR,
         }
         if self.config.gmail_credentials_file:
             kwargs_authorizer["credentials_file_path"] = self.config.gmail_credentials_file
         self.authorizer = GoogleApiAuthorizer(ServiceType.GMAIL, **kwargs_authorizer)
-        self.gmail_wrapper = GmailWrapper(self.authorizer)
+        self.gmail_wrapper = GmailWrapper(self.authorizer, output_basedir=self.config.email_cache_dir)
 
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
