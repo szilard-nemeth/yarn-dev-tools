@@ -42,6 +42,7 @@ from yarndevtools.constants import (
     BRANCH_COMPARATOR,
     ExecutionMode,
     JENKINS_TEST_REPORTER,
+    UNIT_TEST_RESULT_AGGREGATOR,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -128,6 +129,10 @@ class YarnDevTools:
     @property
     def jenkins_test_reporter_output_dir(self):
         return ProjectUtils.get_output_child_dir(JENKINS_TEST_REPORTER)
+
+    @property
+    def unit_test_result_aggregator_output_dir(self):
+        return ProjectUtils.get_output_child_dir(UNIT_TEST_RESULT_AGGREGATOR)
 
     def ensure_required_env_vars_are_present(self):
         upstream_hadoop_dir = OsUtils.get_env_value(ENV_HADOOP_DEV_DIR, None)
@@ -242,7 +247,7 @@ class YarnDevTools:
         jenkins_test_reporter.run()
 
     def unit_test_result_aggregator(self, args, parser=None):
-        ut_results_aggregator = UnitTestResultAggregator(args, parser, self.jenkins_test_reporter_output_dir)
+        ut_results_aggregator = UnitTestResultAggregator(args, parser, self.unit_test_result_aggregator_output_dir)
         ut_results_aggregator.run()
 
 
