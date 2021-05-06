@@ -63,7 +63,7 @@ class CdswSetup:
         return os.environ[PYPATH]
 
     @staticmethod
-    def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[CdswEnvVar] = None):
+    def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         LOG.info(f"Python version info: {sys.version}")
         CdswSetup.setup_logging()
         if not env_var_dict:
