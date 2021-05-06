@@ -65,7 +65,7 @@ class CdswRunner(CdswRunnerBase):
     ):
         if skip_lines_starting_with is None:
             skip_lines_starting_with = DEFAULT_SKIP_LINES_STARTING_WITH
-        if exec_mode != "print" or exec_mode != "gsheet":
+        if exec_mode != "print" and exec_mode != "gsheet":
             raise ValueError(f"Invalid execution mode detected. Valid execution modes are: {['print', 'gsheet']}")
 
         skip_lines_starting_with_val = " ".join(skip_lines_starting_with)
