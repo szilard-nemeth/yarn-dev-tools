@@ -90,13 +90,13 @@ class CdswSetup:
         return basedir
 
     @staticmethod
-    def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[CdswEnvVar] = None):
+    def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         for k, v in env_var_dict.items():
             LOG.info(f"Setting env var. {k}={v}")
             os.environ[k] = v
 
         for env_var in mandatory_env_vars:
-            if env_var.value not in os.environ:
+            if env_var not in os.environ:
                 raise ValueError(f"{env_var} is not set. Please set it to a valid value!")
 
 
