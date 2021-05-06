@@ -4,7 +4,7 @@ from os.path import expanduser
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
 
-SECRET_DIR = FileUtils.join_path(expanduser("~"), ".secret", "hadoop-reviewsync-snemeth-cloudera")
+SECRET_DIR = FileUtils.join_path(expanduser("~"), ".secret", "unit-test-result-aggregator-jenkinstestreporter-cloudera")
 TOKEN_PICKLE_DIR = FileUtils.join_path(SECRET_DIR, "tokenpickles")
 
 

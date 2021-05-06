@@ -134,7 +134,7 @@ class UnitTestResultAggregator:
         # TODO this query below produced some errors: Uncomment & try again
         # query = "YARN Daily branch diff report"
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
-            query=self.config.gmail_query, limit=self.config.request_limit
+            query=self.config.gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=False
         )
         raw_data = self.filter_data_by_regex_pattern(threads)
         self.process_data(raw_data)
