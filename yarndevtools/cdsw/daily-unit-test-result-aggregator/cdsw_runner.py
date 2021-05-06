@@ -68,12 +68,11 @@ class CdswRunner(CdswRunnerBase):
         if exec_mode != "print" and exec_mode != "gsheet":
             raise ValueError(f"Invalid execution mode detected. Valid execution modes are: {['print', 'gsheet']}")
 
+        debug = "--debug" if debug else ""
         skip_lines_starting_with_val = " ".join(skip_lines_starting_with)
         LOG.info(f"Locals: {locals()}")
         self.execute_yarndevtools_script(
-            "--debug"
-            if debug
-            else ""
+            f"{debug} "
             f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.val} "
             f"--{exec_mode} "
             f"--gsheet-client-secret {gsheet_client_secret} "
