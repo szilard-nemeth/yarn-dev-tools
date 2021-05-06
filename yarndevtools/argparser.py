@@ -3,7 +3,6 @@ import sys
 from enum import Enum
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
-    UnitTestResultAggregator,
     DEFAULT_LINE_SEP,
 )
 from yarndevtools.common.shared_command_utils import RepoType
@@ -385,9 +384,10 @@ class ArgParser:
         ArgParser.add_gsheet_arguments(parser)
 
         parser.add_argument(
-            "--gmail-credentials-file",
+            "--account-email",
+            required=True,
             type=str,
-            help="Path to a credentials JSON file that will be used to Gmail API auth",
+            help="Email address of Gmail account that will be used to Gmail API authentication and fetchin data.",
         )
 
         parser.add_argument(

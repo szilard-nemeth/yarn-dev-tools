@@ -15,7 +15,7 @@ from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.result_printer import BasicResultPrinter
 from pythoncommons.string_utils import RegexUtils
 
-from yarndevtools.common.shared_command_utils import TOKEN_PICKLE_DIR
+from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR
 
 LOG = logging.getLogger(__name__)
@@ -35,11 +35,7 @@ class UnitTestResultAggregatorConfig:
         self._validate_args(parser, args)
         self.gmail_query = args.gmail_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
-        self.gmail_credentials_file = (
-            args.gmail_credentials_file
-            if hasattr(args, "gmail_credentials_file") and args.gmail_credentials_file
-            else None
-        )
+        self.account_email: str = args.account_email
         self.match_expression = self._convert_match_expression(args)
         self.skip_lines_starting_with: List[str] = (
             args.skip_lines_starting_with
@@ -117,14 +113,12 @@ class UnitTestResultAggregator:
             gsheet_options = copy.copy(self.config.gsheet_options)
             gsheet_options.worksheet = gsheet_options.worksheet + "_aggregated"
             self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
-
-        kwargs_authorizer = {
-            "token_file_path": FileUtils.join_path(TOKEN_PICKLE_DIR, f"token-{UNIT_TEST_RESULT_AGGREGATOR}.pickle"),
-            "project": UNIT_TEST_RESULT_AGGREGATOR,
-        }
-        if self.config.gmail_credentials_file:
-            kwargs_authorizer["credentials_file_path"] = self.config.gmail_credentials_file
-        self.authorizer = GoogleApiAuthorizer(ServiceType.GMAIL, **kwargs_authorizer)
+        self.authorizer = GoogleApiAuthorizer(
+            ServiceType.GMAIL,
+            project_name=f"{UNIT_TEST_RESULT_AGGREGATOR}",
+            secret_basedir=SECRET_PROJECTS_DIR,
+            account_email=self.config.account_email,
+        )
         self.gmail_wrapper = GmailWrapper(self.authorizer, output_basedir=self.config.email_cache_dir)
 
     def run(self):
