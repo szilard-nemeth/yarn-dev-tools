@@ -62,6 +62,7 @@ class CdswRunner(CdswRunnerBase):
         gmail_query=DEFAULT_GMAIL_QUERY,
         skip_lines_starting_with=None,
         debug=True,
+        smart_subject_query=True,
     ):
         if skip_lines_starting_with is None:
             skip_lines_starting_with = DEFAULT_SKIP_LINES_STARTING_WITH
@@ -69,6 +70,7 @@ class CdswRunner(CdswRunnerBase):
             raise ValueError(f"Invalid execution mode detected. Valid execution modes are: {['print', 'gsheet']}")
 
         debug = "--debug" if debug else ""
+        smart_subject_query = "--smart-subject-query" if smart_subject_query else ""
         skip_lines_starting_with_val = " ".join(skip_lines_starting_with)
         LOG.info(f"Locals: {locals()}")
         self.execute_yarndevtools_script(
@@ -82,7 +84,8 @@ class CdswRunner(CdswRunnerBase):
             f"--request-limit {request_limit} "
             f"--gmail-query {gmail_query} "
             f"--match-expression {match_expression} "
-            f"--skip-lines-starting-with {skip_lines_starting_with_val}"
+            f"--skip-lines-starting-with {skip_lines_starting_with_val} "
+            f"{smart_subject_query} "
         )
 
 
