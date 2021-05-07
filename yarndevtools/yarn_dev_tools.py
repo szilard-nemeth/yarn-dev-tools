@@ -153,15 +153,15 @@ class YarnDevTools:
         self.downstream_repo = GitWrapper(self.env[LOADED_ENV_DOWNSTREAM_DIR])
         self.upstream_repo = GitWrapper(self.env[LOADED_ENV_UPSTREAM_DIR])
 
-    def save_patch(self, args):
+    def save_patch(self, args, parser=None):
         patch_saver = PatchSaver(args, self.upstream_repo, self.yarn_patch_dir, DEFAULT_BASE_BRANCH)
         return patch_saver.run()
 
-    def create_review_branch(self, args):
+    def create_review_branch(self, args, parser=None):
         review_branch_creator = ReviewBranchCreator(args, self.upstream_repo, DEFAULT_BASE_BRANCH, ORIGIN_TRUNK)
         review_branch_creator.run()
 
-    def backport_c6(self, args):
+    def backport_c6(self, args, parser=None):
         mvn_cmd = "mvn clean install -Pdist -DskipTests -Pnoshade  -Dmaven.javadoc.skip=true"
         build_cmd = (
             "!! Remember to build project to verify the backported commit compiles !!"
@@ -185,16 +185,16 @@ class YarnDevTools:
         )
         backporter.run()
 
-    def upstream_pr_fetch(self, args):
+    def upstream_pr_fetch(self, args, parser=None):
         remote_repo_url = HADOOP_REPO_TEMPLATE.format(user=args.github_username)
         upstream_pr_fetcher = UpstreamPRFetcher(args, remote_repo_url, self.upstream_repo, DEFAULT_BASE_BRANCH)
         upstream_pr_fetcher.run()
 
-    def save_patches(self, args):
+    def save_patches(self, args, parser=None):
         format_patch_saver = FormatPatchSaver(args, os.getcwd(), DateUtils.get_current_datetime())
         format_patch_saver.run()
 
-    def diff_patches_of_jira(self, args):
+    def diff_patches_of_jira(self, args, parser=None):
         """
         THIS SCRIPT ASSUMES EACH PROVIDED BRANCH WITH PARAMETERS (e.g. trunk, 3.2, 3.1) has the given commit committed
         Example workflow:
@@ -213,7 +213,7 @@ class YarnDevTools:
         patch_differ = UpstreamJiraPatchDiffer(args, self.upstream_repo, self.jira_patch_differ_dir)
         patch_differ.run()
 
-    def fetch_jira_umbrella_data(self, args):
+    def fetch_jira_umbrella_data(self, args, parser=None):
         jira_umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
             args, self.upstream_repo, self.downstream_repo, self.jira_umbrella_data_dir, DEFAULT_BASE_BRANCH
         )
@@ -224,7 +224,7 @@ class YarnDevTools:
         )
         jira_umbrella_fetcher.run()
 
-    def branch_comparator(self, args):
+    def branch_comparator(self, args, parser=None):
         branch_comparator = BranchComparator(
             args, self.downstream_repo, self.upstream_repo, self.branch_comparator_output_dir
         )
@@ -233,16 +233,16 @@ class YarnDevTools:
         )
         branch_comparator.run()
 
-    def zip_latest_command_results(self, args):
+    def zip_latest_command_results(self, args, parser=None):
         zip_latest_cmd_data = ZipLatestCommandData(args, yarn_dev_tools.project_out_root)
         zip_latest_cmd_data.run()
 
-    def send_latest_command_results(self, args):
+    def send_latest_command_results(self, args, parser=None):
         file_to_send = FileUtils.join_path(yarn_dev_tools.project_out_root, LATEST_DATA_ZIP_LINK_NAME)
         send_latest_cmd_data = SendLatestCommandDataInEmail(args, file_to_send)
         send_latest_cmd_data.run()
 
-    def fetch_send_jenkins_test_report(self, args):
+    def fetch_send_jenkins_test_report(self, args, parser=None):
         jenkins_test_reporter = JenkinsTestReporter(args, self.jenkins_test_reporter_output_dir)
         jenkins_test_reporter.run()
 
