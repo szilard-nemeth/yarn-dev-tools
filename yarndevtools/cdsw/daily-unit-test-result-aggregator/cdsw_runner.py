@@ -14,7 +14,7 @@ from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 
-DEFAULT_GMAIL_QUERY = 'subject:\\"YARN Daily unit test report\\"'
+DEFAULT_GMAIL_QUERY = 'subject:"YARN Daily unit test report"'
 DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "FILTER:"]
 
 
