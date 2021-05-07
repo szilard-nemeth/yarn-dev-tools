@@ -103,9 +103,9 @@ class JobBuildData:
 
     def _str_empty_report(self):
         return (
-            f"Build number: {self.build_number}"
-            f"Build URL: {self.build_url}"
-            f"!!REPORT WAS NOT FOUND OR IT IS EMPTY!!"
+            f"Build number: {self.build_number}\n"
+            f"Build URL: {self.build_url}\n"
+            f"!!REPORT WAS NOT FOUND OR IT IS EMPTY!!\n"
         )
 
     def _str_normal_report(self):
