@@ -18,6 +18,8 @@ from pythoncommons.string_utils import RegexUtils
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR
 
+SUBJECT = "subject:"
+
 LOG = logging.getLogger(__name__)
 
 DEFAULT_LINE_SEP = "\\r\\n"
@@ -34,6 +36,7 @@ class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
         self.gmail_query = args.gmail_query
+        self.smart_subject_query = args.smart_subject_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
         self.account_email: str = args.account_email
         self.match_expression = self._convert_match_expression(args)
@@ -89,10 +92,12 @@ class UnitTestResultAggregatorConfig:
         return (
             f"Full command was: {self.full_cmd}\n"
             f"Gmail query: {self.gmail_query}\n"
+            f"Smart subject query: {self.smart_subject_query}\n"
             f"Match expression: {self.match_expression}\n"
             f"Email line separator: {self.email_content_line_sep}\n"
             f"Request limit: {self.request_limit}\n"
             f"Operation mode: {self.operation_mode}\n"
+            f"Skip lines starting with: {self.skip_lines_starting_with}\n"
         )
 
 
@@ -125,10 +130,13 @@ class UnitTestResultAggregator:
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         # TODO Split by [] --> Example: org.apache.hadoop.yarn.util.resource.TestResourceCalculator.testDivisionByZeroRatioNumeratorAndDenominatorIsZero[1]
 
-        # TODO this query below produced some errors: Uncomment & try again
+        # TODO These queries below produced some errors: Uncomment & try again
         # query = "YARN Daily branch diff report"
+        # query = "subject: YARN Daily branch diff report"
+
+        gmail_query: str = self._get_gmail_query()
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
-            query=self.config.gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=False
+            query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=False
         )
         raw_data = self.filter_data_by_regex_pattern(threads)
         self.process_data(raw_data)
@@ -196,6 +204,24 @@ class UnitTestResultAggregator:
 
     def update_gsheet_aggregated(self, header, data):
         self.gsheet_wrapper_aggregated.write_data(header, data, clear_range=False)
+
+    def _get_gmail_query(self):
+        orig_query = self.config.gmail_query
+        if self.config.smart_subject_query and orig_query.startswith(SUBJECT):
+            after_subject = orig_query.split(SUBJECT)[1]
+            matches = [" and ", " or "]
+            if any(x in after_subject.lower() for x in matches):
+                LOG.warning(f"Detected logical expression in query, won't modify original query: {orig_query}")
+                return orig_query
+            if " " in after_subject and after_subject[0] != '"':
+                fixed_subject = f'"{after_subject}"'
+                new_query = SUBJECT + fixed_subject
+                LOG.info(
+                    f"Fixed gmail query string.\n"
+                    f"Original query string: {orig_query}\n"
+                    f"New query string: {new_query}"
+                )
+                return new_query
 
 
 class DataConverter:

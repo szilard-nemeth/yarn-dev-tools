@@ -399,6 +399,14 @@ class ArgParser:
         )
 
         parser.add_argument(
+            "--smart-subject-query",
+            action="store_true",
+            default=False,
+            help="Whether to fix Gmail queries like: 'Subject: YARN Daily unit test report', "
+            "where the subject should have been between quotes.",
+        )
+
+        parser.add_argument(
             "-v",
             "--verbose",
             action="store_true",
