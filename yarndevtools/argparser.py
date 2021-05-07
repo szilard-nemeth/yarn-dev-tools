@@ -30,7 +30,7 @@ class CommandType(Enum):
     ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
     JENKINS_TEST_REPORTER = ("jenkins_test_reporter", False)
-    UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True)
+    UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
 
     def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
         self.val = value

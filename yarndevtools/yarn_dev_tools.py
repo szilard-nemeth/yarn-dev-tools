@@ -248,6 +248,11 @@ class YarnDevTools:
 
     def unit_test_result_aggregator(self, args, parser=None):
         ut_results_aggregator = UnitTestResultAggregator(args, parser, self.unit_test_result_aggregator_output_dir)
+        FileUtils.create_symlink_path_dir(
+            CommandType.UNIT_TEST_RESULT_AGGREGATOR.session_link_name,
+            ut_results_aggregator.config.output_dir,
+            self.project_out_root,
+        )
         ut_results_aggregator.run()
 
 
