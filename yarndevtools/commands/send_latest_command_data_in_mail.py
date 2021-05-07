@@ -26,7 +26,7 @@ class SendLatestCommandDataInEmail:
         self.config = SendLatestCommandDataInEmailConfig(args, attachment_file)
 
     def run(self):
-        LOG.info("Starting sending latest command data in email.\n" f"Config: {str(self.config)}")
+        LOG.info(f"Starting sending latest command data in email.\n Config: {str(self.config)}")
 
         zip_extract_dest = FileUtils.join_path(os.sep, "tmp", "extracted_zip")
         ZipFileUtils.extract_zip_file(self.config.email.attachment_file, zip_extract_dest)
