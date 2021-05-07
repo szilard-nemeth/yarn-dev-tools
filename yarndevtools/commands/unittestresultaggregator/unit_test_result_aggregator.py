@@ -136,7 +136,7 @@ class UnitTestResultAggregator:
 
         gmail_query: str = self._get_gmail_query()
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
-            query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=False
+            query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
         raw_data = self.filter_data_by_regex_pattern(threads)
         self.process_data(raw_data)
