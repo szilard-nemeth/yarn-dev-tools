@@ -129,11 +129,6 @@ class UnitTestResultAggregator:
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         # TODO Split by [] --> Example: org.apache.hadoop.yarn.util.resource.TestResourceCalculator.testDivisionByZeroRatioNumeratorAndDenominatorIsZero[1]
-
-        # TODO These queries below produced some errors: Uncomment & try again
-        # query = "YARN Daily branch diff report"
-        # query = "subject: YARN Daily branch diff report"
-
         gmail_query: str = self._get_gmail_query()
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
