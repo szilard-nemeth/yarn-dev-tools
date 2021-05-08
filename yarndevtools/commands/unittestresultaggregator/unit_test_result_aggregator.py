@@ -6,7 +6,7 @@ from enum import Enum
 from typing import List, Dict
 
 from googleapiwrapper.common import ServiceType
-from googleapiwrapper.gmail_api import GmailWrapper, GmailThreads
+from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetOptions, GSheetWrapper
 from pythoncommons.file_utils import FileUtils
@@ -133,18 +133,24 @@ class UnitTestResultAggregator:
             account_email=self.config.account_email,
         )
         self.gmail_wrapper = GmailWrapper(self.authorizer, output_basedir=self.config.email_cache_dir)
+        self.output_manager = UnitTestResultOutputManager(self.config.session_dir, self.config.console_mode)
 
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         # TODO Split by [] --> Example: org.apache.hadoop.yarn.util.resource.TestResourceCalculator.testDivisionByZeroRatioNumeratorAndDenominatorIsZero[1]
         gmail_query: str = self._get_gmail_query()
-        threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
+        query_result: ThreadQueryResults = self.gmail_wrapper.query_threads(
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
-        match_objects: List[MatchedLinesFromMessage] = self.filter_data_by_regex_pattern(threads)
+        LOG.info(f"Received thread query result: {query_result}")
+        converted_subjects_and_ids = [f"Subject: '{tup[0]}', 'ID': {tup[1]}" for tup in query_result.subjects_and_ids]
+        self.output_manager.write_to_file_or_console("\n".join(converted_subjects_and_ids), "found mail subjects")
+        self.output_manager.write_to_file_or_console("\n".join(query_result.unique_subjects), "unique subjects")
+
+        match_objects: List[MatchedLinesFromMessage] = self.filter_data_by_regex_pattern(query_result)
         self.process_data(match_objects)
 
-    def filter_data_by_regex_pattern(self, threads) -> List[MatchedLinesFromMessage]:
+    def filter_data_by_regex_pattern(self, query_result: ThreadQueryResults) -> List[MatchedLinesFromMessage]:
         matched_lines_from_message_objs: List[MatchedLinesFromMessage] = []
         match_all_lines: bool = self.config.match_expression == MATCH_ALL_LINES
         LOG.info(
@@ -152,7 +158,7 @@ class UnitTestResultAggregator:
             if match_all_lines
             else f"**Matching lines with regex pattern: {self.config.match_expression}"
         )
-        for message in threads.messages:
+        for message in query_result.threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
@@ -193,8 +199,7 @@ class UnitTestResultAggregator:
             aggregated_match_result_rows,
             table_config,
         )
-        output_manager = UnitTestResultOutputManager(self.config.session_dir, self.config.console_mode)
-        output_manager.print_and_save_summary(rendered_summary)
+        self.output_manager.print_and_save_summary(rendered_summary)
 
         if self.config.operation_mode == OperationMode.GSHEET:
             LOG.info("Updating Google sheet with data...")
@@ -373,7 +378,7 @@ class UnitTestResultOutputManager:
         self.output_dir = output_dir
         self.console_mode = console_mode
 
-    def _write_to_file_or_console(self, contents, output_type, add_sep_to_end=False):
+    def write_to_file_or_console(self, contents, output_type, add_sep_to_end=False):
         if self.console_mode:
             LOG.info(f"Printing {output_type}: {contents}")
         else:
