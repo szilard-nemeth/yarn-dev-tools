@@ -10,6 +10,7 @@ from pythoncommons.result_printer import (
     TabulateTableFormat,
     ResultPrinter,
     DEFAULT_TABLE_FORMATS,
+    GenericTableWithHeader,
 )
 from pythoncommons.string_utils import StringUtils
 
@@ -28,27 +29,16 @@ HEADER_NO_OF_LINES = "# of lines"
 HEADER_COMMITTER = "Committer"
 
 
-class TableWithHeader:
+class TableWithHeader(GenericTableWithHeader):
     def __init__(
         self, header_title, table: str, table_fmt: TabulateTableFormat, colorized: bool = False, branch: str = None
     ):
-        self.header = (
-            StringUtils.generate_header_line(
-                header_title, char="═", length=len(StringUtils.get_first_line_of_multiline_str(table))
-            )
-            + "\n"
-        )
-        self.table = table
-        self.table_fmt: TabulateTableFormat = table_fmt
-        self.colorized = colorized
+        super().__init__(header_title, table, table_fmt, colorized)
         self.branch = branch
 
     @property
     def is_branch_based(self):
         return self.branch is not None
-
-    def __str__(self):
-        return self.header + self.table
 
 
 class TableType(Enum):
