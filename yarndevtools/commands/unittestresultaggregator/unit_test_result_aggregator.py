@@ -35,6 +35,7 @@ class OperationMode(Enum):
 class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
+        self.console_mode = True if "console_mode" in args and args.console_mode else False
         self.gmail_query = args.gmail_query
         self.smart_subject_query = args.smart_subject_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
