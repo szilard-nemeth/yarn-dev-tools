@@ -150,7 +150,7 @@ class UnitTestResultAggregator:
         for message in threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
-                lines = msg_part.body.split(self.config.email_content_line_sep)
+                lines = msg_part.body_data.split(self.config.email_content_line_sep)
                 matched_lines_of_msg: List[str] = []
                 for line in lines:
                     line = line.strip()
