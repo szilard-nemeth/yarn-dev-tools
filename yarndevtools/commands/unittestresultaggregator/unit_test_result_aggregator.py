@@ -222,6 +222,7 @@ class UnitTestResultAggregator:
                     f"New query string: {new_query}"
                 )
                 return new_query
+        return orig_query
 
 
 class DataConverter:
