@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict
 
-from bs4 import BeautifulSoup
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.html_utils import HtmlGenerator
 from pythoncommons.logging_utils import LoggerFactory
 from pythoncommons.result_printer import (
     TabulateTableFormat,
@@ -253,19 +253,20 @@ class RenderedSummaryAbs(ABC):
             printable_summary_str += "\n\n"
         return printable_summary_str
 
-    def generate_summary_html(self, html_tables, separator_tag="hr", add_breaks=2) -> str:
-        html_sep = f"<{separator_tag}/>"
-        html_sep += add_breaks * "<br/>"
-        tables_html: str = html_sep
-        tables_html += html_sep.join([f"<h1>{h.header}</h1>" + h.table for h in html_tables])
+    def generate_summary_html(self, html_tables) -> str:
+        table_tuples = [(h.header, h.table) for h in html_tables]
 
-        soup = BeautifulSoup()
-        self._add_summary_as_html_paragraphs(soup)
-        html = soup.new_tag("html")
-        self._add_html_head_and_style(soup, html)
-        html.append(BeautifulSoup(tables_html, "html.parser"))
-        soup.append(html)
-        return soup.prettify()
+        html_sep = HtmlGenerator.generate_separator(tag="hr", breaks=2)
+        return (
+            HtmlGenerator()
+            .append_paragraphs(self.summary_str.splitlines())
+            .begin_html_tag()
+            .add_basic_table_style()
+            .append_html_tables(
+                table_tuples, separator=html_sep, header_type="h1", additional_separator_at_beginning=True
+            )
+            .render()
+        )
 
     def _add_summary_as_html_paragraphs(self, soup):
         lines = self.summary_str.splitlines()
@@ -273,18 +274,6 @@ class RenderedSummaryAbs(ABC):
             p = soup.new_tag("p")
             p.append(line)
             soup.append(p)
-
-    @staticmethod
-    def _add_html_head_and_style(soup, html):
-        head = soup.new_tag("head")
-        style = soup.new_tag("style")
-        style.string = """
-table, th, td {
-  border: 1px solid black;
-}
-"""
-        head.append(style)
-        html.append(head)
 
 
 class OutputManagerAbs(ABC):
