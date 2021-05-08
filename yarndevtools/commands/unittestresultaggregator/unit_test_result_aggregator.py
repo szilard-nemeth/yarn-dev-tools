@@ -161,10 +161,10 @@ class UnitTestResultAggregator:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
                     if not self._check_if_line_is_valid(line, self.config.skip_lines_starting_with):
-                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.thread_id}]")
+                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
                         continue
                     if match_all_lines or RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
-                        LOG.debug(f"Matched line: {line} [Mail subject: {message.thread_id}]")
+                        LOG.debug(f"Matched line: {line} [Mail subject: {message.subject}]")
                         matched_lines.append(line)
                 matched_lines_from_message_objs.append(
                     MatchedLinesFromMessage(
