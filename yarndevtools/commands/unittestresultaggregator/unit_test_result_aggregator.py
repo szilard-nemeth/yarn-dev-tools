@@ -133,51 +133,49 @@ class UnitTestResultAggregator:
         threads: GmailThreads = self.gmail_wrapper.query_threads_with_paging(
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
-        raw_data = self.filter_data_by_regex_pattern(threads)
-        self.process_data(raw_data)
+        match_objects = self.filter_data_by_regex_pattern(threads)
+        self.process_data(match_objects)
 
-    def filter_data_by_regex_pattern(self, threads):
-        matched_lines: List[MatchedLinesFromMessage] = []
+    def filter_data_by_regex_pattern(self, threads) -> List[MatchedLinesFromMessage]:
+        matched_lines_from_message_objs: List[MatchedLinesFromMessage] = []
         match_all_lines: bool = self.config.match_expression == MATCH_ALL_LINES
         LOG.info(
-            "Matching all lines" if match_all_lines else f"Matching lines with regex: {self.config.match_expression}"
+            "**Matching all lines"
+            if match_all_lines
+            else f"**Matching lines with regex pattern: {self.config.match_expression}"
         )
         for message in threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
-                matched_lines_of_msg: List[str] = []
+                matched_lines: List[str] = []
                 for line in lines:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
                     if not self._check_if_line_is_valid(line, self.config.skip_lines_starting_with):
-                        LOG.warning(f"Skipping invalid line: {line}")
+                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.thread_id}]")
                         continue
-                    if match_all_lines:
-                        LOG.debug(f"Matched line (match all=True): {line}")
-                        matched_lines_of_msg.append(line)
-                    elif RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
-                        LOG.debug(f"[PATTERN: {self.config.match_expression}] Matched line: {line}")
-                        matched_lines_of_msg.append(line)
-
-                matched_lines.append(
+                    if match_all_lines or RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
+                        LOG.debug(f"Matched line: {line} [Mail subject: {message.thread_id}]")
+                        matched_lines.append(line)
+                matched_lines_from_message_objs.append(
                     MatchedLinesFromMessage(
-                        message.msg_id, message.thread_id, message.subject, message.date, matched_lines_of_msg
+                        message.msg_id, message.thread_id, message.subject, message.date, matched_lines
                     )
                 )
-        LOG.debug(f"[RAW DATA] Matched lines: {matched_lines}")
-        return matched_lines
+        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {matched_lines_from_message_objs}")
+        return matched_lines_from_message_objs
 
-    def process_data(self, raw_data: List[MatchedLinesFromMessage]):
+    def process_data(self, match_objects: List[MatchedLinesFromMessage]):
         truncate = self.config.operation_mode == OperationMode.PRINT
         header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
-        converted_data: List[List[str]] = DataConverter.convert_data_to_rows(raw_data, truncate=truncate)
-        self.print_results_table(header, converted_data)
+        converted_data: List[List[str]] = DataConverter.convert_data_to_rows(match_objects, truncate=truncate)
+        self.print_results_table(converted_data, header)
 
         if self.config.operation_mode == OperationMode.GSHEET:
             LOG.info("Updating Google sheet with data...")
             header_aggregated = ["Testcase", "Frequency of failures", "Latest failure"]
-            aggregated_data: List[List[str]] = DataConverter.convert_data_to_aggregated_rows(raw_data)
+            aggregated_data: List[List[str]] = DataConverter.convert_data_to_aggregated_rows(match_objects)
             self.update_gsheet(header, converted_data)
             self.update_gsheet_aggregated(header_aggregated, aggregated_data)
 
@@ -191,7 +189,7 @@ class UnitTestResultAggregator:
         return valid_line
 
     @staticmethod
-    def print_results_table(header, data):
+    def print_results_table(data, header):
         BasicResultPrinter.print_table(data, header)
 
     def update_gsheet(self, header, data):
@@ -225,12 +223,12 @@ class DataConverter:
     LINE_MAX_LENGTH = 80
 
     @staticmethod
-    def convert_data_to_rows(raw_data: List[MatchedLinesFromMessage], truncate: bool = False) -> List[List[str]]:
+    def convert_data_to_rows(match_objects: List[MatchedLinesFromMessage], truncate: bool = False) -> List[List[str]]:
         converted_data: List[List[str]] = []
         truncate_subject: bool = truncate
         truncate_lines: bool = truncate
 
-        for matched_lines in raw_data:
+        for matched_lines in match_objects:
             for testcase_name in matched_lines.lines:
                 subject = matched_lines.subject
                 if truncate_subject and len(matched_lines.subject) > DataConverter.SUBJECT_MAX_LENGTH:
