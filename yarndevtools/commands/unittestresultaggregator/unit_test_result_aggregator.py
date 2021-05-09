@@ -3,7 +3,7 @@ import datetime
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Callable, Sized
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
@@ -19,7 +19,7 @@ from pythoncommons.result_printer import (
     DEFAULT_TABLE_FORMATS,
     GenericTableWithHeader,
 )
-from pythoncommons.string_utils import RegexUtils, StringUtils
+from pythoncommons.string_utils import RegexUtils, StringUtils, auto_str
 
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
@@ -124,6 +124,7 @@ class UnitTestResultAggregator:
         if self.config.operation_mode == OperationMode.GSHEET:
             self.gsheet_wrapper_normal = GSheetWrapper(self.config.gsheet_options)
             gsheet_options = copy.copy(self.config.gsheet_options)
+            # TODO Aggregation should be controlled with a CLI switch
             gsheet_options.worksheet = gsheet_options.worksheet + "_aggregated"
             self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
         self.authorizer = GoogleApiAuthorizer(
@@ -143,12 +144,8 @@ class UnitTestResultAggregator:
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
         LOG.info(f"Received thread query result: {query_result}")
-        converted_subjects_and_ids = [f"Subject: '{tup[0]}', 'ID': {tup[1]}" for tup in query_result.subjects_and_ids]
-        self.output_manager.write_to_file_or_console("\n".join(converted_subjects_and_ids), "found mail subjects")
-        self.output_manager.write_to_file_or_console("\n".join(query_result.unique_subjects), "unique subjects")
-
         match_objects: List[MatchedLinesFromMessage] = self.filter_data_by_regex_pattern(query_result)
-        self.process_data(match_objects)
+        self.process_data(match_objects, query_result)
 
     def filter_data_by_regex_pattern(self, query_result: ThreadQueryResults) -> List[MatchedLinesFromMessage]:
         matched_lines_from_message_objs: List[MatchedLinesFromMessage] = []
@@ -180,31 +177,63 @@ class UnitTestResultAggregator:
         LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {matched_lines_from_message_objs}")
         return matched_lines_from_message_objs
 
-    def process_data(self, match_objects: List[MatchedLinesFromMessage]):
+    def process_data(self, match_objects: List[MatchedLinesFromMessage], query_result: ThreadQueryResults):
         truncate = self.config.operation_mode == OperationMode.PRINT
-        normal_table_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
-        aggregated_table_header = ["Testcase", "Frequency of failures", "Latest failure"]
-        simple_match_result_rows: List[List[str]] = DataConverter.convert_data_to_rows(match_objects, truncate=truncate)
-        aggregated_match_result_rows: List[List[str]] = DataConverter.convert_data_to_aggregated_rows(match_objects)
+        table_renderer = TableRenderer()
+        table_renderer.render_tables(
+            header=["Date", "Subject", "Testcase", "Message ID", "Thread ID"],
+            data=DataConverter.convert_data_to_rows(match_objects, truncate=truncate),
+            dtype=TableDataType.MATCHED_LINES,
+            formats=DEFAULT_TABLE_FORMATS,
+        )
 
-        table_config = (
-            TableConfig()
-            .add(TableDataType.MATCHED_LINES, [TableType.REGULAR, TableType.HTML])
-            .add(TableDataType.MATCHED_LINES_AGGREGATED, [TableType.REGULAR, TableType.HTML])
+        table_renderer.render_tables(
+            header=["Testcase", "Frequency of failures", "Latest failure"],
+            data=DataConverter.convert_data_to_aggregated_rows(match_objects),
+            dtype=TableDataType.MATCHED_LINES_AGGREGATED,
+            formats=DEFAULT_TABLE_FORMATS,
         )
-        rendered_summary = RenderedSummary(
-            normal_table_header,
-            simple_match_result_rows,
-            aggregated_table_header,
-            aggregated_match_result_rows,
-            table_config,
+
+        table_renderer.render_tables(
+            header=["Subject", "Thread ID"],
+            data=DataConverter.convert_email_subjects(query_result),
+            dtype=TableDataType.MAIL_SUBJECTS,
+            formats=DEFAULT_TABLE_FORMATS,
         )
-        self.output_manager.print_and_save_summary(rendered_summary)
+
+        table_renderer.render_tables(
+            header=["Subject"],
+            data=DataConverter.convert_unique_email_subjects(query_result),
+            dtype=TableDataType.UNIQUE_MAIL_SUBJECTS,
+            formats=DEFAULT_TABLE_FORMATS,
+        )
+
+        summary_generator = SummaryGenerator(table_renderer)
+        regular_summary: str = summary_generator.generate_summary(
+            TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.REGULAR),
+            TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.REGULAR),
+            TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.REGULAR),
+            TableOutputConfig(TableDataType.UNIQUE_MAIL_SUBJECTS, TableOutputFormat.REGULAR),
+        )
+        html_summary: str = summary_generator.generate_summary(
+            TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.HTML),
+            TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.HTML),
+            TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.HTML),
+            TableOutputConfig(TableDataType.UNIQUE_MAIL_SUBJECTS, TableOutputFormat.HTML),
+        )
+        self.output_manager.process_regular_summary(regular_summary)
+        self.output_manager.process_html_summary(html_summary)
+        self.output_manager.process_normal_table_data(table_renderer, TableDataType.MAIL_SUBJECTS)
+        self.output_manager.process_normal_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
 
         if self.config.operation_mode == OperationMode.GSHEET:
             LOG.info("Updating Google sheet with data...")
-            self.update_gsheet(normal_table_header, simple_match_result_rows)
-            self.update_gsheet_aggregated(aggregated_table_header, aggregated_match_result_rows)
+            matched_lines_table = table_renderer.get_tables(TableDataType.MATCHED_LINES)[0]
+            matched_lines_aggregated_table = table_renderer.get_tables(TableDataType.MATCHED_LINES_AGGREGATED)[0]
+            self.update_gsheet(matched_lines_table.header_list, matched_lines_table.source_data)
+            self.update_gsheet_aggregated(
+                matched_lines_aggregated_table.header_list, matched_lines_aggregated_table.source_data
+            )
 
     @staticmethod
     def _check_if_line_is_valid(line, skip_lines_starting_with):
@@ -241,7 +270,7 @@ class UnitTestResultAggregator:
         return orig_query
 
 
-class TableType(Enum):
+class TableOutputFormat(Enum):
     REGULAR = "regular"
     HTML = "html"
     REGULAR_WITH_COLORS = "regular_colorized"
@@ -250,107 +279,79 @@ class TableType(Enum):
 class TableDataType(Enum):
     MATCHED_LINES = ("matches lines per thread", "MATCHED LINES PER MAIL THREAD")
     MATCHED_LINES_AGGREGATED = ("matches lines aggregated", "MATCHED LINES AGGREGATED")
+    MAIL_SUBJECTS = ("found mail subjects", "FOUND MAIL SUBJECTS")
+    UNIQUE_MAIL_SUBJECTS = ("found unique mail subjects", "FOUND UNIQUE MAIL SUBJECTS")
 
     def __init__(self, key, header_value):
         self.key = key
         self.header = header_value
 
 
-class TableConfig:
-    def __init__(self):
-        self.tables: Dict[TableDataType, List[TableType]] = {}
-
-    def add(self, data_type, table_type):
-        if data_type not in self.tables:
-            self.tables[data_type] = []
-        self.tables[data_type].extend(table_type)
-        return self
+@auto_str
+class TableOutputConfig:
+    def __init__(self, data_type: TableDataType, table_type: TableOutputFormat):
+        self.data_type = data_type
+        self.table_type = table_type
 
 
-class RenderedSummary:
-    def __init__(
-        self,
-        normal_table_header: List[str],
-        simple_match_result_rows: List[List[str]],
-        aggregated_table_header: List[str],
-        aggregated_match_result_rows: List[List[str]],
-        table_config: TableConfig,
-    ):
-        self.simple_table_header = normal_table_header
-        self.simple_match_result_rows = simple_match_result_rows
-        self.aggregated_table_header = aggregated_table_header
-        self.aggregated_match_result_rows = aggregated_match_result_rows
-        self.table_config = table_config
+class SummaryGenerator:
+    def __init__(self, table_renderer):
+        self.table_renderer = table_renderer
+        self._callback_dict: Dict[TableOutputFormat, Callable] = {
+            TableOutputFormat.REGULAR: self._regular_table,
+            TableOutputFormat.REGULAR_WITH_COLORS: self._colorized_table,
+            TableOutputFormat.HTML: self._html_table,
+        }
 
-        self._tables: Dict[TableDataType, List[GenericTableWithHeader]] = {}
-        self.add_matched_lines_result_table()
-        self.add_matched_lines_result_table_aggregated()
-        self.printable_summary_str, self.html_summary = self.generate_summary_msgs()
+    def _regular_table(self, dt: TableDataType):
+        rendered_tables = self.table_renderer.get_tables(dt, table_fmt=TabulateTableFormat.GRID, colorized=False)
+        self._ensure_one_table_found(rendered_tables, dt)
+        return rendered_tables[0]
 
-    @property
-    def writable_summary_str(self):
-        # Writable / Printable tables are the same: no colorization implementation yet
-        return self.printable_summary_str
+    def _colorized_table(self, dt: TableDataType):
+        rendered_tables = self.table_renderer.get_tables(dt, table_fmt=TabulateTableFormat.GRID, colorized=True)
+        self._ensure_one_table_found(rendered_tables, dt)
+        return rendered_tables[0]
 
-    def get_tables(
-        self, ttype: TableDataType, colorized: bool = False, table_fmt: TabulateTableFormat = TabulateTableFormat.GRID
-    ):
-        tables = self._tables[ttype]
-        return list(filter(lambda t: t.colorized == colorized and t.table_fmt == table_fmt, tables))
-
-    def add_matched_lines_result_table(self):
-        self._add_table_internal(self.simple_table_header, self.simple_match_result_rows, TableDataType.MATCHED_LINES)
-
-    def add_matched_lines_result_table_aggregated(self):
-        self._add_table_internal(
-            self.aggregated_table_header, self.aggregated_match_result_rows, TableDataType.MATCHED_LINES_AGGREGATED
-        )
-
-    def _add_table_internal(self, header: List[str], data: List[List[str]], dtype: TableDataType):
-        gen_tables = ResultPrinter.print_tables(
-            data,
-            lambda row: row,
-            header=header,
-            print_result=False,
-            max_width=200,
-            max_width_separator=" ",
-            tabulate_fmts=DEFAULT_TABLE_FORMATS,
-        )
-        for table_fmt, table in gen_tables.items():
-            self._add_table(dtype, GenericTableWithHeader(dtype.header, table, table_fmt=table_fmt, colorized=False))
-
-    def _add_table(self, dtype: TableDataType, table: GenericTableWithHeader):
-        if dtype not in self._tables:
-            self._tables[dtype] = []
-        self._tables[dtype].append(table)
-
-    def generate_summary_msgs(self):
-        def regular_table(dt: TableDataType):
-            return self.get_tables(dt, table_fmt=TabulateTableFormat.GRID, colorized=False)
-
-        def regular_colorized_table(dt: TableDataType):
-            return self.get_tables(dt, table_fmt=TabulateTableFormat.GRID, colorized=True)
-
-        def html_table(dt: TableDataType):
-            return self.get_tables(dt, table_fmt=TabulateTableFormat.HTML, colorized=False)
-
-        printable_tables: List[GenericTableWithHeader] = []
-        html_tables: List[GenericTableWithHeader] = []
-        for table_data_type, table_types in self.table_config.tables.items():
-            for tt in table_types:
-                if tt == TableType.REGULAR:
-                    printable_tables.extend(regular_table(table_data_type))
-                elif tt == TableType.HTML:
-                    html_tables.extend(html_table(table_data_type))
-                elif tt == TableType.REGULAR_WITH_COLORS:
-                    printable_tables.extend(regular_colorized_table(table_data_type))
-        return (
-            self._generate_summary_str(printable_tables),
-            self.generate_summary_html(html_tables),
-        )
+    def _html_table(self, dt: TableDataType):
+        rendered_tables = self.table_renderer.get_tables(dt, table_fmt=TabulateTableFormat.HTML, colorized=False)
+        self._ensure_one_table_found(rendered_tables, dt)
+        return rendered_tables[0]
 
     @staticmethod
-    def _generate_summary_str(tables):
+    def _ensure_one_table_found(tables: Sized, dt: TableDataType):
+        if not tables:
+            raise ValueError(f"Rendered table not found for Table data type: {dt}")
+        if len(tables) > 1:
+            raise ValueError(
+                f"Multiple result tables are found for table data type: {dt}. "
+                f"Should have found exactly one table per type."
+            )
+
+    def generate_summary(self, *configs: TableOutputConfig) -> str:
+        # Validate if TableType is the same for all
+        table_types = set([c.table_type for c in configs])
+        if len(table_types) > 1:
+            raise ValueError(
+                f"Provided table configs has different table types, "
+                f"they should share the same table type. "
+                f"Provided configs: {configs}"
+            )
+        table_type = list(table_types)[0]
+        tables: List[GenericTableWithHeader] = []
+        for config in configs:
+            rendered_table = self._callback_dict[table_type](config.data_type)
+            tables.append(rendered_table)
+
+        if table_type in [TableOutputFormat.REGULAR, TableOutputFormat.REGULAR_WITH_COLORS]:
+            return self._generate_final_concat_of_tables(tables)
+        elif table_type in [TableOutputFormat.HTML]:
+            return self._generate_final_concat_of_tables_html(tables)
+        else:
+            raise ValueError(f"Invalid state! Table type is not in any of: {[t for t in TableOutputFormat]}")
+
+    @staticmethod
+    def _generate_final_concat_of_tables(tables) -> str:
         printable_summary_str: str = ""
         for table in tables:
             printable_summary_str += str(table)
@@ -358,9 +359,8 @@ class RenderedSummary:
         return printable_summary_str
 
     @staticmethod
-    def generate_summary_html(html_tables) -> str:
-        table_tuples = [(h.header, h.table) for h in html_tables]
-
+    def _generate_final_concat_of_tables_html(tables) -> str:
+        table_tuples = [(ht.header, ht.table) for ht in tables]
         html_sep = HtmlGenerator.generate_separator(tag="hr", breaks=2)
         return (
             HtmlGenerator()
@@ -373,30 +373,81 @@ class RenderedSummary:
         )
 
 
+# TODO Try to extract this to common class (pythoncommons?), BranchComparator should move to this implementation later.
+class TableRenderer:
+    def __init__(self):
+        self._tables: Dict[TableDataType, List[GenericTableWithHeader]] = {}
+
+    def render_tables(
+        self,
+        header: List[str],
+        data: List[List[str]],
+        dtype: TableDataType,
+        formats: List[TabulateTableFormat],
+        colorized=False,
+    ) -> Dict[TabulateTableFormat, GenericTableWithHeader]:
+        if not formats:
+            raise ValueError("Formats should not be empty!")
+        rendered_tables: Dict[TabulateTableFormat, str] = ResultPrinter.print_tables(
+            data,
+            lambda row: row,
+            header=header,
+            print_result=False,
+            max_width=200,
+            max_width_separator=" ",
+            tabulate_fmts=formats,
+        )
+        result_dict: Dict[TabulateTableFormat, GenericTableWithHeader] = {}
+        for table_fmt, rendered_table in rendered_tables.items():
+            table_with_header = GenericTableWithHeader(
+                dtype.header, header, data, rendered_table, table_fmt=table_fmt, colorized=colorized
+            )
+            self._add_table(dtype, table_with_header)
+            result_dict[table_fmt] = table_with_header
+        return result_dict
+
+    def _add_table(self, dtype: TableDataType, table: GenericTableWithHeader):
+        if dtype not in self._tables:
+            self._tables[dtype] = []
+        self._tables[dtype].append(table)
+
+    def get_tables(
+        self, ttype: TableDataType, colorized: bool = False, table_fmt: TabulateTableFormat = TabulateTableFormat.GRID
+    ) -> List[GenericTableWithHeader]:
+        return list(filter(lambda t: t.colorized == colorized and t.table_fmt == table_fmt, self._tables[ttype]))
+
+
 class UnitTestResultOutputManager:
     def __init__(self, output_dir, console_mode):
         self.output_dir = output_dir
         self.console_mode = console_mode
 
-    def write_to_file_or_console(self, contents, output_type, add_sep_to_end=False):
+    def _write_to_configured_destinations(
+        self,
+        data: List[List[str]],
+        data_type: TableDataType,
+        field_separator=" ",
+        row_separator="\n",
+        add_sep_to_end=False,
+    ):
+        """
+        Destinations: Console, File or both
+        :param data:
+        :param field_separator:
+        :param add_sep_to_end:
+        :return:
+        """
+        converted_data: str = ""
+        for row in data:
+            line = field_separator.join(row)
+            converted_data += f"{line}{row_separator}"
         if self.console_mode:
-            LOG.info(f"Printing {output_type}: {contents}")
+            LOG.info(f"Printing {data_type.key}: {converted_data}")
         else:
-            fn_prefix = self._convert_output_type_str_to_file_prefix(output_type, add_sep_to_end=add_sep_to_end)
+            fn_prefix = self._convert_output_type_str_to_file_prefix(data_type.key, add_sep_to_end=add_sep_to_end)
             f = self._generate_filename(self.output_dir, fn_prefix)
-            LOG.info(f"Saving {output_type} to file: {f}")
-            FileUtils.save_to_file(f, contents)
-
-    def print_and_save_summary(self, rendered_summary: RenderedSummary):
-        LOG.info(rendered_summary.printable_summary_str)
-
-        filename = FileUtils.join_path(self.output_dir, SUMMARY_FILE_TXT)
-        LOG.info(f"Saving summary to text file: {filename}")
-        FileUtils.save_to_file(filename, rendered_summary.writable_summary_str)
-
-        filename = FileUtils.join_path(self.output_dir, SUMMARY_FILE_HTML)
-        LOG.info(f"Saving summary to html file: {filename}")
-        FileUtils.save_to_file(filename, rendered_summary.html_summary)
+            LOG.info(f"Saving {data_type.key} to file: {f}")
+            FileUtils.save_to_file(f, converted_data)
 
     @staticmethod
     def _convert_output_type_str_to_file_prefix(output_type, add_sep_to_end=True):
@@ -408,6 +459,22 @@ class UnitTestResultOutputManager:
     @staticmethod
     def _generate_filename(basedir, prefix, branch_name="") -> str:
         return FileUtils.join_path(basedir, f"{prefix}{StringUtils.replace_special_chars(branch_name)}")
+
+    def process_regular_summary(self, rendered_summary: str):
+        LOG.info(rendered_summary)
+        filename = FileUtils.join_path(self.output_dir, SUMMARY_FILE_TXT)
+        LOG.info(f"Saving summary to text file: {filename}")
+        FileUtils.save_to_file(filename, rendered_summary)
+
+    def process_html_summary(self, rendered_summary: str):
+        # Doesn't make sense to print HTML summary to console
+        filename = FileUtils.join_path(self.output_dir, SUMMARY_FILE_HTML)
+        LOG.info(f"Saving summary to html file: {filename}")
+        FileUtils.save_to_file(filename, rendered_summary)
+
+    def process_normal_table_data(self, table_renderer: TableRenderer, data_type: TableDataType):
+        data: List[List[str]] = table_renderer.get_tables(data_type)[0].source_data
+        self._write_to_configured_destinations(data, data_type)
 
 
 class DataConverter:
@@ -461,6 +528,17 @@ class DataConverter:
             row: List[str] = [tc, freq, str(last_failed)]
             data_table.append(row)
         return data_table
+
+    @staticmethod
+    def convert_email_subjects(query_result: ThreadQueryResults) -> List[List[str]]:
+        data_table: List[List[str]] = []
+        for tup in query_result.subjects_and_ids:
+            data_table.append(list(tup))
+        return data_table
+
+    @staticmethod
+    def convert_unique_email_subjects(query_result: ThreadQueryResults) -> List[List[str]]:
+        return [[subj] for subj in query_result.unique_subjects]
 
     @staticmethod
     def _truncate_str(value: str, max_len: int, field_name: str):
