@@ -1,7 +1,7 @@
 import os
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.html_utils import HtmlGenerator
@@ -31,9 +31,16 @@ HEADER_COMMITTER = "Committer"
 
 class TableWithHeader(GenericTableWithHeader):
     def __init__(
-        self, header_title, table: str, table_fmt: TabulateTableFormat, colorized: bool = False, branch: str = None
+        self,
+        header_title,
+        header: List[str],
+        source_data: Any,
+        rendered_table: str,
+        table_fmt: TabulateTableFormat,
+        colorized: bool = False,
+        branch: str = None,
     ):
-        super().__init__(header_title, table, table_fmt, colorized)
+        super().__init__(header_title, header, source_data, rendered_table, table_fmt=table_fmt, colorized=colorized)
         self.branch = branch
 
     @property
@@ -134,10 +141,11 @@ class RenderedSummaryAbs(ABC):
             FileUtils.find_files(self.summary_data.output_dir, regex=".*", full_path_result=True)
         )
         table_type = RenderedTableType.RESULT_FILES
+        header = [HEADER_ROW, HEADER_FILE, HEADER_NO_OF_LINES]
         gen_tables = ResultPrinter.print_tables(
             result_files_data,
             lambda file: (file, len(FileUtils.read_file(file).splitlines())),
-            header=[HEADER_ROW, HEADER_FILE, HEADER_NO_OF_LINES],
+            header=header,
             print_result=False,
             max_width=200,
             max_width_separator=os.sep,
@@ -146,17 +154,20 @@ class RenderedSummaryAbs(ABC):
 
         for table_fmt, table in gen_tables.items():
             self.add_table(
-                table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False, branch=None)
+                table_type,
+                TableWithHeader(table_type.header, header, table, table_fmt=table_fmt, colorized=False, branch=None),
             )
 
     def add_unique_commit_tables(self, matching_result):
         table_type = RenderedTableType.UNIQUE_ON_BRANCH
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)
+            header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
+            source_data = matching_result.unique_commits[br_type]
             gen_tables = ResultPrinter.print_tables(
-                matching_result.unique_commits[br_type],
+                source_data,
                 lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
-                header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
+                header=header,
                 print_result=False,
                 max_width=80,
                 max_width_separator=" ",
@@ -165,7 +176,15 @@ class RenderedSummaryAbs(ABC):
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,
-                    TableWithHeader(header_value, table, table_fmt=table_fmt, colorized=False, branch=br_data.name),
+                    TableWithHeader(
+                        header_value,
+                        header,
+                        source_data,
+                        table,
+                        table_fmt=table_fmt,
+                        colorized=False,
+                        branch=br_data.name,
+                    ),
                 )
 
     def add_table(self, ttype: RenderedTableType, table: TableWithHeader):

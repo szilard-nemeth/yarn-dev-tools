@@ -552,10 +552,11 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
     def add_matched_groups_tables(self, matching_result: GroupedMatchingResult):
         table_type = RenderedTableType.MATCHED_COMMIT_GROUPS
         table_rows = CommitGroupConverter.convert_matched_groups_to_table_rows(matching_result)
+        header = self._get_header()
         gen_tables = ResultPrinter.print_tables(
             table_rows,
             lambda row: row,
-            header=self._get_header(),
+            header=header,
             print_result=False,
             max_width=80,
             max_width_separator=" ",
@@ -563,17 +564,22 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
             add_row_numbers=False,
         )
         for table_fmt, table in gen_tables.items():
-            self.add_table(table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False))
+            self.add_table(
+                table_type,
+                TableWithHeader(table_type.header, header, table_rows, table, table_fmt=table_fmt, colorized=False),
+            )
 
     def add_unmatched_groups_tables(self, matching_result: GroupedMatchingResult):
         table_type = RenderedTableType.UNMATCHED_COMMIT_GROUPS
         table_rows_by_branch_type = CommitGroupConverter.convert_unmatched_groups_to_table_rows(matching_result)
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)
+            header = self._get_header()
+            source_data = table_rows_by_branch_type[br_type]
             gen_tables = ResultPrinter.print_tables(
-                table_rows_by_branch_type[br_type],
+                source_data,
                 lambda row: row,
-                header=self._get_header(),
+                header=header,
                 print_result=False,
                 max_width=80,
                 max_width_separator=" ",
@@ -583,7 +589,15 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,
-                    TableWithHeader(header_value, table, table_fmt=table_fmt, colorized=False, branch=br_data.name),
+                    TableWithHeader(
+                        header_value,
+                        header,
+                        source_data,
+                        table,
+                        table_fmt=table_fmt,
+                        colorized=False,
+                        branch=br_data.name,
+                    ),
                 )
 
     @staticmethod

@@ -421,17 +421,22 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
 
     def add_matched_commits_table(self):
         table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
+        header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
+        source_data = self.summary_data.common_commits_after_merge_base()
         gen_tables = ResultPrinter.print_tables(
-            self.summary_data.common_commits_after_merge_base(),
+            source_data,
             lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
-            header=[HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER],
+            header=header,
             print_result=False,
             max_width=80,
             max_width_separator=" ",
             tabulate_fmts=DEFAULT_TABLE_FORMATS,
         )
         for table_fmt, table in gen_tables.items():
-            self.add_table(table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=False))
+            self.add_table(
+                table_type,
+                TableWithHeader(table_type.header, header, source_data, table, table_fmt=table_fmt, colorized=False),
+            )
 
     def add_all_commits_tables(self):
         all_commits: List[List] = self.summary_data.all_commits_presence_matrix
@@ -466,5 +471,6 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         )
         for table_fmt, table in gen_tables.items():
             self.add_table(
-                table_type, TableWithHeader(table_type.header, table, table_fmt=table_fmt, colorized=colorize)
+                table_type,
+                TableWithHeader(table_type.header, header, all_commits, table, table_fmt=table_fmt, colorized=colorize),
             )
