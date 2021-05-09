@@ -205,6 +205,9 @@ class UnitTestResultAggregator:
         return matched_lines_from_message_objs
 
     def process_data(self, match_objects: List[MatchedLinesFromMessage], query_result: ThreadQueryResults):
+        matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
+        matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
+
         if self.config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
             # truncate = self.config.operation_mode == OperationMode.PRINT
@@ -224,7 +227,6 @@ class UnitTestResultAggregator:
                     self.config.abbrev_tc_package = None
                     self.config.truncate_subject_with = None
 
-            matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
             table_renderer.render_tables(
                 header=matched_testcases_all_header,
                 data=DataConverter.convert_data_to_rows(
@@ -237,7 +239,6 @@ class UnitTestResultAggregator:
                 formats=DEFAULT_TABLE_FORMATS,
             )
 
-            matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
             table_renderer.render_tables(
                 header=matched_testcases_aggregated_header,
                 data=DataConverter.convert_data_to_aggregated_rows(
