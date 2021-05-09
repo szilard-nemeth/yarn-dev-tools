@@ -155,7 +155,15 @@ class RenderedSummaryAbs(ABC):
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
-                TableWithHeader(table_type.header, header, table, table_fmt=table_fmt, colorized=False, branch=None),
+                TableWithHeader(
+                    table_type.header,
+                    header,
+                    result_files_data,
+                    table,
+                    table_fmt=table_fmt,
+                    colorized=False,
+                    branch=None,
+                ),
             )
 
     def add_unique_commit_tables(self, matching_result):
