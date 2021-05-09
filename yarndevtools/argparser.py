@@ -4,6 +4,7 @@ from enum import Enum
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
     DEFAULT_LINE_SEP,
+    SummaryMode,
 )
 from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
@@ -467,6 +468,15 @@ class ArgParser:
             "The specified string will be abbreviated with the starting letters."
             "For example, specifying 'org.apache.hadoop.yarn' will be converted to 'o.a.h.y' "
             "when printing testcase names to any destination.",
+        )
+
+        parser.add_argument(
+            "--summary-mode",
+            dest="summary_mode",
+            type=str,
+            choices=[sm.value for sm in SummaryMode],
+            default=SummaryMode.HTML.value,
+            help="Summary file(s) will be written in this mode. Defaults to HTML.",
         )
 
         exclusive_group = parser.add_mutually_exclusive_group(required=True)

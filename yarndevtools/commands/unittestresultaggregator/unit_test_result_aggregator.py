@@ -33,6 +33,13 @@ REGEX_EVERYTHING = ".*"
 MATCH_ALL_LINES = REGEX_EVERYTHING
 
 
+class SummaryMode(Enum):
+    HTML = "html"
+    TEXT = "text"
+    ALL = "all"
+    NONE = "none"
+
+
 class OperationMode(Enum):
     GSHEET = "GSHEET"
     PRINT = "PRINT"
@@ -65,6 +72,7 @@ class UnitTestResultAggregatorConfig:
             if hasattr(args, "abbrev_testcase_package") and args.abbrev_testcase_package
             else None
         )
+        self.summary_mode = args.summary_mode
         self.output_dir = output_dir
         self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
@@ -120,6 +128,7 @@ class UnitTestResultAggregatorConfig:
             f"Skip lines starting with: {self.skip_lines_starting_with}\n"
             f"Truncate subject with: {self.truncate_subject_with}\n"
             f"Abbreviate testcase package: {self.abbrev_tc_package}\n"
+            f"Summary mode: {self.summary_mode}\n"
         )
 
 
@@ -248,23 +257,32 @@ class UnitTestResultAggregator:
             formats=DEFAULT_TABLE_FORMATS,
         )
 
-        summary_generator = SummaryGenerator(table_renderer)
-        regular_summary: str = summary_generator.generate_summary(
-            TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.REGULAR),
-            TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.REGULAR),
-            TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.REGULAR),
-            TableOutputConfig(TableDataType.UNIQUE_MAIL_SUBJECTS, TableOutputFormat.REGULAR),
-        )
-        html_summary: str = summary_generator.generate_summary(
-            TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.HTML),
-            TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.HTML),
-            TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.HTML),
-            TableOutputConfig(TableDataType.UNIQUE_MAIL_SUBJECTS, TableOutputFormat.HTML),
-        )
-        self.output_manager.process_regular_summary(regular_summary)
-        self.output_manager.process_html_summary(html_summary)
-        self.output_manager.process_rendered_table_data(table_renderer, TableDataType.MAIL_SUBJECTS)
-        self.output_manager.process_rendered_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
+        if self.config.summary_mode != SummaryMode.NONE:
+            summary_generator = SummaryGenerator(table_renderer)
+            allowed_regular_summary = self.config.summary_mode in [SummaryMode.TEXT.value, SummaryMode.ALL.value]
+            allowed_html_summary = self.config.summary_mode in [SummaryMode.HTML.value, SummaryMode.ALL.value]
+
+            if allowed_regular_summary:
+                regular_summary: str = summary_generator.generate_summary(
+                    TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.REGULAR),
+                    TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.REGULAR),
+                    TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.REGULAR),
+                    TableOutputConfig(TableDataType.UNIQUE_MAIL_SUBJECTS, TableOutputFormat.REGULAR),
+                )
+                self.output_manager.process_regular_summary(regular_summary)
+
+            if allowed_html_summary:
+                html_summary: str = summary_generator.generate_summary(
+                    TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.HTML),
+                    TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.HTML),
+                    TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.HTML),
+                    TableOutputConfig(TableDataType.UNIQUE_MAIL_SUBJECTS, TableOutputFormat.HTML),
+                )
+                self.output_manager.process_html_summary(html_summary)
+
+            # These should be written regardless of summary-mode settings
+            self.output_manager.process_rendered_table_data(table_renderer, TableDataType.MAIL_SUBJECTS)
+            self.output_manager.process_rendered_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
 
         if self.config.operation_mode == OperationMode.GSHEET:
             LOG.info("Updating Google sheet with data...")
