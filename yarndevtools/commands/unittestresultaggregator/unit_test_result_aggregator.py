@@ -205,62 +205,62 @@ class UnitTestResultAggregator:
         return matched_lines_from_message_objs
 
     def process_data(self, match_objects: List[MatchedLinesFromMessage], query_result: ThreadQueryResults):
-        # TODO fix
-        # truncate = self.config.operation_mode == OperationMode.PRINT
-        truncate = True if self.config.summary_mode == SummaryMode.TEXT.value else False
+        if self.config.summary_mode != SummaryMode.NONE.value:
+            # TODO fix
+            # truncate = self.config.operation_mode == OperationMode.PRINT
+            truncate = True if self.config.summary_mode == SummaryMode.TEXT.value else False
 
-        table_renderer = TableRenderer()
-        # We apply the specified truncation / abbreviation rules only for TEXT based tables
-        # HTML / Gsheet output is just fine with longer names.
-        # If SummaryMode.ALL is used, we leave all values intact for simplicity.
-        if self.config.abbrev_tc_package or self.config.truncate_subject_with:
-            if self.config.summary_mode in [SummaryMode.ALL.value, SummaryMode.HTML.value]:
-                LOG.warning(
-                    f"Either abbreviate package or truncate subject is enabled "
-                    f"but SummaryMode is set to '{self.config.summary_mode}'. "
-                    "Leaving all data intact so truncate / abbreviate options are ignored."
-                )
-                self.config.abbrev_tc_package = None
-                self.config.truncate_subject_with = None
+            table_renderer = TableRenderer()
+            # We apply the specified truncation / abbreviation rules only for TEXT based tables
+            # HTML / Gsheet output is just fine with longer names.
+            # If SummaryMode.ALL is used, we leave all values intact for simplicity.
+            if self.config.abbrev_tc_package or self.config.truncate_subject_with:
+                if self.config.summary_mode in [SummaryMode.ALL.value, SummaryMode.HTML.value]:
+                    LOG.warning(
+                        f"Either abbreviate package or truncate subject is enabled "
+                        f"but SummaryMode is set to '{self.config.summary_mode}'. "
+                        "Leaving all data intact so truncate / abbreviate options are ignored."
+                    )
+                    self.config.abbrev_tc_package = None
+                    self.config.truncate_subject_with = None
 
-        matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
-        table_renderer.render_tables(
-            header=matched_testcases_all_header,
-            data=DataConverter.convert_data_to_rows(
-                match_objects,
-                truncate_length=truncate,
-                abbrev_tc_package=self.config.abbrev_tc_package,
-                truncate_subject_with=self.config.truncate_subject_with,
-            ),
-            dtype=TableDataType.MATCHED_LINES,
-            formats=DEFAULT_TABLE_FORMATS,
-        )
+            matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
+            table_renderer.render_tables(
+                header=matched_testcases_all_header,
+                data=DataConverter.convert_data_to_rows(
+                    match_objects,
+                    truncate_length=truncate,
+                    abbrev_tc_package=self.config.abbrev_tc_package,
+                    truncate_subject_with=self.config.truncate_subject_with,
+                ),
+                dtype=TableDataType.MATCHED_LINES,
+                formats=DEFAULT_TABLE_FORMATS,
+            )
 
-        matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
-        table_renderer.render_tables(
-            header=matched_testcases_aggregated_header,
-            data=DataConverter.convert_data_to_aggregated_rows(
-                match_objects, abbrev_tc_package=self.config.abbrev_tc_package
-            ),
-            dtype=TableDataType.MATCHED_LINES_AGGREGATED,
-            formats=DEFAULT_TABLE_FORMATS,
-        )
+            matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
+            table_renderer.render_tables(
+                header=matched_testcases_aggregated_header,
+                data=DataConverter.convert_data_to_aggregated_rows(
+                    match_objects, abbrev_tc_package=self.config.abbrev_tc_package
+                ),
+                dtype=TableDataType.MATCHED_LINES_AGGREGATED,
+                formats=DEFAULT_TABLE_FORMATS,
+            )
 
-        table_renderer.render_tables(
-            header=["Subject", "Thread ID"],
-            data=DataConverter.convert_email_subjects(query_result),
-            dtype=TableDataType.MAIL_SUBJECTS,
-            formats=DEFAULT_TABLE_FORMATS,
-        )
+            table_renderer.render_tables(
+                header=["Subject", "Thread ID"],
+                data=DataConverter.convert_email_subjects(query_result),
+                dtype=TableDataType.MAIL_SUBJECTS,
+                formats=DEFAULT_TABLE_FORMATS,
+            )
 
-        table_renderer.render_tables(
-            header=["Subject"],
-            data=DataConverter.convert_unique_email_subjects(query_result),
-            dtype=TableDataType.UNIQUE_MAIL_SUBJECTS,
-            formats=DEFAULT_TABLE_FORMATS,
-        )
+            table_renderer.render_tables(
+                header=["Subject"],
+                data=DataConverter.convert_unique_email_subjects(query_result),
+                dtype=TableDataType.UNIQUE_MAIL_SUBJECTS,
+                formats=DEFAULT_TABLE_FORMATS,
+            )
 
-        if self.config.summary_mode != SummaryMode.NONE:
             summary_generator = SummaryGenerator(table_renderer)
             allowed_regular_summary = self.config.summary_mode in [SummaryMode.TEXT.value, SummaryMode.ALL.value]
             allowed_html_summary = self.config.summary_mode in [SummaryMode.HTML.value, SummaryMode.ALL.value]
