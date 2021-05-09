@@ -416,30 +416,30 @@ class DataConverter:
 
     @staticmethod
     def convert_data_to_rows(match_objects: List[MatchedLinesFromMessage], truncate: bool = False) -> List[List[str]]:
-        converted_data: List[List[str]] = []
+        data_table: List[List[str]] = []
         truncate_subject: bool = truncate
         truncate_lines: bool = truncate
 
-        for matched_lines in match_objects:
-            for testcase_name in matched_lines.lines:
-                subject = matched_lines.subject
-                if truncate_subject and len(matched_lines.subject) > DataConverter.SUBJECT_MAX_LENGTH:
+        for match_obj in match_objects:
+            for testcase_name in match_obj.lines:
+                subject = match_obj.subject
+                if truncate_subject and len(match_obj.subject) > DataConverter.SUBJECT_MAX_LENGTH:
                     subject = DataConverter._truncate_str(
-                        matched_lines.subject, DataConverter.SUBJECT_MAX_LENGTH, "subject"
+                        match_obj.subject, DataConverter.SUBJECT_MAX_LENGTH, "subject"
                     )
                 if truncate_lines:
                     testcase_name = DataConverter._truncate_str(
                         testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase"
                     )
                 row: List[str] = [
-                    str(matched_lines.date),
+                    str(match_obj.date),
                     subject,
                     testcase_name,
-                    matched_lines.message_id,
-                    matched_lines.thread_id,
+                    match_obj.message_id,
+                    match_obj.thread_id,
                 ]
-                converted_data.append(row)
-        return converted_data
+                data_table.append(row)
+        return data_table
 
     @staticmethod
     def convert_data_to_aggregated_rows(raw_data: List[MatchedLinesFromMessage]) -> List[List[str]]:
@@ -455,12 +455,12 @@ class DataConverter:
                     if latest_failure[testcase_name] < matched_lines.date:
                         latest_failure[testcase_name] = matched_lines.date
 
-        converted_data: List[List[str]] = []
+        data_table: List[List[str]] = []
         for tc, freq in failure_freq.items():
             last_failed = latest_failure[tc]
             row: List[str] = [tc, freq, str(last_failed)]
-            converted_data.append(row)
-        return converted_data
+            data_table.append(row)
+        return data_table
 
     @staticmethod
     def _truncate_str(value: str, max_len: int, field_name: str):
