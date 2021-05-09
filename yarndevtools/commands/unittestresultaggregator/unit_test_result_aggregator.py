@@ -139,26 +139,6 @@ class MatchedLinesFromMessage:
     subject: str
     date: datetime.datetime
     lines: List[str] = field(default_factory=list)
-    truncate_subject_with: str = None
-    abbrev_tc_package: str = None
-
-    def __post_init__(self):
-        if self.truncate_subject_with:
-            if self.truncate_subject_with in self.subject:
-                new_subject = "".join([s for s in self.subject.split(self.truncate_subject_with) if s])
-                LOG.debug(f"Truncated subject: '{self.subject}' -> {new_subject}")
-                self.subject = new_subject
-        if self.abbrev_tc_package:
-            new_lines = []
-            for line in self.lines:
-                if self.abbrev_tc_package in line:
-                    replacement = ".".join([p[0] for p in self.abbrev_tc_package.split(".")])
-                    new_line = f"{replacement}{line.split(self.abbrev_tc_package)[1]}"
-                    LOG.debug(f"Abbreviated testcase name: '{self.subject}' -> {new_line}")
-                    new_lines.append(new_line)
-                else:
-                    new_lines.append(line)
-            self.lines = new_lines
 
 
 class UnitTestResultAggregator:
@@ -219,26 +199,49 @@ class UnitTestResultAggregator:
                         message.subject,
                         message.date,
                         matched_lines,
-                        abbrev_tc_package=self.config.abbrev_tc_package,
-                        truncate_subject_with=self.config.truncate_subject_with,
                     )
                 )
         LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {matched_lines_from_message_objs}")
         return matched_lines_from_message_objs
 
     def process_data(self, match_objects: List[MatchedLinesFromMessage], query_result: ThreadQueryResults):
-        truncate = self.config.operation_mode == OperationMode.PRINT
+        # TODO fix
+        # truncate = self.config.operation_mode == OperationMode.PRINT
+        truncate = True if self.config.summary_mode == SummaryMode.TEXT.value else False
+
         table_renderer = TableRenderer()
+        # We apply the specified truncation / abbreviation rules only for TEXT based tables
+        # HTML / Gsheet output is just fine with longer names.
+        # If SummaryMode.ALL is used, we leave all values intact for simplicity.
+        if self.config.abbrev_tc_package or self.config.truncate_subject_with:
+            if self.config.summary_mode in [SummaryMode.ALL.value, SummaryMode.HTML.value]:
+                LOG.warning(
+                    f"Either abbreviate package or truncate subject is enabled "
+                    f"but SummaryMode is set to '{self.config.summary_mode}'. "
+                    "Leaving all data intact so truncate / abbreviate options are ignored."
+                )
+                self.config.abbrev_tc_package = None
+                self.config.truncate_subject_with = None
+
+        matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
         table_renderer.render_tables(
-            header=["Date", "Subject", "Testcase", "Message ID", "Thread ID"],
-            data=DataConverter.convert_data_to_rows(match_objects, truncate=truncate),
+            header=matched_testcases_all_header,
+            data=DataConverter.convert_data_to_rows(
+                match_objects,
+                truncate_length=truncate,
+                abbrev_tc_package=self.config.abbrev_tc_package,
+                truncate_subject_with=self.config.truncate_subject_with,
+            ),
             dtype=TableDataType.MATCHED_LINES,
             formats=DEFAULT_TABLE_FORMATS,
         )
 
+        matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
         table_renderer.render_tables(
-            header=["Testcase", "Frequency of failures", "Latest failure"],
-            data=DataConverter.convert_data_to_aggregated_rows(match_objects),
+            header=matched_testcases_aggregated_header,
+            data=DataConverter.convert_data_to_aggregated_rows(
+                match_objects, abbrev_tc_package=self.config.abbrev_tc_package
+            ),
             dtype=TableDataType.MATCHED_LINES_AGGREGATED,
             formats=DEFAULT_TABLE_FORMATS,
         )
@@ -286,12 +289,17 @@ class UnitTestResultAggregator:
 
         if self.config.operation_mode == OperationMode.GSHEET:
             LOG.info("Updating Google sheet with data...")
-            matched_lines_table = table_renderer.get_tables(TableDataType.MATCHED_LINES)[0]
-            matched_lines_aggregated_table = table_renderer.get_tables(TableDataType.MATCHED_LINES_AGGREGATED)[0]
-            self.update_gsheet(matched_lines_table.header_list, matched_lines_table.source_data)
-            self.update_gsheet_aggregated(
-                matched_lines_aggregated_table.header_list, matched_lines_aggregated_table.source_data
+
+            # We need to re-generate all the data here, as table renderer might rendered truncated data.
+            matched_testcases_data = DataConverter.convert_data_to_rows(
+                match_objects, truncate_length=False, abbrev_tc_package=None, truncate_subject_with=None
             )
+            self.update_gsheet(matched_testcases_all_header, matched_testcases_data)
+
+            mathced_testcases_aggregated_data = DataConverter.convert_data_to_aggregated_rows(
+                match_objects, abbrev_tc_package=None
+            )
+            self.update_gsheet_aggregated(matched_testcases_aggregated_header, mathced_testcases_aggregated_data)
 
     @staticmethod
     def _check_if_line_is_valid(line, skip_lines_starting_with):
@@ -551,18 +559,31 @@ class DataConverter:
     LINE_MAX_LENGTH = 80
 
     @staticmethod
-    def convert_data_to_rows(match_objects: List[MatchedLinesFromMessage], truncate: bool = False) -> List[List[str]]:
+    def convert_data_to_rows(
+        match_objects: List[MatchedLinesFromMessage],
+        truncate_length: bool = False,
+        truncate_subject_with: str = None,
+        abbrev_tc_package: str = None,
+    ) -> List[List[str]]:
         data_table: List[List[str]] = []
-        truncate_subject: bool = truncate
-        truncate_lines: bool = truncate
+        truncate_subject: bool = truncate_length
+        truncate_lines: bool = truncate_length
 
         for match_obj in match_objects:
             for testcase_name in match_obj.lines:
-                subject = match_obj.subject
-                if truncate_subject and len(match_obj.subject) > DataConverter.SUBJECT_MAX_LENGTH:
-                    subject = DataConverter._truncate_str(
-                        match_obj.subject, DataConverter.SUBJECT_MAX_LENGTH, "subject"
-                    )
+                # Don't touch the original MatchObject data.
+                # It's not memory efficient but we need to untruncated / original version later.
+                subject = copy.copy(match_obj.subject)
+                testcase_name = copy.copy(testcase_name)
+
+                if truncate_subject_with:
+                    subject = DataConverter._truncate_subject(subject, truncate_subject_with)
+                if abbrev_tc_package:
+                    testcase_name = DataConverter._abbreviate_package_name(abbrev_tc_package, testcase_name)
+
+                # Check length-based truncate, if still necessary
+                if truncate_subject and len(subject) > DataConverter.SUBJECT_MAX_LENGTH:
+                    subject = DataConverter._truncate_str(subject, DataConverter.SUBJECT_MAX_LENGTH, "subject")
                 if truncate_lines:
                     testcase_name = DataConverter._truncate_str(
                         testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase"
@@ -578,23 +599,45 @@ class DataConverter:
         return data_table
 
     @staticmethod
-    def convert_data_to_aggregated_rows(raw_data: List[MatchedLinesFromMessage]) -> List[List[str]]:
+    def _abbreviate_package_name(abbrev_tc_package, testcase_name):
+        if abbrev_tc_package in testcase_name:
+            replacement = ".".join([p[0] for p in abbrev_tc_package.split(".")])
+            new_testcase_name = f"{replacement}{testcase_name.split(abbrev_tc_package)[1]}"
+            LOG.debug(f"Abbreviated testcase name: '{testcase_name}' -> {new_testcase_name}")
+            testcase_name = new_testcase_name
+        return testcase_name
+
+    @staticmethod
+    def _truncate_subject(subject, truncate_subject_with):
+        if truncate_subject_with in subject:
+            new_subject = "".join([s for s in subject.split(truncate_subject_with) if s])
+            LOG.debug(f"Truncated subject: '{subject}' -> {new_subject}")
+            subject = new_subject
+        return subject
+
+    @staticmethod
+    def convert_data_to_aggregated_rows(
+        match_objects: List[MatchedLinesFromMessage], abbrev_tc_package=None
+    ) -> List[List[str]]:
         failure_freq: Dict[str, int] = {}
         latest_failure: Dict[str, datetime.datetime] = {}
-        for matched_lines in raw_data:
-            for testcase_name in matched_lines.lines:
+        for match_obj in match_objects:
+            for testcase_name in match_obj.lines:
+                if abbrev_tc_package:
+                    testcase_name = DataConverter._abbreviate_package_name(abbrev_tc_package, testcase_name)
+
                 if testcase_name not in failure_freq:
                     failure_freq[testcase_name] = 1
-                    latest_failure[testcase_name] = matched_lines.date
+                    latest_failure[testcase_name] = match_obj.date
                 else:
                     failure_freq[testcase_name] = failure_freq[testcase_name] + 1
-                    if latest_failure[testcase_name] < matched_lines.date:
-                        latest_failure[testcase_name] = matched_lines.date
+                    if latest_failure[testcase_name] < match_obj.date:
+                        latest_failure[testcase_name] = match_obj.date
 
         data_table: List[List[str]] = []
-        for tc, freq in failure_freq.items():
-            last_failed = latest_failure[tc]
-            row: List[str] = [tc, freq, str(last_failed)]
+        for testcase, failure_freq in failure_freq.items():
+            last_failed = latest_failure[testcase]
+            row: List[str] = [testcase, failure_freq, str(last_failed)]
             data_table.append(row)
         return data_table
 
