@@ -24,6 +24,8 @@ from pythoncommons.string_utils import RegexUtils, StringUtils, auto_str
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
+AGGREGATED_WS_POSTFIX = "_aggregated"
+
 SUBJECT = "subject:"
 
 LOG = logging.getLogger(__name__)
@@ -73,6 +75,9 @@ class UnitTestResultAggregatorConfig:
             else None
         )
         self.summary_mode = args.summary_mode
+        self.aggregate_filters: List[str] = (
+            args.aggregate_filters if hasattr(args, "aggregate_filters") and args.aggregate_filters else []
+        )
         self.output_dir = output_dir
         self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
@@ -129,6 +134,7 @@ class UnitTestResultAggregatorConfig:
             f"Truncate subject with: {self.truncate_subject_with}\n"
             f"Abbreviate testcase package: {self.abbrev_tc_package}\n"
             f"Summary mode: {self.summary_mode}\n"
+            f"Aggregate filters: {self.aggregate_filters}\n"
         )
 
 
@@ -141,6 +147,29 @@ class MatchedLinesFromMessage:
     lines: List[str] = field(default_factory=list)
 
 
+@dataclass
+class TestcaseFilterResults:
+    ANY_MATCHES_KEY = "any"
+    matched_in_filters: Dict[str, List[MatchedLinesFromMessage]] = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY] = []
+
+    def add_match(self, match_obj: MatchedLinesFromMessage):
+        self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY].append(match_obj)
+
+    def add_matches(self, matches: List[MatchedLinesFromMessage]):
+        self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY].extend(matches)
+
+    def add_matches_to_post_filter(self, filter_value: str, matches: List[MatchedLinesFromMessage]):
+        if filter_value not in self.matched_in_filters:
+            self.matched_in_filters[filter_value] = []
+        self.matched_in_filters[filter_value].extend(matches)
+
+    def get_all_match_objects(self) -> List[MatchedLinesFromMessage]:
+        return self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY]
+
+
 class UnitTestResultAggregator:
     def __init__(self, args, parser, output_dir: str):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
@@ -148,7 +177,7 @@ class UnitTestResultAggregator:
             self.gsheet_wrapper_normal = GSheetWrapper(self.config.gsheet_options)
             gsheet_options = copy.copy(self.config.gsheet_options)
             # TODO Aggregation should be controlled with a CLI switch
-            gsheet_options.worksheet = gsheet_options.worksheet + "_aggregated"
+            gsheet_options.worksheet = gsheet_options.worksheet + AGGREGATED_WS_POSTFIX
             self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
@@ -167,17 +196,17 @@ class UnitTestResultAggregator:
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
         LOG.info(f"Received thread query result: {query_result}")
-        match_objects: List[MatchedLinesFromMessage] = self.filter_data_by_regex_pattern(query_result)
-        self.process_data(match_objects, query_result)
+        tc_filter_results: TestcaseFilterResults = self.filter_data_by_regex_pattern(query_result)
+        self.process_data(tc_filter_results, query_result)
 
-    def filter_data_by_regex_pattern(self, query_result: ThreadQueryResults) -> List[MatchedLinesFromMessage]:
-        matched_lines_from_message_objs: List[MatchedLinesFromMessage] = []
+    def filter_data_by_regex_pattern(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
         match_all_lines: bool = self.config.match_expression == MATCH_ALL_LINES
         LOG.info(
             "**Matching all lines"
             if match_all_lines
             else f"**Matching lines with regex pattern: {self.config.match_expression}"
         )
+        tc_filter_results = TestcaseFilterResults()
         for message in query_result.threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
@@ -192,7 +221,7 @@ class UnitTestResultAggregator:
                     if match_all_lines or RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
                         LOG.debug(f"Matched line: {line} [Mail subject: {message.subject}]")
                         matched_lines.append(line)
-                matched_lines_from_message_objs.append(
+                tc_filter_results.add_match(
                     MatchedLinesFromMessage(
                         message.msg_id,
                         message.thread_id,
@@ -201,10 +230,10 @@ class UnitTestResultAggregator:
                         matched_lines,
                     )
                 )
-        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {matched_lines_from_message_objs}")
-        return matched_lines_from_message_objs
+        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {tc_filter_results.get_all_match_objects()}")
+        return tc_filter_results
 
-    def process_data(self, match_objects: List[MatchedLinesFromMessage], query_result: ThreadQueryResults):
+    def process_data(self, tc_filter_results: TestcaseFilterResults, query_result: ThreadQueryResults):
         matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
         matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
 
@@ -230,7 +259,7 @@ class UnitTestResultAggregator:
             table_renderer.render_tables(
                 header=matched_testcases_all_header,
                 data=DataConverter.convert_data_to_rows(
-                    match_objects,
+                    tc_filter_results.get_all_match_objects(),
                     truncate_length=truncate,
                     abbrev_tc_package=self.config.abbrev_tc_package,
                     truncate_subject_with=self.config.truncate_subject_with,
@@ -242,7 +271,7 @@ class UnitTestResultAggregator:
             table_renderer.render_tables(
                 header=matched_testcases_aggregated_header,
                 data=DataConverter.convert_data_to_aggregated_rows(
-                    match_objects, abbrev_tc_package=self.config.abbrev_tc_package
+                    tc_filter_results.get_all_match_objects(), abbrev_tc_package=self.config.abbrev_tc_package
                 ),
                 dtype=TableDataType.MATCHED_LINES_AGGREGATED,
                 formats=DEFAULT_TABLE_FORMATS,
@@ -293,12 +322,15 @@ class UnitTestResultAggregator:
 
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
             matched_testcases_data = DataConverter.convert_data_to_rows(
-                match_objects, truncate_length=False, abbrev_tc_package=None, truncate_subject_with=None
+                tc_filter_results.get_all_match_objects(),
+                truncate_length=False,
+                abbrev_tc_package=None,
+                truncate_subject_with=None,
             )
             self.update_gsheet(matched_testcases_all_header, matched_testcases_data)
 
             mathced_testcases_aggregated_data = DataConverter.convert_data_to_aggregated_rows(
-                match_objects, abbrev_tc_package=None
+                tc_filter_results.get_all_match_objects(), abbrev_tc_package=None
             )
             self.update_gsheet_aggregated(matched_testcases_aggregated_header, mathced_testcases_aggregated_data)
 
@@ -573,7 +605,8 @@ class DataConverter:
         for match_obj in match_objects:
             for testcase_name in match_obj.lines:
                 # Don't touch the original MatchObject data.
-                # It's not memory efficient but we need to untruncated / original version later.
+                # It's not memory efficient to copy subject / TC name but we need the
+                # untruncated / original fields later.
                 subject = copy.copy(match_obj.subject)
                 testcase_name = copy.copy(testcase_name)
 
@@ -632,7 +665,7 @@ class DataConverter:
                     latest_failure[testcase_name] = match_obj.date
                 else:
                     failure_freq[testcase_name] = failure_freq[testcase_name] + 1
-                    if latest_failure[testcase_name] < match_obj.date:
+                    if match_obj.date > latest_failure[testcase_name]:
                         latest_failure[testcase_name] = match_obj.date
 
         data_table: List[List[str]] = []

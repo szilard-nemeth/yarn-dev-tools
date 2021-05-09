@@ -479,6 +479,17 @@ class ArgParser:
             help="Summary file(s) will be written in this mode. Defaults to HTML.",
         )
 
+        parser.add_argument(
+            "--aggregate-filters",
+            dest="aggregate_filters",
+            type=str,
+            nargs="+",
+            help="Execute some post filters on the email results. "
+            "The resulted emails and testcases for each filter will be aggregated to "
+            "a separate worksheet with name <WS>_aggregated_<aggregate-filter> where WS is equal to the "
+            "value specified by the --gsheet-worksheet argument.",
+        )
+
         exclusive_group = parser.add_mutually_exclusive_group(required=True)
         exclusive_group.add_argument(
             "-p", "--print", action="store_true", dest="do_print", help="Print results to console", required=False
