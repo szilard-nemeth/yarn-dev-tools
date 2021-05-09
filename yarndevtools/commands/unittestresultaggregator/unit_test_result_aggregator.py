@@ -57,6 +57,14 @@ class UnitTestResultAggregatorConfig:
             if hasattr(args, "email_content_line_separator") and args.email_content_line_separator
             else DEFAULT_LINE_SEP
         )
+        self.truncate_subject_with = (
+            args.truncate_subject if hasattr(args, "truncate_subject") and args.truncate_subject else None
+        )
+        self.abbrev_tc_package = (
+            args.abbrev_testcase_package
+            if hasattr(args, "abbrev_testcase_package") and args.abbrev_testcase_package
+            else None
+        )
         self.output_dir = output_dir
         self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
@@ -98,6 +106,10 @@ class UnitTestResultAggregatorConfig:
     def __str__(self):
         return (
             f"Full command was: {self.full_cmd}\n"
+            f"Output dir: {self.output_dir}\n"
+            f"Account email: {self.account_email}\n"
+            f"Email cache dir: {self.email_cache_dir}\n"
+            f"Session dir: {self.session_dir}\n"
             f"Console mode: {self.console_mode}\n"
             f"Gmail query: {self.gmail_query}\n"
             f"Smart subject query: {self.smart_subject_query}\n"
@@ -106,6 +118,8 @@ class UnitTestResultAggregatorConfig:
             f"Request limit: {self.request_limit}\n"
             f"Operation mode: {self.operation_mode}\n"
             f"Skip lines starting with: {self.skip_lines_starting_with}\n"
+            f"Truncate subject with: {self.truncate_subject_with}\n"
+            f"Abbreviate testcase package: {self.abbrev_tc_package}\n"
         )
 
 
@@ -116,6 +130,26 @@ class MatchedLinesFromMessage:
     subject: str
     date: datetime.datetime
     lines: List[str] = field(default_factory=list)
+    truncate_subject_with: str = None
+    abbrev_tc_package: str = None
+
+    def __post_init__(self):
+        if self.truncate_subject_with:
+            if self.truncate_subject_with in self.subject:
+                new_subject = "".join([s for s in self.subject.split(self.truncate_subject_with) if s])
+                LOG.debug(f"Truncated subject: '{self.subject}' -> {new_subject}")
+                self.subject = new_subject
+        if self.abbrev_tc_package:
+            new_lines = []
+            for line in self.lines:
+                if self.abbrev_tc_package in line:
+                    replacement = ".".join([p[0] for p in self.abbrev_tc_package.split(".")])
+                    new_line = f"{replacement}{line.split(self.abbrev_tc_package)[1]}"
+                    LOG.debug(f"Abbreviated testcase name: '{self.subject}' -> {new_line}")
+                    new_lines.append(new_line)
+                else:
+                    new_lines.append(line)
+            self.lines = new_lines
 
 
 class UnitTestResultAggregator:
@@ -171,7 +205,13 @@ class UnitTestResultAggregator:
                         matched_lines.append(line)
                 matched_lines_from_message_objs.append(
                     MatchedLinesFromMessage(
-                        message.msg_id, message.thread_id, message.subject, message.date, matched_lines
+                        message.msg_id,
+                        message.thread_id,
+                        message.subject,
+                        message.date,
+                        matched_lines,
+                        abbrev_tc_package=self.config.abbrev_tc_package,
+                        truncate_subject_with=self.config.truncate_subject_with,
                     )
                 )
         LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {matched_lines_from_message_objs}")

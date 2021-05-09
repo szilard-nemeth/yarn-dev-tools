@@ -451,6 +451,24 @@ class ArgParser:
 
         parser.add_argument("--email-content-line-separator", type=str, default=DEFAULT_LINE_SEP)
 
+        parser.add_argument(
+            "--truncate-subject",
+            dest="truncate_subject",
+            type=str,
+            help="Whether to truncate subject in outputs. The specified string will be cropped "
+            "from the full value of subject strings when printing them to any destination.",
+        )
+
+        parser.add_argument(
+            "--abbreviate-testcase-package",
+            dest="abbrev_testcase_package",
+            type=str,
+            help="Whether to abbreviate testcase package names in outputs in order to screen space. "
+            "The specified string will be abbreviated with the starting letters."
+            "For example, specifying 'org.apache.hadoop.yarn' will be converted to 'o.a.h.y' "
+            "when printing testcase names to any destination.",
+        )
+
         exclusive_group = parser.add_mutually_exclusive_group(required=True)
         exclusive_group.add_argument(
             "-p", "--print", action="store_true", dest="do_print", help="Print results to console", required=False
@@ -462,7 +480,7 @@ class ArgParser:
             dest="gsheet",
             default=False,
             required=False,
-            help="Export values to Google sheet. " "Additional gsheet arguments need to be specified!",
+            help="Export values to Google sheet. Additional gsheet arguments need to be specified!",
         )
 
         parser.set_defaults(func=yarn_dev_tools.unit_test_result_aggregator)
