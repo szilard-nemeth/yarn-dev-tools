@@ -223,8 +223,8 @@ class UnitTestResultAggregator:
         )
         self.output_manager.process_regular_summary(regular_summary)
         self.output_manager.process_html_summary(html_summary)
-        self.output_manager.process_normal_table_data(table_renderer, TableDataType.MAIL_SUBJECTS)
-        self.output_manager.process_normal_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
+        self.output_manager.process_rendered_table_data(table_renderer, TableDataType.MAIL_SUBJECTS)
+        self.output_manager.process_rendered_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
 
         if self.config.operation_mode == OperationMode.GSHEET:
             LOG.info("Updating Google sheet with data...")
@@ -424,30 +424,23 @@ class UnitTestResultOutputManager:
 
     def _write_to_configured_destinations(
         self,
-        data: List[List[str]],
+        data: str,
         data_type: TableDataType,
-        field_separator=" ",
-        row_separator="\n",
         add_sep_to_end=False,
     ):
         """
         Destinations: Console, File or both
         :param data:
-        :param field_separator:
         :param add_sep_to_end:
         :return:
         """
-        converted_data: str = ""
-        for row in data:
-            line = field_separator.join(row)
-            converted_data += f"{line}{row_separator}"
         if self.console_mode:
-            LOG.info(f"Printing {data_type.key}: {converted_data}")
+            LOG.info(f"Printing {data_type.key}: {data}")
         else:
             fn_prefix = self._convert_output_type_str_to_file_prefix(data_type.key, add_sep_to_end=add_sep_to_end)
             f = self._generate_filename(self.output_dir, fn_prefix)
             LOG.info(f"Saving {data_type.key} to file: {f}")
-            FileUtils.save_to_file(f, converted_data)
+            FileUtils.save_to_file(f, data)
 
     @staticmethod
     def _convert_output_type_str_to_file_prefix(output_type, add_sep_to_end=True):
@@ -472,9 +465,27 @@ class UnitTestResultOutputManager:
         LOG.info(f"Saving summary to html file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary)
 
-    def process_normal_table_data(self, table_renderer: TableRenderer, data_type: TableDataType):
+    def process_normal_table_data(
+        self, table_renderer: TableRenderer, data_type: TableDataType, field_separator=" ", row_separator="\n"
+    ):
+        """
+        Processes List of List of strings (table based data). Typically writes data to file or console.
+        :param row_separator:
+        :param field_separator:
+        :param table_renderer:
+        :param data_type:
+        :return:
+        """
         data: List[List[str]] = table_renderer.get_tables(data_type)[0].source_data
-        self._write_to_configured_destinations(data, data_type)
+        converted_data: str = ""
+        for row in data:
+            line = field_separator.join(row)
+            converted_data += f"{line}{row_separator}"
+        self._write_to_configured_destinations(converted_data, data_type)
+
+    def process_rendered_table_data(self, table_renderer: TableRenderer, data_type: TableDataType):
+        rendered_table: str = table_renderer.get_tables(data_type)[0].table
+        self._write_to_configured_destinations(rendered_table, data_type)
 
 
 class DataConverter:
