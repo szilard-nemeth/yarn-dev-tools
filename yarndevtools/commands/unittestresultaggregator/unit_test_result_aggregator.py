@@ -84,6 +84,15 @@ class UnitTestResultAggregatorConfig:
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
+        if self.operation_mode == OperationMode.GSHEET:
+            default_aggr_ws = self.get_default_aggregated_worksheet_name()
+            self.aggregated_worksheet_names: Dict[str, str] = {ANY_MATCHES_KEY: default_aggr_ws}
+            self.gsheet_options.add_worksheet(default_aggr_ws)
+            for aggr_filter in self.aggregate_filters:
+                aggr_ws_name = f"{args.gsheet_worksheet}{AGGREGATED_WS_POSTFIX}_{aggr_filter}"
+                self.aggregated_worksheet_names[aggr_filter] = aggr_ws_name
+                self.gsheet_options.add_worksheet(aggr_ws_name)
+
     @staticmethod
     def _convert_match_expression(args):
         raw_match_expr = args.match_expression if hasattr(args, "match_expression") and args.match_expression else None
@@ -138,6 +147,12 @@ class UnitTestResultAggregatorConfig:
             f"Aggregate filters: {self.aggregate_filters}\n"
         )
 
+    def get_default_aggregated_worksheet_name(self):
+        return f"{self.gsheet_options.worksheets[0]}{AGGREGATED_WS_POSTFIX}_{ANY_MATCHES_KEY}"
+
+    def get_default_worksheet_name(self):
+        return self.gsheet_options.worksheets[0]
+
 
 @dataclass
 class MatchedLinesFromMessage:
@@ -190,11 +205,7 @@ class UnitTestResultAggregator:
     def __init__(self, args, parser, output_dir: str):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
-            self.gsheet_wrapper_normal = GSheetWrapper(self.config.gsheet_options)
-            gsheet_options = copy.copy(self.config.gsheet_options)
-            # TODO Aggregation should be controlled with a CLI switch
-            gsheet_options.worksheet = gsheet_options.worksheet + AGGREGATED_WS_POSTFIX
-            self.gsheet_wrapper_aggregated = GSheetWrapper(gsheet_options)
+            self.gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
             project_name=f"{UNIT_TEST_RESULT_AGGREGATOR}",
@@ -369,12 +380,31 @@ class UnitTestResultAggregator:
                 abbrev_tc_package=None,
                 truncate_subject_with=None,
             )
-            self.update_gsheet(matched_testcases_all_header, matched_testcases_data)
-
-            mathced_testcases_aggregated_data = DataConverter.convert_data_to_aggregated_rows(
-                tc_filter_results.get_matches_for_any_thread(), abbrev_tc_package=None
+            worksheet_name = self.config.get_default_worksheet_name()
+            LOG.info(
+                f"Writing GSheet data. "
+                f"Worksheet name: {worksheet_name}"
+                f"Number of lines will be written: {len(matched_testcases_data)}"
             )
-            self.update_gsheet_aggregated(matched_testcases_aggregated_header, mathced_testcases_aggregated_data)
+            self.update_gsheet(matched_testcases_all_header, matched_testcases_data, worksheet_name=worksheet_name)
+
+            all_aggregations: List[str] = self.config.aggregate_filters + [ANY_MATCHES_KEY]
+            for aggr_key in all_aggregations:
+                aggregated_data = DataConverter.convert_data_to_aggregated_rows(
+                    tc_filter_results.get_matches_for_filter(aggr_key), abbrev_tc_package=None
+                )
+                worksheet_name: str = self.config.aggregated_worksheet_names[aggr_key]
+                LOG.info(
+                    f"Writing GSheet aggregated data for aggregation key '{aggr_key}'. "
+                    f"Worksheet name: {worksheet_name}"
+                    f"Number of lines will be written: {len(aggregated_data)}"
+                )
+                self.update_gsheet(
+                    matched_testcases_aggregated_header,
+                    aggregated_data,
+                    worksheet_name=worksheet_name,
+                    create_not_existing=True,
+                )
 
     @staticmethod
     def _check_if_line_is_valid(line, skip_lines_starting_with):
@@ -385,11 +415,14 @@ class UnitTestResultAggregator:
                 break
         return valid_line
 
-    def update_gsheet(self, header, data):
-        self.gsheet_wrapper_normal.write_data(header, data, clear_range=False)
-
-    def update_gsheet_aggregated(self, header, data):
-        self.gsheet_wrapper_aggregated.write_data(header, data, clear_range=False)
+    def update_gsheet(self, header, data, worksheet_name: str = None, create_not_existing=False):
+        self.gsheet_wrapper.write_data(
+            header,
+            data,
+            clear_range=False,
+            worksheet_name=worksheet_name,
+            create_not_existing_worksheet=create_not_existing,
+        )
 
     def _get_gmail_query(self):
         orig_query = self.config.gmail_query
