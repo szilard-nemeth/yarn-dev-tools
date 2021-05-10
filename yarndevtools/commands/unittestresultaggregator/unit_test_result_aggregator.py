@@ -165,6 +165,7 @@ class MatchedLinesFromMessage:
 
 @dataclass
 class TestcaseFilterResults:
+    # Key: Post filter or ANY match
     matched_in_filters: Dict[str, List[MatchedLinesFromMessage]] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -223,10 +224,10 @@ class UnitTestResultAggregator:
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
         LOG.info(f"Received thread query result: {query_result}")
-        tc_filter_results: TestcaseFilterResults = self.filter_data_by_regex_pattern(query_result)
+        tc_filter_results: TestcaseFilterResults = self.filter_data_by_match_expressions(query_result)
         self.process_data(tc_filter_results, query_result)
 
-    def filter_data_by_regex_pattern(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
+    def filter_data_by_match_expressions(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
         match_all_lines: bool = self.config.match_expression == MATCH_ALL_LINES
         LOG.info(
             "**Matching all lines"
@@ -761,6 +762,7 @@ class DataConverter:
     ) -> List[List[str]]:
         failure_freq: Dict[str, int] = {}
         latest_failure: Dict[str, datetime.datetime] = {}
+        failure_dates_per_testcase: Dict[str, List[datetime.datetime]]
         for match_obj in match_objects:
             for testcase_name in match_obj.lines:
                 if abbrev_tc_package:

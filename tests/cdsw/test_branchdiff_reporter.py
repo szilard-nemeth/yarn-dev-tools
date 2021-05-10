@@ -82,7 +82,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
         # !! WARNING: User-specific settings !!
         if cls.exec_mode == TestExecMode.CLOUDERA:
+            # We need both upstream / downstream repos for Cloudera-mode
             os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value] = "/Users/snemeth/development/cloudera/hadoop/"
+            os.environ[CdswEnvVar.HADOOP_DEV_DIR.value] = "/Users/snemeth/development/apache/hadoop"
         elif cls.exec_mode == TestExecMode.UPSTREAM:
             os.environ[CdswEnvVar.HADOOP_DEV_DIR.value] = "/Users/snemeth/development/apache/hadoop"
             os.environ[BranchComparatorEnvVar.REPO_TYPE.value] = RepoType.UPSTREAM.value
@@ -112,18 +114,25 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.docker_test_setup.mount_dir(self.repo_root_dir, YARN_DEV_TOOLS_ROOT_DIR, mode=MOUNT_MODE_RW)
 
         if self.exec_mode == TestExecMode.CLOUDERA:
-            # Mount local Cloudera Hadoop dir so that container won't clone it again and again
-            self.docker_test_setup.mount_dir(
-                os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value], HADOOP_CLOUDERA_BASEDIR, mode=MOUNT_MODE_RW
-            )
+            self._mount_downstream_hadoop_repo()
+            self._mount_upstream_hadoop_repo()
         elif self.exec_mode == TestExecMode.UPSTREAM:
-            # Mount local upstream Hadoop dir so that container won't clone it again and again
-            self.docker_test_setup.mount_dir(
-                os.environ[CdswEnvVar.HADOOP_DEV_DIR.value], HADOOP_UPSTREAM_BASEDIR, mode=MOUNT_MODE_RW
-            )
+            self._mount_upstream_hadoop_repo()
         # Mount results dir so all output files will be available on the host
         self.docker_test_setup.mount_dir(
             self.yarn_dev_tools_results_dir, YARN_DEV_TOOLS_OUTPUT_CONTAINER_DIR, mode=MOUNT_MODE_RW
+        )
+
+    def _mount_downstream_hadoop_repo(self):
+        # Mount local Cloudera Hadoop dir so that container won't clone it again and again
+        self.docker_test_setup.mount_dir(
+            os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value], HADOOP_CLOUDERA_BASEDIR, mode=MOUNT_MODE_RW
+        )
+
+    def _mount_upstream_hadoop_repo(self):
+        # Mount local upstream Hadoop dir so that container won't clone it again and again
+        self.docker_test_setup.mount_dir(
+            os.environ[CdswEnvVar.HADOOP_DEV_DIR.value], HADOOP_UPSTREAM_BASEDIR, mode=MOUNT_MODE_RW
         )
 
     def tearDown(self) -> None:
