@@ -3,10 +3,11 @@ import datetime
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict, Callable, Sized
+from typing import List, Dict, Callable, Sized, Tuple
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
+from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetOptions, GSheetWrapper
 from pythoncommons.file_utils import FileUtils
@@ -24,16 +25,16 @@ from pythoncommons.string_utils import RegexUtils, StringUtils, auto_str
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR, SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
-AGGREGATED_WS_POSTFIX = "_aggregated"
-
-SUBJECT = "subject:"
 
 LOG = logging.getLogger(__name__)
 
+AGGREGATED_WS_POSTFIX = "aggregated"
+SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
 REGEX_EVERYTHING = ".*"
-MATCH_ALL_LINES = REGEX_EVERYTHING
-ANY_MATCHES_KEY = "any"
+MATCH_EXPRESSION_SEPARATOR = "::"
+MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
+MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
 class SummaryMode(Enum):
@@ -48,6 +49,25 @@ class OperationMode(Enum):
     PRINT = "PRINT"
 
 
+@dataclass
+class MatchExpression:
+    alias: str
+    original_expression: str
+    pattern: str
+
+
+MATCH_ALL_LINES_EXPRESSION = MatchExpression("Failed testcases", REGEX_EVERYTHING, REGEX_EVERYTHING)
+
+
+def get_key_by_match_expr_and_aggr_filter(match_expr, aggr_filter=None):
+    key = match_expr.alias.lower()
+    if aggr_filter:
+        key += f"_{aggr_filter.lower()}"
+    else:
+        key += f"_{MATCHTYPE_ALL_POSTFIX.lower()}"
+    return key
+
+
 class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
@@ -56,7 +76,7 @@ class UnitTestResultAggregatorConfig:
         self.smart_subject_query = args.smart_subject_query
         self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
         self.account_email: str = args.account_email
-        self.match_expression = self._convert_match_expression(args)
+        self.match_expressions: List[MatchExpression] = self._convert_match_expressions(args)
         self.skip_lines_starting_with: List[str] = (
             args.skip_lines_starting_with
             if hasattr(args, "skip_lines_starting_with") and args.skip_lines_starting_with
@@ -85,21 +105,35 @@ class UnitTestResultAggregatorConfig:
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
         if self.operation_mode == OperationMode.GSHEET:
-            default_aggr_ws = self.get_default_aggregated_worksheet_name()
-            self.aggregated_worksheet_names: Dict[str, str] = {ANY_MATCHES_KEY: default_aggr_ws}
-            self.gsheet_options.add_worksheet(default_aggr_ws)
-            for aggr_filter in self.aggregate_filters:
-                aggr_ws_name = f"{args.gsheet_worksheet}{AGGREGATED_WS_POSTFIX}_{aggr_filter}"
-                self.aggregated_worksheet_names[aggr_filter] = aggr_ws_name
-                self.gsheet_options.add_worksheet(aggr_ws_name)
+            worksheet_names: List[str] = []
+            for match_expr in self.match_expressions + [MATCH_ALL_LINES_EXPRESSION]:
+                worksheet_names.append(self.get_worksheet_name(match_expr))
+                for aggr_filter in self.aggregate_filters:
+                    worksheet_names.append(self.get_worksheet_name(match_expr, aggr_filter))
+            LOG.info(f"Generated worksheet names: {worksheet_names}")
+            for ws in worksheet_names:
+                self.gsheet_options.add_worksheet(ws)
 
     @staticmethod
-    def _convert_match_expression(args):
-        raw_match_expr = args.match_expression if hasattr(args, "match_expression") and args.match_expression else None
-        if not raw_match_expr:
-            return MATCH_ALL_LINES
-        match_expression = REGEX_EVERYTHING + raw_match_expr.replace(".", "\\.") + REGEX_EVERYTHING
-        return match_expression
+    def _convert_match_expressions(args) -> List[MatchExpression]:
+        raw_match_exprs: List[str] = (
+            args.match_expression if hasattr(args, "match_expression") and args.match_expression else None
+        )
+        if not raw_match_exprs:
+            return [MATCH_ALL_LINES_EXPRESSION]
+
+        match_expressions = []
+        for raw_match_expr in raw_match_exprs:
+            segments = raw_match_expr.split(MATCH_EXPRESSION_SEPARATOR)
+            alias = segments[0]
+            if alias == MATCHTYPE_ALL_POSTFIX:
+                raise ValueError(
+                    f"Alias for match expression '{MATCHTYPE_ALL_POSTFIX}' is reserved. " f"Please use another alias."
+                )
+            match_expr = segments[1]
+            pattern = REGEX_EVERYTHING + match_expr.replace(".", "\\.") + REGEX_EVERYTHING
+            match_expressions.append(MatchExpression(alias, raw_match_expr, pattern))
+        return match_expressions
 
     def _validate_args(self, parser, args):
         if args.gsheet and (
@@ -114,9 +148,7 @@ class UnitTestResultAggregatorConfig:
             self.operation_mode = OperationMode.PRINT
         elif args.gsheet:
             self.operation_mode = OperationMode.GSHEET
-            self.gsheet_options = GSheetOptions(
-                args.gsheet_client_secret, args.gsheet_spreadsheet, args.gsheet_worksheet
-            )
+            self.gsheet_options = GSheetOptions(args.gsheet_client_secret, args.gsheet_spreadsheet, worksheet=None)
         valid_op_modes = [OperationMode.PRINT, OperationMode.GSHEET]
         if self.operation_mode not in valid_op_modes:
             raise ValueError(
@@ -136,7 +168,7 @@ class UnitTestResultAggregatorConfig:
             f"Console mode: {self.console_mode}\n"
             f"Gmail query: {self.gmail_query}\n"
             f"Smart subject query: {self.smart_subject_query}\n"
-            f"Match expression: {self.match_expression}\n"
+            f"Match expressions: {self.match_expressions}\n"
             f"Email line separator: {self.email_content_line_sep}\n"
             f"Request limit: {self.request_limit}\n"
             f"Operation mode: {self.operation_mode}\n"
@@ -147,11 +179,14 @@ class UnitTestResultAggregatorConfig:
             f"Aggregate filters: {self.aggregate_filters}\n"
         )
 
-    def get_default_aggregated_worksheet_name(self):
-        return f"{self.gsheet_options.worksheets[0]}{AGGREGATED_WS_POSTFIX}_{ANY_MATCHES_KEY}"
-
-    def get_default_worksheet_name(self):
-        return self.gsheet_options.worksheets[0]
+    @staticmethod
+    def get_worksheet_name(match_expression: MatchExpression, aggr_filter: str = None):
+        ws_name: str = f"{match_expression.alias}"
+        if aggr_filter:
+            ws_name += f"_{aggr_filter}_{AGGREGATED_WS_POSTFIX}"
+        else:
+            ws_name += f"_{MATCHTYPE_ALL_POSTFIX}"
+        return f"{ws_name}"
 
 
 @dataclass
@@ -163,43 +198,104 @@ class MatchedLinesFromMessage:
     lines: List[str] = field(default_factory=list)
 
 
-@dataclass
 class TestcaseFilterResults:
-    # Key: Post filter or ANY match
-    matched_in_filters: Dict[str, List[MatchedLinesFromMessage]] = field(default_factory=dict)
+    def __init__(self, match_expressions, aggregate_filters):
+        self.aggregate_filters = aggregate_filters
+        self.match_expressions = match_expressions
+        self.match_all_lines: bool = self._should_match_all_lines()
+        # Key: Match expression + (Aggregation filter or _ALL match)
+        self.all_matches: Dict[str, List[MatchedLinesFromMessage]] = {}
 
-    def __post_init__(self):
-        self.matched_in_filters[ANY_MATCHES_KEY] = []
+        # This is a temporary dict - usually for a context of a message
+        self.matched_lines_dict: Dict[str, List[str]] = {}
+        # Key: String key, Value: Tuple of[MatchExpression, aggregation filter]
+        self._match_keys: Dict[str, Tuple[MatchExpression, str]] = {}
 
-    def add_match(self, match_obj: MatchedLinesFromMessage):
-        self.matched_in_filters[ANY_MATCHES_KEY].append(match_obj)
+    def _should_match_all_lines(self):
+        match_all_lines: bool = (
+            len(self.match_expressions) == 1 and self.match_expressions[0] == MATCH_ALL_LINES_EXPRESSION
+        )
+        LOG.info(
+            "**Matching all lines"
+            if match_all_lines
+            else f"**Matching lines with regex pattern: {self.match_expressions}"
+        )
+        return match_all_lines
 
-    def add_matches(self, matches: List[MatchedLinesFromMessage]):
-        self.matched_in_filters[ANY_MATCHES_KEY].extend(matches)
+    def start_new_context(self):
+        # Prepare matched_lines dict with all required empty-lists for match expressions and aggregate filters
+        self.matched_lines_dict = {MATCHTYPE_ALL_POSTFIX: []}
+        for match_expr in self.match_expressions:
+            self.matched_lines_dict[self._get_match_key(match_expr)] = []
+            for aggr_filter in self.aggregate_filters:
+                self.matched_lines_dict[self._get_match_key(match_expr, aggr_filter)] = []
 
-    def add_match_to_post_filter(self, filter_value: str, match: MatchedLinesFromMessage):
-        if filter_value not in self.matched_in_filters:
-            self.matched_in_filters[filter_value] = []
-        self.matched_in_filters[filter_value].append(match)
+    def match_line(self, line, mail_subject: str):
+        matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
+        if self.match_all_lines or matches_any_pattern:
+            self.matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
+            self.matched_lines_dict[self._get_match_key(matched_expression)].append(line)
 
-    def add_matches_to_post_filter(self, filter_value: str, matches: List[MatchedLinesFromMessage]):
-        if filter_value not in self.matched_in_filters:
-            self.matched_in_filters[filter_value] = []
-        self.matched_in_filters[filter_value].extend(matches)
+            # Check aggregation filters
+            for aggr_filter in self.aggregate_filters:
+                if aggr_filter in mail_subject:
+                    LOG.debug(
+                        f"Found matching email subject for aggregation filter '{aggr_filter}': "
+                        f"Subject: {mail_subject}"
+                    )
+                    self.matched_lines_dict[self._get_match_key(matched_expression, aggr_filter)].append(line)
 
-    def get_matches_for_any_thread(self) -> List[MatchedLinesFromMessage]:
-        return self.matched_in_filters[ANY_MATCHES_KEY]
+    def _does_line_match_any_match_expression(self, line, mail_subject: str):
+        for match_expression in self.match_expressions:
+            if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
+                LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
+                return True, match_expression
+        LOG.debug(f"Line did not match for any pattern: {line}")
+        return False, None
 
-    def get_matches_for_filter(self, key: str):
-        return self.matched_in_filters[key]
+    def _get_match_key(self, match_expr: MatchExpression, aggr_filter: str or None = None) -> str:
+        if match_expr == MATCH_ALL_LINES_EXPRESSION:
+            self._match_keys[MATCHTYPE_ALL_POSTFIX] = (MATCH_ALL_LINES_EXPRESSION, None)
+            return MATCHTYPE_ALL_POSTFIX
+        key = get_key_by_match_expr_and_aggr_filter(match_expr, aggr_filter)
+        if key not in self._match_keys:
+            self._match_keys[key] = (match_expr, aggr_filter)
+        return key
 
-    def get_post_filter_values(self) -> Dict[str, List[MatchedLinesFromMessage]]:
-        post_filter_keys = set(self.matched_in_filters.keys())
-        post_filter_keys.remove(ANY_MATCHES_KEY)
-        return {key: self.matched_in_filters[key] for key in post_filter_keys}
+    def lookup_match_data_by_key(self, key: str) -> Tuple[MatchExpression, str]:
+        return self._match_keys[key]
 
-    def get_all_values(self) -> Dict[str, List[MatchedLinesFromMessage]]:
-        return self.matched_in_filters
+    def finish_context(self, message: GmailMessage):
+        for key, matched_lines in self.matched_lines_dict.items():
+            if not matched_lines:
+                continue
+            match_obj = MatchedLinesFromMessage(
+                message.msg_id,
+                message.thread_id,
+                message.subject,
+                message.date,
+                matched_lines,
+            )
+            if key not in self.all_matches:
+                self.all_matches[key] = []
+            self.all_matches[key].append(match_obj)
+
+        # Make sure temp dict is not used until next cycle
+        self.matched_lines_dict = None
+
+    def get_matches_by_criteria(
+        self, match_expression: MatchExpression, aggr_filter: str = None
+    ) -> List[MatchedLinesFromMessage]:
+        key = self._get_match_key(match_expression, aggr_filter=aggr_filter)
+        return self.all_matches[key]
+
+    def get_matches_aggregated_all(self) -> Dict[str, List[MatchedLinesFromMessage]]:
+        # Remove all keys with '*_ALL'
+        filtered_keys = list(filter(lambda x: MATCHTYPE_ALL_POSTFIX.lower() not in x.lower(), self.all_matches.keys()))
+        return {key: self.all_matches[key] for key in filtered_keys}
+
+    def print_objects(self):
+        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {self.all_matches}")
 
 
 class UnitTestResultAggregator:
@@ -228,56 +324,21 @@ class UnitTestResultAggregator:
         self.process_data(tc_filter_results, query_result)
 
     def filter_data_by_match_expressions(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
-        match_all_lines: bool = self.config.match_expression == MATCH_ALL_LINES
-        LOG.info(
-            "**Matching all lines"
-            if match_all_lines
-            else f"**Matching lines with regex pattern: {self.config.match_expression}"
-        )
-        tc_filter_results = TestcaseFilterResults()
+        tc_filter_results = TestcaseFilterResults(self.config.match_expressions, self.config.aggregate_filters)
         for message in query_result.threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
-                # Prepare matched_lines dict with all required empty-lists
-                matched_lines_dict: Dict[str, List[str]] = {ANY_MATCHES_KEY: []}
-                for aggr_filter in self.config.aggregate_filters:
-                    matched_lines_dict[aggr_filter] = []
-
+                tc_filter_results.start_new_context()
                 for line in lines:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
                     if not self._check_if_line_is_valid(line, self.config.skip_lines_starting_with):
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
                         continue
-                    if match_all_lines or RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
-                        LOG.debug(f"Matched line: {line} [Mail subject: {message.subject}]")
-                        matched_lines_dict[ANY_MATCHES_KEY].append(line)
-                        # Check aggregation filters
-                        for aggr_filter in self.config.aggregate_filters:
-                            if aggr_filter in message.subject:
-                                LOG.debug(
-                                    f"Found matching email subject for aggregation filter '{aggr_filter}': "
-                                    f"Subject: {message.subject}"
-                                )
-                                matched_lines_dict[aggr_filter].append(line)
-
-                for key, matched_lines in matched_lines_dict.items():
-                    if not matched_lines:
-                        continue
-                    match_obj = MatchedLinesFromMessage(
-                        message.msg_id,
-                        message.thread_id,
-                        message.subject,
-                        message.date,
-                        matched_lines,
-                    )
-                    if key == ANY_MATCHES_KEY:
-                        tc_filter_results.add_match(match_obj)
-                    else:
-                        tc_filter_results.add_match_to_post_filter(key, match_obj)
-
-        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {tc_filter_results.get_matches_for_any_thread()}")
+                    tc_filter_results.match_line(line, message.subject)
+                tc_filter_results.finish_context(message)
+        tc_filter_results.print_objects()
         return tc_filter_results
 
     def process_data(self, tc_filter_results: TestcaseFilterResults, query_result: ThreadQueryResults):
@@ -303,26 +364,48 @@ class UnitTestResultAggregator:
                     self.config.abbrev_tc_package = None
                     self.config.truncate_subject_with = None
 
-            table_renderer.render_tables(
-                header=matched_testcases_all_header,
-                data=DataConverter.convert_data_to_rows(
-                    tc_filter_results.get_matches_for_any_thread(),
-                    truncate_length=truncate,
-                    abbrev_tc_package=self.config.abbrev_tc_package,
-                    truncate_subject_with=self.config.truncate_subject_with,
-                ),
-                dtype=TableDataType.MATCHED_LINES,
-                formats=DEFAULT_TABLE_FORMATS,
-            )
+            # Render tables in 2 steps
+            # Example scenario:
+            # 0 = {MatchExpression} MatchExpression(alias='YARN', original_expression='YARN::org.apache.hadoop.yarn',
+            #           pattern='.*org\\.apache\\.hadoop\\.yarn.*')
+            # 1 = {MatchExpression} MatchExpression(alias='MR', original_expression='MR::org.apache.hadoop.mapreduce',
+            #           pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
+            #
+            # Step numbers are in parenthesis
+            # Failed testcases_ALL --> Global all (1)
+            #
+            # Failed testcases_YARN_ALL (1)
+            # Failed testcases_YARN_Aggregated_CDPD-7.1x (2)
+            # Failed testcases_YARN_Aggregated_CDPD-7.x (2)
+            #
+            # Failed testcases_MR_ALL (1)
+            # Failed testcases_MR_Aggregated_CDPD-7.1x (2)
+            # Failed testcases_MR_Aggregated_CDPD-7.x (2)
 
-            # Generate table for matched lines (aggregated), including all post-filters
-            for key, match_objects in tc_filter_results.get_all_values().items():
-                append_to_header_title = f" (filter: {key})" if key != ANY_MATCHES_KEY else None
+            # Render tables for all match expressions + ALL values --> 3 tables
+            for match_expr in self.config.match_expressions + [MATCH_ALL_LINES_EXPRESSION]:
+                key = get_key_by_match_expr_and_aggr_filter(match_expr)
+                table_renderer.render_tables(
+                    header=matched_testcases_all_header,
+                    append_to_header_title=f"_{key}",
+                    data=DataConverter.convert_data_to_rows(
+                        tc_filter_results.get_matches_by_criteria(match_expr),
+                        truncate_length=truncate,
+                        abbrev_tc_package=self.config.abbrev_tc_package,
+                        truncate_subject_with=self.config.truncate_subject_with,
+                    ),
+                    table_alias=key,
+                    dtype=TableDataType.MATCHED_LINES,
+                    formats=DEFAULT_TABLE_FORMATS,
+                )
+
+            # Render tables for all match expressions AND all aggregation filters --> 4 tables
+            for key, match_objects in tc_filter_results.get_matches_aggregated_all().items():
                 table_renderer.render_tables(
                     header=matched_testcases_aggregated_header,
-                    append_to_header_title=append_to_header_title,
+                    append_to_header_title=f"_{key}",
                     data=DataConverter.convert_data_to_aggregated_rows(
-                        tc_filter_results.get_matches_for_filter(key), abbrev_tc_package=self.config.abbrev_tc_package
+                        match_objects, abbrev_tc_package=self.config.abbrev_tc_package
                     ),
                     dtype=TableDataType.MATCHED_LINES_AGGREGATED,
                     formats=DEFAULT_TABLE_FORMATS,
@@ -349,6 +432,7 @@ class UnitTestResultAggregator:
 
             if allowed_regular_summary:
                 regular_summary: str = summary_generator.generate_summary(
+                    self.config.match_expressions + [MATCH_ALL_LINES_EXPRESSION],
                     self.config.aggregate_filters,
                     TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.REGULAR),
                     TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.REGULAR),
@@ -359,6 +443,7 @@ class UnitTestResultAggregator:
 
             if allowed_html_summary:
                 html_summary: str = summary_generator.generate_summary(
+                    self.config.match_expressions + [MATCH_ALL_LINES_EXPRESSION],
                     self.config.aggregate_filters,
                     TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.HTML),
                     TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.HTML),
@@ -375,37 +460,26 @@ class UnitTestResultAggregator:
             LOG.info("Updating Google sheet with data...")
 
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
-            matched_testcases_data = DataConverter.convert_data_to_rows(
-                tc_filter_results.get_matches_for_any_thread(),
-                truncate_length=False,
-                abbrev_tc_package=None,
-                truncate_subject_with=None,
-            )
-            worksheet_name = self.config.get_default_worksheet_name()
-            LOG.info(
-                f"Writing GSheet data. "
-                f"Worksheet name: {worksheet_name}"
-                f"Number of lines will be written: {len(matched_testcases_data)}"
-            )
-            self.update_gsheet(matched_testcases_all_header, matched_testcases_data, worksheet_name=worksheet_name)
+            for key, match_objects in tc_filter_results.all_matches.items():
+                match_expr, aggr_filter = tc_filter_results.lookup_match_data_by_key(key)
+                if match_expr == MATCH_ALL_LINES_EXPRESSION or not aggr_filter:
+                    match_objects = tc_filter_results.get_matches_by_criteria(match_expr)
+                    table_data = DataConverter.convert_data_to_rows(match_objects, abbrev_tc_package=None)
+                    data_descriptor = "data"
+                    header = matched_testcases_all_header
+                else:
+                    match_objects = tc_filter_results.get_matches_by_criteria(match_expr, aggr_filter)
+                    table_data = DataConverter.convert_data_to_aggregated_rows(match_objects, abbrev_tc_package=None)
+                    data_descriptor = f"aggregated data for aggregation filter {aggr_filter}"
+                    header = matched_testcases_aggregated_header
+                worksheet_name: str = self.config.get_worksheet_name(match_expr, aggr_filter)
 
-            all_aggregations: List[str] = self.config.aggregate_filters + [ANY_MATCHES_KEY]
-            for aggr_key in all_aggregations:
-                aggregated_data = DataConverter.convert_data_to_aggregated_rows(
-                    tc_filter_results.get_matches_for_filter(aggr_key), abbrev_tc_package=None
-                )
-                worksheet_name: str = self.config.aggregated_worksheet_names[aggr_key]
                 LOG.info(
-                    f"Writing GSheet aggregated data for aggregation key '{aggr_key}'. "
+                    f"Writing GSheet {data_descriptor}. "
                     f"Worksheet name: {worksheet_name}"
-                    f"Number of lines will be written: {len(aggregated_data)}"
+                    f"Number of lines will be written: {len(table_data)}"
                 )
-                self.update_gsheet(
-                    matched_testcases_aggregated_header,
-                    aggregated_data,
-                    worksheet_name=worksheet_name,
-                    create_not_existing=True,
-                )
+                self.update_gsheet(header, table_data, worksheet_name=worksheet_name, create_not_existing=True)
 
     @staticmethod
     def _check_if_line_is_valid(line, skip_lines_starting_with):
@@ -509,7 +583,9 @@ class SummaryGenerator:
                 f"Should have found exactly one table per type."
             )
 
-    def generate_summary(self, aggregate_filters: List[str], *configs: TableOutputConfig) -> str:
+    def generate_summary(
+        self, match_expressions: List[MatchExpression], aggregate_filters: List[str], *configs: TableOutputConfig
+    ) -> str:
         # Validate if TableType is the same for all
         table_types = set([c.table_type for c in configs])
         if len(table_types) > 1:
@@ -522,14 +598,21 @@ class SummaryGenerator:
 
         tables: List[GenericTableWithHeader] = []
         for config in configs:
-            alias = None
-            if config.data_type == TableDataType.MATCHED_LINES_AGGREGATED:
-                alias = ANY_MATCHES_KEY
-                for aggr_filter in aggregate_filters:
-                    rendered_table = self._callback_dict[table_type](config.data_type, alias=aggr_filter)
+            if config.data_type == TableDataType.MATCHED_LINES:
+                for match_expr in match_expressions:
+                    alias = get_key_by_match_expr_and_aggr_filter(match_expr)
+                    rendered_table = self._callback_dict[table_type](config.data_type, alias=alias)
                     tables.append(rendered_table)
-            rendered_table = self._callback_dict[table_type](config.data_type, alias=alias)
-            tables.append(rendered_table)
+
+            elif config.data_type == TableDataType.MATCHED_LINES_AGGREGATED:
+                for match_expr in match_expressions:
+                    for aggr_filter in aggregate_filters:
+                        alias = get_key_by_match_expr_and_aggr_filter(match_expr, aggr_filter)
+                        rendered_table = self._callback_dict[table_type](config.data_type, alias=alias)
+                        tables.append(rendered_table)
+            else:
+                rendered_table = self._callback_dict[table_type](config.data_type, alias=None)
+                tables.append(rendered_table)
 
         if table_type in [TableOutputFormat.REGULAR, TableOutputFormat.REGULAR_WITH_COLORS]:
             return self._generate_final_concat_of_tables(tables)

@@ -1,10 +1,13 @@
+import argparse
 import logging
+import re
 import sys
 from enum import Enum
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
     DEFAULT_LINE_SEP,
     SummaryMode,
+    MATCH_EXPRESSION_PATTERN,
 )
 from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
@@ -427,7 +430,8 @@ class ArgParser:
             "-m",
             "--match-expression",
             required=False,
-            type=str,
+            type=ArgParser.matches_match_expression_pattern,
+            nargs="+",
             help="Line matcher expression, this will be converted to a regex. "
             "For example, if expression is org.apache, the regex will be .*org\\.apache\\.* "
             "Only lines in the mail content matching for this expression will be considered as a valid line.",
@@ -544,3 +548,9 @@ class ArgParser:
             required=False,
             help="Name of the worksheet in the Google Sheet spreadsheet",
         )
+
+    @staticmethod
+    def matches_match_expression_pattern(value):
+        if not re.match(MATCH_EXPRESSION_PATTERN, value):
+            raise argparse.ArgumentTypeError(f"Must be in the form of <alias>::<pattern>. Provided value: {value}")
+        return value
