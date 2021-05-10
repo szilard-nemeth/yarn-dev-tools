@@ -33,6 +33,7 @@ LOG = logging.getLogger(__name__)
 DEFAULT_LINE_SEP = "\\r\\n"
 REGEX_EVERYTHING = ".*"
 MATCH_ALL_LINES = REGEX_EVERYTHING
+ANY_MATCHES_KEY = "any"
 
 
 class SummaryMode(Enum):
@@ -149,25 +150,40 @@ class MatchedLinesFromMessage:
 
 @dataclass
 class TestcaseFilterResults:
-    ANY_MATCHES_KEY = "any"
     matched_in_filters: Dict[str, List[MatchedLinesFromMessage]] = field(default_factory=dict)
 
     def __post_init__(self):
-        self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY] = []
+        self.matched_in_filters[ANY_MATCHES_KEY] = []
 
     def add_match(self, match_obj: MatchedLinesFromMessage):
-        self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY].append(match_obj)
+        self.matched_in_filters[ANY_MATCHES_KEY].append(match_obj)
 
     def add_matches(self, matches: List[MatchedLinesFromMessage]):
-        self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY].extend(matches)
+        self.matched_in_filters[ANY_MATCHES_KEY].extend(matches)
+
+    def add_match_to_post_filter(self, filter_value: str, match: MatchedLinesFromMessage):
+        if filter_value not in self.matched_in_filters:
+            self.matched_in_filters[filter_value] = []
+        self.matched_in_filters[filter_value].append(match)
 
     def add_matches_to_post_filter(self, filter_value: str, matches: List[MatchedLinesFromMessage]):
         if filter_value not in self.matched_in_filters:
             self.matched_in_filters[filter_value] = []
         self.matched_in_filters[filter_value].extend(matches)
 
-    def get_all_match_objects(self) -> List[MatchedLinesFromMessage]:
-        return self.matched_in_filters[TestcaseFilterResults.ANY_MATCHES_KEY]
+    def get_matches_for_any_thread(self) -> List[MatchedLinesFromMessage]:
+        return self.matched_in_filters[ANY_MATCHES_KEY]
+
+    def get_matches_for_filter(self, key: str):
+        return self.matched_in_filters[key]
+
+    def get_post_filter_values(self) -> Dict[str, List[MatchedLinesFromMessage]]:
+        post_filter_keys = set(self.matched_in_filters.keys())
+        post_filter_keys.remove(ANY_MATCHES_KEY)
+        return {key: self.matched_in_filters[key] for key in post_filter_keys}
+
+    def get_all_values(self) -> Dict[str, List[MatchedLinesFromMessage]]:
+        return self.matched_in_filters
 
 
 class UnitTestResultAggregator:
@@ -211,7 +227,11 @@ class UnitTestResultAggregator:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
-                matched_lines: List[str] = []
+                # Prepare matched_lines dict with all required empty-lists
+                matched_lines_dict: Dict[str, List[str]] = {ANY_MATCHES_KEY: []}
+                for aggr_filter in self.config.aggregate_filters:
+                    matched_lines_dict[aggr_filter] = []
+
                 for line in lines:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
@@ -220,17 +240,32 @@ class UnitTestResultAggregator:
                         continue
                     if match_all_lines or RegexUtils.ensure_matches_pattern(line, self.config.match_expression):
                         LOG.debug(f"Matched line: {line} [Mail subject: {message.subject}]")
-                        matched_lines.append(line)
-                tc_filter_results.add_match(
-                    MatchedLinesFromMessage(
+                        matched_lines_dict[ANY_MATCHES_KEY].append(line)
+                        # Check aggregation filters
+                        for aggr_filter in self.config.aggregate_filters:
+                            if aggr_filter in message.subject:
+                                LOG.debug(
+                                    f"Found matching email subject for aggregation filter '{aggr_filter}': "
+                                    f"Subject: {message.subject}"
+                                )
+                                matched_lines_dict[aggr_filter].append(line)
+
+                for key, matched_lines in matched_lines_dict.items():
+                    if not matched_lines:
+                        continue
+                    match_obj = MatchedLinesFromMessage(
                         message.msg_id,
                         message.thread_id,
                         message.subject,
                         message.date,
                         matched_lines,
                     )
-                )
-        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {tc_filter_results.get_all_match_objects()}")
+                    if key == ANY_MATCHES_KEY:
+                        tc_filter_results.add_match(match_obj)
+                    else:
+                        tc_filter_results.add_match_to_post_filter(key, match_obj)
+
+        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {tc_filter_results.get_matches_for_any_thread()}")
         return tc_filter_results
 
     def process_data(self, tc_filter_results: TestcaseFilterResults, query_result: ThreadQueryResults):
@@ -259,7 +294,7 @@ class UnitTestResultAggregator:
             table_renderer.render_tables(
                 header=matched_testcases_all_header,
                 data=DataConverter.convert_data_to_rows(
-                    tc_filter_results.get_all_match_objects(),
+                    tc_filter_results.get_matches_for_any_thread(),
                     truncate_length=truncate,
                     abbrev_tc_package=self.config.abbrev_tc_package,
                     truncate_subject_with=self.config.truncate_subject_with,
@@ -268,14 +303,19 @@ class UnitTestResultAggregator:
                 formats=DEFAULT_TABLE_FORMATS,
             )
 
-            table_renderer.render_tables(
-                header=matched_testcases_aggregated_header,
-                data=DataConverter.convert_data_to_aggregated_rows(
-                    tc_filter_results.get_all_match_objects(), abbrev_tc_package=self.config.abbrev_tc_package
-                ),
-                dtype=TableDataType.MATCHED_LINES_AGGREGATED,
-                formats=DEFAULT_TABLE_FORMATS,
-            )
+            # Generate table for matched lines (aggregated), including all post-filters
+            for key, match_objects in tc_filter_results.get_all_values().items():
+                append_to_header_title = f" (filter: {key})" if key != ANY_MATCHES_KEY else None
+                table_renderer.render_tables(
+                    header=matched_testcases_aggregated_header,
+                    append_to_header_title=append_to_header_title,
+                    data=DataConverter.convert_data_to_aggregated_rows(
+                        tc_filter_results.get_matches_for_filter(key), abbrev_tc_package=self.config.abbrev_tc_package
+                    ),
+                    dtype=TableDataType.MATCHED_LINES_AGGREGATED,
+                    formats=DEFAULT_TABLE_FORMATS,
+                    table_alias=key,
+                )
 
             table_renderer.render_tables(
                 header=["Subject", "Thread ID"],
@@ -297,6 +337,7 @@ class UnitTestResultAggregator:
 
             if allowed_regular_summary:
                 regular_summary: str = summary_generator.generate_summary(
+                    self.config.aggregate_filters,
                     TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.REGULAR),
                     TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.REGULAR),
                     TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.REGULAR),
@@ -306,6 +347,7 @@ class UnitTestResultAggregator:
 
             if allowed_html_summary:
                 html_summary: str = summary_generator.generate_summary(
+                    self.config.aggregate_filters,
                     TableOutputConfig(TableDataType.MATCHED_LINES, TableOutputFormat.HTML),
                     TableOutputConfig(TableDataType.MATCHED_LINES_AGGREGATED, TableOutputFormat.HTML),
                     TableOutputConfig(TableDataType.MAIL_SUBJECTS, TableOutputFormat.HTML),
@@ -322,7 +364,7 @@ class UnitTestResultAggregator:
 
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
             matched_testcases_data = DataConverter.convert_data_to_rows(
-                tc_filter_results.get_all_match_objects(),
+                tc_filter_results.get_matches_for_any_thread(),
                 truncate_length=False,
                 abbrev_tc_package=None,
                 truncate_subject_with=None,
@@ -330,7 +372,7 @@ class UnitTestResultAggregator:
             self.update_gsheet(matched_testcases_all_header, matched_testcases_data)
 
             mathced_testcases_aggregated_data = DataConverter.convert_data_to_aggregated_rows(
-                tc_filter_results.get_all_match_objects(), abbrev_tc_package=None
+                tc_filter_results.get_matches_for_any_thread(), abbrev_tc_package=None
             )
             self.update_gsheet_aggregated(matched_testcases_aggregated_header, mathced_testcases_aggregated_data)
 
@@ -402,18 +444,24 @@ class SummaryGenerator:
             TableOutputFormat.HTML: self._html_table,
         }
 
-    def _regular_table(self, dt: TableDataType):
-        rendered_tables = self.table_renderer.get_tables(dt, table_fmt=TabulateTableFormat.GRID, colorized=False)
+    def _regular_table(self, dt: TableDataType, alias=None):
+        rendered_tables = self.table_renderer.get_tables(
+            dt, table_fmt=TabulateTableFormat.GRID, colorized=False, alias=alias
+        )
         self._ensure_one_table_found(rendered_tables, dt)
         return rendered_tables[0]
 
-    def _colorized_table(self, dt: TableDataType):
-        rendered_tables = self.table_renderer.get_tables(dt, table_fmt=TabulateTableFormat.GRID, colorized=True)
+    def _colorized_table(self, dt: TableDataType, alias=None):
+        rendered_tables = self.table_renderer.get_tables(
+            dt, table_fmt=TabulateTableFormat.GRID, colorized=True, alias=alias
+        )
         self._ensure_one_table_found(rendered_tables, dt)
         return rendered_tables[0]
 
-    def _html_table(self, dt: TableDataType):
-        rendered_tables = self.table_renderer.get_tables(dt, table_fmt=TabulateTableFormat.HTML, colorized=False)
+    def _html_table(self, dt: TableDataType, alias=None):
+        rendered_tables = self.table_renderer.get_tables(
+            dt, table_fmt=TabulateTableFormat.HTML, colorized=False, alias=alias
+        )
         self._ensure_one_table_found(rendered_tables, dt)
         return rendered_tables[0]
 
@@ -427,7 +475,7 @@ class SummaryGenerator:
                 f"Should have found exactly one table per type."
             )
 
-    def generate_summary(self, *configs: TableOutputConfig) -> str:
+    def generate_summary(self, aggregate_filters: List[str], *configs: TableOutputConfig) -> str:
         # Validate if TableType is the same for all
         table_types = set([c.table_type for c in configs])
         if len(table_types) > 1:
@@ -437,9 +485,16 @@ class SummaryGenerator:
                 f"Provided configs: {configs}"
             )
         table_type = list(table_types)[0]
+
         tables: List[GenericTableWithHeader] = []
         for config in configs:
-            rendered_table = self._callback_dict[table_type](config.data_type)
+            alias = None
+            if config.data_type == TableDataType.MATCHED_LINES_AGGREGATED:
+                alias = ANY_MATCHES_KEY
+                for aggr_filter in aggregate_filters:
+                    rendered_table = self._callback_dict[table_type](config.data_type, alias=aggr_filter)
+                    tables.append(rendered_table)
+            rendered_table = self._callback_dict[table_type](config.data_type, alias=alias)
             tables.append(rendered_table)
 
         if table_type in [TableOutputFormat.REGULAR, TableOutputFormat.REGULAR_WITH_COLORS]:
@@ -475,7 +530,7 @@ class SummaryGenerator:
 # TODO Try to extract this to common class (pythoncommons?), BranchComparator should move to this implementation later.
 class TableRenderer:
     def __init__(self):
-        self._tables: Dict[TableDataType, List[GenericTableWithHeader]] = {}
+        self._tables: Dict[str, List[GenericTableWithHeader]] = {}
 
     def render_tables(
         self,
@@ -484,6 +539,8 @@ class TableRenderer:
         dtype: TableDataType,
         formats: List[TabulateTableFormat],
         colorized=False,
+        table_alias=None,
+        append_to_header_title=None,
     ) -> Dict[TabulateTableFormat, GenericTableWithHeader]:
         if not formats:
             raise ValueError("Formats should not be empty!")
@@ -498,22 +555,38 @@ class TableRenderer:
         )
         result_dict: Dict[TabulateTableFormat, GenericTableWithHeader] = {}
         for table_fmt, rendered_table in rendered_tables.items():
+            header_title = dtype.header
+            if append_to_header_title:
+                header_title += append_to_header_title
             table_with_header = GenericTableWithHeader(
-                dtype.header, header, data, rendered_table, table_fmt=table_fmt, colorized=colorized
+                header_title, header, data, rendered_table, table_fmt=table_fmt, colorized=colorized
             )
-            self._add_table(dtype, table_with_header)
+            self._add_table(dtype, table_with_header, alias=table_alias)
             result_dict[table_fmt] = table_with_header
         return result_dict
 
-    def _add_table(self, dtype: TableDataType, table: GenericTableWithHeader):
-        if dtype not in self._tables:
-            self._tables[dtype] = []
-        self._tables[dtype].append(table)
+    def _add_table(self, dtype: TableDataType, table: GenericTableWithHeader, alias=None):
+        key = self._generate_key(dtype, alias)
+        if key not in self._tables:
+            self._tables[key] = []
+        self._tables[key].append(table)
+
+    @staticmethod
+    def _generate_key(dtype: TableDataType, alias):
+        key = dtype.key
+        if alias:
+            key += f"_{alias}"
+        return key
 
     def get_tables(
-        self, ttype: TableDataType, colorized: bool = False, table_fmt: TabulateTableFormat = TabulateTableFormat.GRID
+        self,
+        ttype: TableDataType,
+        colorized: bool = False,
+        table_fmt: TabulateTableFormat = TabulateTableFormat.GRID,
+        alias=None,
     ) -> List[GenericTableWithHeader]:
-        return list(filter(lambda t: t.colorized == colorized and t.table_fmt == table_fmt, self._tables[ttype]))
+        key = self._generate_key(ttype, alias)
+        return list(filter(lambda t: t.colorized == colorized and t.table_fmt == table_fmt, self._tables[key]))
 
 
 class UnitTestResultOutputManager:
