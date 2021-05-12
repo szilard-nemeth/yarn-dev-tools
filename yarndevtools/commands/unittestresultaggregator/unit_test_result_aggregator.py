@@ -13,12 +13,13 @@ from pythoncommons.string_utils import RegexUtils
 
 from yarndevtools.commands.unittestresultaggregator.common import (
     MATCH_ALL_LINES_EXPRESSION,
-    REGEX_EVERYTHING,
     MATCHTYPE_ALL_POSTFIX,
-    get_key_by_match_expr_and_aggr_filter,
+    get_key_by_testcase_filter,
     MatchExpression,
     MatchedLinesFromMessage,
     OperationMode,
+    TestCaseFilters,
+    TestCaseFilter,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -31,8 +32,6 @@ LOG = logging.getLogger(__name__)
 AGGREGATED_WS_POSTFIX = "aggregated"
 SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
-MATCH_EXPRESSION_SEPARATOR = "::"
-MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
 
 
 class UnitTestResultAggregatorConfig:
@@ -43,13 +42,15 @@ class UnitTestResultAggregatorConfig:
         self.smart_subject_query = args.smart_subject_query
         self.request_limit = getattr(args, "request_limit", 1000000)
         self.account_email: str = args.account_email
-        self.match_expressions: List[MatchExpression] = self._convert_match_expressions(args)
+        self.testcase_filters = TestCaseFilters(
+            TestCaseFilters.convert_raw_match_expressions_to_objs(getattr(args, "match_expression", None)),
+            getattr(args, "aggregate_filters", []),
+        )
         self.skip_lines_starting_with: List[str] = getattr(args, "skip_lines_starting_with", [])
         self.email_content_line_sep = getattr(args, "email_content_line_separator", DEFAULT_LINE_SEP)
         self.truncate_subject_with: str = getattr(args, "truncate_subject", None)
         self.abbrev_tc_package: str = getattr(args, "abbrev_testcase_package", None)
         self.summary_mode = args.summary_mode
-        self.aggregate_filters: List[str] = getattr(args, "aggregate_filters", [])
         self.output_dir = output_dir
         self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
@@ -57,32 +58,14 @@ class UnitTestResultAggregatorConfig:
 
         if self.operation_mode == OperationMode.GSHEET:
             worksheet_names: List[str] = []
-            for match_expr in self.match_expressions + [MATCH_ALL_LINES_EXPRESSION]:
-                worksheet_names.append(self.get_worksheet_name(match_expr))
-                for aggr_filter in self.aggregate_filters:
-                    worksheet_names.append(self.get_worksheet_name(match_expr, aggr_filter))
+            tc_filters = self.testcase_filters.get_testcase_filter_objs(
+                extended_expressions=True, match_expr_separately_always=True
+            )
+            for tcf in tc_filters:
+                worksheet_name = self.get_worksheet_name(tcf)
+                worksheet_names.append(worksheet_name)
+                self.gsheet_options.add_worksheet(worksheet_name)
             LOG.info(f"Generated worksheet names: {worksheet_names}")
-            for ws in worksheet_names:
-                self.gsheet_options.add_worksheet(ws)
-
-    @staticmethod
-    def _convert_match_expressions(args) -> List[MatchExpression]:
-        raw_match_exprs: List[str] = getattr(args, "match_expression", None)
-        if not raw_match_exprs:
-            return [MATCH_ALL_LINES_EXPRESSION]
-
-        match_expressions = []
-        for raw_match_expr in raw_match_exprs:
-            segments = raw_match_expr.split(MATCH_EXPRESSION_SEPARATOR)
-            alias = segments[0]
-            if alias == MATCHTYPE_ALL_POSTFIX:
-                raise ValueError(
-                    f"Alias for match expression '{MATCHTYPE_ALL_POSTFIX}' is reserved. Please use another alias."
-                )
-            match_expr = segments[1]
-            pattern = REGEX_EVERYTHING + match_expr.replace(".", "\\.") + REGEX_EVERYTHING
-            match_expressions.append(MatchExpression(alias, raw_match_expr, pattern))
-        return match_expressions
 
     def _validate_args(self, parser, args):
         if args.gsheet and (
@@ -116,7 +99,7 @@ class UnitTestResultAggregatorConfig:
             f"Console mode: {self.console_mode}\n"
             f"Gmail query: {self.gmail_query}\n"
             f"Smart subject query: {self.smart_subject_query}\n"
-            f"Match expressions: {self.match_expressions}\n"
+            f"Testcase filters: {self.testcase_filters}\n"
             f"Email line separator: {self.email_content_line_sep}\n"
             f"Request limit: {self.request_limit}\n"
             f"Operation mode: {self.operation_mode}\n"
@@ -124,84 +107,86 @@ class UnitTestResultAggregatorConfig:
             f"Truncate subject with: {self.truncate_subject_with}\n"
             f"Abbreviate testcase package: {self.abbrev_tc_package}\n"
             f"Summary mode: {self.summary_mode}\n"
-            f"Aggregate filters: {self.aggregate_filters}\n"
         )
 
     @staticmethod
-    def get_worksheet_name(match_expression: MatchExpression, aggr_filter: str = None):
-        ws_name: str = f"{match_expression.alias}"
-        if aggr_filter:
-            ws_name += f"_{aggr_filter}_{AGGREGATED_WS_POSTFIX}"
+    def get_worksheet_name(tcf: TestCaseFilter):
+        ws_name: str = f"{tcf.match_expr.alias}"
+        if tcf.aggr_filter:
+            ws_name += f"_{tcf.aggr_filter}_{AGGREGATED_WS_POSTFIX}"
         else:
             ws_name += f"_{MATCHTYPE_ALL_POSTFIX}"
         return f"{ws_name}"
 
 
 class TestcaseFilterResults:
-    def __init__(self, match_expressions, aggregate_filters):
-        self.aggregate_filters = aggregate_filters
-        self.match_expressions = match_expressions
+    def __init__(self, testcase_filters: TestCaseFilters):
+        # TODO
+        self.testcase_filters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
         # Key: Match expression + (Aggregation filter or _ALL match)
         self.all_matches: Dict[str, List[MatchedLinesFromMessage]] = {}
 
         # This is a temporary dict - usually for a context of a message
         self.matched_lines_dict: Dict[str, List[str]] = {}
-        # Key: String key, Value: Tuple of[MatchExpression, aggregation filter]
-        self._match_keys: Dict[str, Tuple[MatchExpression, str]] = {}
+        self._match_keys: Dict[str, TestCaseFilter] = {}
 
     def _should_match_all_lines(self):
-        match_all_lines: bool = (
-            len(self.match_expressions) == 1 and self.match_expressions[0] == MATCH_ALL_LINES_EXPRESSION
-        )
+        match_all_lines: bool = self.testcase_filters.match_all_lines()
         LOG.info(
             "**Matching all lines"
             if match_all_lines
-            else f"**Matching lines with regex pattern: {self.match_expressions}"
+            else f"**Matching lines with regex pattern: {self.testcase_filters.match_expressions}"
         )
         return match_all_lines
 
     def start_new_context(self):
         # Prepare matched_lines dict with all required empty-lists for match expressions and aggregate filters
-        self.matched_lines_dict = {MATCHTYPE_ALL_POSTFIX: []}
-        for match_expr in self.match_expressions:
-            self.matched_lines_dict[self._get_match_key(match_expr)] = []
-            for aggr_filter in self.aggregate_filters:
-                self.matched_lines_dict[self._get_match_key(match_expr, aggr_filter)] = []
+        self.matched_lines_dict = {}
+        self._add_matched_lines([], TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None))
+        filters: List[TestCaseFilter] = self.testcase_filters.get_testcase_filter_objs(
+            match_expr_separately_always=True
+        )
+        for tcf in filters:
+            self._add_matched_lines([], tcf)
+
+    def _add_matched_lines(self, lines: List[str], tcf: TestCaseFilter):
+        self.matched_lines_dict[self._get_match_key(tcf)] = lines
 
     def match_line(self, line, mail_subject: str):
         matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
         if self.match_all_lines or matches_any_pattern:
             self.matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
-            self.matched_lines_dict[self._get_match_key(matched_expression)].append(line)
+            tcf = TestCaseFilter(matched_expression, None)
+            self.matched_lines_dict[self._get_match_key(tcf)].append(line)
 
-            # Check aggregation filters
-            for aggr_filter in self.aggregate_filters:
-                if aggr_filter in mail_subject:
+            for aggr_filter in self.testcase_filters.aggregate_filters:
+                if aggr_filter.val in mail_subject:
                     LOG.debug(
                         f"Found matching email subject for aggregation filter '{aggr_filter}': "
                         f"Subject: {mail_subject}"
                     )
-                    self.matched_lines_dict[self._get_match_key(matched_expression, aggr_filter)].append(line)
+                    tcf = TestCaseFilter(matched_expression, aggr_filter)
+                    self.matched_lines_dict[self._get_match_key(tcf)].append(line)
 
-    def _does_line_match_any_match_expression(self, line, mail_subject: str):
-        for match_expression in self.match_expressions:
+    def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
+        for match_expression in self.testcase_filters.match_expressions:
             if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
                 LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
                 return True, match_expression
         LOG.debug(f"Line did not match for any pattern: {line}")
         return False, None
 
-    def _get_match_key(self, match_expr: MatchExpression, aggr_filter: str or None = None) -> str:
-        if match_expr == MATCH_ALL_LINES_EXPRESSION:
-            self._match_keys[MATCHTYPE_ALL_POSTFIX] = (MATCH_ALL_LINES_EXPRESSION, None)
+    def _get_match_key(self, tcf: TestCaseFilter) -> str:
+        if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION:
+            self._match_keys[MATCHTYPE_ALL_POSTFIX] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
             return MATCHTYPE_ALL_POSTFIX
-        key = get_key_by_match_expr_and_aggr_filter(match_expr, aggr_filter)
+        key = get_key_by_testcase_filter(tcf)
         if key not in self._match_keys:
-            self._match_keys[key] = (match_expr, aggr_filter)
+            self._match_keys[key] = tcf
         return key
 
-    def lookup_match_data_by_key(self, key: str) -> Tuple[MatchExpression, str]:
+    def lookup_match_data_by_key(self, key: str) -> TestCaseFilter:
         return self._match_keys[key]
 
     def finish_context(self, message: GmailMessage):
@@ -222,11 +207,8 @@ class TestcaseFilterResults:
         # Make sure temp dict is not used until next cycle
         self.matched_lines_dict = None
 
-    def get_matches_by_criteria(
-        self, match_expression: MatchExpression, aggr_filter: str = None
-    ) -> List[MatchedLinesFromMessage]:
-        key = self._get_match_key(match_expression, aggr_filter=aggr_filter)
-        return self.all_matches[key]
+    def get_matches_by_testcase_filter(self, tc_filter: TestCaseFilter) -> List[MatchedLinesFromMessage]:
+        return self.all_matches[self._get_match_key(tc_filter)]
 
     def print_objects(self):
         LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {self.all_matches}")
@@ -252,15 +234,15 @@ class UnitTestResultAggregator:
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
         LOG.info(f"Received thread query result: {query_result}")
-        tc_filter_results: TestcaseFilterResults = self.filter_data_by_match_expressions(query_result)
+        tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result)
 
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self.gsheet_wrapper
         )
         SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
 
-    def filter_data_by_match_expressions(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
-        tc_filter_results = TestcaseFilterResults(self.config.match_expressions, self.config.aggregate_filters)
+    def filter_query_result_data(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
+        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters)
         for message in query_result.threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:

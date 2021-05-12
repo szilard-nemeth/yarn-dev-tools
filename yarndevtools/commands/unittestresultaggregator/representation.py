@@ -3,7 +3,7 @@ import datetime
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Sized, Callable, Any, Tuple
+from typing import Dict, List, Sized, Callable
 
 from googleapiwrapper.gmail_api import ThreadQueryResults
 from pythoncommons.file_utils import FileUtils
@@ -18,11 +18,11 @@ from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.unittestresultaggregator.common import (
     MatchedLinesFromMessage,
-    MatchExpression,
-    get_key_by_match_expr_and_aggr_filter,
+    get_key_by_testcase_filter,
     MATCH_ALL_LINES_EXPRESSION,
     OperationMode,
     SummaryMode,
+    TestCaseFilter,
 )
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -49,8 +49,8 @@ class TableDataType(Enum):
 @dataclass
 class OutputFormatRules:
     truncate_length: bool
-    abbrev_tc_package: str
-    truncate_subject_with: str
+    abbrev_tc_package: str or None
+    truncate_subject_with: str or None
 
 
 @auto_str
@@ -58,8 +58,7 @@ class TableRenderingConfig:
     def __init__(
         self,
         data_type: TableDataType,
-        match_expressions: List[MatchExpression] or None,
-        aggregate_filters: List[str] or None,
+        testcase_filters: List[TestCaseFilter] or None,
         header: List[str],
         table_types: List[TableOutputFormat],
         out_fmt: OutputFormatRules or None,
@@ -67,23 +66,12 @@ class TableRenderingConfig:
         simple_mode=False,
     ):
         self.table_formats = table_formats
-        self.match_expressions = [] if not match_expressions else match_expressions
-        self.aggregate_filters = [] if not aggregate_filters else aggregate_filters
+        self.testcase_filters = [] if not testcase_filters else testcase_filters
         self.header = header
         self.data_type = data_type
         self.table_types = table_types
         self.out_fmt = out_fmt
         self.simple_mode = simple_mode
-
-    def generate_criteria(self) -> List[Tuple[MatchExpression, str]]:
-        has_aggr_filters = True if self.aggregate_filters else False
-        criteria = []
-        for match_expr in self.match_expressions:
-            for aggr_filter in self.aggregate_filters:
-                criteria.append((match_expr, aggr_filter))
-            if not has_aggr_filters:
-                criteria.append((match_expr, None))
-        return criteria
 
 
 class SummaryGenerator:
@@ -121,10 +109,10 @@ class SummaryGenerator:
 
             # Render tables in 2 steps
             # Example scenario:
-            # 0 = {MatchExpression} MatchExpression(alias='YARN', original_expression='YARN::org.apache.hadoop.yarn',
-            #           pattern='.*org\\.apache\\.hadoop\\.yarn.*')
-            # 1 = {MatchExpression} MatchExpression(alias='MR', original_expression='MR::org.apache.hadoop.mapreduce',
-            #           pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
+            # 1. original_expression='YARN::org.apache.hadoop.yarn',
+            #       pattern='.*org\\.apache\\.hadoop\\.yarn.*')
+            # 2. original_expression='MR::org.apache.hadoop.mapreduce',
+            #       pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
             #
             # Step numbers are in parenthesis
             # Failed testcases_ALL --> Global all (1)
@@ -140,8 +128,9 @@ class SummaryGenerator:
                 # --> 3 tables in case of 2 match expressions
                 TableRenderingConfig(
                     data_type=TableDataType.MATCHED_LINES,
-                    match_expressions=config.match_expressions + [MATCH_ALL_LINES_EXPRESSION],
-                    aggregate_filters=config.aggregate_filters,
+                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
+                        extended_expressions=True, match_expr_if_no_aggr_filter=True
+                    ),
                     header=matched_testcases_all_header,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
@@ -150,8 +139,9 @@ class SummaryGenerator:
                 # --> 4 tables in case of 2 match expressions and 2 aggregate filters
                 TableRenderingConfig(
                     data_type=TableDataType.MATCHED_LINES_AGGREGATED,
-                    match_expressions=config.match_expressions,
-                    aggregate_filters=config.aggregate_filters,
+                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
+                        extended_expressions=False, match_expr_if_no_aggr_filter=True
+                    ),
                     header=matched_testcases_aggregated_header,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
@@ -161,8 +151,7 @@ class SummaryGenerator:
                     header=["Subject", "Thread ID"],
                     data_type=TableDataType.MAIL_SUBJECTS,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    aggregate_filters=None,
-                    match_expressions=None,
+                    testcase_filters=None,
                     out_fmt=None,
                 ),
                 TableRenderingConfig(
@@ -170,27 +159,22 @@ class SummaryGenerator:
                     header=["Subject"],
                     data_type=TableDataType.UNIQUE_MAIL_SUBJECTS,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    aggregate_filters=None,
-                    match_expressions=None,
+                    testcase_filters=None,
                     out_fmt=None,
                 ),
             ]
 
-            data_dict: Dict[
-                TableDataType, Callable[[MatchExpression or None, str or None, OutputFormatRules], List[List[str]]]
-            ] = {
-                TableDataType.MATCHED_LINES: lambda match_expr, aggr_filter, out_fmt: DataConverter.convert_data_to_rows(
-                    tc_filter_results.get_matches_by_criteria(match_expr, aggr_filter),
+            data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
+                TableDataType.MATCHED_LINES: lambda tcf, out_fmt: DataConverter.convert_data_to_rows(
+                    tc_filter_results.get_matches_by_testcase_filter(tcf),
                     out_fmt,
                 ),
-                TableDataType.MATCHED_LINES_AGGREGATED: lambda match_expr, aggr_filter, out_fmt: DataConverter.convert_data_to_aggregated_rows(
-                    tc_filter_results.get_matches_by_criteria(match_expr, aggr_filter),
+                TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.convert_data_to_aggregated_rows(
+                    tc_filter_results.get_matches_by_testcase_filter(tcf),
                     out_fmt,
                 ),
-                TableDataType.MAIL_SUBJECTS: lambda match_expr, aggr_filter, out_fmt: DataConverter.convert_email_subjects(
-                    query_result
-                ),
-                TableDataType.UNIQUE_MAIL_SUBJECTS: lambda match_expr, aggr_filter, out_fmt: DataConverter.convert_unique_email_subjects(
+                TableDataType.MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_email_subjects(query_result),
+                TableDataType.UNIQUE_MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_unique_email_subjects(
                     query_result
                 ),
             }
@@ -217,24 +201,24 @@ class SummaryGenerator:
 
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
             for key, match_objects in tc_filter_results.all_matches.items():
-                match_expr, aggr_filter = tc_filter_results.lookup_match_data_by_key(key)
-                if match_expr == MATCH_ALL_LINES_EXPRESSION or not aggr_filter:
-                    match_objects = tc_filter_results.get_matches_by_criteria(match_expr)
+                tcf: TestCaseFilter = tc_filter_results.lookup_match_data_by_key(key)
+                if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION or not tcf.aggr_filter:
+                    match_objects = tc_filter_results.get_matches_by_testcase_filter(tcf)
                     table_data = DataConverter.convert_data_to_rows(match_objects, OutputFormatRules(False, None, None))
                     data_descriptor = "data"
                     header = matched_testcases_all_header
                 else:
-                    match_objects = tc_filter_results.get_matches_by_criteria(match_expr, aggr_filter)
+                    match_objects = tc_filter_results.get_matches_by_testcase_filter(tcf)
                     table_data = DataConverter.convert_data_to_aggregated_rows(
                         match_objects, OutputFormatRules(False, None, None)
                     )
-                    data_descriptor = f"aggregated data for aggregation filter {aggr_filter}"
+                    data_descriptor = f"aggregated data for aggregation filter {tcf}"
                     header = matched_testcases_aggregated_header
-                worksheet_name: str = config.get_worksheet_name(match_expr, aggr_filter)
+                worksheet_name: str = config.get_worksheet_name(tcf)
 
                 LOG.info(
                     f"Writing GSheet {data_descriptor}. "
-                    f"Worksheet name: {worksheet_name}"
+                    f"Worksheet name: {worksheet_name}, "
                     f"Number of lines will be written: {len(table_data)}"
                 )
                 output_manager.update_gsheet(
@@ -275,9 +259,8 @@ class SummaryGenerator:
     def generate_summary(self, render_confs: List[TableRenderingConfig], table_output_format: TableOutputFormat) -> str:
         tables: List[GenericTableWithHeader] = []
         for conf in render_confs:
-            criteria: List[Tuple[MatchExpression, str]] = conf.generate_criteria()
-            for c in criteria:
-                alias = get_key_by_match_expr_and_aggr_filter(c[0], c[1])
+            for tcf in conf.testcase_filters:
+                alias = get_key_by_testcase_filter(tcf)
                 rendered_table = self._callback_dict[table_output_format](conf.data_type, alias=alias)
                 tables.append(rendered_table)
             if conf.simple_mode:
@@ -322,23 +305,20 @@ class TableRenderer:
     def render_by_config(
         self,
         conf: TableRenderingConfig,
-        data_callable: Callable[[MatchExpression or None, str or None, OutputFormatRules], List[List[str]]],
+        data_callable: Callable[[TestCaseFilter or None, OutputFormatRules], List[List[str]]],
     ):
         if conf.simple_mode:
             self._render_tables(
                 header=conf.header,
-                data=data_callable(None, None, conf.out_fmt),
+                data=data_callable(None, conf.out_fmt),
                 dtype=conf.data_type,
                 formats=conf.table_formats,
             )
-        criteria: List[Tuple[MatchExpression, str]] = conf.generate_criteria()
-        for c in criteria:
-            match_expr = c[0]
-            aggr_filter = c[1]
-            key = get_key_by_match_expr_and_aggr_filter(match_expr, aggr_filter)
+        for tcf in conf.testcase_filters:
+            key = get_key_by_testcase_filter(tcf)
             self._render_tables(
                 header=conf.header,
-                data=data_callable(match_expr, aggr_filter, conf.out_fmt),
+                data=data_callable(tcf, conf.out_fmt),
                 dtype=conf.data_type,
                 formats=conf.table_formats,
                 append_to_header_title=f"_{key}",

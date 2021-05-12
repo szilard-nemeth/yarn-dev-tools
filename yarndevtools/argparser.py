@@ -4,10 +4,9 @@ import re
 import sys
 from enum import Enum
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
-from yarndevtools.commands.unittestresultaggregator.common import SummaryMode
+from yarndevtools.commands.unittestresultaggregator.common import SummaryMode, MATCH_EXPRESSION_PATTERN
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
     DEFAULT_LINE_SEP,
-    MATCH_EXPRESSION_PATTERN,
 )
 from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
