@@ -21,7 +21,7 @@ class OperationMode(Enum):
     PRINT = "PRINT"
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class MatchExpression:
     alias: str
     original_expression: str
@@ -34,6 +34,20 @@ MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
 @dataclass
+class EmailMetaData:
+    message_id: str
+    thread_id: str
+    subject: str
+    date: datetime.datetime
+
+
+@dataclass
+class FailedTestCase:
+    full_name: str
+    email_meta: EmailMetaData
+
+
+@dataclass
 class MatchedLinesFromMessage:
     message_id: str
     thread_id: str
@@ -42,12 +56,12 @@ class MatchedLinesFromMessage:
     lines: List[str] = field(default_factory=list)
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class AggregateFilter:
     val: str
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class TestCaseFilter:
     match_expr: MatchExpression
     aggr_filter: AggregateFilter or None
@@ -84,8 +98,11 @@ class TestCaseFilters:
                 result.append(TestCaseFilter(match_expr, None))
             elif match_expr_if_no_aggr_filter and not self.aggregate_filters:
                 result.append(TestCaseFilter(match_expr, None))
-            for aggr_filter in self.aggregate_filters:
-                result.append(TestCaseFilter(match_expr, aggr_filter))
+
+            # We don't need aggregate for all lines
+            if match_expr != MATCH_ALL_LINES_EXPRESSION:
+                for aggr_filter in self.aggregate_filters:
+                    result.append(TestCaseFilter(match_expr, aggr_filter))
         return result
 
     def match_all_lines(self) -> bool:

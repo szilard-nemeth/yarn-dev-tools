@@ -16,10 +16,11 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     MATCHTYPE_ALL_POSTFIX,
     get_key_by_testcase_filter,
     MatchExpression,
-    MatchedLinesFromMessage,
     OperationMode,
     TestCaseFilters,
     TestCaseFilter,
+    FailedTestCase,
+    EmailMetaData,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -124,12 +125,11 @@ class TestcaseFilterResults:
         # TODO
         self.testcase_filters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
-        # Key: Match expression + (Aggregation filter or _ALL match)
-        self.all_matches: Dict[str, List[MatchedLinesFromMessage]] = {}
+        self._failed_testcases_by_filter: Dict[TestCaseFilter, List[FailedTestCase]] = {}
 
         # This is a temporary dict - usually for a context of a message
-        self.matched_lines_dict: Dict[str, List[str]] = {}
-        self._match_keys: Dict[str, TestCaseFilter] = {}
+        self._matched_lines_dict: Dict[str, List[str]] = {}
+        self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
 
     def _should_match_all_lines(self):
         match_all_lines: bool = self.testcase_filters.match_all_lines()
@@ -142,7 +142,7 @@ class TestcaseFilterResults:
 
     def start_new_context(self):
         # Prepare matched_lines dict with all required empty-lists for match expressions and aggregate filters
-        self.matched_lines_dict = {}
+        self._matched_lines_dict = {}
         self._add_matched_lines([], TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None))
         filters: List[TestCaseFilter] = self.testcase_filters.get_testcase_filter_objs(
             match_expr_separately_always=True
@@ -151,14 +151,14 @@ class TestcaseFilterResults:
             self._add_matched_lines([], tcf)
 
     def _add_matched_lines(self, lines: List[str], tcf: TestCaseFilter):
-        self.matched_lines_dict[self._get_match_key(tcf)] = lines
+        self._matched_lines_dict[self._get_matched_lines_key(tcf)] = lines
 
     def match_line(self, line, mail_subject: str):
         matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
         if self.match_all_lines or matches_any_pattern:
-            self.matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
+            self._matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
             tcf = TestCaseFilter(matched_expression, None)
-            self.matched_lines_dict[self._get_match_key(tcf)].append(line)
+            self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
 
             for aggr_filter in self.testcase_filters.aggregate_filters:
                 if aggr_filter.val in mail_subject:
@@ -167,7 +167,7 @@ class TestcaseFilterResults:
                         f"Subject: {mail_subject}"
                     )
                     tcf = TestCaseFilter(matched_expression, aggr_filter)
-                    self.matched_lines_dict[self._get_match_key(tcf)].append(line)
+                    self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
 
     def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self.testcase_filters.match_expressions:
@@ -177,41 +177,38 @@ class TestcaseFilterResults:
         LOG.debug(f"Line did not match for any pattern: {line}")
         return False, None
 
-    def _get_match_key(self, tcf: TestCaseFilter) -> str:
+    def _get_matched_lines_key(self, tcf: TestCaseFilter) -> str:
         if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION:
-            self._match_keys[MATCHTYPE_ALL_POSTFIX] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
+            self._str_key_to_testcase_filter[MATCHTYPE_ALL_POSTFIX] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
             return MATCHTYPE_ALL_POSTFIX
         key = get_key_by_testcase_filter(tcf)
-        if key not in self._match_keys:
-            self._match_keys[key] = tcf
+        if key not in self._str_key_to_testcase_filter:
+            self._str_key_to_testcase_filter[key] = tcf
         return key
 
-    def lookup_match_data_by_key(self, key: str) -> TestCaseFilter:
-        return self._match_keys[key]
-
     def finish_context(self, message: GmailMessage):
-        for key, matched_lines in self.matched_lines_dict.items():
+        LOG.info("Finishing context...")
+        LOG.debug(f"Keys of _matched_lines_dict: {self._matched_lines_dict.keys()}")
+        for key, matched_lines in self._matched_lines_dict.items():
             if not matched_lines:
                 continue
-            match_obj = MatchedLinesFromMessage(
-                message.msg_id,
-                message.thread_id,
-                message.subject,
-                message.date,
-                matched_lines,
-            )
-            if key not in self.all_matches:
-                self.all_matches[key] = []
-            self.all_matches[key].append(match_obj)
+            tcf: TestCaseFilter = self._str_key_to_testcase_filter[key]
+            if tcf not in self._failed_testcases_by_filter:
+                self._failed_testcases_by_filter[tcf] = []
+            for matched_line in matched_lines:
+                email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
+                failed_testcase = FailedTestCase(matched_line, email_meta)
+                self._failed_testcases_by_filter[tcf].append(failed_testcase)
 
+        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_testcases_by_filter.keys()}")
         # Make sure temp dict is not used until next cycle
-        self.matched_lines_dict = None
+        self._matched_lines_dict: Dict[str, List[str]] = None
 
-    def get_matches_by_testcase_filter(self, tc_filter: TestCaseFilter) -> List[MatchedLinesFromMessage]:
-        return self.all_matches[self._get_match_key(tc_filter)]
+    def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
+        return self._failed_testcases_by_filter[tcf]
 
     def print_objects(self):
-        LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {self.all_matches}")
+        LOG.debug(f"All failed testcase objects: {self._failed_testcases_by_filter}")
 
 
 class UnitTestResultAggregator:

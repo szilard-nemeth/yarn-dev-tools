@@ -17,12 +17,12 @@ from pythoncommons.result_printer import (
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.unittestresultaggregator.common import (
-    MatchedLinesFromMessage,
     get_key_by_testcase_filter,
     MATCH_ALL_LINES_EXPRESSION,
     OperationMode,
     SummaryMode,
     TestCaseFilter,
+    FailedTestCase,
 )
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -166,11 +166,11 @@ class SummaryGenerator:
 
             data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
                 TableDataType.MATCHED_LINES: lambda tcf, out_fmt: DataConverter.convert_data_to_rows(
-                    tc_filter_results.get_matches_by_testcase_filter(tcf),
+                    tc_filter_results.get_failed_testcases_by_filter(tcf),
                     out_fmt,
                 ),
                 TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.convert_data_to_aggregated_rows(
-                    tc_filter_results.get_matches_by_testcase_filter(tcf),
+                    tc_filter_results.get_failed_testcases_by_filter(tcf),
                     out_fmt,
                 ),
                 TableDataType.MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_email_subjects(query_result),
@@ -200,17 +200,18 @@ class SummaryGenerator:
             LOG.info("Updating Google sheet with data...")
 
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
-            for key, match_objects in tc_filter_results.all_matches.items():
-                tcf: TestCaseFilter = tc_filter_results.lookup_match_data_by_key(key)
+            for tcf, failed_testcases in tc_filter_results._failed_testcases_by_filter.items():
                 if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION or not tcf.aggr_filter:
-                    match_objects = tc_filter_results.get_matches_by_testcase_filter(tcf)
-                    table_data = DataConverter.convert_data_to_rows(match_objects, OutputFormatRules(False, None, None))
+                    failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
+                    table_data = DataConverter.convert_data_to_rows(
+                        failed_testcases, OutputFormatRules(False, None, None)
+                    )
                     data_descriptor = "data"
                     header = matched_testcases_all_header
                 else:
-                    match_objects = tc_filter_results.get_matches_by_testcase_filter(tcf)
+                    failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
                     table_data = DataConverter.convert_data_to_aggregated_rows(
-                        match_objects, OutputFormatRules(False, None, None)
+                        failed_testcases, OutputFormatRules(False, None, None)
                     )
                     data_descriptor = f"aggregated data for aggregation filter {tcf}"
                     header = matched_testcases_aggregated_header
@@ -468,41 +469,36 @@ class DataConverter:
     LINE_MAX_LENGTH = 80
 
     @staticmethod
-    def convert_data_to_rows(
-        match_objects: List[MatchedLinesFromMessage], out_fmt: OutputFormatRules
-    ) -> List[List[str]]:
+    def convert_data_to_rows(failed_testcases: List[FailedTestCase], out_fmt: OutputFormatRules) -> List[List[str]]:
         data_table: List[List[str]] = []
         truncate_subject: bool = out_fmt.truncate_length
         truncate_lines: bool = out_fmt.truncate_length
 
-        for match_obj in match_objects:
-            for testcase_name in match_obj.lines:
-                # Don't touch the original MatchObject data.
-                # It's not memory efficient to copy subject / TC name but we need the
-                # untruncated / original fields later.
-                subject = copy.copy(match_obj.subject)
-                testcase_name = copy.copy(testcase_name)
+        for testcase in failed_testcases:
+            # Don't touch the original MatchObject data.
+            # It's not memory efficient to copy subject / TC name but we need the
+            # untruncated / original fields later.
+            subject = copy.copy(testcase.email_meta.subject)
+            testcase_name = copy.copy(testcase.full_name)
 
-                if out_fmt.truncate_subject_with:
-                    subject = DataConverter._truncate_subject(subject, out_fmt.truncate_subject_with)
-                if out_fmt.abbrev_tc_package:
-                    testcase_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, testcase_name)
+            if out_fmt.truncate_subject_with:
+                subject = DataConverter._truncate_subject(subject, out_fmt.truncate_subject_with)
+            if out_fmt.abbrev_tc_package:
+                testcase_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, testcase_name)
 
-                # Check length-based truncate, if still necessary
-                if truncate_subject and len(subject) > DataConverter.SUBJECT_MAX_LENGTH:
-                    subject = DataConverter._truncate_str(subject, DataConverter.SUBJECT_MAX_LENGTH, "subject")
-                if truncate_lines:
-                    testcase_name = DataConverter._truncate_str(
-                        testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase"
-                    )
-                row: List[str] = [
-                    str(match_obj.date),
-                    subject,
-                    testcase_name,
-                    match_obj.message_id,
-                    match_obj.thread_id,
-                ]
-                data_table.append(row)
+            # Check length-based truncate, if still necessary
+            if truncate_subject and len(subject) > DataConverter.SUBJECT_MAX_LENGTH:
+                subject = DataConverter._truncate_str(subject, DataConverter.SUBJECT_MAX_LENGTH, "subject")
+            if truncate_lines:
+                testcase_name = DataConverter._truncate_str(testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase")
+            row: List[str] = [
+                str(testcase.email_meta.date),
+                subject,
+                testcase_name,
+                testcase.email_meta.message_id,
+                testcase.email_meta.thread_id,
+            ]
+            data_table.append(row)
         return data_table
 
     @staticmethod
@@ -524,23 +520,23 @@ class DataConverter:
 
     @staticmethod
     def convert_data_to_aggregated_rows(
-        match_objects: List[MatchedLinesFromMessage], out_fmt: OutputFormatRules = None
+        failed_testcases: List[FailedTestCase], out_fmt: OutputFormatRules = None
     ) -> List[List[str]]:
         failure_freq: Dict[str, int] = {}
         latest_failure: Dict[str, datetime.datetime] = {}
         failure_dates_per_testcase: Dict[str, List[datetime.datetime]]
-        for match_obj in match_objects:
-            for testcase_name in match_obj.lines:
-                if out_fmt.abbrev_tc_package:
-                    testcase_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, testcase_name)
+        for testcase in failed_testcases:
+            tc_name = testcase.full_name
+            if out_fmt.abbrev_tc_package:
+                tc_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, tc_name)
 
-                if testcase_name not in failure_freq:
-                    failure_freq[testcase_name] = 1
-                    latest_failure[testcase_name] = match_obj.date
-                else:
-                    failure_freq[testcase_name] = failure_freq[testcase_name] + 1
-                    if match_obj.date > latest_failure[testcase_name]:
-                        latest_failure[testcase_name] = match_obj.date
+            if tc_name not in failure_freq:
+                failure_freq[tc_name] = 1
+                latest_failure[tc_name] = testcase.email_meta.date
+            else:
+                failure_freq[tc_name] = failure_freq[tc_name] + 1
+                if testcase.email_meta.date > latest_failure[tc_name]:
+                    latest_failure[tc_name] = testcase.email_meta.date
 
         data_table: List[List[str]] = []
         for testcase, failure_freq in failure_freq.items():
