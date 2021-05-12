@@ -52,10 +52,10 @@ class UnitTestResultAggregatorConfig:
             if hasattr(args, "email_content_line_separator") and args.email_content_line_separator
             else DEFAULT_LINE_SEP
         )
-        self.truncate_subject_with = (
+        self.truncate_subject_with: str = (
             args.truncate_subject if hasattr(args, "truncate_subject") and args.truncate_subject else None
         )
-        self.abbrev_tc_package = (
+        self.abbrev_tc_package: str = (
             args.abbrev_testcase_package
             if hasattr(args, "abbrev_testcase_package") and args.abbrev_testcase_package
             else None
@@ -244,11 +244,6 @@ class TestcaseFilterResults:
     ) -> List[MatchedLinesFromMessage]:
         key = self._get_match_key(match_expression, aggr_filter=aggr_filter)
         return self.all_matches[key]
-
-    def get_matches_aggregated_all(self) -> Dict[str, List[MatchedLinesFromMessage]]:
-        # Remove all keys with '*_ALL'
-        filtered_keys = list(filter(lambda x: MATCHTYPE_ALL_POSTFIX.lower() not in x.lower(), self.all_matches.keys()))
-        return {key: self.all_matches[key] for key in filtered_keys}
 
     def print_objects(self):
         LOG.debug(f"All {MatchedLinesFromMessage.__name__} objects: {self.all_matches}")
