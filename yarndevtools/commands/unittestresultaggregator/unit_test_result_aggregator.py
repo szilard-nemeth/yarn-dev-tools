@@ -304,20 +304,20 @@ class UnitTestResultAggregator:
         return valid_line
 
     def _get_gmail_query(self):
-        orig_query = self.config.gmail_query
-        if self.config.smart_subject_query and orig_query.startswith(SUBJECT):
-            after_subject = orig_query.split(SUBJECT)[1]
-            matches = [" and ", " or "]
-            if any(x in after_subject.lower() for x in matches):
-                LOG.warning(f"Detected logical expression in query, won't modify original query: {orig_query}")
-                return orig_query
-            if " " in after_subject and after_subject[0] != '"':
-                fixed_subject = f'"{after_subject}"'
+        original_query = self.config.gmail_query
+        if self.config.smart_subject_query and original_query.startswith(SUBJECT):
+            real_subject = original_query.split(SUBJECT)[1]
+            logical_expressions = [" and ", " or "]
+            if any(x in real_subject.lower() for x in logical_expressions):
+                LOG.warning(f"Detected logical expression in query, won't modify original query: {original_query}")
+                return original_query
+            if " " in real_subject and real_subject[0] != '"':
+                fixed_subject = f'"{real_subject}"'
                 new_query = SUBJECT + fixed_subject
                 LOG.info(
                     f"Fixed gmail query string.\n"
-                    f"Original query string: {orig_query}\n"
+                    f"Original query string: {original_query}\n"
                     f"New query string: {new_query}"
                 )
                 return new_query
-        return orig_query
+        return original_query
