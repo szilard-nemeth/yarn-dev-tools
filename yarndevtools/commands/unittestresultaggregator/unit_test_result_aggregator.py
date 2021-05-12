@@ -24,6 +24,8 @@ from yarndevtools.commands.unittestresultaggregator.representation import Summar
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR
 
+VALID_OPERATION_MODES = [OperationMode.PRINT, OperationMode.GSHEET]
+
 LOG = logging.getLogger(__name__)
 
 AGGREGATED_WS_POSTFIX = "aggregated"
@@ -36,34 +38,18 @@ MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
 class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
-        self.console_mode = True if "console_mode" in args and args.console_mode else False
+        self.console_mode = getattr(args, "console mode", False)
         self.gmail_query = args.gmail_query
         self.smart_subject_query = args.smart_subject_query
-        self.request_limit = args.request_limit if hasattr(args, "request_limit") and args.request_limit else 1000000
+        self.request_limit = getattr(args, "request_limit", 1000000)
         self.account_email: str = args.account_email
         self.match_expressions: List[MatchExpression] = self._convert_match_expressions(args)
-        self.skip_lines_starting_with: List[str] = (
-            args.skip_lines_starting_with
-            if hasattr(args, "skip_lines_starting_with") and args.skip_lines_starting_with
-            else []
-        )
-        self.email_content_line_sep = (
-            args.email_content_line_separator
-            if hasattr(args, "email_content_line_separator") and args.email_content_line_separator
-            else DEFAULT_LINE_SEP
-        )
-        self.truncate_subject_with: str = (
-            args.truncate_subject if hasattr(args, "truncate_subject") and args.truncate_subject else None
-        )
-        self.abbrev_tc_package: str = (
-            args.abbrev_testcase_package
-            if hasattr(args, "abbrev_testcase_package") and args.abbrev_testcase_package
-            else None
-        )
+        self.skip_lines_starting_with: List[str] = getattr(args, "skip_lines_starting_with", [])
+        self.email_content_line_sep = getattr(args, "email_content_line_separator", DEFAULT_LINE_SEP)
+        self.truncate_subject_with: str = getattr(args, "truncate_subject", None)
+        self.abbrev_tc_package: str = getattr(args, "abbrev_testcase_package", None)
         self.summary_mode = args.summary_mode
-        self.aggregate_filters: List[str] = (
-            args.aggregate_filters if hasattr(args, "aggregate_filters") and args.aggregate_filters else []
-        )
+        self.aggregate_filters: List[str] = getattr(args, "aggregate_filters", [])
         self.output_dir = output_dir
         self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
@@ -81,9 +67,7 @@ class UnitTestResultAggregatorConfig:
 
     @staticmethod
     def _convert_match_expressions(args) -> List[MatchExpression]:
-        raw_match_exprs: List[str] = (
-            args.match_expression if hasattr(args, "match_expression") and args.match_expression else None
-        )
+        raw_match_exprs: List[str] = getattr(args, "match_expression", None)
         if not raw_match_exprs:
             return [MATCH_ALL_LINES_EXPRESSION]
 
@@ -93,7 +77,7 @@ class UnitTestResultAggregatorConfig:
             alias = segments[0]
             if alias == MATCHTYPE_ALL_POSTFIX:
                 raise ValueError(
-                    f"Alias for match expression '{MATCHTYPE_ALL_POSTFIX}' is reserved. " f"Please use another alias."
+                    f"Alias for match expression '{MATCHTYPE_ALL_POSTFIX}' is reserved. Please use another alias."
                 )
             match_expr = segments[1]
             pattern = REGEX_EVERYTHING + match_expr.replace(".", "\\.") + REGEX_EVERYTHING
@@ -114,11 +98,10 @@ class UnitTestResultAggregatorConfig:
         elif args.gsheet:
             self.operation_mode = OperationMode.GSHEET
             self.gsheet_options = GSheetOptions(args.gsheet_client_secret, args.gsheet_spreadsheet, worksheet=None)
-        valid_op_modes = [OperationMode.PRINT, OperationMode.GSHEET]
-        if self.operation_mode not in valid_op_modes:
+        if self.operation_mode not in VALID_OPERATION_MODES:
             raise ValueError(
                 f"Unknown state! "
-                f"Operation mode should be any of {valid_op_modes}, but it is set to: {self.operation_mode}"
+                f"Operation mode should be any of {VALID_OPERATION_MODES}, but it is set to: {self.operation_mode}"
             )
         if hasattr(args, "gmail_credentials_file"):
             FileUtils.ensure_file_exists(args.gmail_credentials_file)
