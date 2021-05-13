@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict
 
+from pythoncommons.string_utils import RegexUtils
+
 MATCH_EXPRESSION_SEPARATOR = "::"
 MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
 LOG = logging.getLogger(__name__)
@@ -46,6 +48,22 @@ class EmailMetaData:
 class FailedTestCase:
     full_name: str
     email_meta: EmailMetaData
+    simple_name: str = None
+    parameterized: bool = False
+    parameter: str = None
+
+    def __post_init__(self):
+        self.simple_name = self.full_name
+        match = RegexUtils.ensure_matches_pattern(self.full_name, r"(.*)\[(.*)\]$")
+        if match:
+            self.parameterized = True
+            self.simple_name = match.group(1)
+            self.parameter: str = match.group(2)
+            LOG.info(
+                f"Found parameterized testcase failure: {self.full_name}. "
+                f"Simple testcase name: {self.simple_name}, "
+                f"Parameter: {self.parameter}"
+            )
 
 
 @dataclass(eq=True, frozen=True)

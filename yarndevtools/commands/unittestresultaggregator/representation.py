@@ -90,7 +90,7 @@ class SummaryGenerator:
     @staticmethod
     def process_testcase_filter_results(tc_filter_results, query_result: ThreadQueryResults, config, output_manager):
         matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
-        matched_testcases_aggregated_header = ["Testcase", "Frequency of failures", "Latest failure"]
+        matched_testcases_aggregated_header = ["Testcase", "TC parameter", "Frequency of failures", "Latest failure"]
 
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
@@ -483,7 +483,7 @@ class UnitTestResultOutputManager:
         self.gsheet_wrapper.write_data(
             header,
             data,
-            clear_range=False,
+            clear_range=True,
             worksheet_name=worksheet_name,
             create_not_existing_worksheet=create_not_existing,
         )
@@ -550,11 +550,14 @@ class DataConverter:
         failure_freq: Dict[str, int] = {}
         latest_failure: Dict[str, datetime.datetime] = {}
         failure_dates_per_testcase: Dict[str, List[datetime.datetime]]
+        lookback_dict: Dict[str, FailedTestCase] = {}
+
         for testcase in failed_testcases:
-            tc_name = testcase.full_name
+            tc_name = testcase.simple_name
             if out_fmt.abbrev_tc_package:
                 tc_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, tc_name)
 
+            lookback_dict[tc_name] = testcase
             if tc_name not in failure_freq:
                 failure_freq[tc_name] = 1
                 latest_failure[tc_name] = testcase.email_meta.date
@@ -564,9 +567,11 @@ class DataConverter:
                     latest_failure[tc_name] = testcase.email_meta.date
 
         data_table: List[List[str]] = []
-        for testcase, failure_freq in failure_freq.items():
-            last_failed = latest_failure[testcase]
-            row: List[str] = [testcase, failure_freq, str(last_failed)]
+        for tc_name, failure_freq in failure_freq.items():
+            last_failed_date = latest_failure[tc_name]
+            testcase: FailedTestCase = lookback_dict[tc_name]
+            tc_param = "" if not testcase.parameter else testcase.parameter
+            row: List[str] = [tc_name, tc_param, failure_freq, str(last_failed_date)]
             data_table.append(row)
         return data_table
 

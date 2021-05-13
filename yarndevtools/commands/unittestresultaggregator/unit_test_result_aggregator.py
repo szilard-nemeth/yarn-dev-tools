@@ -214,6 +214,9 @@ class UnitTestResultAggregator:
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
             self.gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
+        else:
+            # Avoid AttributeError
+            self.gsheet_wrapper = None
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
             project_name=f"{UNIT_TEST_RESULT_AGGREGATOR}",
