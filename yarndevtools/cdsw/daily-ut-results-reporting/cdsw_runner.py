@@ -1,4 +1,5 @@
 import logging
+from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
@@ -6,7 +7,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
     YARN_DEV_TOOLS_ROOT_DIR,
 )
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JenkinsTestReporterEnvVar
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
@@ -30,6 +31,8 @@ class CdswRunner(CdswRunnerBase):
         if not job_name:
             raise ValueError("Jenkins job name should be specified")
 
+        process_builds: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.BUILD_PROCESSING_LIMIT.value, 1)
+        LOG.info(f"Processing {process_builds} builds...")
         sender = "YARN jenkins test reporter"
         tc_filter_param = f"--testcase-filter {testcase_filter}"
         self.execute_yarndevtools_script(
@@ -38,7 +41,8 @@ class CdswRunner(CdswRunnerBase):
             f"{self.common_mail_config.as_arguments()}"
             f'--sender "{sender}" '
             f'--recipients "{recipients}" '
-            f"{tc_filter_param}"
+            f"{tc_filter_param} "
+            f"--request-limit {process_builds}"
         )
 
 
