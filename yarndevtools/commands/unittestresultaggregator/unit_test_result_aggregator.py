@@ -197,6 +197,9 @@ class TestcaseFilterResults:
                 self._failed_testcases_by_filter[tcf] = []
             for matched_line in matched_lines:
                 email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
+
+                # TODO If there's a build with failures that is sent in a mail more than 1 time, there will be duplicate test failures here
+                # DEBUG STATEMENT: "TestLeafQueue.testSingleQueueWithOneUser" in matched_line and email_meta.date.day == 13 and email_meta.date.month == 5
                 failed_testcase = FailedTestCase(matched_line, email_meta)
                 self._failed_testcases_by_filter[tcf].append(failed_testcase)
 

@@ -47,15 +47,6 @@ class FailedTestCase:
     email_meta: EmailMetaData
 
 
-@dataclass
-class MatchedLinesFromMessage:
-    message_id: str
-    thread_id: str
-    subject: str
-    date: datetime.datetime
-    lines: List[str] = field(default_factory=list)
-
-
 @dataclass(eq=True, frozen=True)
 class AggregateFilter:
     val: str
@@ -89,15 +80,23 @@ class TestCaseFilters:
         return self.match_expressions + [MATCH_ALL_LINES_EXPRESSION]
 
     def get_testcase_filter_objs(
-        self, extended_expressions=False, match_expr_separately_always=False, match_expr_if_no_aggr_filter=False
+        self,
+        extended_expressions=False,
+        match_expr_separately_always=False,
+        match_expr_if_no_aggr_filter=False,
+        without_aggregates=False,
     ) -> List[TestCaseFilter]:
-        result: List[TestCaseFilter] = []
         match_expressions_list = self.extended_match_expressions if extended_expressions else self.match_expressions
+
+        result: List[TestCaseFilter] = []
         for match_expr in match_expressions_list:
             if match_expr_separately_always:
                 result.append(TestCaseFilter(match_expr, None))
             elif match_expr_if_no_aggr_filter and not self.aggregate_filters:
                 result.append(TestCaseFilter(match_expr, None))
+
+            if without_aggregates:
+                continue
 
             # We don't need aggregate for all lines
             if match_expr != MATCH_ALL_LINES_EXPRESSION:

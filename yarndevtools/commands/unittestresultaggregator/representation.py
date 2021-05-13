@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Dict, List, Sized, Callable
 
 from googleapiwrapper.gmail_api import ThreadQueryResults
+from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.html_utils import HtmlGenerator
 from pythoncommons.result_printer import (
@@ -36,13 +37,16 @@ class TableOutputFormat(Enum):
 
 
 class TableDataType(Enum):
-    MATCHED_LINES = ("matched lines per thread", "MATCHED LINES PER MAIL THREAD")
-    MATCHED_LINES_AGGREGATED = ("matched lines aggregated", "MATCHED LINES AGGREGATED")
-    MAIL_SUBJECTS = ("found mail subjects", "FOUND MAIL SUBJECTS")
-    UNIQUE_MAIL_SUBJECTS = ("found unique mail subjects", "FOUND UNIQUE MAIL SUBJECTS")
+    MATCHED_LINES = "matched lines per thread"
+    MATCHED_LINES_AGGREGATED = "matched lines aggregated"
+    MAIL_SUBJECTS = "found mail subjects"
+    UNIQUE_MAIL_SUBJECTS = "found unique mail subjects"
+    LATEST_FAILURES = "latest failures"
 
-    def __init__(self, key, header_value):
+    def __init__(self, key, header_value=None):
         self.key = key
+        if not header_value:
+            header_value = key.upper()
         self.header = header_value
 
 
@@ -162,6 +166,15 @@ class SummaryGenerator:
                     testcase_filters=None,
                     out_fmt=None,
                 ),
+                TableRenderingConfig(
+                    data_type=TableDataType.LATEST_FAILURES,
+                    header=["Testcase", "Failure date"],
+                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
+                        match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
+                    ),
+                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                    out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+                ),
             ]
 
             data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
@@ -176,6 +189,9 @@ class SummaryGenerator:
                 TableDataType.MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_email_subjects(query_result),
                 TableDataType.UNIQUE_MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_unique_email_subjects(
                     query_result
+                ),
+                TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.convert_to_latest_failures_table(
+                    tc_filter_results.get_failed_testcases_by_filter(tcf)
                 ),
             }
             for render_conf in render_confs:
@@ -335,9 +351,18 @@ class TableRenderer:
         colorized=False,
         table_alias=None,
         append_to_header_title=None,
+        raise_error_if_header_vs_data_len_mismatched=True,
     ) -> Dict[TabulateTableFormat, GenericTableWithHeader]:
         if not formats:
             raise ValueError("Formats should not be empty!")
+        if raise_error_if_header_vs_data_len_mismatched:
+            if data and len(header) != len(data[0]):
+                raise ValueError(
+                    "Mismatch in length of header columns and data columns."
+                    f"Header: {header}, "
+                    f"First row of data table: {data[0]}"
+                )
+
         rendered_tables: Dict[TabulateTableFormat, str] = ResultPrinter.print_tables(
             data,
             lambda row: row,
@@ -544,6 +569,30 @@ class DataConverter:
             row: List[str] = [testcase, failure_freq, str(last_failed)]
             data_table.append(row)
         return data_table
+
+    @staticmethod
+    def convert_to_latest_failures_table(
+        failed_testcases: List[FailedTestCase], last_n_days=1, reset_oldest_day_to_midnight=False
+    ) -> List[List[str]]:
+        sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
+        if not sorted_testcases:
+            return []
+        date_range_start = DataConverter._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
+        LOG.info(f"Using date range open date to filter dates: {date_range_start}")
+
+        data_table: List[List[str]] = []
+        for testcase in sorted_testcases:
+            if testcase.email_meta.date >= date_range_start:
+                row: List[str] = [testcase.full_name, testcase.email_meta.date]
+                data_table.append(row)
+        return data_table
+
+    @staticmethod
+    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight):
+        oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
+        if reset_oldest_day_to_midnight:
+            oldest_day = DateUtils.reset_to_midnight(oldest_day)
+        return oldest_day
 
     @staticmethod
     def convert_email_subjects(query_result: ThreadQueryResults) -> List[List[str]]:
