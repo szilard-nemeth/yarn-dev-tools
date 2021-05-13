@@ -122,10 +122,10 @@ class SummaryGenerator:
             # Failed testcases_ALL --> Global all (1)
             #
             # Failed testcases_YARN_ALL (1)
-            # Failed testcases_YARN_Aggregated_CDPD-7.1x (2)
+            # Failed testcases_YARN_Aggregated_CDPD-7.1.x (2)
             # Failed testcases_YARN_Aggregated_CDPD-7.x (2)
             # Failed testcases_MR_ALL (1)
-            # Failed testcases_MR_Aggregated_CDPD-7.1x (2)
+            # Failed testcases_MR_Aggregated_CDPD-7.1.x (2)
             # Failed testcases_MR_Aggregated_CDPD-7.x (2)
             render_confs: List[TableRenderingConfig] = [
                 # Render tables for all match expressions + ALL values
