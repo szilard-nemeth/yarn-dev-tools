@@ -21,6 +21,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     TestCaseFilter,
     FailedTestCase,
     EmailMetaData,
+    FailedTestCases,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -122,10 +123,9 @@ class UnitTestResultAggregatorConfig:
 
 class TestcaseFilterResults:
     def __init__(self, testcase_filters: TestCaseFilters):
-        # TODO
         self.testcase_filters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
-        self._failed_testcases_by_filter: Dict[TestCaseFilter, List[FailedTestCase]] = {}
+        self._failed_testcases: FailedTestCases = FailedTestCases()
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
@@ -193,25 +193,20 @@ class TestcaseFilterResults:
             if not matched_lines:
                 continue
             tcf: TestCaseFilter = self._str_key_to_testcase_filter[key]
-            if tcf not in self._failed_testcases_by_filter:
-                self._failed_testcases_by_filter[tcf] = []
             for matched_line in matched_lines:
                 email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
-
-                # TODO If there's a build with failures that is sent in a mail more than 1 time, there will be duplicate test failures here
-                # DEBUG STATEMENT: "TestLeafQueue.testSingleQueueWithOneUser" in matched_line and email_meta.date.day == 13 and email_meta.date.month == 5
                 failed_testcase = FailedTestCase(matched_line, email_meta)
-                self._failed_testcases_by_filter[tcf].append(failed_testcase)
+                self._failed_testcases.add_failure(tcf, failed_testcase)
 
-        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_testcases_by_filter.keys()}")
+        self._failed_testcases.print_keys()
         # Make sure temp dict is not used until next cycle
         self._matched_lines_dict: Dict[str, List[str]] = None
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
-        return self._failed_testcases_by_filter[tcf]
+        return self._failed_testcases.get(tcf)
 
     def print_objects(self):
-        LOG.debug(f"All failed testcase objects: {self._failed_testcases_by_filter}")
+        LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
 
 
 class UnitTestResultAggregator:

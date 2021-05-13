@@ -168,7 +168,7 @@ class SummaryGenerator:
                 ),
                 TableRenderingConfig(
                     data_type=TableDataType.LATEST_FAILURES,
-                    header=["Testcase", "Failure date"],
+                    header=["Testcase", "Failure date", "Subject"],
                     testcase_filters=config.testcase_filters.get_testcase_filter_objs(
                         match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
                     ),
@@ -191,7 +191,7 @@ class SummaryGenerator:
                     query_result
                 ),
                 TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.convert_to_latest_failures_table(
-                    tc_filter_results.get_failed_testcases_by_filter(tcf)
+                    tc_filter_results.get_failed_testcases_by_filter(tcf), only_last_results=True
                 ),
             }
             for render_conf in render_confs:
@@ -216,7 +216,7 @@ class SummaryGenerator:
             LOG.info("Updating Google sheet with data...")
 
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
-            for tcf, failed_testcases in tc_filter_results._failed_testcases_by_filter.items():
+            for tcf, failed_testcases in tc_filter_results._failed_testcases._failed_tcs.items():
                 if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION or not tcf.aggr_filter:
                     failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
                     table_data = DataConverter.convert_data_to_rows(
@@ -572,18 +572,28 @@ class DataConverter:
 
     @staticmethod
     def convert_to_latest_failures_table(
-        failed_testcases: List[FailedTestCase], last_n_days=1, reset_oldest_day_to_midnight=False
+        failed_testcases: List[FailedTestCase],
+        last_n_days=None,
+        only_last_results=False,
+        reset_oldest_day_to_midnight=False,
     ) -> List[List[str]]:
+        if sum([True if last_n_days else False, only_last_results]) != 1:
+            raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
+
         sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
         if not sorted_testcases:
             return []
-        date_range_start = DataConverter._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
-        LOG.info(f"Using date range open date to filter dates: {date_range_start}")
+
+        if last_n_days:
+            date_range_start = DataConverter._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
+            LOG.info(f"Using date range open date to filter dates: {date_range_start}")
+        else:
+            date_range_start = sorted_testcases[0].email_meta.date
 
         data_table: List[List[str]] = []
         for testcase in sorted_testcases:
             if testcase.email_meta.date >= date_range_start:
-                row: List[str] = [testcase.full_name, testcase.email_meta.date]
+                row: List[str] = [testcase.full_name, testcase.email_meta.date, testcase.email_meta.subject]
                 data_table.append(row)
         return data_table
 

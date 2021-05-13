@@ -1,12 +1,13 @@
-from dataclasses import dataclass, field
-
 # TODO Think about how to get rid of this module?
 import datetime
+import logging
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import List
+from typing import List, Dict
 
 MATCH_EXPRESSION_SEPARATOR = "::"
 MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
+LOG = logging.getLogger(__name__)
 
 
 class SummaryMode(Enum):
@@ -56,6 +57,53 @@ class AggregateFilter:
 class TestCaseFilter:
     match_expr: MatchExpression
     aggr_filter: AggregateFilter or None
+
+
+@dataclass(eq=True, frozen=True)
+class TestCaseKey:
+    tc_filter: TestCaseFilter
+    full_name: str
+    email_subject: str
+
+
+@dataclass
+class FailedTestCases:
+    _failed_tcs: Dict[TestCaseFilter, List[FailedTestCase]] = field(default_factory=dict)
+
+    def __post_init__(self):
+        self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
+
+    def _init_if_required(self, tcf: TestCaseFilter):
+        if tcf not in self._failed_tcs:
+            self._failed_tcs[tcf] = []
+
+    def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCase):
+        self._tc_keys[tc_key] = ftc
+
+    def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCase):
+        if tcf not in self._failed_tcs:
+            self._failed_tcs[tcf] = []
+        tc_key = TestCaseKey(tcf, failed_testcase.full_name, failed_testcase.email_meta.subject)
+
+        if tc_key in self._tc_keys:
+            stored_testcase = self._tc_keys[tc_key]
+            LOG.debug(
+                f"Found already existing testcase key: {tc_key}. "
+                f"Value: {stored_testcase}, "
+                f"Email data (stored): {stored_testcase.email_meta.subject} "
+                f"Email data (new): {stored_testcase.email_meta.subject}"
+            )
+            return
+        else:
+            self._add_known_failed_testcase(tc_key, failed_testcase)
+
+        self._failed_tcs[tcf].append(failed_testcase)
+
+    def get(self, tcf) -> List[FailedTestCase]:
+        return self._failed_tcs[tcf]
+
+    def print_keys(self):
+        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_tcs.keys()}")
 
 
 @dataclass
