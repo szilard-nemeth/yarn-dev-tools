@@ -49,7 +49,7 @@ class FilteredResult:
 
 class Report:
     def __init__(self, job_build_datas, all_failing_tests):
-        self.job_build_datas = job_build_datas
+        self.job_build_datas: List[JobBuildData] = job_build_datas
         self.all_failing_tests: Dict[str, int] = all_failing_tests
 
     def convert_to_text(self, build_data_idx=-1):
@@ -222,30 +222,42 @@ class JenkinsTestReporter:
         configure_logging()
         LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
         self.report = self.find_flaky_tests()
+        self._process_build_reports(fail_on_empty_report=False)
+
+    def _process_build_reports(self, fail_on_empty_report: bool = True):
+        LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in self.report.job_build_datas]}")
+        builds_reports_to_process: int = min(self.config.num_prev_days, self.config.request_limit)
+        LOG.info(f"Processing {builds_reports_to_process} build reports...")
+        if not self.config.send_mail:
+            LOG.info("Skip sending email, as per configuration.")
 
         build_idx = 0
-        if len(self.report.all_failing_tests) == 0 and self.report.is_valid_build(build_data_idx=build_idx):
-            LOG.info("Report is valid and does not contain any failed tests. Won't send mail, exiting...")
-            raise SystemExit(0)
+        while build_idx < builds_reports_to_process:
+            report_url: str = self.report.get_build_url(build_idx)
+            LOG.info(f"Processing report of build: {report_url}")
+            if (
+                fail_on_empty_report
+                and len(self.report.all_failing_tests) == 0
+                and self.report.is_valid_build(build_data_idx=build_idx)
+            ):
+                LOG.info(
+                    f"Report with URL {report_url} is valid but does not contain any failed tests. "
+                    f"Won't process further, exiting..."
+                )
+                raise SystemExit(0)
 
-        # We have some failed tests OR the build is invalid
-        LOG.info("Report is not valid or contains failed tests!")
-
-        if len(self.report.job_build_datas) > 1:
-            LOG.info("Report contains more than 1 build result, using the first build result while sending the mail.")
-
-        if self.report.is_valid_build(build_idx):
-            LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
-            # Print summary section: all failed tests sorted by how many times they failed
-            LOG.info("TESTCASE SUMMARY:")
-            for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
-                LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
-
-        self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
-        if self.config.send_mail:
-            self.send_mail(build_idx)
-        else:
-            LOG.info("Not sending email, as per configuration.")
+            # At this point it's certain that we have some failed tests or the build itself is invalid
+            LOG.info(f"Report of build {report_url} is not valid or contains failed tests!")
+            if self.report.is_valid_build(build_idx):
+                LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
+                # Print summary section: all failed tests sorted by how many times they failed
+                LOG.info("TESTCASE SUMMARY:")
+                for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
+                    LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
+            self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
+            if self.config.send_mail:
+                self.send_mail(build_idx)
+            build_idx += 1
 
     # TODO move to pythoncommons but debug this before.
     def load_url_data(self, url):
@@ -365,7 +377,7 @@ class JenkinsTestReporter:
             f"Listing builds: {failed_build_data}"
         )
 
-        job_datas = []
+        job_datas: List[JobBuildData] = []
         tc_to_fail_count: Dict[str, int] = {}
         for i, failed_build_with_time in enumerate(failed_build_data):
             if i >= self.config.request_limit:
@@ -384,7 +396,9 @@ class JenkinsTestReporter:
             st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
             LOG.info(f"===>{test_report} ({st})")
 
-            job_data = self.find_failing_tests(test_report_api_json, job_console_output, failed_build, build_number)
+            job_data: JobBuildData = self.find_failing_tests(
+                test_report_api_json, job_console_output, failed_build, build_number
+            )
             job_data.filter_testcases(self.config.tc_filters)
             job_datas.append(job_data)
 
