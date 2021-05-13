@@ -115,7 +115,7 @@ class UnitTestResultAggregatorConfig:
     def get_worksheet_name(tcf: TestCaseFilter):
         ws_name: str = f"{tcf.match_expr.alias}"
         if tcf.aggr_filter:
-            ws_name += f"_{tcf.aggr_filter}_{AGGREGATED_WS_POSTFIX}"
+            ws_name += f"_{tcf.aggr_filter.val}_{AGGREGATED_WS_POSTFIX}"
         else:
             ws_name += f"_{MATCHTYPE_ALL_POSTFIX}"
         return f"{ws_name}"
