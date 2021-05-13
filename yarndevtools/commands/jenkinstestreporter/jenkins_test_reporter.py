@@ -357,13 +357,13 @@ class JenkinsTestReporter:
         self.total_no_of_builds = len(builds)
         last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_prev_days)
         failed_build_data: List[Tuple[str, int]] = self._get_failed_build_urls(last_n_builds)
-        failed_build_data = sorted(failed_build_data, key=lambda tup: tup[0], reverse=True)
+        failed_build_data = sorted(failed_build_data, key=lambda tup: tup[1], reverse=True)
         LOG.info(
-            f"THERE ARE {len(failed_build_data)} builds "
+            f"There are {len(failed_build_data)} builds "
             f"(out of {self.total_no_of_builds}) that have failed tests "
-            f"in the past {self.config.num_prev_days} days."
+            f"in the past {self.config.num_prev_days} days. "
+            f"Listing builds: {failed_build_data}"
         )
-        # TODO print job URLs here as they are not listed, actually
 
         job_datas = []
         tc_to_fail_count: Dict[str, int] = {}
