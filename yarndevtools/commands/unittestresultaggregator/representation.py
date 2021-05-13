@@ -483,7 +483,7 @@ class UnitTestResultOutputManager:
         self.gsheet_wrapper.write_data(
             header,
             data,
-            clear_range=True,
+            clear_range=False,
             worksheet_name=worksheet_name,
             create_not_existing_worksheet=create_not_existing,
         )
