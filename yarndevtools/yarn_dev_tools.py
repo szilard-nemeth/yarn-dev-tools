@@ -282,5 +282,4 @@ if __name__ == "__main__":
     args.func(args, parser=parser)
 
     end_time = time.time()
-    # TODO make a switch to turn execution time printing on
-    # LOG.info("Execution of script took %d seconds", end_time - start_time)
+    LOG.info("Execution of script took %d seconds", end_time - start_time)
