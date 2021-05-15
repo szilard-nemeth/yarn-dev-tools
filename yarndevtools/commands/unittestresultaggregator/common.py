@@ -37,6 +37,13 @@ MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
 @dataclass
+class KnownTestFailureInJira:
+    tc_name: str
+    jira: str
+    resolution_date: datetime.datetime
+
+
+@dataclass
 class EmailMetaData:
     message_id: str
     thread_id: str
@@ -75,6 +82,9 @@ class AggregateFilter:
 class TestCaseFilter:
     match_expr: MatchExpression
     aggr_filter: AggregateFilter or None
+
+    def short_str(self):
+        return f"{self.match_expr.alias} / {self.aggr_filter.val}"
 
 
 @dataclass(eq=True, frozen=True)

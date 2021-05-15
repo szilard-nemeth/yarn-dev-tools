@@ -6,6 +6,7 @@ from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
 from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetOptions, GSheetWrapper
+from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
@@ -22,6 +23,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCase,
     EmailMetaData,
     FailedTestCases,
+    KnownTestFailureInJira,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -83,6 +85,7 @@ class UnitTestResultAggregatorConfig:
         elif args.gsheet:
             self.operation_mode = OperationMode.GSHEET
             self.gsheet_options = GSheetOptions(args.gsheet_client_secret, args.gsheet_spreadsheet, worksheet=None)
+            self.gsheet_jira_table = getattr(args, "gsheet_compare_with_jira_table", None)
         if self.operation_mode not in VALID_OPERATION_MODES:
             raise ValueError(
                 f"Unknown state! "
@@ -213,10 +216,13 @@ class UnitTestResultAggregator:
     def __init__(self, args, parser, output_dir: str):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
-            self.gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
+            self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(self.config.gsheet_options)
+            self.testcases_to_jiras = []
+            if self.config.gsheet_jira_table:
+                self._load_and_convert_known_test_failures_in_jira()
         else:
             # Avoid AttributeError
-            self.gsheet_wrapper = None
+            self.gsheet_wrapper: GSheetWrapper = None
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
             project_name=f"{UNIT_TEST_RESULT_AGGREGATOR}",
@@ -224,6 +230,36 @@ class UnitTestResultAggregator:
             account_email=self.config.account_email,
         )
         self.gmail_wrapper = GmailWrapper(self.authorizer, output_basedir=self.config.email_cache_dir)
+
+    def _load_and_convert_known_test_failures_in_jira(self):
+        raw_data_from_gsheet = self.gsheet_wrapper.read_data(self.config.gsheet_jira_table, "A1:E150")
+        LOG.info(f"Successfully loaded data from worksheet: {self.config.gsheet_jira_table}")
+
+        header: List[str] = raw_data_from_gsheet[0]
+        expected_header = ["Testcase", "Jira", "Resolution date"]
+        if header != expected_header:
+            raise ValueError(
+                "Detected suspicious known test failures table header. "
+                f"Expected header: {expected_header}, "
+                f"Current header: {header}"
+            )
+
+        raw_data_from_gsheet = raw_data_from_gsheet[1:]
+        for r in raw_data_from_gsheet:
+            row_len = len(r)
+            if row_len < 2:
+                raise ValueError(
+                    "Both 'Testcase' and 'Jira' are mandatory items but row does not contain them. "
+                    f"Problematic row: {r}"
+                )
+            # In case of 'Resolution date' is missing, append an empty-string so that all rows will have
+            # an equal number of cells. This eases further processing.
+            if row_len == 2:
+                r.append("")
+        self.testcases_to_jiras: List[KnownTestFailureInJira] = [
+            KnownTestFailureInJira(r[0], r[1], DateUtils.convert_to_datetime(r[2], "%m/%d/%Y") if r[2] else None)
+            for r in raw_data_from_gsheet
+        ]
 
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
@@ -237,7 +273,9 @@ class UnitTestResultAggregator:
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self.gsheet_wrapper
         )
-        SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
+        SummaryGenerator.process_testcase_filter_results(
+            tc_filter_results, query_result, self.config, output_manager, self.testcases_to_jiras
+        )
 
     def filter_query_result_data(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
         tc_filter_results = TestcaseFilterResults(self.config.testcase_filters)

@@ -24,6 +24,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     SummaryMode,
     TestCaseFilter,
     FailedTestCase,
+    KnownTestFailureInJira,
 )
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -42,6 +43,9 @@ class TableDataType(Enum):
     MAIL_SUBJECTS = "found mail subjects"
     UNIQUE_MAIL_SUBJECTS = "found unique mail subjects"
     LATEST_FAILURES = "latest failures"
+    TESTCASES_TO_JIRAS = "testcases to jiras"
+    UNKNOWN_FAILURES = "unknown failures"
+    REOCCURRED_FAILURES = "reoccurred failures"
 
     def __init__(self, key, header_value=None):
         self.key = key
@@ -76,6 +80,9 @@ class TableRenderingConfig:
         self.table_types = table_types
         self.out_fmt = out_fmt
         self.simple_mode = simple_mode
+        LOG.info(
+            f"Testcase filters for data type '{self.data_type}': {[tcf.short_str() for tcf in self.testcase_filters]}"
+        )
 
 
 class SummaryGenerator:
@@ -88,9 +95,12 @@ class SummaryGenerator:
         }
 
     @staticmethod
-    def process_testcase_filter_results(tc_filter_results, query_result: ThreadQueryResults, config, output_manager):
+    def process_testcase_filter_results(
+        tc_filter_results, query_result: ThreadQueryResults, config, output_manager, testcases_to_jiras
+    ):
         matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
         matched_testcases_aggregated_header = ["Testcase", "TC parameter", "Frequency of failures", "Latest failure"]
+        comparison_to_jiras_header = matched_testcases_aggregated_header + ["Known failure?", "Reoccurred failure?"]
 
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
@@ -175,6 +185,35 @@ class SummaryGenerator:
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
                 ),
+                # TODO These table rendering configs should operate on a single aggregated YARN+MR (specified by match expressions)
+                #  dataset, without considering other aggregate filters (e.g. differentiating by branches)
+                TableRenderingConfig(
+                    data_type=TableDataType.UNKNOWN_FAILURES,
+                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
+                        extended_expressions=False, match_expr_if_no_aggr_filter=True
+                    ),
+                    header=comparison_to_jiras_header,
+                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+                ),
+                TableRenderingConfig(
+                    data_type=TableDataType.REOCCURRED_FAILURES,
+                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
+                        extended_expressions=False, match_expr_if_no_aggr_filter=True
+                    ),
+                    header=comparison_to_jiras_header,
+                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+                ),
+                TableRenderingConfig(
+                    data_type=TableDataType.TESTCASES_TO_JIRAS,
+                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
+                        extended_expressions=False, match_expr_if_no_aggr_filter=True
+                    ),
+                    header=comparison_to_jiras_header,
+                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+                ),
             ]
 
             data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
@@ -192,6 +231,16 @@ class SummaryGenerator:
                 ),
                 TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.convert_to_latest_failures_table(
                     tc_filter_results.get_failed_testcases_by_filter(tcf), only_last_results=True
+                ),
+                # TODO filter result tables for unknown / reoccurred once data is preprocessed
+                TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.convert_and_compare_with_jiras_table(
+                    tc_filter_results.get_failed_testcases_by_filter(tcf), testcases_to_jiras, out_fmt, tcf
+                ),
+                TableDataType.REOCCURRED_FAILURES: lambda tcf, out_fmt: DataConverter.convert_and_compare_with_jiras_table(
+                    tc_filter_results.get_failed_testcases_by_filter(tcf), testcases_to_jiras, out_fmt, tcf
+                ),
+                TableDataType.TESTCASES_TO_JIRAS: lambda tcf, out_fmt: DataConverter.convert_and_compare_with_jiras_table(
+                    tc_filter_results.get_failed_testcases_by_filter(tcf), testcases_to_jiras, out_fmt, tcf
                 ),
             }
             for render_conf in render_confs:
@@ -489,6 +538,7 @@ class UnitTestResultOutputManager:
         )
 
 
+# TODO This should be a simple renderer class without any data business logic
 class DataConverter:
     SUBJECT_MAX_LENGTH = 50
     LINE_MAX_LENGTH = 80
@@ -640,3 +690,47 @@ class DataConverter:
         truncated = date_obj.strftime("%Y-%m-%d")
         LOG.debug(f"Truncated date. " f"Original value: {original_date}," f"New value (truncated): {truncated}")
         return truncated
+
+    @staticmethod
+    def convert_and_compare_with_jiras_table(
+        failed_testcases: List[FailedTestCase],
+        testcases_to_jiras: List[KnownTestFailureInJira],
+        out_fmt: OutputFormatRules,
+        tcf: TestCaseFilter,
+    ) -> List[List[str]]:
+        # TODO make this better: DataConverter need to be invoked here again
+        #  Problem is that aggregate data is not available with FailedTestCase objects
+        aggregated_rows = DataConverter.convert_data_to_aggregated_rows(failed_testcases, out_fmt)
+        result_table: List[List[str]] = []
+        # aggr_row: ["Testcase", "TC parameter", "Frequency of failures", "Latest failure"]
+        for aggr_row in aggregated_rows:
+            known_failure = False
+            reoccurred = False
+            known_tc: KnownTestFailureInJira = None
+
+            for tc in testcases_to_jiras:
+                tc_simple_name = aggr_row[0]
+                if tc.tc_name in tc_simple_name:
+                    LOG.debug(
+                        "Found matching failed testcase + known jira testcase:\n"
+                        f"Failed testcase: {tc_simple_name}, Known testcase: {tc.tc_name}"
+                    )
+                    known_failure = True
+                    known_tc = tc
+
+            if not known_failure:
+                LOG.info(
+                    "Found testcase that does not have corresponding jira so it is unknown. "
+                    f"Testcase details: {aggr_row}. "
+                    f"Testcase filter: {tcf.short_str()}"
+                )
+            if known_failure:
+                last_failure_datetime = DateUtils.convert_to_datetime(aggr_row[3], fmt="%Y-%m-%d %H:%M:%S")
+                if known_tc.resolution_date and last_failure_datetime > known_tc.resolution_date:
+                    LOG.info(f"Found reoccurred testcase failure: {aggr_row}")
+                    reoccurred = True
+
+            # Appended header: "Known failure?", "Reoccurred failure?"
+            result_table.append(aggr_row + [str(known_failure), str(reoccurred)])
+        LOG.info(f"Found {len(result_table)} failed testcases for filter: {tcf.short_str()}")
+        return result_table
