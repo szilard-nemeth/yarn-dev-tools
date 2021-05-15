@@ -120,7 +120,7 @@ class JobBuildData:
         unmatched_testcases = "\n".join(self.unmatched_testcases)
         return (
             f"Counters:\n"
-            f"{self.counters}"
+            f"{self.counters}, "
             f"Build number: {self.build_number}\n"
             f"Build URL: {self.build_url}\n"
             f"Matched testcases: {self.no_of_failed_filtered_tc}\n"
