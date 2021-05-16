@@ -144,6 +144,12 @@ class TestCaseFilters:
 
         if tmp_list:
             self.aggregate_filters = tmp_list
+        self.AGGREGATION_FILTERS: List[TestCaseFilter] = self.get_testcase_filter_objs(
+            extended_expressions=False, match_expr_if_no_aggr_filter=True
+        )
+        self.LATEST_FAILURE_FILTERS = self.get_testcase_filter_objs(
+            match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
+        )
 
     @property
     def extended_match_expressions(self) -> List[MatchExpression]:
@@ -218,6 +224,7 @@ class FailedTestCases:
 
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
+        self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCase]] = defaultdict(list)
 
     def _init_if_required(self, tcf: TestCaseFilter):
         if tcf not in self._failed_tcs:
@@ -246,6 +253,9 @@ class FailedTestCases:
 
     def get(self, tcf) -> List[FailedTestCase]:
         return self._failed_tcs[tcf]
+
+    def get_latest_testcases(self, tcf) -> List[FailedTestCase]:
+        return self._latest_testcases[tcf]
 
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_tcs.keys()}")
@@ -277,6 +287,39 @@ class FailedTestCases:
                     tc.latest_failure = latest_failure[tc_key]
                     tc.failure_freq = failure_freq[tc_key]
 
+    def create_latest_failures(
+        self,
+        testcase_filters: List[TestCaseFilter],
+        last_n_days=None,
+        only_last_results=False,
+        reset_oldest_day_to_midnight=False,
+    ):
+        if sum([True if last_n_days else False, only_last_results]) != 1:
+            raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
+
+        for tcf in testcase_filters:
+            failed_testcases = self._failed_tcs[tcf]
+            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
+            if not sorted_testcases:
+                return []
+
+            if last_n_days:
+                date_range_open = self._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
+                LOG.info(f"Using date range open date to filter dates: {date_range_open}")
+            else:
+                date_range_open = sorted_testcases[0].email_meta.date
+
+            for testcase in sorted_testcases:
+                if testcase.email_meta.date >= date_range_open:
+                    self._latest_testcases[tcf].append(testcase)
+
+    @staticmethod
+    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight):
+        oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
+        if reset_oldest_day_to_midnight:
+            oldest_day = DateUtils.reset_to_midnight(oldest_day)
+        return oldest_day
+
 
 class TestcaseFilterResults:
     def __init__(self, testcase_filters: TestCaseFilters):
@@ -287,10 +330,6 @@ class TestcaseFilterResults:
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
-
-        self.AGGREGATION_FILTERS: List[TestCaseFilter] = self.testcase_filters.get_testcase_filter_objs(
-            extended_expressions=False, match_expr_if_no_aggr_filter=True
-        )
 
     def _should_match_all_lines(self):
         match_all_lines: bool = self.testcase_filters.match_all_lines()
@@ -364,10 +403,16 @@ class TestcaseFilterResults:
         self._matched_lines_dict = None
 
     def finish_processing_all(self):
-        self._failed_testcases.aggregate(self.AGGREGATION_FILTERS)
+        self._failed_testcases.aggregate(self.testcase_filters.AGGREGATION_FILTERS)
+        self._failed_testcases.create_latest_failures(
+            self.testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
+        )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
         return self._failed_testcases.get(tcf)
+
+    def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
+        return self._failed_testcases.get_latest_testcases(tcf)
 
     def print_objects(self):
         LOG.debug(f"All failed testcase objects: {self._failed_testcases}")

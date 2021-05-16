@@ -157,9 +157,7 @@ class SummaryGenerator:
                 # --> 4 tables in case of 2 match expressions and 2 aggregate filters
                 TableRenderingConfig(
                     data_type=TableDataType.MATCHED_LINES_AGGREGATED,
-                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
-                        extended_expressions=False, match_expr_if_no_aggr_filter=True
-                    ),
+                    testcase_filters=config.testcase_filters.AGGREGATION_FILTERS,
                     header=matched_testcases_aggregated_header,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
@@ -183,9 +181,7 @@ class SummaryGenerator:
                 TableRenderingConfig(
                     data_type=TableDataType.LATEST_FAILURES,
                     header=["Testcase", "Failure date", "Subject"],
-                    testcase_filters=config.testcase_filters.get_testcase_filter_objs(
-                        match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
-                    ),
+                    testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
                 ),
@@ -233,8 +229,8 @@ class SummaryGenerator:
                 TableDataType.UNIQUE_MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_unique_email_subjects(
                     query_result
                 ),
-                TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.convert_to_latest_failures_table(
-                    tc_filter_results.get_failed_testcases_by_filter(tcf), only_last_results=True
+                TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.render_latest_failures_table(
+                    tc_filter_results.get_latest_failed_testcases_by_filter(tcf)
                 ),
                 # TODO filter result tables for unknown / reoccurred once data is preprocessed
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.convert_and_compare_with_jiras_table(
@@ -619,38 +615,11 @@ class DataConverter:
         return data_table
 
     @staticmethod
-    def convert_to_latest_failures_table(
-        failed_testcases: List[FailedTestCase],
-        last_n_days=None,
-        only_last_results=False,
-        reset_oldest_day_to_midnight=False,
-    ) -> List[List[str]]:
-        if sum([True if last_n_days else False, only_last_results]) != 1:
-            raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
-
-        sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
-        if not sorted_testcases:
-            return []
-
-        if last_n_days:
-            date_range_start = DataConverter._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
-            LOG.info(f"Using date range open date to filter dates: {date_range_start}")
-        else:
-            date_range_start = sorted_testcases[0].email_meta.date
-
+    def render_latest_failures_table(failed_testcases: List[FailedTestCase]) -> List[List[str]]:
         data_table: List[List[str]] = []
-        for testcase in sorted_testcases:
-            if testcase.email_meta.date >= date_range_start:
-                row: List[str] = [testcase.full_name, testcase.email_meta.date, testcase.email_meta.subject]
-                data_table.append(row)
+        for testcase in failed_testcases:
+            data_table.append([testcase.full_name, testcase.email_meta.date, testcase.email_meta.subject])
         return data_table
-
-    @staticmethod
-    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight):
-        oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
-        if reset_oldest_day_to_midnight:
-            oldest_day = DateUtils.reset_to_midnight(oldest_day)
-        return oldest_day
 
     @staticmethod
     def convert_email_subjects(query_result: ThreadQueryResults) -> List[List[str]]:
