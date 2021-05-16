@@ -26,6 +26,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCase,
     KnownTestFailureInJira,
 )
+from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestcaseFilterResults
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
@@ -96,7 +97,11 @@ class SummaryGenerator:
 
     @staticmethod
     def process_testcase_filter_results(
-        tc_filter_results, query_result: ThreadQueryResults, config, output_manager, testcases_to_jiras
+        tc_filter_results: TestcaseFilterResults,
+        query_result: ThreadQueryResults,
+        config,
+        output_manager,
+        testcases_to_jiras,
     ):
         matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
         matched_testcases_aggregated_header = ["Testcase", "TC parameter", "Frequency of failures", "Latest failure"]
@@ -221,7 +226,7 @@ class SummaryGenerator:
                     tc_filter_results.get_failed_testcases_by_filter(tcf),
                     out_fmt,
                 ),
-                TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.convert_data_to_aggregated_rows(
+                TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
                     tc_filter_results.get_failed_testcases_by_filter(tcf),
                     out_fmt,
                 ),
@@ -275,7 +280,7 @@ class SummaryGenerator:
                     header = matched_testcases_all_header
                 else:
                     failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
-                    table_data = DataConverter.convert_data_to_aggregated_rows(
+                    table_data = DataConverter.render_aggregated_rows_table(
                         failed_testcases, OutputFormatRules(False, None, None)
                     )
                     data_descriptor = f"aggregated data for aggregation filter {tcf}"
@@ -594,34 +599,16 @@ class DataConverter:
         return subject
 
     @staticmethod
-    def convert_data_to_aggregated_rows(
+    def render_aggregated_rows_table(
         failed_testcases: List[FailedTestCase], out_fmt: OutputFormatRules = None
     ) -> List[List[str]]:
-        failure_freq: Dict[str, int] = {}
-        latest_failure: Dict[str, datetime.datetime] = {}
-        failure_dates_per_testcase: Dict[str, List[datetime.datetime]]
-        lookback_dict: Dict[str, FailedTestCase] = {}
-
+        data_table: List[List[str]] = []
         for testcase in failed_testcases:
             tc_name = testcase.simple_name
             if out_fmt.abbrev_tc_package:
                 tc_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, tc_name)
-
-            lookback_dict[tc_name] = testcase
-            if tc_name not in failure_freq:
-                failure_freq[tc_name] = 1
-                latest_failure[tc_name] = testcase.email_meta.date
-            else:
-                failure_freq[tc_name] = failure_freq[tc_name] + 1
-                if testcase.email_meta.date > latest_failure[tc_name]:
-                    latest_failure[tc_name] = testcase.email_meta.date
-
-        data_table: List[List[str]] = []
-        for tc_name, failure_freq in failure_freq.items():
-            last_failed_date = latest_failure[tc_name]
-            testcase: FailedTestCase = lookback_dict[tc_name]
             tc_param = "" if not testcase.parameter else testcase.parameter
-            row: List[str] = [tc_name, tc_param, failure_freq, str(last_failed_date)]
+            row: List[str] = [tc_name, tc_param, testcase.failure_freq, str(testcase.latest_failure)]
             data_table.append(row)
         return data_table
 
@@ -700,7 +687,7 @@ class DataConverter:
     ) -> List[List[str]]:
         # TODO make this better: DataConverter need to be invoked here again
         #  Problem is that aggregate data is not available with FailedTestCase objects
-        aggregated_rows = DataConverter.convert_data_to_aggregated_rows(failed_testcases, out_fmt)
+        aggregated_rows = DataConverter.render_aggregated_rows_table(failed_testcases, out_fmt)
         result_table: List[List[str]] = []
         # aggr_row: ["Testcase", "TC parameter", "Frequency of failures", "Latest failure"]
         for aggr_row in aggregated_rows:

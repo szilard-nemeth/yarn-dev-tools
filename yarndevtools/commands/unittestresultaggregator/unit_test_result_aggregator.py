@@ -126,13 +126,17 @@ class UnitTestResultAggregatorConfig:
 
 class TestcaseFilterResults:
     def __init__(self, testcase_filters: TestCaseFilters):
-        self.testcase_filters = testcase_filters
+        self.testcase_filters: TestCaseFilters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
+
+        self.AGGREGATION_FILTERS: List[TestCaseFilter] = self.testcase_filters.get_testcase_filter_objs(
+            extended_expressions=False, match_expr_if_no_aggr_filter=True
+        )
 
     def _should_match_all_lines(self):
         match_all_lines: bool = self.testcase_filters.match_all_lines()
@@ -204,6 +208,9 @@ class TestcaseFilterResults:
         self._failed_testcases.print_keys()
         # Make sure temp dict is not used until next cycle
         self._matched_lines_dict: Dict[str, List[str]] = None
+
+    def finish_processing_all(self):
+        self._failed_testcases.aggregate(self.AGGREGATION_FILTERS)
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
         return self._failed_testcases.get(tcf)
@@ -293,6 +300,7 @@ class UnitTestResultAggregator:
                     tc_filter_results.match_line(line, message.subject)
                 tc_filter_results.finish_context(message)
         tc_filter_results.print_objects()
+        tc_filter_results.finish_processing_all()
         return tc_filter_results
 
     @staticmethod

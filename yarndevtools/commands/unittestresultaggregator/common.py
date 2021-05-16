@@ -1,9 +1,10 @@
 # TODO Think about how to get rid of this module?
 import datetime
 import logging
+from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Set
 
 from pythoncommons.string_utils import RegexUtils
 
@@ -58,6 +59,9 @@ class FailedTestCase:
     simple_name: str = None
     parameterized: bool = False
     parameter: str = None
+    latest_failure: datetime.datetime or None = None
+    failure_freq: int or None = None
+    failure_dates: List[datetime.datetime] = field(default_factory=list)
 
     def __post_init__(self):
         self.simple_name = self.full_name
@@ -93,10 +97,19 @@ class TestCaseKey:
     full_name: str
     email_subject: str
 
+    @staticmethod
+    def create_from(tcf: TestCaseFilter, ftc: FailedTestCase, use_full_name=True, use_simple_name=False):
+        if all([use_full_name, use_simple_name]) or not any([use_full_name, use_simple_name]):
+            raise ValueError("Either 'use_simple_name' or 'use_full_name' should be set to True, but not both!")
+        tc_name = ftc.full_name if use_full_name else None
+        tc_name = ftc.simple_name if use_simple_name else tc_name
+        return TestCaseKey(tcf, tc_name, ftc.email_meta.subject)
+
 
 @dataclass
 class FailedTestCases:
     _failed_tcs: Dict[TestCaseFilter, List[FailedTestCase]] = field(default_factory=dict)
+    _aggregation_completed: Set[TestCaseFilter] = field(default_factory=set)
 
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
@@ -111,8 +124,7 @@ class FailedTestCases:
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCase):
         if tcf not in self._failed_tcs:
             self._failed_tcs[tcf] = []
-        tc_key = TestCaseKey(tcf, failed_testcase.full_name, failed_testcase.email_meta.subject)
-
+        tc_key = TestCaseKey.create_from(tcf, failed_testcase)
         if tc_key in self._tc_keys:
             stored_testcase = self._tc_keys[tc_key]
             LOG.debug(
@@ -132,6 +144,33 @@ class FailedTestCases:
 
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_tcs.keys()}")
+
+    def aggregate(self, testcase_filters: List[TestCaseFilter]):
+        for tcf in testcase_filters:
+            failure_freq: Dict[TestCaseKey, int] = {}
+            latest_failure: Dict[TestCaseKey, datetime.datetime] = {}
+            tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCase]] = defaultdict(list)
+            for testcase in self._failed_tcs[tcf]:
+                tc_key = TestCaseKey.create_from(tcf, testcase, use_simple_name=True, use_full_name=False)
+                tc_key_to_testcases[tc_key].append(testcase)
+                if tc_key not in failure_freq:
+                    failure_freq[tc_key] = 1
+                    latest_failure[tc_key] = testcase.email_meta.date
+                else:
+                    LOG.debug(
+                        "Found TC key in failure_freq dict. "
+                        f"Current TC: {testcase}, "
+                        f"Previously stored TC: {failure_freq[tc_key]}, "
+                    )
+                    failure_freq[tc_key] = failure_freq[tc_key] + 1
+                    if testcase.email_meta.date > latest_failure[tc_key]:
+                        latest_failure[tc_key] = testcase.email_meta.date
+            self._aggregation_completed.add(tcf)
+
+            for tc_key, testcases in tc_key_to_testcases.items():
+                for tc in testcases:
+                    tc.latest_failure = latest_failure[tc_key]
+                    tc.failure_freq = failure_freq[tc_key]
 
 
 @dataclass
