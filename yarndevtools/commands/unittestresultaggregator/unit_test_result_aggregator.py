@@ -144,11 +144,16 @@ class TestCaseFilters:
 
         if tmp_list:
             self.aggregate_filters = tmp_list
+
+        self.ALL_FILTERS = self.get_testcase_filter_objs(extended_expressions=True, match_expr_if_no_aggr_filter=True)
         self.AGGREGATION_FILTERS: List[TestCaseFilter] = self.get_testcase_filter_objs(
             extended_expressions=False, match_expr_if_no_aggr_filter=True
         )
         self.LATEST_FAILURE_FILTERS = self.get_testcase_filter_objs(
             match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
+        )
+        self.TESTCASES_TO_JIRAS_FILTERS = self.get_testcase_filter_objs(
+            extended_expressions=False, match_expr_if_no_aggr_filter=True
         )
 
     @property
@@ -320,9 +325,37 @@ class FailedTestCases:
             oldest_day = DateUtils.reset_to_midnight(oldest_day)
         return oldest_day
 
+    def cross_check_testcases_with_jiras(
+        self, testcase_filters: List[TestCaseFilter], testcases_to_jiras: List[KnownTestFailureInJira]
+    ):
+        for tcf in testcase_filters:
+            for testcase in self._failed_tcs[tcf]:
+                known_tcf: KnownTestFailureInJira or None = None
+                for known_test_failure in testcases_to_jiras:
+                    tc_simple_name = testcase.simple_name
+                    if known_test_failure.tc_name in tc_simple_name:
+                        LOG.debug(
+                            "Found matching failed testcase + known jira testcase:\n"
+                            f"Failed testcase: {tc_simple_name}, Known testcase: {known_test_failure.tc_name}"
+                        )
+                        testcase.known_failure = True
+                        known_tcf = known_test_failure
+
+                if testcase.known_failure:
+                    if known_tcf.resolution_date and testcase.latest_failure > known_tcf.resolution_date:
+                        LOG.info(f"Found reoccurred testcase failure: {testcase}")
+                        testcase.reoccurred_failure_after_jira_resolution = True
+                else:
+                    LOG.info(
+                        "Found testcase that does not have corresponding jira so it is unknown. "
+                        f"Testcase details: {testcase}. "
+                        f"Testcase filter: {tcf.short_str()}"
+                    )
+
 
 class TestcaseFilterResults:
-    def __init__(self, testcase_filters: TestCaseFilters):
+    def __init__(self, testcase_filters: TestCaseFilters, testcases_to_jiras: List[KnownTestFailureInJira]):
+        self.testcases_to_jiras = testcases_to_jiras
         self.testcase_filters: TestCaseFilters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
@@ -407,6 +440,9 @@ class TestcaseFilterResults:
         self._failed_testcases.create_latest_failures(
             self.testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
         )
+        self._failed_testcases.cross_check_testcases_with_jiras(
+            self.testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.testcases_to_jiras
+        )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
         return self._failed_testcases.get(tcf)
@@ -423,7 +459,7 @@ class UnitTestResultAggregator:
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
-            self.testcases_to_jiras = []
+            self.testcases_to_jiras: List[KnownTestFailureInJira] = []
             if self.config.gsheet_jira_table:
                 self._load_and_convert_known_test_failures_in_jira()
         else:
@@ -474,17 +510,17 @@ class UnitTestResultAggregator:
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
         LOG.info(f"Received thread query result: {query_result}")
-        tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result)
+        tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result, self.testcases_to_jiras)
 
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self.gsheet_wrapper
         )
-        SummaryGenerator.process_testcase_filter_results(
-            tc_filter_results, query_result, self.config, output_manager, self.testcases_to_jiras
-        )
+        SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
 
-    def filter_query_result_data(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
-        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters)
+    def filter_query_result_data(
+        self, query_result: ThreadQueryResults, testcases_to_jiras: List[KnownTestFailureInJira]
+    ) -> TestcaseFilterResults:
+        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, testcases_to_jiras)
         for message in query_result.threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:

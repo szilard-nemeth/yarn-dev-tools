@@ -60,6 +60,8 @@ class FailedTestCase:
     latest_failure: datetime.datetime or None = None
     failure_freq: int or None = None
     failure_dates: List[datetime.datetime] = field(default_factory=list)
+    known_failure: bool or None = None
+    reoccurred_failure_after_jira_resolution: bool or None = None
 
     def __post_init__(self):
         self.simple_name = self.full_name
@@ -86,7 +88,12 @@ class TestCaseFilter:
     aggr_filter: AggregateFilter or None
 
     def short_str(self):
-        return f"{self.match_expr.alias} / {self.aggr_filter.val}"
+        return f"{self.match_expr.alias} / {self._safe_get_aggr_filter()}"
+
+    def _safe_get_aggr_filter(self):
+        if not self.aggr_filter:
+            return "*"
+        return self.aggr_filter.val
 
 
 # TODO consider converting this a hashable object and drop str
