@@ -60,7 +60,7 @@ class CdswRunner(CdswRunnerBase):
         self.run_zipper(CommandType.BRANCH_COMPARATOR, debug=True)
 
         sender = "YARN branch diff reporter"
-        subject = f"YARN Daily branch diff report [{algorithm} algorithm, start date: {date_str}]"
+        subject = f"YARN branch diff report [{algorithm} algorithm, start date: {date_str}]"
         attachment_fnname: str = f"command_data_{algorithm}_{date_str}.zip"
         self.send_latest_command_data_in_email(sender=sender, subject=subject, attachment_filename=attachment_fnname)
 

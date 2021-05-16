@@ -18,7 +18,7 @@ DEFAULT_GMAIL_QUERY = 'subject:"YARN Daily unit test report"'
 DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "FILTER:"]
 
 
-class DailyUTEnvVar(Enum):
+class UnitTestResultAggregatorEnvVar(Enum):
     GSHEET_CLIENT_SECRET = "GSHEET_CLIENT_SECRET"
     GSHEET_SPREADHSHEET = "GSHEET_SPREADHSHEET"
     GSHEET_WORKSHEET = "GSHEET_WORKSHEET"
@@ -34,12 +34,12 @@ class CdswRunner(CdswRunnerBase):
     def run_test_result_aggregator_and_send_mail(self):
         self._run_aggregator(
             exec_mode="gsheet",
-            gsheet_client_secret=OsUtils.get_env_value(DailyUTEnvVar.GSHEET_CLIENT_SECRET.value),
-            gsheet_spreadsheet=OsUtils.get_env_value(DailyUTEnvVar.GSHEET_SPREADHSHEET.value),
-            gsheet_worksheet=OsUtils.get_env_value(DailyUTEnvVar.GSHEET_WORKSHEET.value),
+            gsheet_client_secret=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_CLIENT_SECRET.value),
+            gsheet_spreadsheet=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_SPREADHSHEET.value),
+            gsheet_worksheet=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_WORKSHEET.value),
             account_email=OsUtils.get_env_value(CdswEnvVar.MAIL_ACC_USER.value),
-            request_limit=OsUtils.get_env_value(DailyUTEnvVar.REQUEST_LIMIT.value),
-            match_expression=OsUtils.get_env_value(DailyUTEnvVar.MATCH_EXPRESSION.value),
+            request_limit=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.REQUEST_LIMIT.value),
+            match_expression=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.MATCH_EXPRESSION.value),
         )
 
         self.run_zipper(CommandType.UNIT_TEST_RESULT_AGGREGATOR, debug=True)
@@ -91,7 +91,7 @@ class CdswRunner(CdswRunnerBase):
 
 if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value] + [
-        e.value for e in DailyUTEnvVar
+        e.value for e in UnitTestResultAggregatorEnvVar
     ]
     basedir = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     LOG.info(f"YARN Dev tools mirror root dir: {YARN_DEV_TOOLS_ROOT_DIR}")
