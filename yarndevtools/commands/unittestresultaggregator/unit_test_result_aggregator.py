@@ -28,6 +28,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     MATCH_EXPRESSION_SEPARATOR,
     REGEX_EVERYTHING,
     AggregateFilter,
+    FailedTestCaseAggregated,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -214,18 +215,21 @@ class TestCaseKey:
     email_subject: str
 
     @staticmethod
-    def create_from(tcf: TestCaseFilter, ftc: FailedTestCase, use_full_name=True, use_simple_name=False):
+    def create_from(
+        tcf: TestCaseFilter, ftc: FailedTestCase, use_full_name=True, use_simple_name=False, include_email_subject=True
+    ):
         if all([use_full_name, use_simple_name]) or not any([use_full_name, use_simple_name]):
             raise ValueError("Either 'use_simple_name' or 'use_full_name' should be set to True, but not both!")
         tc_name = ftc.full_name if use_full_name else None
         tc_name = ftc.simple_name if use_simple_name else tc_name
-        return TestCaseKey(tcf, tc_name, ftc.email_meta.subject)
+        subject = ftc.email_meta.subject if include_email_subject else None
+        return TestCaseKey(tcf, tc_name, subject)
 
 
 @dataclass
 class FailedTestCases:
     _failed_tcs: Dict[TestCaseFilter, List[FailedTestCase]] = field(default_factory=dict)
-    _aggregation_completed: Set[TestCaseFilter] = field(default_factory=set)
+    _aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = field(default_factory=dict)
 
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
@@ -262,35 +266,100 @@ class FailedTestCases:
     def get_latest_testcases(self, tcf) -> List[FailedTestCase]:
         return self._latest_testcases[tcf]
 
+    def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
+        return self._aggregated_test_failures[tcf]
+
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_tcs.keys()}")
 
     def aggregate(self, testcase_filters: List[TestCaseFilter]):
         for tcf in testcase_filters:
-            failure_freq: Dict[TestCaseKey, int] = {}
-            latest_failure: Dict[TestCaseKey, datetime.datetime] = {}
+            failure_freqs: Dict[TestCaseKey, int] = {}
+            latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
             tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCase]] = defaultdict(list)
+            aggregated_test_failures: List[FailedTestCaseAggregated] = []
             for testcase in self._failed_tcs[tcf]:
-                tc_key = TestCaseKey.create_from(tcf, testcase, use_simple_name=True, use_full_name=False)
+                tc_key = TestCaseKey.create_from(
+                    tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
+                )
                 tc_key_to_testcases[tc_key].append(testcase)
-                if tc_key not in failure_freq:
-                    failure_freq[tc_key] = 1
-                    latest_failure[tc_key] = testcase.email_meta.date
+                if tc_key not in failure_freqs:
+                    failure_freqs[tc_key] = 1
+                    latest_failures[tc_key] = testcase.email_meta.date
                 else:
                     LOG.debug(
-                        "Found TC key in failure_freq dict. "
+                        "Found TC key in failure_freqs dict. "
                         f"Current TC: {testcase}, "
-                        f"Previously stored TC: {failure_freq[tc_key]}, "
+                        f"Previously stored TC: {failure_freqs[tc_key]}, "
                     )
-                    failure_freq[tc_key] = failure_freq[tc_key] + 1
-                    if testcase.email_meta.date > latest_failure[tc_key]:
-                        latest_failure[tc_key] = testcase.email_meta.date
-            self._aggregation_completed.add(tcf)
+                    failure_freqs[tc_key] = failure_freqs[tc_key] + 1
+                    if testcase.email_meta.date > latest_failures[tc_key]:
+                        latest_failures[tc_key] = testcase.email_meta.date
 
             for tc_key, testcases in tc_key_to_testcases.items():
-                for tc in testcases:
-                    tc.latest_failure = latest_failure[tc_key]
-                    tc.failure_freq = failure_freq[tc_key]
+                if len(testcases) > 1:
+                    LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
+                    self._sanity_check_testcases(testcases)
+
+                # Full name is N/A because it's ambiguous between testcases.
+                # We expect TCs to be having the same parameterized flags at this point, this was already sanity checked.
+                # If parameterized, we can't choose between full names.
+                # If not parameterized, full names should be the same.
+                arbitrary_tc = testcases[0]
+                parameter = None
+                if arbitrary_tc.parameterized:
+                    if len(testcases) > 1:
+                        full_name = "N/A"
+                    else:
+                        full_name = arbitrary_tc.full_name
+                        parameter = arbitrary_tc.parameter
+                else:
+                    full_name = arbitrary_tc.full_name
+                # Simple names were also sanity checked that they are the same, choose the first.
+                simple_name = arbitrary_tc.simple_name
+
+                # TODO fill failure dates
+                failure_dates = []
+                # Cannot fill known_failure / reoccurred at this point --> Jira check will be performed later!
+                aggregated_test_failures.append(
+                    FailedTestCaseAggregated(
+                        full_name=full_name,
+                        simple_name=simple_name,
+                        parameterized=True,
+                        parameter=parameter,
+                        latest_failure=latest_failures[tc_key],
+                        failure_freq=failure_freqs[tc_key],
+                        failure_dates=failure_dates,
+                        known_failure=None,
+                        reoccurred=None,
+                    )
+                )
+            self._aggregated_test_failures[tcf] = aggregated_test_failures
+
+    @staticmethod
+    def _sanity_check_testcases(testcases: List[FailedTestCase]):
+        simple_names = set([tc.simple_name for tc in testcases])
+        full_names = set()
+        parameterized = set()
+        for tc in testcases:
+            full_names.add(tc.full_name)
+            parameterized.add(tc.parameterized)
+
+        if len(simple_names) > 1:
+            raise ValueError(
+                "Invalid state. Aggregated testcases should have had the same simple name. "
+                f"Testcase objects: {testcases}\n"
+                f"Simple names: {simple_names}"
+            )
+
+        parameterized_lst = list(parameterized)
+        parameterized_had_same_value = True if (len(parameterized_lst) == 1 and parameterized_lst[0]) else False
+        # If we have more than 1 fullname, testcases should be all parameterized
+        if len(full_names) > 1 and not parameterized_had_same_value:
+            raise ValueError(
+                "We have 2 different TC full names but testcases are not having the same parameterized flags. "
+                f"Testcase objects: {testcases}"
+            )
 
     def create_latest_failures(
         self,
@@ -329,14 +398,13 @@ class FailedTestCases:
         self, testcase_filters: List[TestCaseFilter], testcases_to_jiras: List[KnownTestFailureInJira]
     ):
         for tcf in testcase_filters:
-            for testcase in self._failed_tcs[tcf]:
+            for testcase in self._aggregated_test_failures[tcf]:
                 known_tcf: KnownTestFailureInJira or None = None
                 for known_test_failure in testcases_to_jiras:
-                    tc_simple_name = testcase.simple_name
-                    if known_test_failure.tc_name in tc_simple_name:
+                    if known_test_failure.tc_name in testcase.simple_name:
                         LOG.debug(
                             "Found matching failed testcase + known jira testcase:\n"
-                            f"Failed testcase: {tc_simple_name}, Known testcase: {known_test_failure.tc_name}"
+                            f"Failed testcase: {testcase.simple_name}, Known testcase: {known_test_failure.tc_name}"
                         )
                         testcase.known_failure = True
                         known_tcf = known_test_failure
@@ -344,7 +412,7 @@ class FailedTestCases:
                 if testcase.known_failure:
                     if known_tcf.resolution_date and testcase.latest_failure > known_tcf.resolution_date:
                         LOG.info(f"Found reoccurred testcase failure: {testcase}")
-                        testcase.reoccurred_failure_after_jira_resolution = True
+                        testcase.reoccurred = True
                 else:
                     LOG.info(
                         "Found testcase that does not have corresponding jira so it is unknown. "
@@ -449,6 +517,9 @@ class TestcaseFilterResults:
 
     def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
         return self._failed_testcases.get_latest_testcases(tcf)
+
+    def get_aggregated_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAggregated]:
+        return self._failed_testcases.get_aggregated_testcases(tcf)
 
     def print_objects(self):
         LOG.debug(f"All failed testcase objects: {self._failed_testcases}")

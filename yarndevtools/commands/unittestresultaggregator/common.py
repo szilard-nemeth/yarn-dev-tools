@@ -57,11 +57,6 @@ class FailedTestCase:
     simple_name: str = None
     parameterized: bool = False
     parameter: str = None
-    latest_failure: datetime.datetime or None = None
-    failure_freq: int or None = None
-    failure_dates: List[datetime.datetime] = field(default_factory=list)
-    known_failure: bool or None = None
-    reoccurred_failure_after_jira_resolution: bool or None = None
 
     def __post_init__(self):
         self.simple_name = self.full_name
@@ -75,6 +70,19 @@ class FailedTestCase:
                 f"Simple testcase name: {self.simple_name}, "
                 f"Parameter: {self.parameter}"
             )
+
+
+@dataclass
+class FailedTestCaseAggregated:
+    full_name: str
+    simple_name: str
+    parameterized: bool
+    parameter: str = None
+    latest_failure: datetime.datetime or None = None
+    failure_freq: int or None = None
+    failure_dates: List[datetime.datetime] = field(default_factory=list)
+    known_failure: bool or None = None
+    reoccurred: bool or None = None  # reoccurred_failure_after_jira_resolution
 
 
 @dataclass(eq=True, frozen=True)

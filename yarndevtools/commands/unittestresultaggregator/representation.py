@@ -24,7 +24,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     SummaryMode,
     TestCaseFilter,
     FailedTestCase,
-    KnownTestFailureInJira,
+    FailedTestCaseAggregated,
 )
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -208,7 +208,7 @@ class SummaryGenerator:
                     out_fmt,
                 ),
                 TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    tc_filter_results.get_failed_testcases_by_filter(tcf),
+                    tc_filter_results.get_aggregated_testcases_by_filter(tcf),
                     out_fmt,
                 ),
                 TableDataType.MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_email_subjects(query_result),
@@ -220,13 +220,13 @@ class SummaryGenerator:
                 ),
                 # TODO filter result tables for unknown / reoccurred once data is preprocessed
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.render_testcases_to_jiras_table(
-                    tc_filter_results.get_failed_testcases_by_filter(tcf), out_fmt
+                    tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
                 ),
                 TableDataType.REOCCURRED_FAILURES: lambda tcf, out_fmt: DataConverter.render_testcases_to_jiras_table(
-                    tc_filter_results.get_failed_testcases_by_filter(tcf), out_fmt
+                    tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
                 ),
                 TableDataType.TESTCASES_TO_JIRAS: lambda tcf, out_fmt: DataConverter.render_testcases_to_jiras_table(
-                    tc_filter_results.get_failed_testcases_by_filter(tcf), out_fmt
+                    tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
                 ),
             }
             for render_conf in render_confs:
@@ -260,7 +260,7 @@ class SummaryGenerator:
                     data_descriptor = "data"
                     header = matched_testcases_all_header
                 else:
-                    failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
+                    failed_testcases = tc_filter_results.get_aggregated_testcases_by_filter(tcf)
                     table_data = DataConverter.render_aggregated_rows_table(
                         failed_testcases, OutputFormatRules(False, None, None)
                     )
@@ -518,7 +518,7 @@ class UnitTestResultOutputManager:
         self.gsheet_wrapper.write_data(
             header,
             data,
-            clear_range=False,
+            clear_range=True,
             worksheet_name=worksheet_name,
             create_not_existing_worksheet=create_not_existing,
         )
@@ -588,7 +588,7 @@ class DataConverter:
 
     @staticmethod
     def render_aggregated_rows_table(
-        failed_testcases: List[FailedTestCase], out_fmt: OutputFormatRules = None
+        failed_testcases: List[FailedTestCaseAggregated], out_fmt: OutputFormatRules = None
     ) -> List[List[str]]:
         data_table: List[List[str]] = []
         for testcase in failed_testcases:
@@ -596,7 +596,7 @@ class DataConverter:
         return data_table
 
     @staticmethod
-    def _render_aggregated_row_for_tc(out_fmt, testcase):
+    def _render_aggregated_row_for_tc(out_fmt, testcase: FailedTestCaseAggregated):
         tc_name = testcase.simple_name
         if out_fmt.abbrev_tc_package:
             tc_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, tc_name)
@@ -644,13 +644,10 @@ class DataConverter:
 
     @staticmethod
     def render_testcases_to_jiras_table(
-        failed_testcases: List[FailedTestCase],
-        out_fmt: OutputFormatRules,
+        failed_testcases: List[FailedTestCaseAggregated], out_fmt: OutputFormatRules
     ) -> List[List[str]]:
         data_table: List[List[str]] = []
         for testcase in failed_testcases:
             aggregated_row = DataConverter._render_aggregated_row_for_tc(out_fmt, testcase)
-            data_table.append(
-                aggregated_row + [str(testcase.known_failure), str(testcase.reoccurred_failure_after_jira_resolution)]
-            )
+            data_table.append(aggregated_row + [str(testcase.known_failure), str(testcase.reoccurred)])
         return data_table
