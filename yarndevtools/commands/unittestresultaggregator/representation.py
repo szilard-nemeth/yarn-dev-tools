@@ -551,35 +551,42 @@ class DataConverter:
     @staticmethod
     def convert_data_to_rows(failed_testcases: List[FailedTestCase], out_fmt: OutputFormatRules) -> List[List[str]]:
         data_table: List[List[str]] = []
-        truncate_subject: bool = out_fmt.truncate_length
-        truncate_lines: bool = out_fmt.truncate_length
+        truncate_subject_by_length: bool = out_fmt.truncate_length
+        truncate_testcase_by_length: bool = out_fmt.truncate_length
 
         for testcase in failed_testcases:
-            # Don't touch the original MatchObject data.
-            # It's not memory efficient to copy subject / TC name but we need the
-            # untruncated / original fields later.
-            subject = copy.copy(testcase.email_meta.subject)
-            testcase_name = copy.copy(testcase.full_name)
-
-            if out_fmt.truncate_subject_with:
-                subject = DataConverter._truncate_subject(subject, out_fmt.truncate_subject_with)
-            if out_fmt.abbrev_tc_package:
-                testcase_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, testcase_name)
-
-            # Check length-based truncate, if still necessary
-            if truncate_subject and len(subject) > DataConverter.SUBJECT_MAX_LENGTH:
-                subject = DataConverter._truncate_str(subject, DataConverter.SUBJECT_MAX_LENGTH, "subject")
-            if truncate_lines:
-                testcase_name = DataConverter._truncate_str(testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase")
-            row: List[str] = [
-                str(testcase.email_meta.date),
-                subject,
-                testcase_name,
-                testcase.email_meta.message_id,
-                testcase.email_meta.thread_id,
-            ]
-            data_table.append(row)
+            subject, testcase_name = DataConverter._apply_truncate_rules(
+                out_fmt, testcase, truncate_subject_by_length, truncate_testcase_by_length
+            )
+            data_table.append(
+                [
+                    str(testcase.email_meta.date),
+                    subject,
+                    testcase_name,
+                    testcase.email_meta.message_id,
+                    testcase.email_meta.thread_id,
+                ]
+            )
         return data_table
+
+    @staticmethod
+    def _apply_truncate_rules(out_fmt, testcase, truncate_subject_by_length, truncate_testcase_by_length):
+        # Don't touch the original MatchObject data.
+        # It's not memory efficient to copy subject / TC name but we need the
+        # untruncated / original fields later.
+        subject = copy.copy(testcase.email_meta.subject)
+        testcase_name = copy.copy(testcase.full_name)
+        if out_fmt.truncate_subject_with:
+            subject = DataConverter._truncate_subject(subject, out_fmt.truncate_subject_with)
+        if out_fmt.abbrev_tc_package:
+            testcase_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, testcase_name)
+
+        # Check length-based truncate, if still necessary
+        if truncate_subject_by_length and len(subject) > DataConverter.SUBJECT_MAX_LENGTH:
+            subject = DataConverter._truncate_str(subject, DataConverter.SUBJECT_MAX_LENGTH, "subject")
+        if truncate_testcase_by_length:
+            testcase_name = DataConverter._truncate_str(testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase")
+        return subject, testcase_name
 
     @staticmethod
     def _abbreviate_package_name(abbrev_tc_package, testcase_name):
