@@ -26,7 +26,6 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCase,
     KnownTestFailureInJira,
 )
-from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestcaseFilterResults
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
@@ -97,7 +96,7 @@ class SummaryGenerator:
 
     @staticmethod
     def process_testcase_filter_results(
-        tc_filter_results: TestcaseFilterResults,
+        tc_filter_results,
         query_result: ThreadQueryResults,
         config,
         output_manager,
