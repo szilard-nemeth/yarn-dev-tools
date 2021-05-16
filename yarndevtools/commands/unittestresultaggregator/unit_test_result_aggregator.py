@@ -149,7 +149,7 @@ class TestcaseFilterResults:
 
     def start_new_context(self):
         # Prepare matched_lines dict with all required empty-lists for match expressions and aggregate filters
-        self._matched_lines_dict = {}
+        self._matched_lines_dict: Dict[str, List[str]] or None = {}
         self._add_matched_lines([], TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None))
         filters: List[TestCaseFilter] = self.testcase_filters.get_testcase_filter_objs(
             match_expr_separately_always=True
@@ -207,7 +207,7 @@ class TestcaseFilterResults:
 
         self._failed_testcases.print_keys()
         # Make sure temp dict is not used until next cycle
-        self._matched_lines_dict: Dict[str, List[str]] = None
+        self._matched_lines_dict = None
 
     def finish_processing_all(self):
         self._failed_testcases.aggregate(self.AGGREGATION_FILTERS)
@@ -223,13 +223,13 @@ class UnitTestResultAggregator:
     def __init__(self, args, parser, output_dir: str):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         if self.config.operation_mode == OperationMode.GSHEET:
-            self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(self.config.gsheet_options)
+            self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
             self.testcases_to_jiras = []
             if self.config.gsheet_jira_table:
                 self._load_and_convert_known_test_failures_in_jira()
         else:
             # Avoid AttributeError
-            self.gsheet_wrapper: GSheetWrapper = None
+            self.gsheet_wrapper = None
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
             project_name=f"{UNIT_TEST_RESULT_AGGREGATOR}",
