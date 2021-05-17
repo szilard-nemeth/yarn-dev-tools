@@ -23,6 +23,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     TestCaseFilter,
     FailedTestCase,
     FailedTestCaseAggregated,
+    BuildComparisonResult,
 )
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
@@ -44,6 +45,7 @@ class TableDataType(Enum):
     TESTCASES_TO_JIRAS = "testcases to jiras"
     UNKNOWN_FAILURES = "unknown failures"
     REOCCURRED_FAILURES = "reoccurred failures"
+    BUILD_COMPARISON = "build comparison"
 
     def __init__(self, key, header_value=None):
         self.key = key
@@ -179,6 +181,13 @@ class SummaryGenerator:
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
                 ),
+                TableRenderingConfig(
+                    data_type=TableDataType.BUILD_COMPARISON,
+                    header=["Testcase", "Still failing", "Fixed", "New failure"],
+                    testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
+                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                    out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+                ),
                 # TODO These table rendering configs should operate on a single aggregated YARN+MR (specified by match expressions)
                 #  dataset, without considering other aggregate filters (e.g. differentiating by branches)
                 TableRenderingConfig(
@@ -219,6 +228,9 @@ class SummaryGenerator:
                 ),
                 TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.render_latest_failures_table(
                     tc_filter_results.get_latest_failed_testcases_by_filter(tcf)
+                ),
+                TableDataType.BUILD_COMPARISON: lambda tcf, out_fmt: DataConverter.render_build_comparison_table(
+                    tc_filter_results.get_build_comparison_result_by_filter(tcf)
                 ),
                 # TODO filter result tables for unknown / reoccurred once data is preprocessed
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
@@ -614,6 +626,17 @@ class DataConverter:
         data_table: List[List[str]] = []
         for testcase in failed_testcases:
             data_table.append([testcase.full_name, testcase.email_meta.date, testcase.email_meta.subject])
+        return data_table
+
+    @classmethod
+    def render_build_comparison_table(cls, result: BuildComparisonResult):
+        data_table: List[List[str]] = []
+        for tc in result.still_failing:
+            data_table.append([tc.full_name, True, False, False])
+        for tc in result.fixed:
+            data_table.append([tc.full_name, False, True, False])
+        for tc in result.new_failures:
+            data_table.append([tc.full_name, False, False, True])
         return data_table
 
     @staticmethod

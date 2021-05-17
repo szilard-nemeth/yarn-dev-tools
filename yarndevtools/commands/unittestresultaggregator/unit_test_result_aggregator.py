@@ -2,7 +2,7 @@ import datetime
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
@@ -30,6 +30,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     AggregateFilter,
     FailedTestCaseAggregated,
     AGGREGATED_WS_POSTFIX,
+    BuildComparisonResult,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -276,6 +277,7 @@ class FailedTestCases:
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCase]] = defaultdict(list)
+        self._build_comparison_results: Dict[TestCaseFilter, BuildComparisonResult] = {}
 
     def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCase):
         self._tc_keys[tc_key] = ftc
@@ -303,6 +305,9 @@ class FailedTestCases:
 
     def get_latest_testcases(self, tcf) -> List[FailedTestCase]:
         return self._latest_testcases[tcf]
+
+    def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
+        return self._build_comparison_results[tcf]
 
     def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
         return self._aggregated_test_failures[tcf]
@@ -426,7 +431,7 @@ class FailedTestCases:
                     self._latest_testcases[tcf].append(testcase)
 
     @staticmethod
-    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight):
+    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight=False):
         oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
         if reset_oldest_day_to_midnight:
             oldest_day = DateUtils.reset_to_midnight(oldest_day)
@@ -462,6 +467,81 @@ class FailedTestCases:
                     )
                     testcase.known_failure = False
                     testcase.reoccurred = False
+
+    def create_changed_failures_comparison(
+        self, testcase_filters: List[TestCaseFilter], compare_with_last=True, compare_with_n_days_old=None
+    ):
+        if (compare_with_last and compare_with_n_days_old) or not any([compare_with_last, compare_with_n_days_old]):
+            raise ValueError(
+                "Either use 'compare_with_last' or 'compare_with_n_days_old' " "but not both at the same time."
+            )
+        last_n_days = 1 if compare_with_last else compare_with_n_days_old
+
+        for tcf in testcase_filters:
+            failed_testcases = self._failed_tcs[tcf]
+            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
+            if not sorted_testcases:
+                return []
+
+            latest_tcs, old_build_tcs = self._get_comparable_testcase_lists(sorted_testcases, last_n_days)
+            latest_tc_keys: Set[str] = set(latest_tcs.keys())
+            older_tc_keys: Set[str] = set(old_build_tcs.keys())
+
+            fixed: Set[str] = older_tc_keys.difference(latest_tc_keys)
+            still_failing: Set[str] = latest_tc_keys.intersection(older_tc_keys)
+            new_failures: Set[str] = latest_tc_keys.difference(older_tc_keys)
+            self._build_comparison_results[tcf] = BuildComparisonResult(
+                fixed=[old_build_tcs[k] for k in fixed],
+                still_failing=[latest_tcs[k] for k in still_failing],
+                new_failures=[latest_tcs[k] for k in new_failures],
+            )
+
+    @staticmethod
+    def _get_comparable_testcase_lists(
+        sorted_testcases, last_n_days
+    ) -> Tuple[Dict[str, FailedTestCase], Dict[str, FailedTestCase]]:
+        # Result lists
+        latest_testcases: Dict[str, FailedTestCase] = {}
+        to_compare_testcases: Dict[str, FailedTestCase] = {}
+
+        reference_date: datetime.datetime = sorted_testcases[0].email_meta.date
+        # Find all testcases for latest build
+        start_idx = 0
+        while True:
+            tc = sorted_testcases[start_idx]
+            if tc.email_meta.date == reference_date:
+                latest_testcases[tc.simple_name] = tc
+                start_idx += 1
+            else:
+                # We found a new date, will be processed with the next loop
+                break
+
+        # Find all testcases for build to compare:
+        # Either build before last build or build with specified "distance" from latest build
+        stored_delta: int or None = None
+        for i in range(len(sorted_testcases) - 1, start_idx, -1):
+            tc = sorted_testcases[i]
+            date = tc.email_meta.date
+            delta_days = (reference_date - date).days
+            if stored_delta and delta_days != stored_delta:
+                break
+
+            if delta_days <= last_n_days:
+                if not stored_delta:
+                    stored_delta = delta_days
+                to_compare_testcases[tc.simple_name] = tc
+
+        # If we haven't found any other testcase, it means delta_days haven't reached the given number of days.
+        # Relax criteria
+        if not to_compare_testcases:
+            next_date = sorted_testcases[start_idx].email_meta.date
+            for i in range(start_idx, len(sorted_testcases)):
+                tc = sorted_testcases[i]
+                if not tc.email_meta.date == next_date:
+                    break
+                to_compare_testcases[tc.simple_name] = tc
+
+        return latest_testcases, to_compare_testcases
 
 
 class TestcaseFilterResults:
@@ -562,6 +642,9 @@ class TestcaseFilterResults:
         self._failed_testcases.create_latest_failures(
             self.testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
         )
+        self._failed_testcases.create_changed_failures_comparison(
+            self.testcase_filters.LATEST_FAILURE_FILTERS, compare_with_last=True
+        )
         self._failed_testcases.cross_check_testcases_with_jiras(
             self.testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.testcases_to_jiras
         )
@@ -571,6 +654,9 @@ class TestcaseFilterResults:
 
     def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
         return self._failed_testcases.get_latest_testcases(tcf)
+
+    def get_build_comparison_result_by_filter(self, tcf: TestCaseFilter) -> BuildComparisonResult:
+        return self._failed_testcases.get_build_comparison_results(tcf)
 
     def get_aggregated_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAggregated]:
         return self._failed_testcases.get_aggregated_testcases(tcf)

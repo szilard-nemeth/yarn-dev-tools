@@ -74,6 +74,13 @@ class FailedTestCase:
 
 
 @dataclass
+class BuildComparisonResult:
+    fixed: List[FailedTestCase]
+    still_failing: List[FailedTestCase]
+    new_failures: List[FailedTestCase]
+
+
+@dataclass
 class FailedTestCaseAggregated:
     full_name: str
     simple_name: str
