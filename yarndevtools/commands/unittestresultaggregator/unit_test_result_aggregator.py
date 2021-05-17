@@ -436,6 +436,7 @@ class FailedTestCases:
         self, testcase_filters: List[TestCaseFilter], testcases_to_jiras: List[KnownTestFailureInJira]
     ):
         for tcf in testcase_filters:
+            LOG.debug(f"Cross-checking testcases with known test failures from jira for filter: {tcf.short_str()}")
             for testcase in self._aggregated_test_failures[tcf]:
                 known_tcf: KnownTestFailureInJira or None = None
                 for known_test_failure in testcases_to_jiras:
@@ -451,12 +452,16 @@ class FailedTestCases:
                     if known_tcf.resolution_date and testcase.latest_failure > known_tcf.resolution_date:
                         LOG.info(f"Found reoccurred testcase failure: {testcase}")
                         testcase.reoccurred = True
+                    else:
+                        testcase.reoccurred = False
                 else:
                     LOG.info(
                         "Found testcase that does not have corresponding jira so it is unknown. "
                         f"Testcase details: {testcase}. "
                         f"Testcase filter: {tcf.short_str()}"
                     )
+                    testcase.known_failure = False
+                    testcase.reoccurred = False
 
 
 class TestcaseFilterResults:
