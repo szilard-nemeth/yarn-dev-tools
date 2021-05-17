@@ -2,7 +2,7 @@ import datetime
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Set
+from typing import List, Dict, Tuple
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
@@ -29,6 +29,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     REGEX_EVERYTHING,
     AggregateFilter,
     FailedTestCaseAggregated,
+    AGGREGATED_WS_POSTFIX,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
@@ -38,7 +39,6 @@ VALID_OPERATION_MODES = [OperationMode.PRINT, OperationMode.GSHEET]
 
 LOG = logging.getLogger(__name__)
 
-AGGREGATED_WS_POSTFIX = "aggregated"
 SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
 
@@ -66,15 +66,15 @@ class UnitTestResultAggregatorConfig:
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
 
         if self.operation_mode == OperationMode.GSHEET:
-            worksheet_names: List[str] = []
-            tc_filters = self.testcase_filters.get_testcase_filter_objs(
-                extended_expressions=True, match_expr_separately_always=True
+            worksheet_names: List[str] = [
+                self.get_worksheet_name(tcf) for tcf in self.testcase_filters.ALL_VALID_FILTERS
+            ]
+            LOG.info(
+                f"Adding worksheets to {self.gsheet_options.__class__.__name__}. "
+                f"Generated worksheet names: {worksheet_names}"
             )
-            for tcf in tc_filters:
-                worksheet_name = self.get_worksheet_name(tcf)
-                worksheet_names.append(worksheet_name)
+            for worksheet_name in worksheet_names:
                 self.gsheet_options.add_worksheet(worksheet_name)
-            LOG.info(f"Generated worksheet names: {worksheet_names}")
 
     def _validate_args(self, parser, args):
         if args.gsheet and (
@@ -124,6 +124,8 @@ class UnitTestResultAggregatorConfig:
         ws_name: str = f"{tcf.match_expr.alias}"
         if tcf.aggr_filter:
             ws_name += f"_{tcf.aggr_filter.val}_{AGGREGATED_WS_POSTFIX}"
+        elif tcf.aggregate:
+            ws_name += f"_{AGGREGATED_WS_POSTFIX}"
         else:
             ws_name += f"_{MATCHTYPE_ALL_POSTFIX}"
         return f"{ws_name}"
@@ -146,36 +148,65 @@ class TestCaseFilters:
         if tmp_list:
             self.aggregate_filters = tmp_list
 
-        self.ALL_FILTERS = self.get_testcase_filter_objs(extended_expressions=True, match_expr_if_no_aggr_filter=True)
-        self.AGGREGATION_FILTERS: List[TestCaseFilter] = self.get_testcase_filter_objs(
+        # EXAMPLE SCENARIO / CONFIG:
+        #   match_expression #1 = 'YARN::org.apache.hadoop.yarn', pattern='.*org\\.apache\\.hadoop\\.yarn.*')
+        #   match_expression #2 = 'MR::org.apache.hadoop.mapreduce', pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
+        #   Aggregation filter #1 = CDPD-7.x
+        #   Aggregation filter #2 = CDPD-7.1.x
+
+        # 3 filters: Global ALL, YARN ALL, MR ALL
+        self._SIMPLE_MATCHED_LINE_FILTERS = self._get_testcase_filter_objs(
+            extended_expressions=True, match_expr_separately_always=True, without_aggregates=True
+        )
+
+        # 4 filters:
+        # YARN CDPD-7.1.x aggregated, YARN CDPD-7.x aggregated,
+        # MR CDPD-7.1.x aggregated, MR CDPD-7.x aggregated
+        self._AGGREGATION_FILTERS: List[TestCaseFilter] = self._get_testcase_filter_objs(
             extended_expressions=False, match_expr_if_no_aggr_filter=True
         )
-        self.LATEST_FAILURE_FILTERS = self.get_testcase_filter_objs(
+        # 2 filters: YARN ALL aggregated, MR ALL aggregated
+        _aggregated_match_expr_filters = self._get_testcase_filter_objs(
+            extended_expressions=False,
+            match_expr_separately_always=True,
+            aggregated_match_expressions=True,
+            without_aggregates=True,
+        )
+        self._AGGREGATION_FILTERS += _aggregated_match_expr_filters
+
+        self.ALL_VALID_FILTERS = self._AGGREGATION_FILTERS + self._SIMPLE_MATCHED_LINE_FILTERS
+
+        self.LATEST_FAILURE_FILTERS = self._get_testcase_filter_objs(
             match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
         )
-        self.TESTCASES_TO_JIRAS_FILTERS = self.get_testcase_filter_objs(
-            extended_expressions=False, match_expr_if_no_aggr_filter=True
-        )
+        self.TESTCASES_TO_JIRAS_FILTERS = self._AGGREGATION_FILTERS
+        self._print_filters()
+
+    def _print_filters(self):
+        fields = self.__dict__
+        values = {f: [x for x in self.__getattribute__(f)] for f in fields if "FILTERS" in f}
+        values_short = {f: [x.short_str() for x in self.__getattribute__(f)] for f in fields if "FILTERS" in f}
+        LOG.info(f"Printing filters: {values}")
+        LOG.info(f"Printing filters (short): {values_short}")
 
     @property
     def extended_match_expressions(self) -> List[MatchExpression]:
         return self.match_expressions + [MATCH_ALL_LINES_EXPRESSION]
 
-    def get_testcase_filter_objs(
+    def _get_testcase_filter_objs(
         self,
         extended_expressions=False,
         match_expr_separately_always=False,
         match_expr_if_no_aggr_filter=False,
         without_aggregates=False,
+        aggregated_match_expressions=False,
     ) -> List[TestCaseFilter]:
         match_expressions_list = self.extended_match_expressions if extended_expressions else self.match_expressions
 
         result: List[TestCaseFilter] = []
         for match_expr in match_expressions_list:
-            if match_expr_separately_always:
-                result.append(TestCaseFilter(match_expr, None))
-            elif match_expr_if_no_aggr_filter and not self.aggregate_filters:
-                result.append(TestCaseFilter(match_expr, None))
+            if match_expr_separately_always or (match_expr_if_no_aggr_filter and not self.aggregate_filters):
+                self._append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, result)
 
             if without_aggregates:
                 continue
@@ -183,8 +214,13 @@ class TestCaseFilters:
             # We don't need aggregate for all lines
             if match_expr != MATCH_ALL_LINES_EXPRESSION:
                 for aggr_filter in self.aggregate_filters:
-                    result.append(TestCaseFilter(match_expr, aggr_filter))
+                    result.append(TestCaseFilter(match_expr, aggr_filter, aggregate=True))
         return result
+
+    @staticmethod
+    def _append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, result):
+        aggregated = True if aggregated_match_expressions else False
+        result.append(TestCaseFilter(match_expr, None, aggregate=aggregated))
 
     def match_all_lines(self) -> bool:
         return len(self.match_expressions) == 1 and self.match_expressions[0] == MATCH_ALL_LINES_EXPRESSION
@@ -206,6 +242,12 @@ class TestCaseFilters:
             pattern = REGEX_EVERYTHING + match_expr.replace(".", "\\.") + REGEX_EVERYTHING
             match_expressions.append(MatchExpression(alias, raw_match_expr, pattern))
         return match_expressions
+
+    def get_non_aggregate_filters(self):
+        return self._SIMPLE_MATCHED_LINE_FILTERS
+
+    def get_aggregate_filters(self):
+        return self._AGGREGATION_FILTERS
 
 
 @dataclass(eq=True, frozen=True)
@@ -234,10 +276,6 @@ class FailedTestCases:
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCase]] = defaultdict(list)
-
-    def _init_if_required(self, tcf: TestCaseFilter):
-        if tcf not in self._failed_tcs:
-            self._failed_tcs[tcf] = []
 
     def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCase):
         self._tc_keys[tc_key] = ftc
@@ -442,24 +480,29 @@ class TestcaseFilterResults:
         return match_all_lines
 
     def start_new_context(self):
-        # Prepare matched_lines dict with all required empty-lists for match expressions and aggregate filters
-        self._matched_lines_dict: Dict[str, List[str]] or None = {}
-        self._add_matched_lines([], TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None))
-        filters: List[TestCaseFilter] = self.testcase_filters.get_testcase_filter_objs(
-            match_expr_separately_always=True
-        )
-        for tcf in filters:
-            self._add_matched_lines([], tcf)
+        # Prepare matched_lines dict with all required empty-lists for ALL filters
+        self._matched_lines_dict = defaultdict(list)
+        all_filters: List[TestCaseFilter] = self.testcase_filters.ALL_VALID_FILTERS
 
-    def _add_matched_lines(self, lines: List[str], tcf: TestCaseFilter):
-        self._matched_lines_dict[self._get_matched_lines_key(tcf)] = lines
+        # Do sanity check
+        generated_keys = [self._get_matched_lines_key(tcf) for tcf in all_filters]
+        unique_keys = set(generated_keys)
+        if len(all_filters) != len(unique_keys):
+            raise ValueError(
+                "Mismatch in number of testcase filter objects and generated keys. "
+                f"Filters: {all_filters}, "
+                f"Generated keys: {generated_keys}, "
+                f"Unique keys: {unique_keys}."
+            )
+
+        for tcf in all_filters:
+            self._matched_lines_dict[self._get_matched_lines_key(tcf)] = []
 
     def match_line(self, line, mail_subject: str):
         matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
         if self.match_all_lines or matches_any_pattern:
             self._matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
-            tcf = TestCaseFilter(matched_expression, None)
-            self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
+            self._add_match_to_matched_lines_dict(line, matched_expression, aggregate_values=[True, False])
 
             for aggr_filter in self.testcase_filters.aggregate_filters:
                 if aggr_filter.val in mail_subject:
@@ -469,6 +512,11 @@ class TestcaseFilterResults:
                     )
                     tcf = TestCaseFilter(matched_expression, aggr_filter)
                     self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
+
+    def _add_match_to_matched_lines_dict(self, line, matched_expression, aggregate_values: List[bool]):
+        for aggr_value in aggregate_values:
+            tcf = TestCaseFilter(matched_expression, None, aggregate=aggr_value)
+            self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
 
     def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self.testcase_filters.match_expressions:
@@ -480,8 +528,9 @@ class TestcaseFilterResults:
 
     def _get_matched_lines_key(self, tcf: TestCaseFilter) -> str:
         if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION:
-            self._str_key_to_testcase_filter[MATCHTYPE_ALL_POSTFIX] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
-            return MATCHTYPE_ALL_POSTFIX
+            key = MATCHTYPE_ALL_POSTFIX + f"_{AGGREGATED_WS_POSTFIX}" if tcf.aggregate else MATCHTYPE_ALL_POSTFIX
+            self._str_key_to_testcase_filter[key] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
+            return key
         key = get_key_by_testcase_filter(tcf)
         if key not in self._str_key_to_testcase_filter:
             self._str_key_to_testcase_filter[key] = tcf
@@ -504,7 +553,7 @@ class TestcaseFilterResults:
         self._matched_lines_dict = None
 
     def finish_processing_all(self):
-        self._failed_testcases.aggregate(self.testcase_filters.AGGREGATION_FILTERS)
+        self._failed_testcases.aggregate(self.testcase_filters.get_aggregate_filters())
         self._failed_testcases.create_latest_failures(
             self.testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
         )

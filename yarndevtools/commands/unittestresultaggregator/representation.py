@@ -6,7 +6,6 @@ from enum import Enum
 from typing import Dict, List, Sized, Callable
 
 from googleapiwrapper.gmail_api import ThreadQueryResults
-from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.html_utils import HtmlGenerator
 from pythoncommons.result_printer import (
@@ -19,7 +18,6 @@ from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.unittestresultaggregator.common import (
     get_key_by_testcase_filter,
-    MATCH_ALL_LINES_EXPRESSION,
     OperationMode,
     SummaryMode,
     TestCaseFilter,
@@ -120,19 +118,18 @@ class SummaryGenerator:
                     config.truncate_subject_with = None
 
             # Render tables in 2 steps
-            # Example scenario:
-            # 1. original_expression='YARN::org.apache.hadoop.yarn',
-            #       pattern='.*org\\.apache\\.hadoop\\.yarn.*')
-            # 2. original_expression='MR::org.apache.hadoop.mapreduce',
-            #       pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
-            #
-            # Step numbers are in parenthesis
+            # EXAMPLE SCENARIO / CONFIG:
+            #  match_expression #1 = 'YARN::org.apache.hadoop.yarn', pattern='.*org\\.apache\\.hadoop\\.yarn.*')
+            #  match_expression #2 = 'MR::org.apache.hadoop.mapreduce', pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
+            #  Aggregation filter #1 = CDPD-7.x
+            #  Aggregation filter #2 = CDPD-7.1.x
+
+            # Note: Step numbers are in parenthesis
             # Failed testcases_ALL --> Global all (1)
-            #
             # Failed testcases_YARN_ALL (1)
+            # Failed testcases_MR_ALL (1)
             # Failed testcases_YARN_Aggregated_CDPD-7.1.x (2)
             # Failed testcases_YARN_Aggregated_CDPD-7.x (2)
-            # Failed testcases_MR_ALL (1)
             # Failed testcases_MR_Aggregated_CDPD-7.1.x (2)
             # Failed testcases_MR_Aggregated_CDPD-7.x (2)
             render_confs: List[TableRenderingConfig] = [
@@ -140,7 +137,7 @@ class SummaryGenerator:
                 # --> 3 tables in case of 2 match expressions
                 TableRenderingConfig(
                     data_type=TableDataType.MATCHED_LINES,
-                    testcase_filters=config.testcase_filters.ALL_FILTERS,
+                    testcase_filters=config.testcase_filters.get_non_aggregate_filters(),
                     header=matched_testcases_all_header,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
@@ -149,7 +146,7 @@ class SummaryGenerator:
                 # --> 4 tables in case of 2 match expressions and 2 aggregate filters
                 TableRenderingConfig(
                     data_type=TableDataType.MATCHED_LINES_AGGREGATED,
-                    testcase_filters=config.testcase_filters.AGGREGATION_FILTERS,
+                    testcase_filters=config.testcase_filters.get_aggregate_filters(),
                     header=matched_testcases_aggregated_header,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
@@ -248,34 +245,37 @@ class SummaryGenerator:
             output_manager.process_rendered_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
 
         if config.operation_mode == OperationMode.GSHEET:
-            LOG.info("Updating Google sheet with data...")
-
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
-            for tcf, failed_testcases in tc_filter_results._failed_testcases._failed_tcs.items():
-                if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION or not tcf.aggr_filter:
-                    failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
-                    table_data = DataConverter.convert_data_to_rows(
-                        failed_testcases, OutputFormatRules(False, None, None)
-                    )
-                    data_descriptor = "data"
-                    header = matched_testcases_all_header
-                else:
-                    failed_testcases = tc_filter_results.get_aggregated_testcases_by_filter(tcf)
-                    table_data = DataConverter.render_aggregated_rows_table(
-                        failed_testcases, OutputFormatRules(False, None, None)
-                    )
-                    data_descriptor = f"aggregated data for aggregation filter {tcf}"
-                    header = matched_testcases_aggregated_header
-                worksheet_name: str = config.get_worksheet_name(tcf)
+            LOG.info("Updating Google sheet with data...")
+            for tcf in config.testcase_filters.get_non_aggregate_filters():
+                failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
+                table_data = DataConverter.convert_data_to_rows(failed_testcases, OutputFormatRules(False, None, None))
+                SummaryGenerator._write_to_sheet(
+                    config, "data", matched_testcases_all_header, output_manager, table_data, tcf
+                )
+            for tcf in config.testcase_filters.get_aggregate_filters():
+                failed_testcases = tc_filter_results.get_aggregated_testcases_by_filter(tcf)
+                table_data = DataConverter.render_aggregated_rows_table(
+                    failed_testcases, OutputFormatRules(False, None, None)
+                )
+                SummaryGenerator._write_to_sheet(
+                    config,
+                    f"aggregated data for aggregation filter {tcf}",
+                    matched_testcases_aggregated_header,
+                    output_manager,
+                    table_data,
+                    tcf,
+                )
 
-                LOG.info(
-                    f"Writing GSheet {data_descriptor}. "
-                    f"Worksheet name: {worksheet_name}, "
-                    f"Number of lines will be written: {len(table_data)}"
-                )
-                output_manager.update_gsheet(
-                    header, table_data, worksheet_name=worksheet_name, create_not_existing=True
-                )
+    @staticmethod
+    def _write_to_sheet(config, data_descriptor, header, output_manager, table_data, tcf):
+        worksheet_name: str = config.get_worksheet_name(tcf)
+        LOG.info(
+            f"Writing GSheet {data_descriptor}. "
+            f"Worksheet name: {worksheet_name}, "
+            f"Number of lines will be written: {len(table_data)}"
+        )
+        output_manager.update_gsheet(header, table_data, worksheet_name=worksheet_name, create_not_existing=True)
 
     def _regular_table(self, dt: TableDataType, alias=None):
         rendered_tables = self.table_renderer.get_tables(

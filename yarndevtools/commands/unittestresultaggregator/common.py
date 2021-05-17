@@ -8,6 +8,7 @@ from pythoncommons.string_utils import RegexUtils
 
 MATCH_EXPRESSION_SEPARATOR = "::"
 MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
+AGGREGATED_WS_POSTFIX = "aggregated"
 LOG = logging.getLogger(__name__)
 
 
@@ -87,16 +88,17 @@ class FailedTestCaseAggregated:
 
 @dataclass(eq=True, frozen=True)
 class AggregateFilter:
-    val: str
+    val: str or None
 
 
 @dataclass(eq=True, frozen=True)
 class TestCaseFilter:
     match_expr: MatchExpression
     aggr_filter: AggregateFilter or None
+    aggregate: bool = False
 
     def short_str(self):
-        return f"{self.match_expr.alias} / {self._safe_get_aggr_filter()}"
+        return f"{self.match_expr.alias} / {self._safe_get_aggr_filter()} (aggregate: {self.aggregate})"
 
     def _safe_get_aggr_filter(self):
         if not self.aggr_filter:
@@ -109,6 +111,8 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
     key: str = tcf.match_expr.alias.lower()
     if tcf.aggr_filter:
         key += f"_{tcf.aggr_filter.val.lower()}"
+    elif tcf.aggregate:
+        key += f"_{AGGREGATED_WS_POSTFIX}"
     else:
         key += f"_{MATCHTYPE_ALL_POSTFIX.lower()}"
     return key
