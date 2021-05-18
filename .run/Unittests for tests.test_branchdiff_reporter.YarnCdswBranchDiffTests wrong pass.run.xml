@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="YarnCdswBranchDiffTests wrong pass" type="tests" factoryName="Unittests">
+  <configuration default="false" name="YarnCdswBranchDiffTests upstream wrong pass" type="tests" factoryName="Unittests">
     <module name="yarn-dev-tools" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
