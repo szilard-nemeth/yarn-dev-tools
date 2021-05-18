@@ -25,7 +25,12 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCaseAggregated,
     BuildComparisonResult,
 )
-from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
+from yarndevtools.constants import (
+    REPORT_FILE_DETAILED_HTML,
+    REPORT_FILE_DETAILED_TXT,
+    REPORT_FILE_SHORT_HTML,
+    REPORT_FILE_SHORT_TXT,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -86,6 +91,16 @@ class TableRenderingConfig:
 
 
 class SummaryGenerator:
+    jira_crosscheck_headers = ["Known failure?", "Reoccurred failure?"]
+    matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
+    matched_testcases_aggregated_header_basic = [
+        "Testcase",
+        "TC parameter",
+        "Frequency of failures",
+        "Latest failure",
+    ]
+    matched_testcases_aggregated_header_full = matched_testcases_aggregated_header_basic + jira_crosscheck_headers
+
     def __init__(self, table_renderer):
         self.table_renderer = table_renderer
         self._callback_dict: Dict[TableOutputFormat, Callable] = {
@@ -94,24 +109,15 @@ class SummaryGenerator:
             TableOutputFormat.HTML: self._html_table,
         }
 
-    @staticmethod
-    def process_testcase_filter_results(tc_filter_results, query_result: ThreadQueryResults, config, output_manager):
-        jira_crosscheck_headers = ["Known failure?", "Reoccurred failure?"]
-        matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
-        matched_testcases_aggregated_header_basic = [
-            "Testcase",
-            "TC parameter",
-            "Frequency of failures",
-            "Latest failure",
-        ]
-        matched_testcases_aggregated_header_full = matched_testcases_aggregated_header_basic + jira_crosscheck_headers
-
+    @classmethod
+    def process_testcase_filter_results(
+        cls, tc_filter_results, query_result: ThreadQueryResults, config, output_manager
+    ):
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
             # truncate = self.config.operation_mode == OperationMode.PRINT
             truncate = True if config.summary_mode == SummaryMode.TEXT.value else False
 
-            table_renderer = TableRenderer()
             # We apply the specified truncation / abbreviation rules only for TEXT based tables
             # HTML / Gsheet output is just fine with longer names.
             # If SummaryMode.ALL is used, we leave all values intact for simplicity.
@@ -124,93 +130,6 @@ class SummaryGenerator:
                     )
                     config.abbrev_tc_package = None
                     config.truncate_subject_with = None
-
-            # Render tables in 2 steps
-            # EXAMPLE SCENARIO / CONFIG:
-            #  match_expression #1 = 'YARN::org.apache.hadoop.yarn', pattern='.*org\\.apache\\.hadoop\\.yarn.*')
-            #  match_expression #2 = 'MR::org.apache.hadoop.mapreduce', pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
-            #  Aggregation filter #1 = CDPD-7.x
-            #  Aggregation filter #2 = CDPD-7.1.x
-
-            # Note: Step numbers are in parenthesis
-            # Failed testcases_ALL --> Global all (1)
-            # Failed testcases_YARN_ALL (1)
-            # Failed testcases_MR_ALL (1)
-            # Failed testcases_YARN_Aggregated_CDPD-7.1.x (2)
-            # Failed testcases_YARN_Aggregated_CDPD-7.x (2)
-            # Failed testcases_MR_Aggregated_CDPD-7.1.x (2)
-            # Failed testcases_MR_Aggregated_CDPD-7.x (2)
-            render_confs: List[TableRenderingConfig] = [
-                # Render tables for all match expressions + ALL values
-                # --> 3 tables in case of 2 match expressions
-                TableRenderingConfig(
-                    data_type=TableDataType.MATCHED_LINES,
-                    testcase_filters=config.testcase_filters.get_non_aggregate_filters(),
-                    header=matched_testcases_all_header,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
-                ),
-                # Render tables for all match expressions AND all aggregation filters
-                # --> 4 tables in case of 2 match expressions and 2 aggregate filters
-                TableRenderingConfig(
-                    data_type=TableDataType.MATCHED_LINES_AGGREGATED,
-                    testcase_filters=config.testcase_filters.get_aggregate_filters(),
-                    header=matched_testcases_aggregated_header_full,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
-                ),
-                TableRenderingConfig(
-                    simple_mode=True,
-                    header=["Subject", "Thread ID"],
-                    data_type=TableDataType.MAIL_SUBJECTS,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    testcase_filters=None,
-                    out_fmt=None,
-                ),
-                TableRenderingConfig(
-                    simple_mode=True,
-                    header=["Subject"],
-                    data_type=TableDataType.UNIQUE_MAIL_SUBJECTS,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    testcase_filters=None,
-                    out_fmt=None,
-                ),
-                TableRenderingConfig(
-                    data_type=TableDataType.LATEST_FAILURES,
-                    header=["Testcase", "Failure date", "Subject"],
-                    testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
-                ),
-                TableRenderingConfig(
-                    data_type=TableDataType.BUILD_COMPARISON,
-                    header=["Testcase", "Still failing", "Fixed", "New failure"],
-                    testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
-                ),
-                TableRenderingConfig(
-                    data_type=TableDataType.UNKNOWN_FAILURES,
-                    testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
-                    header=matched_testcases_aggregated_header_basic,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
-                ),
-                TableRenderingConfig(
-                    data_type=TableDataType.REOCCURRED_FAILURES,
-                    testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
-                    header=matched_testcases_aggregated_header_basic,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
-                ),
-                TableRenderingConfig(
-                    data_type=TableDataType.TESTCASES_TO_JIRAS,
-                    testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
-                    header=matched_testcases_aggregated_header_full,
-                    table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                    out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
-                ),
-            ]
 
             data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
                 TableDataType.MATCHED_LINES: lambda tcf, out_fmt: DataConverter.convert_data_to_rows(
@@ -245,21 +164,25 @@ class SummaryGenerator:
                     tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
                 ),
             }
-            for render_conf in render_confs:
-                table_renderer.render_by_config(render_conf, data_dict[render_conf.data_type])
 
-            summary_generator = SummaryGenerator(table_renderer)
-            allowed_regular_summary = config.summary_mode in [SummaryMode.TEXT.value, SummaryMode.ALL.value]
-            allowed_html_summary = config.summary_mode in [SummaryMode.HTML.value, SummaryMode.ALL.value]
+            detailed_render_confs = cls.detailed_render_confs(config, truncate)
+            short_render_confs = cls.short_render_confs(config, truncate)
+            detailed_report_files: Dict[SummaryMode, str] = {
+                SummaryMode.HTML: REPORT_FILE_DETAILED_HTML,
+                SummaryMode.TEXT: REPORT_FILE_DETAILED_TXT,
+            }
+            short_report_files: Dict[SummaryMode, str] = {
+                SummaryMode.HTML: REPORT_FILE_SHORT_HTML,
+                SummaryMode.TEXT: REPORT_FILE_SHORT_TXT,
+            }
 
-            if allowed_regular_summary:
-                regular_summary: str = summary_generator.generate_summary(render_confs, TableOutputFormat.REGULAR)
-                output_manager.process_regular_summary(regular_summary)
-            if allowed_html_summary:
-                html_summary: str = summary_generator.generate_summary(render_confs, TableOutputFormat.HTML)
-                output_manager.process_html_summary(html_summary)
+            cls._render_reports(config, data_dict, output_manager, short_render_confs, short_report_files)
 
-            # These should be written regardless of summary-mode settings
+            table_renderer = cls._render_reports(
+                config, data_dict, output_manager, detailed_render_confs, detailed_report_files
+            )
+
+            # These should be written to files regardless of the SummaryMode setting
             output_manager.process_rendered_table_data(table_renderer, TableDataType.MAIL_SUBJECTS)
             output_manager.process_rendered_table_data(table_renderer, TableDataType.UNIQUE_MAIL_SUBJECTS)
 
@@ -270,7 +193,7 @@ class SummaryGenerator:
                 failed_testcases = tc_filter_results.get_failed_testcases_by_filter(tcf)
                 table_data = DataConverter.convert_data_to_rows(failed_testcases, OutputFormatRules(False, None, None))
                 SummaryGenerator._write_to_sheet(
-                    config, "data", matched_testcases_all_header, output_manager, table_data, tcf
+                    config, "data", cls.matched_testcases_all_header, output_manager, table_data, tcf
                 )
             for tcf in config.testcase_filters.get_aggregate_filters():
                 failed_testcases = tc_filter_results.get_aggregated_testcases_by_filter(tcf)
@@ -280,11 +203,124 @@ class SummaryGenerator:
                 SummaryGenerator._write_to_sheet(
                     config,
                     f"aggregated data for aggregation filter {tcf}",
-                    matched_testcases_aggregated_header_full,
+                    cls.matched_testcases_aggregated_header_full,
                     output_manager,
                     table_data,
                     tcf,
                 )
+
+    @classmethod
+    def _render_reports(cls, config, data_dict, output_manager, render_confs, report_files: Dict[SummaryMode, str]):
+        LOG.debug(f"Rendering reports by configs: {render_confs}.\n" f"Report files: {report_files}")
+        text_based_report: bool = config.summary_mode in [SummaryMode.TEXT.value, SummaryMode.ALL.value]
+        html_report: bool = config.summary_mode in [SummaryMode.HTML.value, SummaryMode.ALL.value]
+
+        table_renderer = TableRenderer()
+        for render_conf in render_confs:
+            table_renderer.render_by_config(render_conf, data_dict[render_conf.data_type])
+        summary_generator = SummaryGenerator(table_renderer)
+
+        if text_based_report:
+            regular_summary: str = summary_generator.generate_summary(render_confs, TableOutputFormat.REGULAR)
+            output_manager.process_regular_summary(regular_summary, report_files[SummaryMode.TEXT])
+        if html_report:
+            html_summary: str = summary_generator.generate_summary(render_confs, TableOutputFormat.HTML)
+            output_manager.process_html_summary(html_summary, report_files[SummaryMode.HTML])
+        return table_renderer
+
+    @classmethod
+    def short_render_confs(cls, config, truncate) -> List[TableRenderingConfig]:
+        return [
+            TableRenderingConfig(
+                data_type=TableDataType.BUILD_COMPARISON,
+                header=["Testcase", "Still failing", "Fixed", "New failure"],
+                testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+            ),
+            TableRenderingConfig(
+                data_type=TableDataType.UNKNOWN_FAILURES,
+                testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
+                header=cls.matched_testcases_aggregated_header_basic,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+            ),
+            TableRenderingConfig(
+                data_type=TableDataType.REOCCURRED_FAILURES,
+                testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
+                header=cls.matched_testcases_aggregated_header_basic,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+            ),
+            TableRenderingConfig(
+                data_type=TableDataType.TESTCASES_TO_JIRAS,
+                testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
+                header=cls.matched_testcases_aggregated_header_full,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+            ),
+        ]
+
+    @classmethod
+    def detailed_render_confs(cls, config, truncate) -> List[TableRenderingConfig]:
+        # Render tables in 2 steps
+        # EXAMPLE SCENARIO / CONFIG:
+        #  match_expression #1 = 'YARN::org.apache.hadoop.yarn', pattern='.*org\\.apache\\.hadoop\\.yarn.*')
+        #  match_expression #2 = 'MR::org.apache.hadoop.mapreduce', pattern='.*org\\.apache\\.hadoop\\.mapreduce.*')
+        #  Aggregation filter #1 = CDPD-7.x
+        #  Aggregation filter #2 = CDPD-7.1.x
+
+        # Note: Step numbers are in parenthesis
+        # Failed testcases_ALL --> Global all (1)
+        # Failed testcases_YARN_ALL (1)
+        # Failed testcases_MR_ALL (1)
+        # Failed testcases_YARN_Aggregated_CDPD-7.1.x (2)
+        # Failed testcases_YARN_Aggregated_CDPD-7.x (2)
+        # Failed testcases_MR_Aggregated_CDPD-7.1.x (2)
+        # Failed testcases_MR_Aggregated_CDPD-7.x (2)
+        return [
+            # Render tables for all match expressions + ALL values
+            # --> 3 tables in case of 2 match expressions
+            TableRenderingConfig(
+                data_type=TableDataType.MATCHED_LINES,
+                testcase_filters=config.testcase_filters.get_non_aggregate_filters(),
+                header=cls.matched_testcases_all_header,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+            ),
+            # Render tables for all match expressions AND all aggregation filters
+            # --> 4 tables in case of 2 match expressions and 2 aggregate filters
+            TableRenderingConfig(
+                data_type=TableDataType.MATCHED_LINES_AGGREGATED,
+                testcase_filters=config.testcase_filters.get_aggregate_filters(),
+                header=cls.matched_testcases_aggregated_header_full,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
+            ),
+            TableRenderingConfig(
+                simple_mode=True,
+                header=["Subject", "Thread ID"],
+                data_type=TableDataType.MAIL_SUBJECTS,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                testcase_filters=None,
+                out_fmt=None,
+            ),
+            TableRenderingConfig(
+                simple_mode=True,
+                header=["Subject"],
+                data_type=TableDataType.UNIQUE_MAIL_SUBJECTS,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                testcase_filters=None,
+                out_fmt=None,
+            ),
+            TableRenderingConfig(
+                data_type=TableDataType.LATEST_FAILURES,
+                header=["Testcase", "Failure date", "Subject"],
+                testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
+                table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
+                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+            ),
+        ] + SummaryGenerator.short_render_confs(config, truncate)
 
     @staticmethod
     def _write_to_sheet(config, data_descriptor, header, output_manager, table_data, tcf):
@@ -499,15 +535,15 @@ class UnitTestResultOutputManager:
     def _generate_filename(basedir, prefix, branch_name="") -> str:
         return FileUtils.join_path(basedir, f"{prefix}{StringUtils.replace_special_chars(branch_name)}")
 
-    def process_regular_summary(self, rendered_summary: str):
+    def process_regular_summary(self, rendered_summary: str, filename: str):
         LOG.info(rendered_summary)
-        filename = FileUtils.join_path(self.output_dir, SUMMARY_FILE_TXT)
+        filename = FileUtils.join_path(self.output_dir, filename)
         LOG.info(f"Saving summary to text file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary)
 
-    def process_html_summary(self, rendered_summary: str):
+    def process_html_summary(self, rendered_summary: str, filename: str):
         # Doesn't make sense to print HTML summary to console
-        filename = FileUtils.join_path(self.output_dir, SUMMARY_FILE_HTML)
+        filename = FileUtils.join_path(self.output_dir, filename)
         LOG.info(f"Saving summary to html file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary)
 

@@ -27,6 +27,11 @@ DEFAULT_COMMAND_DATA_FILE_NAME = "command_data.zip"
 SUMMARY_FILE_TXT = "summary.txt"
 SUMMARY_FILE_HTML = "summary.html"
 
+REPORT_FILE_SHORT_TXT = "report-short.txt"
+REPORT_FILE_DETAILED_TXT = "report-detailed.txt"
+REPORT_FILE_SHORT_HTML = "report-short.html"
+REPORT_FILE_DETAILED_HTML = "report-detailed.html"
+
 # Do not leak bad ENV variable namings into the python code
 LOADED_ENV_UPSTREAM_DIR = "upstream-hadoop-dir"
 LOADED_ENV_DOWNSTREAM_DIR = "downstream-hadoop-dir"
