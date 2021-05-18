@@ -99,7 +99,7 @@ class CdswRunner(CdswRunnerBase):
         abbreviate_tc_package = self._get_cli_switch_value("--abbreviate-testcase-package", abbreviate_tc_package)
         aggregate_filters = self._get_cli_switch_value("--aggregate-filters", aggregate_filters)
         gsheet_compare_with_jira_table = self._get_cli_switch_value(
-            "--ghseet-compare-with-jira-table", gsheet_compare_with_jira_table
+            "--ghseet-compare-with-jira-table", gsheet_compare_with_jira_table, quote=True
         )
         skip_lines_starting_with = self._get_cli_switch_value(
             "--skip-lines-starting-with", " ".join(skip_lines_starting_with)
@@ -125,8 +125,12 @@ class CdswRunner(CdswRunnerBase):
         )
 
     @staticmethod
-    def _get_cli_switch_value(switch_name, val):
-        return f"{switch_name} {val}" if val else ""
+    def _get_cli_switch_value(switch_name, val, quote=False):
+        if not val:
+            return ""
+        if quote:
+            val = '"' + val + '"'
+        return f"{switch_name} {val}"
 
 
 if __name__ == "__main__":
