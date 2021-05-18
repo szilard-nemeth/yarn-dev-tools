@@ -669,8 +669,38 @@ class TestcaseFilterResults:
     def get_build_comparison_result_by_filter(self, tcf: TestCaseFilter) -> BuildComparisonResult:
         return self._failed_testcases.get_build_comparison_results(tcf)
 
-    def get_aggregated_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAggregated]:
-        return self._failed_testcases.get_aggregated_testcases(tcf)
+    def get_aggregated_testcases_by_filter(
+        self, tcf: TestCaseFilter, filter_unknown=False, filter_reoccurred=False
+    ) -> List[FailedTestCaseAggregated]:
+        local_vars = locals()
+        applied_filters = [name for name in local_vars if name.startswith("filter_") and local_vars[name]]
+        filtered_tcs = self._failed_testcases.get_aggregated_testcases(tcf)
+        original_length = len(filtered_tcs)
+        prev_length = original_length
+        if filter_unknown:
+            filtered_tcs = list(filter(lambda tc: not tc.known_failure, filtered_tcs))
+            LOG.debug(
+                f"Filtering for unknown TCs. "
+                f"Previous length of aggregated TCs: {prev_length}, "
+                f"New length of filtered aggregated TCs: {len(filtered_tcs)}"
+            )
+            prev_length = len(filtered_tcs)
+        if filter_reoccurred:
+            filtered_tcs = list(filter(lambda tc: tc.reoccurred, filtered_tcs))
+            LOG.debug(
+                f"Filtering for reoccurred TCs. "
+                f"Previous length of aggregated TCs: {prev_length}, "
+                f"New length of filtered aggregated TCs: {len(filtered_tcs)}"
+            )
+            prev_length = len(filtered_tcs)
+
+        LOG.debug(
+            "Returning filtered aggregated TCs. "
+            f"Original length of ALL aggregated TCs: {original_length}, "
+            f"Length of filtered aggregated TCs: {prev_length}, "
+            f"Applied filters: {applied_filters}"
+        )
+        return filtered_tcs
 
     def print_objects(self):
         LOG.debug(f"All failed testcase objects: {self._failed_testcases}")

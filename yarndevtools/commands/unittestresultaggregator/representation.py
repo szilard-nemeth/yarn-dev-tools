@@ -98,12 +98,13 @@ class SummaryGenerator:
     def process_testcase_filter_results(tc_filter_results, query_result: ThreadQueryResults, config, output_manager):
         jira_crosscheck_headers = ["Known failure?", "Reoccurred failure?"]
         matched_testcases_all_header = ["Date", "Subject", "Testcase", "Message ID", "Thread ID"]
-        matched_testcases_aggregated_header = [
+        matched_testcases_aggregated_header_basic = [
             "Testcase",
             "TC parameter",
             "Frequency of failures",
             "Latest failure",
-        ] + jira_crosscheck_headers
+        ]
+        matched_testcases_aggregated_header_full = matched_testcases_aggregated_header_basic + jira_crosscheck_headers
 
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
@@ -154,7 +155,7 @@ class SummaryGenerator:
                 TableRenderingConfig(
                     data_type=TableDataType.MATCHED_LINES_AGGREGATED,
                     testcase_filters=config.testcase_filters.get_aggregate_filters(),
-                    header=matched_testcases_aggregated_header,
+                    header=matched_testcases_aggregated_header_full,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
                 ),
@@ -193,21 +194,21 @@ class SummaryGenerator:
                 TableRenderingConfig(
                     data_type=TableDataType.UNKNOWN_FAILURES,
                     testcase_filters=config.testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
-                    header=matched_testcases_aggregated_header,
+                    header=matched_testcases_aggregated_header_basic,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
                 ),
                 TableRenderingConfig(
                     data_type=TableDataType.REOCCURRED_FAILURES,
                     testcase_filters=config.testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
-                    header=matched_testcases_aggregated_header,
+                    header=matched_testcases_aggregated_header_basic,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
                 ),
                 TableRenderingConfig(
                     data_type=TableDataType.TESTCASES_TO_JIRAS,
                     testcase_filters=config.testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
-                    header=matched_testcases_aggregated_header,
+                    header=matched_testcases_aggregated_header_full,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
                 ),
@@ -232,12 +233,15 @@ class SummaryGenerator:
                 TableDataType.BUILD_COMPARISON: lambda tcf, out_fmt: DataConverter.render_build_comparison_table(
                     tc_filter_results.get_build_comparison_result_by_filter(tcf)
                 ),
-                # TODO filter result tables for unknown / reoccurred once data is preprocessed
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
+                    tc_filter_results.get_aggregated_testcases_by_filter(tcf, filter_unknown=True),
+                    out_fmt,
+                    basic_mode=True,
                 ),
                 TableDataType.REOCCURRED_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
+                    tc_filter_results.get_aggregated_testcases_by_filter(tcf, filter_reoccurred=True),
+                    out_fmt,
+                    basic_mode=True,
                 ),
                 TableDataType.TESTCASES_TO_JIRAS: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
                     tc_filter_results.get_aggregated_testcases_by_filter(tcf), out_fmt
@@ -278,7 +282,7 @@ class SummaryGenerator:
                 SummaryGenerator._write_to_sheet(
                     config,
                     f"aggregated data for aggregation filter {tcf}",
-                    matched_testcases_aggregated_header,
+                    matched_testcases_aggregated_header_full,
                     output_manager,
                     table_data,
                     tcf,
@@ -605,12 +609,14 @@ class DataConverter:
 
     @staticmethod
     def render_aggregated_rows_table(
-        failed_testcases: List[FailedTestCaseAggregated], out_fmt: OutputFormatRules = None
+        failed_testcases: List[FailedTestCaseAggregated], out_fmt: OutputFormatRules = None, basic_mode=False
     ) -> List[List[str]]:
         data_table: List[List[str]] = []
         for testcase in failed_testcases:
             aggregated_row = DataConverter._render_aggregated_row_for_tc(out_fmt, testcase)
-            data_table.append(aggregated_row + [str(testcase.known_failure), str(testcase.reoccurred)])
+            if not basic_mode:
+                aggregated_row += [str(testcase.known_failure), str(testcase.reoccurred)]
+            data_table.append(aggregated_row)
         return data_table
 
     @staticmethod
