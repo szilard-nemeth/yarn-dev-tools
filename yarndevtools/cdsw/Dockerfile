@@ -3,9 +3,9 @@ FROM python:3.8
 
 WORKDIR /home/repos/snemeth/yarn-dev-tools/yarndevtools/cdsw
 COPY requirements.txt .
-RUN mkdir ut-results-reporting
+RUN mkdir unit-test-result-reporting
 RUN mkdir downstream-branchdiff-reporting
-COPY ut-results-reporting ut-results-reporting/
+COPY unit-test-result-reporting unit-test-result-reporting/
 COPY downstream-branchdiff-reporting downstream-branchdiff-reporting/
 RUN pip install -r requirements.txt
 RUN apt-get update && apt-get install -y --no-install-recommends \
