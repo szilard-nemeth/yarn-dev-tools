@@ -10,12 +10,14 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     YARN_DEV_TOOLS_ROOT_DIR,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
+from yarndevtools.constants import REPORT_FILE_SHORT_HTML
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 
 DEFAULT_GMAIL_QUERY = 'subject:"YARN Daily unit test report"'
-DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "FILTER:"]
+DEFAULT_TRUNCATE_SUBJECT = "YARN Daily unit test report: Failed tests with build: "
+DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "FILTER:", "Filter expression: "]
 
 
 class UnitTestResultAggregatorEnvVar(Enum):
@@ -24,6 +26,12 @@ class UnitTestResultAggregatorEnvVar(Enum):
     GSHEET_WORKSHEET = "GSHEET_WORKSHEET"
     REQUEST_LIMIT = "REQUEST_LIMIT"
     MATCH_EXPRESSION = "MATCH_EXPRESSION"
+
+
+class UnitTestResultAggregatorOptionalEnvVar(Enum):
+    ABBREV_TC_PACKAGE = "ABBREV_TC_PACKAGE"
+    AGGREGATE_FILTERS = "AGGREGATE_FILTERS"
+    GSHEET_COMPARE_WITH_JIRA_TABLE = "GSHEET_COMPARE_WITH_JIRA_TABLE"
 
 
 class CdswRunner(CdswRunnerBase):
@@ -40,6 +48,11 @@ class CdswRunner(CdswRunnerBase):
             account_email=OsUtils.get_env_value(CdswEnvVar.MAIL_ACC_USER.value),
             request_limit=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.REQUEST_LIMIT.value),
             match_expression=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.MATCH_EXPRESSION.value),
+            abbreviate_tc_package=OsUtils.get_env_value(UnitTestResultAggregatorOptionalEnvVar.ABBREV_TC_PACKAGE.value),
+            aggregate_filters=OsUtils.get_env_value(UnitTestResultAggregatorOptionalEnvVar.AGGREGATE_FILTERS.value),
+            gsheet_compare_with_jira_table=OsUtils.get_env_value(
+                UnitTestResultAggregatorOptionalEnvVar.GSHEET_COMPARE_WITH_JIRA_TABLE.value
+            ),
         )
 
         self.run_zipper(CommandType.UNIT_TEST_RESULT_AGGREGATOR, debug=True)
@@ -48,7 +61,12 @@ class CdswRunner(CdswRunnerBase):
         sender = "YARN unit test aggregator"
         subject = f"YARN unit test aggregator report [start date: {date_str}]"
         attachment_fnname: str = f"command_data_{date_str}.zip"
-        self.send_latest_command_data_in_email(sender=sender, subject=subject, attachment_filename=attachment_fnname)
+        self.send_latest_command_data_in_email(
+            sender=sender,
+            subject=subject,
+            attachment_filename=attachment_fnname,
+            email_body_file=REPORT_FILE_SHORT_HTML,
+        )
 
     def _run_aggregator(
         self,
@@ -63,15 +81,29 @@ class CdswRunner(CdswRunnerBase):
         skip_lines_starting_with=None,
         debug=True,
         smart_subject_query=True,
+        truncate_subject=None,
+        abbreviate_tc_package=None,
+        summary_mode="all",
+        aggregate_filters=None,
+        gsheet_compare_with_jira_table=None,
     ):
         if skip_lines_starting_with is None:
             skip_lines_starting_with = DEFAULT_SKIP_LINES_STARTING_WITH
+        if not truncate_subject:
+            truncate_subject = DEFAULT_TRUNCATE_SUBJECT
         if exec_mode != "print" and exec_mode != "gsheet":
             raise ValueError(f"Invalid execution mode detected. Valid execution modes are: {['print', 'gsheet']}")
 
         debug = "--debug" if debug else ""
-        smart_subject_query = "--smart-subject-query" if smart_subject_query else ""
-        skip_lines_starting_with_val = " ".join(skip_lines_starting_with)
+        smart_subject_query = self._get_cli_switch_value("--smart-subject-query", smart_subject_query)
+        abbreviate_tc_package = self._get_cli_switch_value("--abbreviate-testcase-package", abbreviate_tc_package)
+        aggregate_filters = self._get_cli_switch_value("--aggregate-filters", aggregate_filters)
+        gsheet_compare_with_jira_table = self._get_cli_switch_value(
+            "--ghseet-compare-with-jira-table", gsheet_compare_with_jira_table
+        )
+        skip_lines_starting_with = self._get_cli_switch_value(
+            "--skip-lines-starting-with", " ".join(skip_lines_starting_with)
+        )
         LOG.info(f"Locals: {locals()}")
         self.execute_yarndevtools_script(
             f"{debug} "
@@ -84,9 +116,17 @@ class CdswRunner(CdswRunnerBase):
             f"--request-limit {request_limit} "
             f"--gmail-query {gmail_query} "
             f"--match-expression {match_expression} "
-            f"--skip-lines-starting-with {skip_lines_starting_with_val} "
+            f"{skip_lines_starting_with} "
+            f"--summary-mode {summary_mode} "
             f"{smart_subject_query} "
+            f"{abbreviate_tc_package} "
+            f"{aggregate_filters} "
+            f"{gsheet_compare_with_jira_table} "
         )
+
+    @staticmethod
+    def _get_cli_switch_value(switch_name, val):
+        return f"{switch_name} {val}" if val else ""
 
 
 if __name__ == "__main__":
