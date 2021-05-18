@@ -95,14 +95,14 @@ class CdswRunner(CdswRunnerBase):
             raise ValueError(f"Invalid execution mode detected. Valid execution modes are: {['print', 'gsheet']}")
 
         debug = "--debug" if debug else ""
-        smart_subject_query = self._get_cli_switch_value("--smart-subject-query", smart_subject_query)
+        smart_subject_query = "--smart-subject-query" if smart_subject_query else ""
         abbreviate_tc_package = self._get_cli_switch_value("--abbreviate-testcase-package", abbreviate_tc_package)
         aggregate_filters = self._get_cli_switch_value("--aggregate-filters", aggregate_filters)
         gsheet_compare_with_jira_table = self._get_cli_switch_value(
             "--ghseet-compare-with-jira-table", gsheet_compare_with_jira_table, quote=True
         )
         skip_lines_starting_with = self._get_cli_switch_value(
-            "--skip-lines-starting-with", " ".join(skip_lines_starting_with)
+            "--skip-lines-starting-with", " ".join(f'"{w}"' for w in skip_lines_starting_with)
         )
         LOG.info(f"Locals: {locals()}")
         self.execute_yarndevtools_script(
