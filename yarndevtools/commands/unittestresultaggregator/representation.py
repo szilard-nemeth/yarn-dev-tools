@@ -189,25 +189,23 @@ class SummaryGenerator:
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
                 ),
-                # TODO These table rendering configs should operate on a single aggregated YARN+MR (specified by match expressions)
-                #  dataset, without considering other aggregate filters (e.g. differentiating by branches)
                 TableRenderingConfig(
                     data_type=TableDataType.UNKNOWN_FAILURES,
-                    testcase_filters=config.testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
+                    testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
                     header=matched_testcases_aggregated_header_basic,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
                 ),
                 TableRenderingConfig(
                     data_type=TableDataType.REOCCURRED_FAILURES,
-                    testcase_filters=config.testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
+                    testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
                     header=matched_testcases_aggregated_header_basic,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
                 ),
                 TableRenderingConfig(
                     data_type=TableDataType.TESTCASES_TO_JIRAS,
-                    testcase_filters=config.testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
+                    testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
                     header=matched_testcases_aggregated_header_full,
                     table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                     out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),

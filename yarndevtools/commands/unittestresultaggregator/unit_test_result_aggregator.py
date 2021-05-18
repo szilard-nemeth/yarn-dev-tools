@@ -167,13 +167,13 @@ class TestCaseFilters:
             extended_expressions=False, match_expr_if_no_aggr_filter=True
         )
         # 2 filters: YARN ALL aggregated, MR ALL aggregated
-        _aggregated_match_expr_filters = self._get_testcase_filter_objs(
+        self._aggregated_match_expr_filters = self._get_testcase_filter_objs(
             extended_expressions=False,
             match_expr_separately_always=True,
             aggregated_match_expressions=True,
             without_aggregates=True,
         )
-        self._AGGREGATION_FILTERS += _aggregated_match_expr_filters
+        self._AGGREGATION_FILTERS += self._aggregated_match_expr_filters
 
         self.ALL_VALID_FILTERS = self._AGGREGATION_FILTERS + self._SIMPLE_MATCHED_LINE_FILTERS
 
@@ -249,6 +249,9 @@ class TestCaseFilters:
 
     def get_aggregate_filters(self):
         return self._AGGREGATION_FILTERS
+
+    def get_match_expression_aggregate_filters(self):
+        return self._aggregated_match_expr_filters
 
 
 @dataclass(eq=True, frozen=True)
