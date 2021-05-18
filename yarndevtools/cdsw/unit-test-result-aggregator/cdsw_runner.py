@@ -83,7 +83,7 @@ class CdswRunner(CdswRunnerBase):
         smart_subject_query=True,
         truncate_subject=None,
         abbreviate_tc_package=None,
-        summary_mode="all",
+        summary_mode="html",
         aggregate_filters=None,
         gsheet_compare_with_jira_table=None,
     ):
