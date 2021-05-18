@@ -36,7 +36,7 @@ MATCH_ALL_LINES_EXPRESSION: MatchExpression = MatchExpression("Failed testcases"
 MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
-@dataclass
+@dataclass(eq=True, frozen=True)
 class KnownTestFailureInJira:
     tc_name: str
     jira: str

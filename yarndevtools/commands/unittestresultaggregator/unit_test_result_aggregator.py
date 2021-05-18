@@ -440,12 +440,14 @@ class FailedTestCases:
     def cross_check_testcases_with_jiras(
         self, testcase_filters: List[TestCaseFilter], testcases_to_jiras: List[KnownTestFailureInJira]
     ):
+        encountered_known_test_failures: Set[KnownTestFailureInJira] = set()
         for tcf in testcase_filters:
             LOG.debug(f"Cross-checking testcases with known test failures from jira for filter: {tcf.short_str()}")
             for testcase in self._aggregated_test_failures[tcf]:
                 known_tcf: KnownTestFailureInJira or None = None
                 for known_test_failure in testcases_to_jiras:
                     if known_test_failure.tc_name in testcase.simple_name:
+                        encountered_known_test_failures.add(known_test_failure)
                         LOG.debug(
                             "Found matching failed testcase + known jira testcase:\n"
                             f"Failed testcase: {testcase.simple_name}, Known testcase: {known_test_failure.tc_name}"
@@ -467,6 +469,15 @@ class FailedTestCases:
                     )
                     testcase.known_failure = False
                     testcase.reoccurred = False
+
+        all_known_test_failures = set(testcases_to_jiras)
+        not_encountered_known_test_failures = all_known_test_failures.difference(encountered_known_test_failures)
+        if not_encountered_known_test_failures:
+            LOG.warning(
+                "Found known jira test failures that are not encountered for any test failures. "
+                f"Not encountered: {not_encountered_known_test_failures}"
+                f"Filters: {testcase_filters}"
+            )
 
     def create_changed_failures_comparison(
         self, testcase_filters: List[TestCaseFilter], compare_with_last=True, compare_with_n_days_old=None
