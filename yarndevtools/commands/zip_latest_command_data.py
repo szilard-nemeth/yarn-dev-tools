@@ -104,5 +104,7 @@ class ZipLatestCommandData:
                 f"zip file: {zip_file.name}"
             )
 
-        LOG.info(f"Finished writing command data to zip file: {zip_file.name}")
+        LOG.info(
+            f"Finished writing command data to zip file: {zip_file.name}, " f"size: {FileUtils.get_file_size(zip_file)}"
+        )
         FileUtils.create_symlink_path_dir(LATEST_DATA_ZIP_LINK_NAME, zip_file.name, self.config.project_out_root)
