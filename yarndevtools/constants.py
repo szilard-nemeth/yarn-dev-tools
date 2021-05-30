@@ -21,6 +21,7 @@ ANY_JIRA_ID_PATTERN = re.compile(r"([A-Z]+-\d+)")
 # Symlink names
 LATEST_LOG_LINK_NAME = "latest-log"
 LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
+LATEST_DATA_NAME_PREFIX = "latest-command-data"
 
 # File names
 SUMMARY_FILE_TXT = "summary.txt"

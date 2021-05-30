@@ -10,6 +10,7 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
     LATEST_LOG_LINK_NAME,
     LATEST_DATA_ZIP_LINK_NAME,
+    LATEST_DATA_NAME_PREFIX,
 )
 
 LOG = logging.getLogger(__name__)
@@ -99,6 +100,7 @@ class ZipLatestCommandData:
                     input_files.append(input_file)
                     sum_len_all_files += 1
 
+        temp_dir_dest: bool = True if not self.config.output_dir or self.config.output_dir.startswith("/tmp") else False
         if self.config.output_dir:
             dest_filepath = FileUtils.join_path(self.config.output_dir, self.config.dest_filename)
             zip_file: BufferedWriter = ZipFileUtils.create_zip_file(input_files, dest_filepath)
@@ -125,3 +127,9 @@ class ZipLatestCommandData:
         # Create a latest link for the command as well
         command_link: str = f"{LATEST_DATA_ZIP_LINK_NAME}-{self.cmd_type.val}"
         FileUtils.create_symlink_path_dir(command_link, zip_file_name, self.config.project_out_root)
+
+        # Save command data file per command to home dir when temp dir mode is being used
+        if temp_dir_dest:
+            zip_file_name_real: str = f"{LATEST_DATA_NAME_PREFIX}-{self.cmd_type.val}-real.zip"
+            target_file_path = FileUtils.join_path(self.config.project_out_root, FileUtils.basename(zip_file_name_real))
+            FileUtils.copy_file(zip_file_name, target_file_path)
