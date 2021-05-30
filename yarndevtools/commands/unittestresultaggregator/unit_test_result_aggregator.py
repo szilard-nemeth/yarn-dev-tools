@@ -712,6 +712,7 @@ class TestcaseFilterResults:
 class UnitTestResultAggregator:
     def __init__(self, args, parser, output_dir: str):
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
+        self.testcases_to_jiras = []
         if self.config.operation_mode == OperationMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
             self.testcases_to_jiras: List[KnownTestFailureInJira] = []
