@@ -9,7 +9,7 @@ from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator 
     DEFAULT_LINE_SEP,
 )
 from yarndevtools.common.shared_command_utils import RepoType
-from yarndevtools.constants import TRUNK, DEFAULT_COMMAND_DATA_FILE_NAME, SUMMARY_FILE_HTML
+from yarndevtools.constants import TRUNK, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
 
@@ -260,9 +260,7 @@ class ArgParser:
             help="Type of command. The Command itself should be session-based.",
         )
         parser.add_argument("--dest_dir", required=False, type=str, help="Directory to create the zip file into")
-        parser.add_argument(
-            "--dest_filename", required=False, type=str, default=DEFAULT_COMMAND_DATA_FILE_NAME, help="Zip filename"
-        )
+        parser.add_argument("--dest_filename", required=False, type=str, help="Zip filename")
         parser.add_argument(
             "--ignore-filetypes",
             required=False,
@@ -270,7 +268,7 @@ class ArgParser:
             nargs="+",
             help="Filetype to ignore so they won't be added to the resulted zip file.",
         )
-        parser.set_defaults(func=yarn_dev_tools.zip_latest_command_results)
+        parser.set_defaults(func=yarn_dev_tools.zip_latest_command_data)
 
     @staticmethod
     def add_send_latest_command_data(subparsers, yarn_dev_tools):
@@ -287,7 +285,7 @@ class ArgParser:
             default=SUMMARY_FILE_HTML,
         )
         ArgParser.add_email_arguments(parser)
-        parser.set_defaults(func=yarn_dev_tools.send_latest_command_results)
+        parser.set_defaults(func=yarn_dev_tools.send_latest_command_data)
 
     @staticmethod
     def add_jenkins_test_reporter(subparsers, yarn_dev_tools):

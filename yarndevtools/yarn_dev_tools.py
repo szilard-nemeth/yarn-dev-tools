@@ -233,11 +233,11 @@ class YarnDevTools:
         )
         branch_comparator.run()
 
-    def zip_latest_command_results(self, args, parser=None):
+    def zip_latest_command_data(self, args, parser=None):
         zip_latest_cmd_data = ZipLatestCommandData(args, yarn_dev_tools.project_out_root)
         zip_latest_cmd_data.run()
 
-    def send_latest_command_results(self, args, parser=None):
+    def send_latest_command_data(self, args, parser=None):
         file_to_send = FileUtils.join_path(yarn_dev_tools.project_out_root, LATEST_DATA_ZIP_LINK_NAME)
         send_latest_cmd_data = SendLatestCommandDataInEmail(args, file_to_send)
         send_latest_cmd_data.run()

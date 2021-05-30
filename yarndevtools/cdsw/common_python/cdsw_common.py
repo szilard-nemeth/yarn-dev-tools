@@ -133,7 +133,6 @@ class CdswRunnerBase(ABC):
             f"{debug_mode} "
             f"{CommandType.ZIP_LATEST_COMMAND_DATA.val} {command_type.val} "
             f"--dest_dir /tmp "
-            f"--dest_filename command_data.zip "
             f"--ignore-filetypes {ignore_filetypes} "
         )
 
