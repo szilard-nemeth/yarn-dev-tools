@@ -9,7 +9,6 @@ from pythoncommons.zip_utils import ZipFileUtils
 from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
     LATEST_DATA_ZIP_LINK_NAME,
-    LATEST_DATA_NAME_PREFIX,
 )
 
 LOG = logging.getLogger(__name__)
@@ -129,6 +128,6 @@ class ZipLatestCommandData:
 
         # Save command data file per command to home dir when temp dir mode is being used
         if temp_dir_dest:
-            zip_file_name_real: str = f"{LATEST_DATA_NAME_PREFIX}-{self.cmd_type.val}-real.zip"
+            zip_file_name_real: str = f"{self.cmd_type.command_data_name}-real.zip"
             target_file_path = FileUtils.join_path(self.config.project_out_root, FileUtils.basename(zip_file_name_real))
             FileUtils.copy_file(zip_file_name, target_file_path)
