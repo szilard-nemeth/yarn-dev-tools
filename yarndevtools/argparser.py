@@ -9,7 +9,7 @@ from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator 
     DEFAULT_LINE_SEP,
 )
 from yarndevtools.common.shared_command_utils import RepoType
-from yarndevtools.constants import TRUNK, SUMMARY_FILE_HTML
+from yarndevtools.constants import TRUNK, SUMMARY_FILE_HTML, LATEST_DATA_ZIP_LINK_NAME
 
 LOG = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ class CommandType(Enum):
 
         self.log_link_name = f"latest-log-{value}"
         self.command_data_name = f"latest-command-data-{value}"
+        self.command_data_zip_name: str = f"{LATEST_DATA_ZIP_LINK_NAME}-{value}"
 
     @staticmethod
     def from_str(val):

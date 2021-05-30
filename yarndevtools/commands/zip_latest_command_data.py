@@ -123,8 +123,9 @@ class ZipLatestCommandData:
         FileUtils.create_symlink_path_dir(LATEST_DATA_ZIP_LINK_NAME, zip_file_name, self.config.project_out_root)
 
         # Create a latest link for the command as well
-        command_link: str = f"{LATEST_DATA_ZIP_LINK_NAME}-{self.cmd_type.val}"
-        FileUtils.create_symlink_path_dir(command_link, zip_file_name, self.config.project_out_root)
+        FileUtils.create_symlink_path_dir(
+            self.cmd_type.command_data_zip_name, zip_file_name, self.config.project_out_root
+        )
 
         # Save command data file per command to home dir when temp dir mode is being used
         if temp_dir_dest:
