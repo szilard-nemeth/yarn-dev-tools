@@ -120,7 +120,9 @@ class ZipLatestCommandData:
             f"Finished writing command data to zip file: {zip_file_name}, "
             f"size: {FileUtils.get_file_size(zip_file_name)}"
         )
-        FileUtils.create_symlink_path_dir(LATEST_DATA_ZIP_LINK_NAME, zip_file_name, self.config.project_out_root)
+        FileUtils.create_symlink_path_dir(
+            LATEST_DATA_ZIP_LINK_NAME, zip_file_name, self.config.project_out_root, remove_linked_file_if_exists=True
+        )
 
         # Create a latest link for the command as well
         FileUtils.create_symlink_path_dir(
