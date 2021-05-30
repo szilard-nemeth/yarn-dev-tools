@@ -8,7 +8,6 @@ from pythoncommons.zip_utils import ZipFileUtils
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
-    LATEST_LOG_LINK_NAME,
     LATEST_DATA_ZIP_LINK_NAME,
     LATEST_DATA_NAME_PREFIX,
 )
@@ -42,7 +41,7 @@ class ZipLatestCommandData:
     def __init__(self, args, project_basedir: str):
         self.cmd_type: CommandType = CommandType.from_str(args.cmd_type)
         self.input_files = self._check_input_files(
-            [LATEST_LOG_LINK_NAME, self.cmd_type.session_link_name], project_basedir
+            [self.cmd_type.log_link_name, self.cmd_type.session_link_name], project_basedir
         )
         self.config = Config(args, self.input_files, project_basedir, self.cmd_type)
 

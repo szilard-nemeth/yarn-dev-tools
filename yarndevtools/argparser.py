@@ -43,6 +43,7 @@ class CommandType(Enum):
             self.session_link_name = session_link_name
         else:
             self.session_link_name = f"latest-session-{value}"
+        self.log_link_name = f"latest-log-{value}"
 
     @staticmethod
     def from_str(val):

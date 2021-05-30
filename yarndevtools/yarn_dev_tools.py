@@ -34,7 +34,6 @@ from yarndevtools.constants import (
     ORIGIN_TRUNK,
     GERRIT_REVIEWER_LIST,
     HADOOP_REPO_TEMPLATE,
-    LATEST_LOG_LINK_NAME,
     LATEST_DATA_ZIP_LINK_NAME,
     YARN_TASKS,
     JIRA_UMBRELLA_DATA,
@@ -273,8 +272,9 @@ if __name__ == "__main__":
         verbose=args.verbose,
     )
 
-    if CommandType.from_str(args.command) not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        FileUtils.create_symlink_path_dir(LATEST_LOG_LINK_NAME, log_file, yarn_dev_tools.project_out_root)
+    cmd_type = CommandType.from_str(args.command)
+    if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
+        FileUtils.create_symlink_path_dir(cmd_type.log_link_name, log_file, yarn_dev_tools.project_out_root)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 
