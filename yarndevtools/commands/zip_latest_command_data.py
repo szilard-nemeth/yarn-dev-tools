@@ -101,9 +101,11 @@ class ZipLatestCommandData:
         temp_dir_dest: bool = True if not self.config.output_dir or self.config.output_dir.startswith("/tmp") else False
         if self.config.output_dir:
             dest_filepath = FileUtils.join_path(self.config.output_dir, self.config.dest_filename)
-            zip_file: BufferedWriter = ZipFileUtils.create_zip_file(input_files, dest_filepath)
+            zip_file: BufferedWriter = ZipFileUtils.create_zip_file(input_files, dest_filepath, compress=True)
         else:
-            zip_file: BufferedWriter = ZipFileUtils.create_zip_as_tmp_file(input_files, self.config.dest_filename)
+            zip_file: BufferedWriter = ZipFileUtils.create_zip_as_tmp_file(
+                input_files, self.config.dest_filename, compress=True
+            )
 
         zip_file_name = zip_file.name
         no_of_files_in_zip: int = ZipFileUtils.get_number_of_files_in_zip(zip_file_name)
