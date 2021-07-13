@@ -12,7 +12,7 @@ APACHE = "apache"
 ORIGIN_TRUNK = "origin/trunk"
 TRUNK = "trunk"
 BRANCH_3_1 = "branch-3.1"
-GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke"
+GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke,r=tdomok"
 ENV_CLOUDERA_HADOOP_ROOT = "CLOUDERA_HADOOP_ROOT"
 ENV_HADOOP_DEV_DIR = "HADOOP_DEV_DIR"
 YARN_JIRA_ID_PATTERN = re.compile(r"(YARN-\d+)")
