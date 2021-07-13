@@ -144,6 +144,9 @@ class ArgParser:
             required=False,
             help="Downstream commit to base the new downstream branch on",
         )
+        parser.add_argument(
+            "--no-fetch", action="store_true", required=False, default=False, help="Whether to fetch repositories"
+        )
         parser.set_defaults(func=yarn_dev_tools.backport_c6)
 
     @staticmethod

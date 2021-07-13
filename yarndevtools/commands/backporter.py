@@ -61,6 +61,7 @@ class Backporter:
         self.downstream_branch = self.args.downstream_branch
         self.upstream_jira_id = self.args.upstream_jira_id
         self.upstream_branch = self.args.upstream_branch
+        self.fetch_repos: bool = not self.args.no_fetch
 
         self.upstream_repo = upstream_repo
         self.downstream_repo = downstream_repo
@@ -79,18 +80,22 @@ class Backporter:
             "Upstream branch: %s\n "
             "Downstream Jira ID: %s\n "
             "Downstream ref (base): %s\n "
-            "Downstream branch (target): %s\n",
+            "Downstream branch (target): %s\n"
+            "Fetch repos: %s\n",
             self.upstream_jira_id,
             self.upstream_branch,
             self.downstream_jira_id,
             self.cherry_pick_base_ref,
             self.downstream_branch,
+            self.fetch_repos,
         )
-        self.sync_upstream_repo()
+        if self.fetch_repos:
+            self.sync_upstream_repo()
         self.get_upstream_commit_hash()
 
         # DO THE REST OF THE WORK IN THE DOWNSTREAM REPO
-        self.downstream_repo.fetch(all=True)
+        if self.fetch_repos:
+            self.downstream_repo.fetch(all=True)
         self.cherry_pick_commit()
         self.rewrite_commit_message()
         self.print_post_commit_guidance()
