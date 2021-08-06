@@ -11,6 +11,7 @@ UPSTREAM_JIRA_ID = "YARN-123456: "
 DOWNSTREAM_BRANCH = "cdh6x"
 DOWNSTREAM_JIRA_ID = "CDH-1234"
 UPSTREAM_REMOTE_NAME = "upstream"
+FETCH = True
 
 LOG = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class TestBackporter(unittest.TestCase):
         args.upstream_branch = DEFAULT_BASE_BRANCH
         args.downstream_jira_id = DOWNSTREAM_JIRA_ID
         args.downstream_branch = DOWNSTREAM_BRANCH
+        args.no_fetch = not FETCH
         return args
 
     def cleanup_and_checkout_branch(self, branch=None, checkout_from=None):
