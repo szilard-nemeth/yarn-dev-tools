@@ -70,7 +70,7 @@ There's only 1 prerequisite step to install python-commons which is a dependency
 The project root contains a requirements.txt file that has all the dependencies listed, including this.
 Simply go to the root of this project and execute: 
 ```
-pip3 install
+pip3 install .
 ```
 
 After this, you are ready to set up some aliases. In my system, I have these: 
