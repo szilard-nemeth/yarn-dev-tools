@@ -64,7 +64,7 @@ Check the log at /<userhome>/.cache/pre-commit/pre-commit.log
 , please run: `pre-commit autoupdate`
 More info here: https://github.com/pre-commit/pre-commit/issues/577
 
-## Seting up handy aliases to use YARN-dev tools
+## Setting up handy aliases to use YARN-dev tools
 
 There's only 1 prerequisite step to install python-commons which is a dependency of yarn-dev-tools.
 The project root contains a requirements.txt file that has all the dependencies listed, including this.
