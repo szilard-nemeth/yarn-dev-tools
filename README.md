@@ -4,7 +4,7 @@
 ![GitHub language count](https://img.shields.io/github/languages/count/szilard-nemeth/yarn-dev-tools)
 
 
-# YARN dev functions
+# YARN-dev tools
 
 This project contains various developer helper scripts in order to simplify everyday tasks related to Git and Apache Hadoop YARN development.
 
@@ -63,3 +63,50 @@ Check the log at /<userhome>/.cache/pre-commit/pre-commit.log
 ```
 , please run: `pre-commit autoupdate`
 More info here: https://github.com/pre-commit/pre-commit/issues/577
+
+## Seting up handy aliases to use YARN-dev tools
+
+There's only 1 prerequisite step to install python-commons which is a dependency of yarn-dev-tools.
+The project root contains a requirements.txt file that has all the dependencies listed, including this.
+Simply go to the root of this project and execute: 
+```
+pip3 install
+```
+
+After this, you are ready to set up some aliases. In my system, I have these: 
+```
+yarn-backport='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py backport_c6'
+yarn-create-review-branch='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py create_review_branch'
+yarn-diff-patches='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py diff_patches_of_jira'
+yarn-get-umbrella-data='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py fetch_jira_umbrella_data'
+yarn-save-patch='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py save_patch'
+yarn-upstream-commit-pr='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py upstream_pr_fetch'
+```
+where: 
+- SYSTEM_PYTHON_EXECUTABLE should be set to "/usr/local/bin/python3": 
+```
+➜ ls -la /usr/local/bin/python3
+lrwxr-xr-x  1 snemeth  admin  38 Jun 14 23:43 /usr/local/bin/python3 -> ../Cellar/python@3.9/3.9.5/bin/python3
+```
+- VENV should be set to a virtualenv where yarndevtools is installed to. On my system it is set to "/Users/snemeth/development/my-repos/linux-env/venv"
+- HADOOP_DEV_DIR should be set to the upstream Hadoop repo root, e.g.: "/Users/snemeth/development/apache/hadoop/"
+- CLOUDERA_HADOOP_ROOT should be set to the downstream Hadoop repo root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
+The latter 2 environment variables is better to be added to your bashrc file to keep them between the shells.
+
+
+### Examples for YARN backporter
+To backport YARN-6221 to 2 branches, run these commands:
+```
+yarn-backport YARN-6221 COMPX-6664 cdpd-master
+yarn-backport YARN-6221 COMPX-6664 CDH-7.1-maint --no-fetch
+```
+The second parameter is the downstream jira ID.
+The third parameter is the downstream branch.
+The `--no-fetch` option is a means to skip git fetch on both repos.
+
+Finally, I set up two aliases for pushing the changes to the downstream repo:
+```
+alias git-push-to-cdpdmaster="git push <REMOTE> HEAD:refs/for/cdpd-master%<REVIEWER_LIST>"
+alias git-push-to-cdh71maint="git push <REMOTE> HEAD:refs/for/CDH-7.1-maint%<REVIEWER_LIST>"
+```
+where REVIEWER_LIST is in this format: "r=user1,r=user2,r=user3,..."
