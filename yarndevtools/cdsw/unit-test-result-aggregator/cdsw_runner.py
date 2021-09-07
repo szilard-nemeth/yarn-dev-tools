@@ -1,6 +1,8 @@
 import logging
 from enum import Enum
+from typing import List
 
+from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.argparser import CommandType
@@ -31,6 +33,7 @@ class UnitTestResultAggregatorEnvVar(Enum):
 class UnitTestResultAggregatorOptionalEnvVar(Enum):
     ABBREV_TC_PACKAGE = "ABBREV_TC_PACKAGE"
     AGGREGATE_FILTERS = "AGGREGATE_FILTERS"
+    SKIP_AGGREGATION_RESOURCE_FILE = "SKIP_AGGREGATION_RESOURCE_FILE"
     GSHEET_COMPARE_WITH_JIRA_TABLE = "GSHEET_COMPARE_WITH_JIRA_TABLE"
 
 
@@ -40,6 +43,17 @@ class CdswRunner(CdswRunnerBase):
         self.run_test_result_aggregator_and_send_mail()
 
     def run_test_result_aggregator_and_send_mail(self):
+        skip_lines_starting_with: List[str] = DEFAULT_SKIP_LINES_STARTING_WITH
+
+        # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
+        # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
+        skip_aggregation_res_file = OsUtils.get_env_value(
+            UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
+        )
+        if skip_aggregation_res_file:
+            FileUtils.ensure_is_file(skip_aggregation_res_file)
+            skip_lines_starting_with = FileUtils.read_file_to_list(skip_aggregation_res_file)
+
         self._run_aggregator(
             exec_mode="gsheet",
             gsheet_client_secret=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_CLIENT_SECRET.value),
@@ -53,6 +67,7 @@ class CdswRunner(CdswRunnerBase):
             gsheet_compare_with_jira_table=OsUtils.get_env_value(
                 UnitTestResultAggregatorOptionalEnvVar.GSHEET_COMPARE_WITH_JIRA_TABLE.value
             ),
+            skip_lines_starting_with=skip_lines_starting_with,
         )
 
         self.run_zipper(CommandType.UNIT_TEST_RESULT_AGGREGATOR, debug=True)
@@ -78,7 +93,7 @@ class CdswRunner(CdswRunnerBase):
         request_limit,
         match_expression,
         gmail_query=DEFAULT_GMAIL_QUERY,
-        skip_lines_starting_with=None,
+        skip_lines_starting_with: List[str] = None,
         debug=True,
         smart_subject_query=True,
         truncate_subject=None,
@@ -101,7 +116,7 @@ class CdswRunner(CdswRunnerBase):
         gsheet_compare_with_jira_table = self._get_cli_switch_value(
             "--ghseet-compare-with-jira-table", gsheet_compare_with_jira_table, quote=True
         )
-        skip_lines_starting_with = self._get_cli_switch_value(
+        skip_lines_starting_with_cli = self._get_cli_switch_value(
             "--skip-lines-starting-with", " ".join(f'"{w}"' for w in skip_lines_starting_with)
         )
         LOG.info(f"Locals: {locals()}")
@@ -116,7 +131,7 @@ class CdswRunner(CdswRunnerBase):
             f"--request-limit {request_limit} "
             f"--gmail-query {gmail_query} "
             f"--match-expression {match_expression} "
-            f"{skip_lines_starting_with} "
+            f"{skip_lines_starting_with_cli} "
             f"--summary-mode {summary_mode} "
             f"{smart_subject_query} "
             f"{abbreviate_tc_package} "
