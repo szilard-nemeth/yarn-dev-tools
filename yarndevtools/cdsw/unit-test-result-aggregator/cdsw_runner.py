@@ -17,7 +17,7 @@ CMD_LOG = logging.getLogger(__name__)
 
 DEFAULT_GMAIL_QUERY = 'subject:"YARN Daily unit test report"'
 DEFAULT_TRUNCATE_SUBJECT = "YARN Daily unit test report: Failed tests with build: "
-DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "FILTER:", "Filter expression: "]
+DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "Failed testcases (", "FILTER:", "Filter expression: "]
 
 
 class UnitTestResultAggregatorEnvVar(Enum):
