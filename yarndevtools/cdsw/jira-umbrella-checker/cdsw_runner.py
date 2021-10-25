@@ -24,7 +24,8 @@ class CdswRunner(CdswRunnerBase):
         self.run_clone_downstream_repos_script(basedir)
         self.run_clone_upstream_repos_script(basedir)
 
-        umbrella_ids = ["YARN-10496", "YARN-6223", "YARN-8820"]
+        # umbrella_ids = ["YARN-10496", "YARN-6223", "YARN-8820"]
+        umbrella_ids = ["YARN-10888", "YARN-10889"]
         self.run_upstream_umbrella_checker_and_send_mail(umbrella_ids)
 
     def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira_ids: List[str]):
