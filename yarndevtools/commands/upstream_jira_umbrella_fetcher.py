@@ -1,6 +1,8 @@
 import logging
 import os
 import sys
+from typing import List
+
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.jira_utils import JiraUtils
@@ -391,7 +393,7 @@ class UpstreamJiraUmbrellaFetcher:
     def find_upstream_commits_and_save_to_file(self):
         # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
         git_log_result = self.upstream_repo.log(ORIGIN_TRUNK, oneline_with_date=True)
-        cmd, output = CommandRunner.egrep_with_cli(
+        cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
             git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
         )
         normal_commit_lines = output.split("\n")
@@ -426,14 +428,8 @@ class UpstreamJiraUmbrellaFetcher:
         # If the not_found_jira_titles are all unresolved jiras,
         # egrep would fail so we don't want to fail the whole script here,
         # so disabling fail_on_error / fail_on_empty_output
-        cmd, output = CommandRunner.egrep_with_cli(
-            git_log_result,
-            self.intermediate_results_file,
-            "|".join(not_found_jira_titles),
-            escape_single_quotes=False,
-            escape_double_quotes=True,
-            fail_on_empty_output=False,
-            fail_on_error=False,
+        cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
+            git_log_result, self.intermediate_results_file, "|".join(not_found_jira_titles)
         )
         if not output:
             return []
@@ -504,7 +500,7 @@ class UpstreamJiraUmbrellaFetcher:
         for branch in self.config.downstream_branches:
             git_log_result = self.downstream_repo.log(branch, oneline_with_date=True)
             # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-            cmd, output = CommandRunner.egrep_with_cli(
+            cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
                 git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
             )
             matched_downstream_commit_list = output.split("\n")
@@ -535,6 +531,18 @@ class UpstreamJiraUmbrellaFetcher:
             if jira_id not in self.data.backported_jiras:
                 LOG.debug("%s is not backported to any of the provided branches", jira_id)
                 self.data.backported_jiras[jira_id] = BackportedJira(jira_id, [])
+
+    @staticmethod
+    def _run_egrep(git_log_result: List[str], file: str, grep_for: str):
+        return CommandRunner.egrep_with_cli(
+            git_log_result,
+            file,
+            grep_for,
+            escape_single_quotes=False,
+            escape_double_quotes=True,
+            fail_on_empty_output=False,
+            fail_on_error=False,
+        )
 
     def convert_to_commit_data_objects_upstream(self):
         """
