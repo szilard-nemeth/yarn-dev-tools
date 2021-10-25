@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Dict, List
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
@@ -10,13 +10,12 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import SUMMARY_FILE_TXT
+from pythoncommons.jira_utils import JiraUtils
 
 DEFAULT_BRANCHES = "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x"
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
-
-JIRA_INFO: Dict[str, str] = {"YARN-10496": "AQC", "YARN-6223": "GPU phase 1", "YARN-8820": "GPU phase 2"}
 
 
 class CdswRunner(CdswRunnerBase):
@@ -24,28 +23,38 @@ class CdswRunner(CdswRunnerBase):
         LOG.info("Starting CDSW runner...")
         self.run_clone_downstream_repos_script(basedir)
         self.run_clone_upstream_repos_script(basedir)
-        self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-10496")
-        self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-6223")
-        self.run_upstream_umbrella_checker_and_send_mail(umbrella_jira="YARN-8820")
 
-    def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira: str):
-        date_str = self.current_date_formatted()
+        umbrella_ids = ["YARN-10496", "YARN-6223", "YARN-8820"]
+        self.run_upstream_umbrella_checker_and_send_mail(umbrella_ids)
 
-        self._run_upstream_umbrella_checker(umbrella_jira, branches=DEFAULT_BRANCHES)
+    def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira_ids: List[str]):
+        jira_ids_and_titles = self._fetch_umbrella_titles(umbrella_jira_ids)
+        for umbrella_jira_id, title in jira_ids_and_titles.items():
+            date_str = self.current_date_formatted()
+            self._run_upstream_umbrella_checker(umbrella_jira_id, branches=DEFAULT_BRANCHES)
+            self.run_zipper(CommandType.FETCH_JIRA_UMBRELLA_DATA, debug=True)
 
-        self.run_zipper(CommandType.FETCH_JIRA_UMBRELLA_DATA, debug=True)
+            sender = "YARN upstream umbrella checker"
+            subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira_id} ({title}), start date: {date_str}]"
+            attachment_fname: str = f"command_data_{date_str}.zip"
+            self.send_latest_command_data_in_email(
+                sender=sender,
+                subject=subject,
+                attachment_filename=attachment_fname,
+                recipients=MAIL_ADDR_YARN_ENG_BP,
+                email_body_file=SUMMARY_FILE_TXT,
+            )
 
-        additional_info: str = JIRA_INFO[umbrella_jira]
-        sender = "YARN upstream umbrella checker"
-        subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira} ({additional_info}), start date: {date_str}]"
-        attachment_fname: str = f"command_data_{date_str}.zip"
-        self.send_latest_command_data_in_email(
-            sender=sender,
-            subject=subject,
-            attachment_filename=attachment_fname,
-            recipients=MAIL_ADDR_YARN_ENG_BP,
-            email_body_file=SUMMARY_FILE_TXT,
-        )
+    @staticmethod
+    def _fetch_umbrella_titles(jira_ids: List[str]):
+        return {j_id: CdswRunner._fetch_umbrella_title(j_id) for j_id in jira_ids}
+
+    @staticmethod
+    def _fetch_umbrella_title(jira_id: str):
+        jira_html_file = f"/tmp/jira_{jira_id}.html"
+        LOG.info("Fetching HTML of jira: %s", jira_id)
+        jira_html = JiraUtils.download_jira_html("https://issues.apache.org/jira/browse/", jira_id, jira_html_file)
+        return JiraUtils.parse_jira_title(jira_html)
 
     def _run_upstream_umbrella_checker(self, umbrella_jira, branches, force=True, ignore_changes=True):
         if not umbrella_jira:
