@@ -503,6 +503,9 @@ class UpstreamJiraUmbrellaFetcher:
             cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
                 git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
             )
+            if not output or len(output) == 0:
+                return
+
             matched_downstream_commit_list = output.split("\n")
             if matched_downstream_commit_list:
                 backported_commits = [
