@@ -1,23 +1,7 @@
 #!/bin/bash
 
-function clone-fetch-yarndevtools() {
-  #set -e
-  mkdir -p $REPOS_ROOT/snemeth
-  mkdir -p $REPOS_ROOT/cloudera
-
-  #Clone / Fetch yarn-dev-tools-mirror
-  cd $REPOS_ROOT/snemeth
-  git clone https://github.infra.cloudera.com/snemeth/yarn-dev-tools-mirror.git
-  set -e
-  cd $REPOS_ROOT/snemeth/yarn-dev-tools-mirror/
-  git fetch --all --tags && git reset --hard $CURR_BRANCH_YARN_DEV_TOOLS
-  cd ..
-  rm -rf ./yarn-dev-tools
-  mv yarn-dev-tools-mirror yarn-dev-tools
-  set +e
-}
-
 function clone-fetch-hadoop-downstream() {
+  mkdir -p $REPOS_ROOT/cloudera
   cd $REPOS_ROOT/cloudera
   ls -la .
   git clone https://github.infra.cloudera.com/CDH/hadoop.git
@@ -50,6 +34,5 @@ clone-fetch-hadoop-downstream
 
 # Install python requirements
 ##NOTE: yarndevtools will be installed as a python module so it won't fail with:
-##ModuleNotFoundError: No module named 'yarndevtools'
-cd $REPOS_ROOT/snemeth/yarn-dev-tools/yarndevtools/cdsw
-pip3 install -r requirements.txt --force-reinstall
+curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
+pip3 install -r /tmp/requirements-cdsw.txt --force-reinstall
