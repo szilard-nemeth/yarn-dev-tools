@@ -101,7 +101,7 @@ class CdswSetup:
 
 class CdswRunnerBase(ABC):
     def __init__(self):
-        self.yarn_dev_tools_script = os.path.join(YARN_DEV_TOOLS_MODULE_ROOT, "yarndevtools", "yarn_dev_tools.py")
+        self.yarn_dev_tools_script = os.path.join(YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
         self.common_mail_config = CommonMailConfig()
 
     @abstractmethod
