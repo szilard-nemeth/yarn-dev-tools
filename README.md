@@ -115,18 +115,18 @@ where REVIEWER_LIST is in this format: "r=user1,r=user2,r=user3,..."
 1. Create a new CDSW session
 Wait for the session to be launched and open up a terminal by Clicking "Terminal access" on the top menu bar.
 
-2. Download the initial setup script.
+2. Upload the initial setup script to CDSW files.
 
-The script does the following: 
-1. Creates a temporary directory.
-2. Downloads the following files to that directory. 
+
+The script performs the following actions: 
+1. Downloads the scripts that are downloading the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module.
+The download location is: `/home/cdsw/scripts`
 Please note that the files will be downloaded from the internal Cloudera mirror of this repo!!
 - [clone_downstream_repos.sh](yarndevtools/cdsw/scripts/clone_downstream_repos.sh)
 - [clone_upstream_repos.sh](yarndevtools/cdsw/scripts/clone_upstream_repos.sh)
 
 3. Executes the scripts that are downloading the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module. 
 This can take some time, especially cloning Hadoop.
-
 Note: The individual CDSW jobs should make sure for themselves to clone the repositories.
 
 4. Copies the cdsw_runner.py scripts for all jobs to `/home/cdsw/jobs`
