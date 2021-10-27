@@ -110,3 +110,32 @@ alias git-push-to-cdpdmaster="git push <REMOTE> HEAD:refs/for/cdpd-master%<REVIE
 alias git-push-to-cdh71maint="git push <REMOTE> HEAD:refs/for/CDH-7.1-maint%<REVIEWER_LIST>"
 ```
 where REVIEWER_LIST is in this format: "r=user1,r=user2,r=user3,..."
+
+## CDSW Initial setup
+1. Create a new CDSW session
+Wait for the session to be launched and open up a terminal by Clicking "Terminal access" on the top menu bar.
+
+2. Download the initial setup script.
+
+The script does the following: 
+1. Creates a temporary directory.
+2. Downloads the following files to that directory. 
+Please note that the files will be downloaded from the internal Cloudera mirror of this repo!!
+- [clone_downstream_repos.sh](yarndevtools/cdsw/scripts/clone_downstream_repos.sh)
+- [clone_upstream_repos.sh](yarndevtools/cdsw/scripts/clone_upstream_repos.sh)
+
+3. Executes the scripts that are downloading the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module. 
+This can take some time, especially cloning Hadoop.
+
+Note: The individual CDSW jobs should make sure for themselves to clone the repositories.
+
+4. Copies the cdsw_runner.py scripts for all jobs to `/home/cdsw/jobs`
+
+5. All you have to do is to set up the projects and their starter scripts like this:
+
+Project | Starter script location |
+--- | --- | 
+Jira umbrella checker reporting | jobs/jira-umbrella-checker/cdsw_runner.py |
+Unit test result aggregator | jobs/unit-test-result-aggregator/cdsw_runner.py |
+Unit test result reporting | jobs/unit-test-result-reporting/cdsw_runner.py |
+Downstream branchdiff reporting | jobs/downstream-branchdiff-reporting/cdsw_runner.py |
