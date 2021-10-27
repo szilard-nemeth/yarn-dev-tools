@@ -9,7 +9,7 @@ from logging.handlers import TimedRotatingFileHandler
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.project_utils import ProjectUtils
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from yarndevtools.commands.branchcomparator.branch_comparator import BranchComparator
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
@@ -110,7 +110,9 @@ class YarnDevTools:
         self.init_repos()
 
     def setup_dirs(self):
-        self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
+        self.project_out_root = ProjectUtils.get_output_basedir(
+            PROJECT_NAME, project_root_determination_strategy=ProjectRootDeterminationStrategy.SYS_PATH
+        )
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
 
     @property
