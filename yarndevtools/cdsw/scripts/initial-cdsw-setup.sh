@@ -6,6 +6,8 @@ SCRIPTS_DIR="/home/cdsw/scripts"
 mkdir $SCRIPTS_DIR
 curl -o $SCRIPTS_DIR/clone_downstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_downstream_repos.sh
 curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_upstream_repos.sh
+chmod +x $SCRIPTS_DIR/clone_downstream_repos.sh
+chmod +x $SCRIPTS_DIR/clone_upstream_repos.sh
 
 echo "Cloning upstream repos..."
 $SCRIPTS_DIR/clone_upstream_repos.sh
