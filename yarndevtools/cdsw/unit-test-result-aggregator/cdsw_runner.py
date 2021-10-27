@@ -9,7 +9,6 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
-    YARN_DEV_TOOLS_ROOT_DIR,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import REPORT_FILE_SHORT_HTML
@@ -153,6 +152,5 @@ if __name__ == "__main__":
         e.value for e in UnitTestResultAggregatorEnvVar
     ]
     basedir = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
-    LOG.info(f"YARN Dev tools mirror root dir: {YARN_DEV_TOOLS_ROOT_DIR}")
     runner = CdswRunner()
     runner.start(basedir)

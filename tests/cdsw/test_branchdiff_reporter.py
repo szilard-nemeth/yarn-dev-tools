@@ -13,8 +13,8 @@ from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 from yarndevtools.cdsw.common_python.cdsw_common import (
     HADOOP_CLOUDERA_BASEDIR,
     CDSW_BASEDIR,
-    YARN_DEV_TOOLS_ROOT_DIR,
-    YARN_DEV_TOOLS_CDSW_ROOT_DIR,
+    YARN_DEV_TOOLS_MODULE_ROOT,
+    YARN_DEV_TOOLS_SCRIPTS_BASEDIR,
     HADOOP_UPSTREAM_BASEDIR,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
@@ -32,7 +32,7 @@ CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 CDSW_RUNNER_PY = "cdsw_runner.py"
 BRANCH_DIFF_SCRIPT_CONTAINER = FileUtils.join_path(
-    YARN_DEV_TOOLS_CDSW_ROOT_DIR, BRANCH_DIFF_REPORTER_DIR_NAME, CDSW_RUNNER_PY
+    YARN_DEV_TOOLS_SCRIPTS_BASEDIR, BRANCH_DIFF_REPORTER_DIR_NAME, CDSW_RUNNER_PY
 )
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 LOG = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     def _setup_default_docker_mounts(self):
         # Mount dev dir so source code changes are visible in container immediately
-        self.docker_test_setup.mount_dir(self.repo_root_dir, YARN_DEV_TOOLS_ROOT_DIR, mode=MOUNT_MODE_RW)
+        self.docker_test_setup.mount_dir(self.repo_root_dir, YARN_DEV_TOOLS_MODULE_ROOT, mode=MOUNT_MODE_RW)
 
         if self.exec_mode == TestExecMode.CLOUDERA:
             self._mount_downstream_hadoop_repo()
@@ -180,7 +180,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             ]
         }
         # Manually fix PYTHONPATH like CDSW init script does
-        env_dict.update([cls.create_python_path_env_var(YARN_DEV_TOOLS_ROOT_DIR)])
+        env_dict.update([cls.create_python_path_env_var(YARN_DEV_TOOLS_MODULE_ROOT)])
         return env_dict
 
     @staticmethod

@@ -2,6 +2,7 @@ import sys
 from abc import ABC, abstractmethod
 import logging
 import os
+import site
 from typing import Dict, List
 
 # MAKE SURE THIS PRECEDES IMPORT TO pythoncommons
@@ -32,10 +33,8 @@ MAIL_ADDR_SNEMETH = "snemeth@cloudera.com"
 CDSW_BASEDIR = FileUtils.join_path("home", "cdsw")
 HADOOP_UPSTREAM_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "apache", "hadoop")
 HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
-YARN_DEV_TOOLS_ROOT_DIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "snemeth", "yarn-dev-tools")
-YARN_DEV_TOOLS_CDSW_ROOT_DIR = FileUtils.join_path(
-    CDSW_BASEDIR, "repos", "snemeth", "yarn-dev-tools", "yarndevtools", "cdsw"
-)
+YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(site.USER_SITE, "yarndevtools")
+YARN_DEV_TOOLS_SCRIPTS_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "scripts")
 
 
 class CdswSetup:
@@ -85,7 +84,7 @@ class CdswSetup:
         if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
             basedir = os.environ[ENV_OVERRIDE_SCRIPT_BASEDIR]
         else:
-            basedir = YARN_DEV_TOOLS_CDSW_ROOT_DIR
+            basedir = YARN_DEV_TOOLS_SCRIPTS_BASEDIR
         LOG.info("Using basedir for scripts: " + basedir)
         return basedir
 
@@ -102,7 +101,7 @@ class CdswSetup:
 
 class CdswRunnerBase(ABC):
     def __init__(self):
-        self.yarn_dev_tools_script = os.path.join(YARN_DEV_TOOLS_ROOT_DIR, "yarndevtools", "yarn_dev_tools.py")
+        self.yarn_dev_tools_script = os.path.join(YARN_DEV_TOOLS_MODULE_ROOT, "yarndevtools", "yarn_dev_tools.py")
         self.common_mail_config = CommonMailConfig()
 
     @abstractmethod
@@ -110,12 +109,12 @@ class CdswRunnerBase(ABC):
         pass
 
     def run_clone_downstream_repos_script(self, basedir):
-        clone_ds_repos_script = os.path.join(basedir, "scripts", "clone_downstream_repos.sh")
+        clone_ds_repos_script = os.path.join(basedir, "clone_downstream_repos.sh")
         cmd = f"{BASHX} {clone_ds_repos_script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     def run_clone_upstream_repos_script(self, basedir):
-        clone_us_repos_script = os.path.join(basedir, "scripts", "clone_upstream_repos.sh")
+        clone_us_repos_script = os.path.join(basedir, "clone_upstream_repos.sh")
         cmd = f"{BASHX} {clone_us_repos_script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
