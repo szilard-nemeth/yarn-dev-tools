@@ -27,5 +27,5 @@ REPOS_ROOT="/home/cdsw/repos"
 clone-fetch-hadoop
 
 # Install python requirements
-cd $REPOS_ROOT/snemeth/yarn-dev-tools
+cd $REPOS_ROOT/snemeth/yarn-dev-tools/yarndevtools/cdsw
 pip3 install -r requirements.txt --force-reinstall

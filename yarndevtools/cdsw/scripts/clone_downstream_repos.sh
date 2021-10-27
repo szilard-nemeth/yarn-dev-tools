@@ -17,7 +17,7 @@ function clone-fetch-yarndevtools() {
   set +e
 }
 
-function clone-fetch-hadoop() {
+function clone-fetch-hadoop-downstream() {
   cd $REPOS_ROOT/cloudera
   ls -la .
   git clone https://github.infra.cloudera.com/CDH/hadoop.git
@@ -45,11 +45,11 @@ CURR_BRANCH_HADOOP=$CDPD_MASTER_BRANCH
 HOME_CDSW="/home/cdsw"
 REPOS_ROOT="/home/cdsw/repos"
 
-
-# This is already cloned + fetched by the CDSW script
-#clone-fetch-yarndevtools
-clone-fetch-hadoop
+clone-fetch-yarndevtools
+clone-fetch-hadoop-downstream
 
 # Install python requirements
-cd $REPOS_ROOT/snemeth/yarn-dev-tools
+##NOTE: yarndevtools will be installed as a python module so it won't fail with:
+##ModuleNotFoundError: No module named 'yarndevtools'
+cd $REPOS_ROOT/snemeth/yarn-dev-tools/yarndevtools/cdsw
 pip3 install -r requirements.txt --force-reinstall
