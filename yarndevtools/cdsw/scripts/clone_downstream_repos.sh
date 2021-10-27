@@ -29,7 +29,6 @@ CURR_BRANCH_HADOOP=$CDPD_MASTER_BRANCH
 HOME_CDSW="/home/cdsw"
 REPOS_ROOT="/home/cdsw/repos"
 
-clone-fetch-yarndevtools
 clone-fetch-hadoop-downstream
 
 # Install python requirements with the latest version of the requirements file
