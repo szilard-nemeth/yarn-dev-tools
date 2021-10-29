@@ -110,9 +110,8 @@ class YarnDevTools:
         self.init_repos()
 
     def setup_dirs(self):
-        self.project_out_root = ProjectUtils.get_output_basedir(
-            PROJECT_NAME, project_root_determination_strategy=ProjectRootDeterminationStrategy.SYS_PATH
-        )
+        ProjectUtils.project_root_determine_strategy = ProjectRootDeterminationStrategy.SYS_PATH
+        self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
 
     @property
