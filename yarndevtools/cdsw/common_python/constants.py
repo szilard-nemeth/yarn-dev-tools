@@ -10,6 +10,7 @@ class CdswEnvVar(Enum):
     HADOOP_DEV_DIR = "HADOOP_DEV_DIR"
     PYTHONPATH = "PYTHONPATH"
     TEST_EXECUTION_MODE = "TEST_EXEC_MODE"
+    PYTHON_MODULE_MODE = "PYTHON_MODULE_MODE"
 
 
 class BranchComparatorEnvVar(Enum):

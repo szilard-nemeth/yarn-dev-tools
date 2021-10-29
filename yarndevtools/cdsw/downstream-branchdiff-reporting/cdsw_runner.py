@@ -4,11 +4,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.cdsw_common import (
-    CdswRunnerBase,
-    CdswSetup,
-    HADOOP_CLOUDERA_BASEDIR,
-)
+from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetup, CommonDirs
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar
 import logging
 
@@ -32,8 +28,8 @@ class CdswRunner(CdswRunnerBase):
             # Currently, yarndevtools requires both repos to be present when initializing.
             # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
             # Git init the other repository so everything will be alright
-            FileUtils.create_new_dir(HADOOP_CLOUDERA_BASEDIR)
-            FileUtils.change_cwd(HADOOP_CLOUDERA_BASEDIR)
+            FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
+            FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
             os.system("git init")
             self.run_clone_upstream_repos_script(basedir)
 
@@ -88,5 +84,6 @@ if __name__ == "__main__":
     basedir = CdswSetup.initial_setup(
         mandatory_env_vars=[CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
     )
+
     runner = CdswRunner()
     runner.start(basedir)

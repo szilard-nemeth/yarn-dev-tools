@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import logging
 import os
 import site
+from enum import Enum
 from typing import Dict, List
 
 # MAKE SURE THIS PRECEDES IMPORT TO pythoncommons
@@ -30,11 +31,24 @@ BASHX = "bash -x"
 MAIL_ADDR_YARN_ENG_BP = "yarn_eng_bp@cloudera.com"
 MAIL_ADDR_SNEMETH = "snemeth@cloudera.com"
 
-CDSW_BASEDIR = FileUtils.join_path("home", "cdsw")
-HADOOP_UPSTREAM_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "apache", "hadoop")
-HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
-YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(site.USER_SITE, "yarndevtools")
-YARN_DEV_TOOLS_SCRIPTS_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "scripts")
+
+class CommonDirs:
+    CDSW_BASEDIR = FileUtils.join_path("home", "cdsw")
+    YARN_DEV_TOOLS_SCRIPTS_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "scripts")
+    YARN_DEV_TOOLS_JOBS_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "jobs")
+    HADOOP_UPSTREAM_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "apache", "hadoop")
+    HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
+    USER_DEV_ROOT = FileUtils.join_path("/", "Users", "snemeth", "development")
+    YARN_DEV_TOOLS_MODULE_ROOT = None
+
+
+class CommonFiles:
+    YARN_DEV_TOOLS_SCRIPT = None
+
+
+class PythonModuleMode(Enum):
+    USER = "user"
+    GLOBAL = "global"
 
 
 class CdswSetup:
@@ -75,8 +89,8 @@ class CdswSetup:
 
         env_var_dict.update(
             {
-                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value: HADOOP_CLOUDERA_BASEDIR,
-                CdswEnvVar.HADOOP_DEV_DIR.value: HADOOP_UPSTREAM_BASEDIR,
+                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value: CommonDirs.HADOOP_CLOUDERA_BASEDIR,
+                CdswEnvVar.HADOOP_DEV_DIR.value: CommonDirs.HADOOP_UPSTREAM_BASEDIR,
             }
         )
 
@@ -84,9 +98,30 @@ class CdswSetup:
         if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
             basedir = os.environ[ENV_OVERRIDE_SCRIPT_BASEDIR]
         else:
-            basedir = YARN_DEV_TOOLS_SCRIPTS_BASEDIR
+            basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
+
+        CdswSetup._setup_python_module_root_and_yarndevtools_path()
         LOG.info("Using basedir for scripts: " + basedir)
         return basedir
+
+    @staticmethod
+    def _setup_python_module_root_and_yarndevtools_path():
+        module_mode_key = CdswEnvVar.PYTHON_MODULE_MODE.value
+        if module_mode_key in os.environ:
+            python_module_mode = PythonModuleMode[os.environ[module_mode_key].lower()]
+        else:
+            python_module_mode = PythonModuleMode.GLOBAL
+
+        if python_module_mode == PythonModuleMode.GLOBAL:
+            python_site = site.getsitepackages()[0]
+            LOG.info("Using global python-site basedir: %s", python_site)
+        elif python_module_mode == PythonModuleMode.USER:
+            python_site = site.USER_SITE
+            LOG.info("Using user python-site basedir: %s", python_site)
+        else:
+            raise ValueError("Invalid python module mode: " + python_module_mode)
+        CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, "yarndevtools")
+        CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
 
     @staticmethod
     def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
@@ -101,25 +136,27 @@ class CdswSetup:
 
 class CdswRunnerBase(ABC):
     def __init__(self):
-        self.yarn_dev_tools_script = os.path.join(YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
         self.common_mail_config = CommonMailConfig()
 
     @abstractmethod
     def start(self, basedir):
         pass
 
-    def run_clone_downstream_repos_script(self, basedir):
+    @staticmethod
+    def run_clone_downstream_repos_script(basedir):
         clone_ds_repos_script = os.path.join(basedir, "clone_downstream_repos.sh")
         cmd = f"{BASHX} {clone_ds_repos_script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
-    def run_clone_upstream_repos_script(self, basedir):
+    @staticmethod
+    def run_clone_upstream_repos_script(basedir):
         clone_us_repos_script = os.path.join(basedir, "clone_upstream_repos.sh")
         cmd = f"{BASHX} {clone_us_repos_script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
-    def execute_yarndevtools_script(self, script_args):
-        cmd = f"{PY3} {self.yarn_dev_tools_script} {script_args}"
+    @staticmethod
+    def execute_yarndevtools_script(script_args):
+        cmd = f"{PY3} {CommonFiles.YARN_DEV_TOOLS_SCRIPT} {script_args}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     @staticmethod
