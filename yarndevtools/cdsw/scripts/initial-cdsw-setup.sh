@@ -1,9 +1,18 @@
 #!/bin/bash
 set -x
 
+GLOBAL_PYTHON_SITE=0
+
+if [[ "$1" == 'global' ]]; then
+  GLOBAL_PYTHON_SITE=1
+fi
+
 echo "Downloading clone repository scripts..."
 SCRIPTS_DIR="/home/cdsw/scripts"
 mkdir $SCRIPTS_DIR
+
+#No errors allowe after this point!
+set -e
 curl -o $SCRIPTS_DIR/clone_downstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_downstream_repos.sh
 curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_upstream_repos.sh
 chmod +x $SCRIPTS_DIR/clone_downstream_repos.sh
@@ -20,9 +29,13 @@ USER_SITE_PACKAGES=$(python3 -m site --user-site)
 
 echo "Global python packages: $(ls -la $GLOBAL_SITE_PACKAGES)"
 echo "User python packages: $(ls -la $USER_SITE_PACKAGES)"
+PYTHON_SITE=$USER_SITE_PACKAGES
+if [[ "$GLOBAL_PYTHON_SITE" -eq 1 ]]; then
+  PYTHON_SITE=$GLOBAL_SITE_PACKAGES
+fi
 
 #Set up some convenience variables
-CDSW_PACKAGE_ROOT="$USER_SITE_PACKAGES/yarndevtools/cdsw"
+CDSW_PACKAGE_ROOT="$PYTHON_SITE/yarndevtools/cdsw"
 JOBS_ROOT=/home/cdsw/jobs/
 JOB_DS_BRANCHDIFF_REPORTING="downstream-branchdiff-reporting"
 JOB_JIRA_UMBRELLA_CHECKER="jira-umbrella-checker"
