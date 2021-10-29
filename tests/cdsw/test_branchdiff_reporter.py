@@ -239,8 +239,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
                 EnvVar.IGNORE_SMTP_AUTH_ERROR,
             ]
         }
+        # TODO
         # Manually fix PYTHONPATH like CDSW init script does
-        env_dict.update([cls.create_python_path_env_var(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT)])
+        # env_dict.update([cls.create_python_path_env_var(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT)])
         return env_dict
 
     @staticmethod
