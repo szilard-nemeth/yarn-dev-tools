@@ -8,6 +8,7 @@ class ExecutionMode(Enum):
 
 
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
+YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 APACHE = "apache"
 ORIGIN_TRUNK = "origin/trunk"
 ORIGIN_BRANCH_3_3 = "origin/branch-3.3"

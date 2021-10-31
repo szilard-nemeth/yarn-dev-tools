@@ -33,7 +33,7 @@ from yarndevtools.commands_common import (
     JiraIdChoosePreference,
 )
 from yarndevtools.common.shared_command_utils import RepoType
-from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME
+from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, YARNDEVTOOLS_MODULE_NAME
 
 LOG = logging.getLogger(__name__)
 
@@ -97,8 +97,10 @@ class BranchComparatorConfig:
 
     @staticmethod
     def find_git_compare_script():
-        repo_root_dir = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME)
-        return FileUtils.join_path(repo_root_dir, "legacy-scripts", "branch-comparator", "git_compare.sh")
+        basedir = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME, raise_error=False)
+        if not basedir:
+            basedir = FileUtils.find_repo_root_dir(__file__, YARNDEVTOOLS_MODULE_NAME, raise_error=True)
+        return FileUtils.join_path(basedir, "legacy-scripts", "branch-comparator", "git_compare.sh")
 
 
 class Branches:
