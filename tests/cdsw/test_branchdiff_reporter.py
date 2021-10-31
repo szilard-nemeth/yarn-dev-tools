@@ -9,7 +9,7 @@ from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
-from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
+from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, SimpleProjectUtils
 
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
@@ -168,21 +168,12 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def get_cdsw_root_dir(cls):
-        found_cdsw_dirs = FileUtils.find_files(
-            LocalDirs.REPO_ROOT_DIR,
-            find_type=FindResultType.DIRS,
-            regex=CDSW_DIRNAME,
+        return SimpleProjectUtils.get_project_dir(
+            basedir=LocalDirs.REPO_ROOT_DIR,
             parent_dir="yarndevtools",
-            single_level=False,
-            full_path_result=True,
+            dir_to_find=CDSW_DIRNAME,
+            find_result_type=FindResultType.DIRS,
         )
-        if len(found_cdsw_dirs) != 1:
-            raise ValueError(
-                f"Expected to find 1 dir with name {CDSW_DIRNAME} "
-                f"and parent dir 'yarndevtools'. "
-                f"Actual results: {found_cdsw_dirs}"
-            )
-        return found_cdsw_dirs[0]
 
     @classmethod
     def _setup_logging(cls):
@@ -256,6 +247,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     def test_basic_cdsw_runner(self):
         self.docker_mounts.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=CONTAINER_SLEEP)
+        # TODO Run this only at Docker image creation
         self.exec_initial_cdsw_setup_script()
         # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
         exit_code = self.exec_branch_diff_script(env=self.cdsw_runner_env_dict())
