@@ -20,11 +20,12 @@ from pythoncommons.process import SubprocessCommandRunner
 
 # Constants
 # Move this to EnvVar enum
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+
 ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 BASEDIR = None
-PYPATH = "PYTHONPATH"
 PY3 = "python3"
 BASH = "bash"
 BASHX = "bash -x"
@@ -62,18 +63,19 @@ class CdswSetup:
 
     @staticmethod
     def fix_pythonpath(additional_dir):
-        if PYPATH in os.environ:
-            LOG.debug(f"Old {PYPATH}: {CdswSetup._get_pythonpath()}")
-            os.environ[PYPATH] = f"{CdswSetup._get_pythonpath()}:{additional_dir}"
-            LOG.debug(f"New {PYPATH}: {CdswSetup._get_pythonpath()}")
+        pypath = CdswEnvVar.PYTHONPATH.value
+        if pypath in os.environ:
+            LOG.debug(f"Old {pypath}: {CdswSetup._get_pythonpath()}")
+            os.environ[pypath] = f"{CdswSetup._get_pythonpath()}:{additional_dir}"
+            LOG.debug(f"New {pypath}: {CdswSetup._get_pythonpath()}")
         else:
-            LOG.debug(f"Old {PYPATH}: not set")
-            os.environ[PYPATH] = additional_dir
-            LOG.debug(f"New {PYPATH}: {CdswSetup._get_pythonpath}")
+            LOG.debug(f"Old {pypath}: not set")
+            os.environ[pypath] = additional_dir
+            LOG.debug(f"New {pypath}: {CdswSetup._get_pythonpath}")
 
     @staticmethod
     def _get_pythonpath():
-        return os.environ[PYPATH]
+        return os.environ[CdswEnvVar.PYTHONPATH.value]
 
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
@@ -120,7 +122,7 @@ class CdswSetup:
             LOG.info("Using user python-site basedir: %s", python_site)
         else:
             raise ValueError("Invalid python module mode: " + python_module_mode)
-        CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, "yarndevtools")
+        CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, YARNDEVTOOLS_MODULE_NAME)
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
 
     @staticmethod
