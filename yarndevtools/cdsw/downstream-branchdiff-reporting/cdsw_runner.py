@@ -17,7 +17,7 @@ ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
 
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
-        LOG.info("Starting CDSW runner...")
+        self.start_common(basedir)
         repo_type_env = OsUtils.get_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.DOWNSTREAM.value)
         repo_type: RepoType = RepoType[repo_type_env.upper()]
 
@@ -32,7 +32,6 @@ class CdswRunner(CdswRunnerBase):
             FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
             os.system("git init")
             self.run_clone_upstream_repos_script(basedir)
-        self.run_install_requirements_script(basedir)
 
         # TODO investigate why legacy script fails!
         self.run_comparator_and_send_mail(repo_type, algorithm="simple", run_legacy_script=False)

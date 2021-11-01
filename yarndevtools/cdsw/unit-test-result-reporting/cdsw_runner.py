@@ -18,7 +18,7 @@ TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS}"
 
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
-        LOG.info("Starting CDSW runner...")
+        self.start_common(basedir)
         self.run_clone_downstream_repos_script(basedir)
 
         cdpd_master_job = "Mawo-UT-hadoop-CDPD-7.x"

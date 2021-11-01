@@ -145,6 +145,10 @@ class CdswRunnerBase(ABC):
     def __init__(self):
         self.common_mail_config = CommonMailConfig()
 
+    def start_common(self, basedir):
+        LOG.info("Starting CDSW runner...")
+        self.run_install_requirements_script(basedir)
+
     @abstractmethod
     def start(self, basedir):
         pass

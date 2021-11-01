@@ -19,7 +19,7 @@ CMD_LOG = logging.getLogger(__name__)
 
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
-        LOG.info("Starting CDSW runner...")
+        self.start_common(basedir)
         self.run_clone_downstream_repos_script(basedir)
         self.run_clone_upstream_repos_script(basedir)
 

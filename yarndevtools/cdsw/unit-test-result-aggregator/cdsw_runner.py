@@ -41,7 +41,7 @@ class UnitTestResultAggregatorOptionalEnvVar(Enum):
 
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
-        LOG.info("Starting CDSW runner...")
+        self.start_common(basedir)
         self.run_test_result_aggregator_and_send_mail()
 
     def run_test_result_aggregator_and_send_mail(self):
