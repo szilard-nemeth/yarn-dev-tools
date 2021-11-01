@@ -108,11 +108,14 @@ class CdswSetup:
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
+        # For CDSW, user module mode is preferred.
+        # For tests, it depends on how the initial-cdsw-setup.sh script was executed in the container.
+        # Defaults to user mode.
         module_mode_key = CdswEnvVar.PYTHON_MODULE_MODE.value
         if module_mode_key in os.environ:
             python_module_mode = PythonModuleMode[os.environ[module_mode_key].lower()]
         else:
-            python_module_mode = PythonModuleMode.GLOBAL
+            python_module_mode = PythonModuleMode.USER
 
         if python_module_mode == PythonModuleMode.GLOBAL:
             python_site = site.getsitepackages()[0]

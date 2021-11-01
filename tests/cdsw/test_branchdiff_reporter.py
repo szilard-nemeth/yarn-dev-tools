@@ -134,7 +134,12 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         cls._setup_logging()
         cls.setup_local_dirs()
         cls.exec_mode: TestExecMode = cls.determine_execution_mode()
-        cls.python_module_mode = PythonModuleMode.GLOBAL
+        # Only user-site mode can work in Docker containers
+        # With global mode, the following error is coming up:
+        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
+        # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py'
+        # No such file or directory
+        cls.python_module_mode = PythonModuleMode.USER
         cls.docker_test_setup = DockerTestSetup(
             DOCKER_IMAGE, create_image=CREATE_IMAGE, dockerfile_location=LocalDirs.CDSW_ROOT_DIR, logger=CMD_LOG
         )
