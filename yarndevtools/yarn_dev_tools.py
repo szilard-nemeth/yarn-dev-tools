@@ -24,6 +24,7 @@ from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.commands.upstream_jira_patch_differ import UpstreamJiraPatchDiffer
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
+from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar
 from yarndevtools.constants import (
     PROJECT_NAME,
     ENV_HADOOP_DEV_DIR,
@@ -110,7 +111,13 @@ class YarnDevTools:
         self.init_repos()
 
     def setup_dirs(self):
-        ProjectUtils.project_root_determine_strategy = ProjectRootDeterminationStrategy.SYS_PATH
+        strategy = ProjectRootDeterminationStrategy.SYS_PATH
+        if YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value in os.environ:
+            env_value = os.environ[YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value]
+            LOG.info("Found specified project root determination strategy from env var: %s", env_value)
+            strategy = ProjectRootDeterminationStrategy[env_value]
+        LOG.info("Project root determination strategy is: %s", strategy)
+        ProjectUtils.project_root_determine_strategy = strategy
         self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
 

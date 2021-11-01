@@ -11,6 +11,10 @@ class EnvVar(Enum):
     IGNORE_SMTP_AUTH_ERROR = "IGNORE_SMTP_AUTH_ERROR"
 
 
+class YarnDevToolsEnvVar:
+    PROJECT_DETERMINATION_STRATEGY = "PROJECT_DETERMINATION_STRATEGY"
+
+
 class RepoType(Enum):
     DOWNSTREAM = "downstream"
     UPSTREAM = "upstream"
