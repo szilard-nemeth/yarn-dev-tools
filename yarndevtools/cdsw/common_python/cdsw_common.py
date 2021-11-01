@@ -23,6 +23,7 @@ from pythoncommons.process import SubprocessCommandRunner
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
+SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.py"
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 BASEDIR = None

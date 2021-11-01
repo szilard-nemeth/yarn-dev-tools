@@ -9,6 +9,8 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
+    CommonDirs,
+    SKIP_AGGREGATION_DEFAULTS_FILENAME,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import REPORT_FILE_SHORT_HTML
@@ -33,6 +35,7 @@ class UnitTestResultAggregatorOptionalEnvVar(Enum):
     ABBREV_TC_PACKAGE = "ABBREV_TC_PACKAGE"
     AGGREGATE_FILTERS = "AGGREGATE_FILTERS"
     SKIP_AGGREGATION_RESOURCE_FILE = "SKIP_AGGREGATION_RESOURCE_FILE"
+    SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY = "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY"
     GSHEET_COMPARE_WITH_JIRA_TABLE = "GSHEET_COMPARE_WITH_JIRA_TABLE"
 
 
@@ -42,17 +45,6 @@ class CdswRunner(CdswRunnerBase):
         self.run_test_result_aggregator_and_send_mail()
 
     def run_test_result_aggregator_and_send_mail(self):
-        skip_lines_starting_with: List[str] = DEFAULT_SKIP_LINES_STARTING_WITH
-
-        # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
-        # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
-        skip_aggregation_res_file = OsUtils.get_env_value(
-            UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
-        )
-        if skip_aggregation_res_file:
-            FileUtils.ensure_is_file(skip_aggregation_res_file)
-            skip_lines_starting_with = FileUtils.read_file_to_list(skip_aggregation_res_file)
-
         self._run_aggregator(
             exec_mode="gsheet",
             gsheet_client_secret=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_CLIENT_SECRET.value),
@@ -66,7 +58,7 @@ class CdswRunner(CdswRunnerBase):
             gsheet_compare_with_jira_table=OsUtils.get_env_value(
                 UnitTestResultAggregatorOptionalEnvVar.GSHEET_COMPARE_WITH_JIRA_TABLE.value
             ),
-            skip_lines_starting_with=skip_lines_starting_with,
+            skip_lines_starting_with=self._determine_lines_to_skip(),
         )
 
         self.run_zipper(CommandType.UNIT_TEST_RESULT_AGGREGATOR, debug=True)
@@ -81,6 +73,32 @@ class CdswRunner(CdswRunnerBase):
             attachment_filename=attachment_fnname,
             email_body_file=REPORT_FILE_SHORT_HTML,
         )
+
+    @staticmethod
+    def _determine_lines_to_skip():
+        skip_lines_starting_with: List[str] = DEFAULT_SKIP_LINES_STARTING_WITH
+        # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
+        # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
+        skip_aggregation_res_file = OsUtils.get_env_value(
+            UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
+        )
+        skip_aggregation_res_file_auto_discovery = OsUtils.get_env_value(
+            UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
+        )
+        if skip_aggregation_res_file_auto_discovery:
+            results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, SKIP_AGGREGATION_DEFAULTS_FILENAME)
+            if not results:
+                LOG.warning(
+                    "Skip aggregation resource file auto-discovery is enabled, "
+                    "but failed to find file '%s' from base directory '%s'.",
+                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                    SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                )
+        if skip_aggregation_res_file:
+            LOG.info("Trying to check specified skip aggregation resource file: %s", skip_aggregation_res_file)
+            FileUtils.ensure_is_file(skip_aggregation_res_file)
+            skip_lines_starting_with = FileUtils.read_file_to_list(skip_aggregation_res_file)
+        return skip_lines_starting_with
 
     def _run_aggregator(
         self,
