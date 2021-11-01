@@ -151,14 +151,20 @@ class CdswRunnerBase(ABC):
 
     @staticmethod
     def run_clone_downstream_repos_script(basedir):
-        clone_ds_repos_script = os.path.join(basedir, "clone_downstream_repos.sh")
-        cmd = f"{BASHX} {clone_ds_repos_script}"
+        script = os.path.join(basedir, "clone_downstream_repos.sh")
+        cmd = f"{BASHX} {script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     @staticmethod
     def run_clone_upstream_repos_script(basedir):
-        clone_us_repos_script = os.path.join(basedir, "clone_upstream_repos.sh")
-        cmd = f"{BASHX} {clone_us_repos_script}"
+        script = os.path.join(basedir, "clone_upstream_repos.sh")
+        cmd = f"{BASHX} {script}"
+        SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
+
+    @staticmethod
+    def run_install_requirements_script(basedir):
+        script = os.path.join(basedir, "install-requirements.sh")
+        cmd = f"{BASHX} {script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     @staticmethod

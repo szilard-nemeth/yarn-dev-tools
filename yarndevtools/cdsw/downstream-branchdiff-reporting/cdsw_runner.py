@@ -32,6 +32,7 @@ class CdswRunner(CdswRunnerBase):
             FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
             os.system("git init")
             self.run_clone_upstream_repos_script(basedir)
+        self.run_install_requirements_script(basedir)
 
         # TODO investigate why legacy script fails!
         self.run_comparator_and_send_mail(repo_type, algorithm="simple", run_legacy_script=False)
