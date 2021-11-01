@@ -147,7 +147,7 @@ class CdswRunnerBase(ABC):
 
     def start_common(self, basedir):
         LOG.info("Starting CDSW runner...")
-        self.run_install_requirements_script(basedir)
+        self.run_install_requirements_script()
 
     @abstractmethod
     def start(self, basedir):
@@ -166,8 +166,8 @@ class CdswRunnerBase(ABC):
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     @staticmethod
-    def run_install_requirements_script(basedir):
-        script = os.path.join(basedir, "install-requirements.sh")
+    def run_install_requirements_script():
+        script = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "install-requirements.sh")
         cmd = f"{BASHX} {script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
