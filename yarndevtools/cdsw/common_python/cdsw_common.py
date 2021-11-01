@@ -169,7 +169,11 @@ class CdswRunnerBase(ABC):
     def run_install_requirements_script():
         results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "install-requirements.sh")
         if not results:
-            raise ValueError("Expected to find file: install-requirements.sh")
+            raise ValueError(
+                "Expected to find file: install-requirements.sh from basedir: {}".format(
+                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
+                )
+            )
         script = results[0]
         cmd = f"{BASHX} {script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
