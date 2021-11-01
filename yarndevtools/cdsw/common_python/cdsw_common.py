@@ -117,6 +117,7 @@ class CdswSetup:
         else:
             python_module_mode = PythonModuleMode.USER
 
+        LOG.info("Using Python module mode: %s", python_module_mode.value)
         if python_module_mode == PythonModuleMode.GLOBAL:
             python_site = site.getsitepackages()[0]
             LOG.info("Using global python-site basedir: %s", python_site)
