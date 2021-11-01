@@ -25,6 +25,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/szilard-nemeth/yarn-dev-tools",
     packages=find_packages(exclude=["tests"]),
+    package_data={"yarndevtools": ["cdsw/unit-test-result-aggregator/*.txt"]},
     tests_require=["pytest"],
     install_requires=[],
     extras_require={"myst": ["myst-parser~=0.8; python_version >= '3.6'"], "toml": ["toml"]},
