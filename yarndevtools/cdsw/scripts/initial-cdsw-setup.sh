@@ -24,6 +24,10 @@ $SCRIPTS_DIR/clone_upstream_repos.sh
 echo "Cloning downstream repos..."
 $SCRIPTS_DIR/clone_downstream_repos.sh
 
+echo "Installing python requirements..."
+curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
+pip3 install -r /tmp/requirements-cdsw.txt --force-reinstall
+
 GLOBAL_SITE_PACKAGES=$(python3 -c 'import site; print(site.getsitepackages()[0])')
 USER_SITE_PACKAGES=$(python3 -m site --user-site)
 
