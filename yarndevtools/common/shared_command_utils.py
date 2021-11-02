@@ -11,7 +11,7 @@ class EnvVar(Enum):
     IGNORE_SMTP_AUTH_ERROR = "IGNORE_SMTP_AUTH_ERROR"
 
 
-class YarnDevToolsEnvVar:
+class YarnDevToolsEnvVar(Enum):
     PROJECT_DETERMINATION_STRATEGY = "PROJECT_DETERMINATION_STRATEGY"
 
 
