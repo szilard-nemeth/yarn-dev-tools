@@ -44,6 +44,23 @@ class TestBackporter(unittest.TestCase):
         # Setup debug logging of git commands
         cls.downstream_repo_wrapper.enable_debug_logging(full=True)
 
+        # TODO remove later
+        logger1 = logging.getLogger("git_wrapper")
+        logger2 = logging.getLogger("pythoncommons.git_wrapper")
+        cls._print_logger_info(logger1)
+        cls._print_logger_info(logger2)
+
+    @classmethod
+    def _print_logger_info(cls, logger):
+        if not logger:
+            return
+        LOG.info("Logger name: %s", logger.name)
+        LOG.info("Logger handlers: %s", logger.handlers)
+        LOG.info("Logger disabled: %s", logger.disabled)
+        LOG.info("Logger propagate: %s", logger.propagate)
+        logger.info("here is a test record")
+        cls._print_logger_info(logger.parent)
+
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)
 
