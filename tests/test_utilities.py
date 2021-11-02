@@ -74,6 +74,7 @@ class TestUtilities:
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         try:
             self.setup_repo()
+            self.repo_wrapper.setup_pull_mode_no_ff()
             if init_logging:
                 Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=False, repos=[self.repo])
             self.reset_and_checkout_trunk()
