@@ -41,6 +41,8 @@ class ReviewBranchCreator:
         if not clean:
             raise ValueError("git working directory is not clean, please stash or drop your changes")
 
+        # TODO remove this later
+        self.upstream_repo.read_config(global_mode=True)
         self.upstream_repo.checkout_branch(self.base_branch)
         self.upstream_repo.pull(ORIGIN)
         diff = self.upstream_repo.diff_between_refs(self.remote_base_branch, self.base_branch)
