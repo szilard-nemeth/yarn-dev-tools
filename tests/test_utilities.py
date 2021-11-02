@@ -74,9 +74,9 @@ class TestUtilities:
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         try:
             self.setup_repo()
-            self.repo_wrapper.setup_pull_mode_no_ff(global_mode=True)
             if init_logging:
                 Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=False, repos=[self.repo])
+            self.repo_wrapper.setup_pull_mode_no_ff(global_mode=True)
             LOG.info("Git config: %s", self.repo_wrapper.read_config(global_mode=True))
             self.reset_and_checkout_trunk()
         except InvalidGitRepositoryError:
