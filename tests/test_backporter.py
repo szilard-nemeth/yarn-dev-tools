@@ -1,6 +1,8 @@
 import logging
 import unittest
 
+from pythoncommons.logging_utils import LoggingUtils
+
 from tests.test_utilities import TestUtilities, Object
 from yarndevtools.commands.backporter import Backporter
 from pythoncommons.git_constants import ORIGIN
@@ -47,20 +49,8 @@ class TestBackporter(unittest.TestCase):
         # TODO remove later
         logger1 = logging.getLogger("git_wrapper")
         logger2 = logging.getLogger("pythoncommons.git_wrapper")
-        cls._print_logger_info(logger1)
-        cls._print_logger_info(logger2)
-
-    @classmethod
-    def _print_logger_info(cls, logger):
-        if not logger:
-            return
-        print("Logger name: {}".format(logger.name))
-        print("Logger effective level: {}".format(logger.getEffectiveLevel()))
-        print("Logger handlers: {}".format(logger.handlers))
-        print("Logger disabled: {}".format(logger.disabled))
-        print("Logger propagate: {}".format(logger.propagate))
-        logger.info("here is a test record")
-        cls._print_logger_info(logger.parent)
+        LoggingUtils.print_logger_info(logger1)
+        LoggingUtils.print_logger_info(logger2)
 
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)
