@@ -68,14 +68,14 @@ class TestUtilities:
         os.environ["HADOOP_DEV_DIR"] = upstream_repo
         os.environ["CLOUDERA_HADOOP_ROOT"] = downstream_repo
 
-    def setUpClass(self, repo_postfix=None, init_logging=True):
+    def setUpClass(self, repo_postfix=None, init_logging=True, console_debug=False):
         if repo_postfix:
             self.repo_postfix = repo_postfix
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         try:
             self.setup_repo()
             if init_logging:
-                Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=False, repos=[self.repo])
+                Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=console_debug, repos=[self.repo])
             self.repo_wrapper.setup_pull_mode_no_ff(global_mode=True)
             LOG.info("Git config: %s", self.repo_wrapper.read_config(global_mode=True))
             self.reset_and_checkout_trunk()

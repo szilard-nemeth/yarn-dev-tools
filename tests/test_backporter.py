@@ -1,4 +1,5 @@
 import logging
+import sys
 import unittest
 
 from pythoncommons.logging_utils import LoggingUtils
@@ -30,7 +31,7 @@ class TestBackporter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.upstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.upstream_utils.setUpClass()
+        cls.upstream_utils.setUpClass(init_logging=True, console_debug=True)
         cls.upstream_utils.pull_to_trunk()
         cls.upstream_repo = cls.upstream_utils.repo
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
@@ -56,6 +57,13 @@ class TestBackporter(unittest.TestCase):
         LoggingUtils.ensure_logger_is_on_level(
             logger2, logging.DEBUG, raise_error_if_not_enabled_for=True, print_logger_info=True
         )
+
+    @classmethod
+    def _setup_logging(cls):
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+        handler = logging.StreamHandler(stream=sys.stdout)
+        LOG.addHandler(handler)
+        handler.setFormatter(logging.Formatter("%(message)s"))
 
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)
