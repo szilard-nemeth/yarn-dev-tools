@@ -54,10 +54,11 @@ class TestBackporter(unittest.TestCase):
     def _print_logger_info(cls, logger):
         if not logger:
             return
-        LOG.info("Logger name: %s", logger.name)
-        LOG.info("Logger handlers: %s", logger.handlers)
-        LOG.info("Logger disabled: %s", logger.disabled)
-        LOG.info("Logger propagate: %s", logger.propagate)
+        print("Logger name: %s", logger.name)
+        print("Logger effective level: %s", logger.getEffectiveLevel())
+        print("Logger handlers: %s", logger.handlers)
+        print("Logger disabled: %s", logger.disabled)
+        print("Logger propagate: %s", logger.propagate)
         logger.info("here is a test record")
         cls._print_logger_info(logger.parent)
 
