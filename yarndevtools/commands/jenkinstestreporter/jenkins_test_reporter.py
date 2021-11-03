@@ -142,6 +142,7 @@ class JobBuildDataCounters:
 
 
 def configure_logging():
+    # TODO Migrate to Setup.init_logger
     logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
     # set up logger to write to stdout
     sh = logging.StreamHandler(sys.stdout)

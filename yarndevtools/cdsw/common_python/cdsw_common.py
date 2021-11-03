@@ -56,6 +56,7 @@ class PythonModuleMode(Enum):
 class CdswSetup:
     @staticmethod
     def setup_logging():
+        # TODO Migrate to Setup.init_logger
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         cmd_log_handler = logging.StreamHandler(stream=sys.stdout)
         CMD_LOG.propagate = False

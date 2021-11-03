@@ -182,6 +182,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def _setup_logging(cls):
+        # TODO Migrate to Setup.init_logger
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         handler = logging.StreamHandler(stream=sys.stdout)
         CMD_LOG.propagate = False
