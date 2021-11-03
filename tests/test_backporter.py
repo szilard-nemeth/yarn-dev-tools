@@ -46,24 +46,7 @@ class TestBackporter(unittest.TestCase):
         cls.downstream_repo_wrapper.setup_committer_info("downstream_user", "downstream_email")
         # Setup debug logging of git commands
         cls.downstream_repo_wrapper.enable_debug_logging(full=True)
-
-        logger1 = logging.getLogger("git_wrapper")
-        logger2 = logging.getLogger("pythoncommons.git_wrapper")
-        LoggingUtils.print_logger_info(logger1)
-        LoggingUtils.print_logger_info(logger2)
-        LoggingUtils.ensure_logger_is_on_level(
-            logger1, logging.DEBUG, raise_error_if_not_enabled_for=True, print_logger_info=True
-        )
-        LoggingUtils.ensure_logger_is_on_level(
-            logger2, logging.DEBUG, raise_error_if_not_enabled_for=True, print_logger_info=True
-        )
-
-    @classmethod
-    def _setup_logging(cls):
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-        handler = logging.StreamHandler(stream=sys.stdout)
-        LOG.addHandler(handler)
-        handler.setFormatter(logging.Formatter("%(message)s"))
+        LoggingUtils.ensure_loggers_are_on_level(["git_wrapper", "pythoncommons.git_wrapper"], logging.DEBUG)
 
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)

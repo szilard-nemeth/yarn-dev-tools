@@ -8,6 +8,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
@@ -57,37 +58,33 @@ IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 # TODO Migrate to python-commons
 class Setup:
     @staticmethod
-    def init_logger(execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose=False):
-        # get root logger
-        logger = logging.getLogger()
-        level = logging.DEBUG
-        logger.setLevel(level)
-
+    def init_logger(
+        execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose_git_log=False
+    ):
         if execution_mode == ExecutionMode.PRODUCTION:
-            log_file = ProjectUtils.get_default_log_file(PROJECT_NAME, postfix=postfix)
+            log_file_path = ProjectUtils.get_default_log_file(PROJECT_NAME, postfix=postfix)
+            prod = True
         elif execution_mode == ExecutionMode.TEST:
-            log_file = ProjectUtils.get_default_test_log_file(PROJECT_NAME, postfix=postfix)
+            log_file_path = ProjectUtils.get_default_test_log_file(PROJECT_NAME, postfix=postfix)
+            prod = False
         else:
             raise ValueError(f"Unknown execution mode: {execution_mode}")
 
-        # create file handler which logs even debug messages
-        fh = TimedRotatingFileHandler(log_file, when="midnight")
-        fh.suffix = "%Y_%m_%d.log"
-        fh.setLevel(level)
+        format_str = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+        SimpleLoggingSetup.init_logging(
+            PROJECT_NAME,
+            debug=True,
+            console_debug=console_debug,
+            format_str=format_str,
+            log_file_path=log_file_path,
+            file_postfix=postfix,
+            prod=prod,
+        )
+        Setup._setup_gitpython_log(repos, verbose_git_log)
+        return log_file_path
 
-        # create console handler with a higher log level
-        ch = logging.StreamHandler(stream=sys.stdout)
-        ch.setLevel(logging.INFO)
-        if console_debug:
-            ch.setLevel(level)
-
-        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
-        # add the handlers to the logger
-        logger.addHandler(fh)
-        logger.addHandler(ch)
-
+    @staticmethod
+    def _setup_gitpython_log(repos, verbose_git_log):
         # https://gitpython.readthedocs.io/en/stable/tutorial.html#git-command-debugging-and-customization
         # THIS WON'T WORK BECAUSE GITPYTHON MODULE IS LOADED BEFORE THIS CALL
         # os.environ["GIT_PYTHON_TRACE"] = "1"
@@ -95,9 +92,8 @@ class Setup:
         LOG.warning("Cannot enable GIT_PYTHON_TRACE because repos list is empty!")
         if repos:
             for repo in repos:
-                val = "full" if verbose else "1"
+                val = "full" if verbose_git_log else "1"
                 type(repo.git).GIT_PYTHON_TRACE = val
-        return log_file
 
 
 class YarnDevTools:
@@ -277,7 +273,7 @@ if __name__ == "__main__":
         console_debug=args.debug,
         postfix=args.command,
         repos=[yarn_dev_tools.upstream_repo.repo, yarn_dev_tools.downstream_repo.repo],
-        verbose=args.verbose,
+        verbose_git_log=args.verbose,
     )
 
     cmd_type = CommandType.from_str(args.command)
