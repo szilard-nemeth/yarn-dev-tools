@@ -32,13 +32,13 @@ class TestBackporter(unittest.TestCase):
     def setUpClass(cls):
         cls.upstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
         cls.upstream_utils.setUpClass(init_logging=True, console_debug=True)
-        cls.upstream_utils.pull_to_trunk(no_ff=True)
+        cls.upstream_utils.pull_to_trunk(ff_only=True)
         cls.upstream_repo = cls.upstream_utils.repo
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
 
         cls.downstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
         cls.downstream_utils.setUpClass(repo_postfix="_downstream", init_logging=False)
-        cls.downstream_utils.pull_to_trunk(no_ff=True)
+        cls.downstream_utils.pull_to_trunk(ff_only=True)
         cls.downstream_repo = cls.downstream_utils.repo
         cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
 

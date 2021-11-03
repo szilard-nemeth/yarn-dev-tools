@@ -76,7 +76,7 @@ class TestUtilities:
             self.setup_repo()
             if init_logging:
                 Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=console_debug, repos=[self.repo])
-            self.repo_wrapper.setup_pull_mode_no_ff(global_mode=True)
+            self.repo_wrapper.setup_pull_mode_ff_only(global_mode=True)
             LOG.info("Git config: %s", self.repo_wrapper.read_config(global_mode=True))
             self.reset_and_checkout_trunk()
         except InvalidGitRepositoryError:
@@ -129,8 +129,8 @@ class TestUtilities:
             LOG.info(f"Checking out branch: {branch}")
             self.checkout_trunk()
 
-    def pull_to_trunk(self, no_ff=False):
-        self.repo_wrapper.checkout_and_pull(TRUNK, remote_to_pull=ORIGIN, no_ff=no_ff)
+    def pull_to_trunk(self, no_ff=False, ff_only=False):
+        self.repo_wrapper.checkout_and_pull(TRUNK, remote_to_pull=ORIGIN, no_ff=no_ff, ff_only=ff_only)
 
     def reset_and_checkout_existing_branch(self, branch, pull=True):
         self.reset_changes()
