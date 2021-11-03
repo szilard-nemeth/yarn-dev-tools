@@ -2,6 +2,7 @@ import logging
 import os
 import unittest
 from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
+from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils
@@ -11,7 +12,6 @@ from yarndevtools.constants import (
     TRUNK,
     PROJECT_NAME,
     JIRA_UMBRELLA_DATA,
-    ExecutionMode,
     ORIGIN_TRUNK,
 )
 from pythoncommons.git_constants import HEAD, ORIGIN

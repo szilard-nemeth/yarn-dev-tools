@@ -5,7 +5,9 @@ import logging
 import os
 import time
 from logging.handlers import TimedRotatingFileHandler
+from typing import Dict
 
+from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
@@ -41,9 +43,9 @@ from yarndevtools.constants import (
     JIRA_UMBRELLA_DATA,
     JIRA_PATCH_DIFFER,
     BRANCH_COMPARATOR,
-    ExecutionMode,
     JENKINS_TEST_REPORTER,
     UNIT_TEST_RESULT_AGGREGATOR,
+    YARNDEVTOOLS_MODULE_NAME,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -61,27 +63,18 @@ class Setup:
     def init_logger(
         execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose_git_log=False
     ):
-        if execution_mode == ExecutionMode.PRODUCTION:
-            log_file_path = ProjectUtils.get_default_log_file(PROJECT_NAME, postfix=postfix)
-            prod = True
-        elif execution_mode == ExecutionMode.TEST:
-            log_file_path = ProjectUtils.get_default_test_log_file(PROJECT_NAME, postfix=postfix)
-            prod = False
-        else:
-            raise ValueError(f"Unknown execution mode: {execution_mode}")
-
         format_str = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-        SimpleLoggingSetup.init_logging(
-            PROJECT_NAME,
+        log_file_paths: Dict[int, str] = SimpleLoggingSetup.init_logging(
+            project_name=PROJECT_NAME,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             debug=True,
             console_debug=console_debug,
             format_str=format_str,
-            log_file_path=log_file_path,
             file_postfix=postfix,
-            prod=prod,
+            execution_mode=execution_mode,
         )
         Setup._setup_gitpython_log(repos, verbose_git_log)
-        return log_file_path
+        return log_file_paths
 
     @staticmethod
     def _setup_gitpython_log(repos, verbose_git_log):
@@ -268,7 +261,7 @@ if __name__ == "__main__":
 
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args(yarn_dev_tools)
-    log_file = Setup.init_logger(
+    log_file_paths: Dict[int, str] = Setup.init_logger(
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
         postfix=args.command,
@@ -278,7 +271,10 @@ if __name__ == "__main__":
 
     cmd_type = CommandType.from_str(args.command)
     if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        FileUtils.create_symlink_path_dir(cmd_type.log_link_name, log_file, yarn_dev_tools.project_out_root)
+        for log_level, log_file_path in log_file_paths.items():
+            log_level_name = logging.getLevelName(log_level)
+            link_name = cmd_type.log_link_name + "-" + log_level_name
+            FileUtils.create_symlink_path_dir(link_name, log_file_path, yarn_dev_tools.project_out_root)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 

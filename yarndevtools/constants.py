@@ -2,11 +2,6 @@ import re
 from enum import Enum
 
 
-class ExecutionMode(Enum):
-    PRODUCTION = "prod"
-    TEST = "test"
-
-
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 APACHE = "apache"
