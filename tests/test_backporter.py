@@ -32,13 +32,13 @@ class TestBackporter(unittest.TestCase):
     def setUpClass(cls):
         cls.upstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
         cls.upstream_utils.setUpClass(init_logging=True, console_debug=True)
-        cls.upstream_utils.pull_to_trunk()
+        cls.upstream_utils.pull_to_trunk(no_ff=True)
         cls.upstream_repo = cls.upstream_utils.repo
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
 
         cls.downstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
         cls.downstream_utils.setUpClass(repo_postfix="_downstream", init_logging=False)
-        cls.downstream_utils.pull_to_trunk()
+        cls.downstream_utils.pull_to_trunk(no_ff=True)
         cls.downstream_repo = cls.downstream_utils.repo
         cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
 
@@ -46,9 +46,11 @@ class TestBackporter(unittest.TestCase):
         cls.downstream_repo_wrapper.setup_committer_info("downstream_user", "downstream_email")
         # Setup debug logging of git commands
         cls.downstream_repo_wrapper.enable_debug_logging(full=True)
-        LoggingUtils.ensure_loggers_are_on_level(
-            ["pythoncommons.git_wrapper"], logging.DEBUG, project_name_prefix=YARNDEVTOOLS_MODULE_NAME
-        )
+
+        # TODO Figure out why logging level is set to WARNING while running by Github Actions CI
+        # LoggingUtils.ensure_loggers_are_on_level(
+        #     ["pythoncommons.git_wrapper"], logging.DEBUG, project_name_prefix=YARNDEVTOOLS_MODULE_NAME
+        # )
 
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)

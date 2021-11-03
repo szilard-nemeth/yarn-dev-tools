@@ -129,8 +129,8 @@ class TestUtilities:
             LOG.info(f"Checking out branch: {branch}")
             self.checkout_trunk()
 
-    def pull_to_trunk(self):
-        self.repo_wrapper.checkout_and_pull(TRUNK, remote_to_pull=ORIGIN)
+    def pull_to_trunk(self, no_ff=False):
+        self.repo_wrapper.checkout_and_pull(TRUNK, remote_to_pull=ORIGIN, no_ff=no_ff)
 
     def reset_and_checkout_existing_branch(self, branch, pull=True):
         self.reset_changes()
