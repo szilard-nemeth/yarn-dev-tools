@@ -126,7 +126,7 @@ class Backporter:
         clean_workingdir = self.upstream_repo.is_working_directory_clean()
         if not clean_workingdir:
             LOG.warning("Working directory is not clean for repository: %s", self.upstream_repo.repo_path)
-        self.upstream_repo.pull(ORIGIN, **{"ff-only": True})
+        self.upstream_repo.pull(ORIGIN, ff_only=True)
 
     def cherry_pick_commit(self):
         # Example checkout command: git checkout -b "$CDH_JIRA_NO-$CDH_BRANCH" cauldron/${CDH_BRANCH}
