@@ -77,7 +77,7 @@ class CdswRunner(CdswRunnerBase):
         )
 
     @staticmethod
-    def _determine_lines_to_skip():
+    def _determine_lines_to_skip() -> List[str]:
         skip_lines_starting_with: List[str] = DEFAULT_SKIP_LINES_STARTING_WITH
         # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
         # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
@@ -87,19 +87,33 @@ class CdswRunner(CdswRunnerBase):
         skip_aggregation_res_file_auto_discovery = OsUtils.get_env_value(
             UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
         )
+
+        found_with_auto_discovery: str = None
         if skip_aggregation_res_file_auto_discovery:
             results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, SKIP_AGGREGATION_DEFAULTS_FILENAME)
             if not results:
                 LOG.warning(
                     "Skip aggregation resource file auto-discovery is enabled, "
                     "but failed to find file '%s' from base directory '%s'.",
-                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
                     SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
                 )
-        if skip_aggregation_res_file:
+            elif len(results) > 1:
+                LOG.warning(
+                    "Skip aggregation resource file auto-discovery is enabled, "
+                    "but but found multiple files from base directory '%s'. Found files: %s",
+                    SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                )
+            else:
+                found_with_auto_discovery = results[0]
+        if found_with_auto_discovery:
+            LOG.info("Found Skip aggregation resource file with auto-discovery: %s", found_with_auto_discovery)
+            return FileUtils.read_file_to_list(found_with_auto_discovery)
+        elif skip_aggregation_res_file:
             LOG.info("Trying to check specified skip aggregation resource file: %s", skip_aggregation_res_file)
             FileUtils.ensure_is_file(skip_aggregation_res_file)
-            skip_lines_starting_with = FileUtils.read_file_to_list(skip_aggregation_res_file)
+            return FileUtils.read_file_to_list(skip_aggregation_res_file)
         return skip_lines_starting_with
 
     def _run_aggregator(
