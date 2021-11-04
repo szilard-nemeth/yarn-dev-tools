@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Dict
 from pythoncommons.docker_wrapper import DockerTestSetup
 from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.logging_setup import SimpleLoggingSetupConfig
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
@@ -13,9 +14,10 @@ from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, SimpleProjectUtil
 
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
+from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK
-
+from yarndevtools.yarn_dev_tools import Setup
 
 CREATE_IMAGE = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
@@ -182,12 +184,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def _setup_logging(cls):
-        # TODO Migrate to Setup.init_logger
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-        handler = logging.StreamHandler(stream=sys.stdout)
+        loggging_setup: SimpleLoggingSetupConfig = Setup.init_logger(
+            execution_mode=ExecutionMode.TEST, console_debug=True, format_str="%(message)s"
+        )
         CMD_LOG.propagate = False
-        CMD_LOG.addHandler(handler)
-        handler.setFormatter(logging.Formatter("%(message)s"))
+        CMD_LOG.addHandler(loggging_setup.console_handler)
 
     @staticmethod
     def find_cdsw_runner_script(parent_dir):
