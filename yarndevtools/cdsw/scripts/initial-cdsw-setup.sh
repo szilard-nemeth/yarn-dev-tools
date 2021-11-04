@@ -59,6 +59,8 @@ cp $CDSW_PACKAGE_ROOT/$JOB_JIRA_UMBRELLA_CHECKER/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/
 cp $CDSW_PACKAGE_ROOT/$JOB_UT_RESULT_AGGREGATOR/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_UT_RESULT_AGGREGATOR/$CDSW_RUNNER_SCRIPT
 cp $CDSW_PACKAGE_ROOT/$JOB_UT_RESULT_REPORTER/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_UT_RESULT_REPORTER/$CDSW_RUNNER_SCRIPT
 
+echo "Adding execute flag for all cdsw_runner.py scripts..."
+find /home/cdsw/jobs/ | grep cdsw_runner | xargs chmod +x
 echo "Installed jobs:"
-find /home/cdsw/jobs
+find /home/cdsw/jobs/ | grep cdsw_runner | xargs ls -la
 set +x
