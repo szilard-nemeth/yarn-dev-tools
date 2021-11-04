@@ -10,7 +10,7 @@ from typing import Dict
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.logging_setup import SimpleLoggingSetup
+from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
@@ -66,11 +66,11 @@ class Setup:
         repos=None,
         verbose_git_log=False,
         format_str=None,
-    ):
+    ) -> SimpleLoggingSetupConfig:
         final_format_str = DEFAULT_FORMAT_STR
         if format_str:
             final_format_str = format_str
-        log_file_paths: Dict[int, str] = SimpleLoggingSetup.init_logging(
+        logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logging(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             debug=True,
@@ -80,7 +80,7 @@ class Setup:
             execution_mode=execution_mode,
         )
         Setup._setup_gitpython_log(repos, verbose_git_log)
-        return log_file_paths
+        return logging_config
 
     @staticmethod
     def _setup_gitpython_log(repos, verbose_git_log):
@@ -267,7 +267,7 @@ if __name__ == "__main__":
 
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args(yarn_dev_tools)
-    log_file_paths: Dict[int, str] = Setup.init_logger(
+    logging_config: SimpleLoggingSetupConfig = Setup.init_logger(
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
         postfix=args.command,
@@ -277,7 +277,7 @@ if __name__ == "__main__":
 
     cmd_type = CommandType.from_str(args.command)
     if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        for log_level, log_file_path in log_file_paths.items():
+        for log_level, log_file_path in logging_config.log_file_paths.items():
             log_level_name = logging.getLevelName(log_level)
             link_name = cmd_type.log_link_name + "-" + log_level_name
             FileUtils.create_symlink_path_dir(link_name, log_file_path, yarn_dev_tools.project_out_root)
