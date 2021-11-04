@@ -49,11 +49,10 @@ from yarndevtools.constants import (
 )
 from pythoncommons.git_wrapper import GitWrapper
 
-DEFAULT_BASE_BRANCH = TRUNK
-
-LOG = logging.getLogger(__name__)
 __author__ = "Szilard Nemeth"
-
+DEFAULT_FORMAT_STR = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+DEFAULT_BASE_BRANCH = TRUNK
+LOG = logging.getLogger(__name__)
 IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 
 
@@ -61,15 +60,22 @@ IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 class Setup:
     @staticmethod
     def init_logger(
-        execution_mode: ExecutionMode, console_debug=False, postfix: str = None, repos=None, verbose_git_log=False
+        execution_mode: ExecutionMode,
+        console_debug=False,
+        postfix: str = None,
+        repos=None,
+        verbose_git_log=False,
+        format_str=None,
     ):
-        format_str = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+        final_format_str = DEFAULT_FORMAT_STR
+        if format_str:
+            final_format_str = format_str
         log_file_paths: Dict[int, str] = SimpleLoggingSetup.init_logging(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             debug=True,
             console_debug=console_debug,
-            format_str=format_str,
+            format_str=final_format_str,
             file_postfix=postfix,
             execution_mode=execution_mode,
         )
