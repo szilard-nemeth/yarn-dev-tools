@@ -25,6 +25,7 @@ echo "Cloning downstream repos..."
 $SCRIPTS_DIR/clone_downstream_repos.sh
 
 echo "Installing python requirements..."
+# TODO Duplicated commands: install-requirements.sh
 curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
 pip3 install -r /tmp/requirements-cdsw.txt --force-reinstall
 
