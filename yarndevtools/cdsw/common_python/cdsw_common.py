@@ -167,7 +167,13 @@ class CdswRunnerBase(ABC):
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
     @staticmethod
-    def run_install_requirements_script():
+    def run_install_requirements_script(exit_on_nonzero_exitcode=False):
+        """
+        Do not exit on non-zero exit code as pip can fail to remove residual package files on NFS.
+        See: https://github.com/pypa/pip/issues/6327
+        :param exit_on_nonzero_exitcode:
+        :return:
+        """
         results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "install-requirements.sh")
         if not results:
             raise ValueError(
@@ -177,7 +183,9 @@ class CdswRunnerBase(ABC):
             )
         script = results[0]
         cmd = f"{BASHX} {script}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
+        SubprocessCommandRunner.run_and_follow_stdout_stderr(
+            cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
+        )
 
     @staticmethod
     def execute_yarndevtools_script(script_args):
