@@ -87,6 +87,11 @@ class CdswRunner(CdswRunnerBase):
         skip_aggregation_res_file_auto_discovery = OsUtils.get_env_value(
             UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
         )
+        LOG.info(
+            "Value of env var '%s': %s",
+            UnitTestResultAggregatorOptionalEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
+            skip_aggregation_res_file_auto_discovery,
+        )
 
         found_with_auto_discovery: str = None
         if skip_aggregation_res_file_auto_discovery:
