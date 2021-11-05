@@ -39,14 +39,29 @@ class Config:
 class ZipLatestCommandData:
     def __init__(self, args, project_basedir: str):
         self.cmd_type: CommandType = CommandType.from_str(args.cmd_type)
+
+        # Log link name examples:
+        # latest-log-unit_test_result_aggregator-INFO.log
+        # latest-log-unit_test_result_aggregator-DEBUG.log
         self.input_files = self._check_input_files(
-            [self.cmd_type.log_link_name, self.cmd_type.session_link_name], project_basedir
+            [self.cmd_type.log_link_name + "*", self.cmd_type.session_link_name], project_basedir
         )
         self.config = Config(args, self.input_files, project_basedir, self.cmd_type)
 
     def _check_input_files(self, input_files: List[str], project_basedir: str):
         LOG.info(f"Checking provided input files. Command: {self.cmd_type}, Files: {input_files}")
-        resolved_files = [FileUtils.join_path(project_basedir, f) for f in input_files]
+
+        resolved_files = []
+        for fname in input_files:
+            if "*" in fname:
+                fname = fname.replace("*", ".*")
+                found_files = FileUtils.find_files(
+                    project_basedir, regex=fname, single_level=True, full_path_result=True
+                )
+                LOG.info("Found files for pattern '%s': %s", fname, found_files)
+                resolved_files.extend(found_files)
+            else:
+                resolved_files.append(FileUtils.join_path(project_basedir, fname))
         not_found_files = []
 
         # Sanity check
