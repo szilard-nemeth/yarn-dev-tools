@@ -3,6 +3,7 @@ import unittest
 
 from pythoncommons.file_utils import FileUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.constants import TRUNK, ORIGIN_TRUNK
 from tests.test_utilities import TestUtilities, Object
@@ -25,7 +26,7 @@ class TestReviewBranchCreator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.utils.setUpClass()
+        cls.utils.setUpClass(CommandType.CREATE_REVIEW_BRANCH)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper

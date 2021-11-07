@@ -2,6 +2,7 @@ import logging
 import unittest
 
 from tests.test_utilities import TestUtilities
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.patch_saver import PatchSaver
 from yarndevtools.constants import TRUNK
 from yarndevtools.yarn_dev_tools import YarnDevTools
@@ -18,7 +19,7 @@ class TestPatchSaver(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.utils.setUpClass()
+        cls.utils.setUpClass(CommandType.SAVE_DIFF_AS_PATCHES)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper

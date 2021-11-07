@@ -4,6 +4,7 @@ import unittest
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
 from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA
 from tests.test_utilities import TestUtilities, Object
@@ -40,7 +41,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, None)
-        cls.utils.setUpClass()
+        cls.utils.setUpClass(CommandType.FETCH_JIRA_UMBRELLA_DATA)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper

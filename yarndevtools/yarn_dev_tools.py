@@ -45,6 +45,7 @@ from yarndevtools.constants import (
     BRANCH_COMPARATOR,
     JENKINS_TEST_REPORTER,
     UNIT_TEST_RESULT_AGGREGATOR,
+    YARNDEVTOOLS_MODULE_NAME,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -227,6 +228,8 @@ if __name__ == "__main__":
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args(yarn_dev_tools)
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
+        project_name=CommandType.BRANCH_COMPARATOR.value,
+        logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
         postfix=args.command,

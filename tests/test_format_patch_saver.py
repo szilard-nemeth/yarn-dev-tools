@@ -4,6 +4,7 @@ import unittest
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.format_patch_saver import FormatPatchSaver
 from yarndevtools.constants import TRUNK, DEST_DIR_PREFIX
 from tests.test_utilities import TestUtilities, Object
@@ -24,7 +25,7 @@ class TestFormatPatchSaver(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.utils.setUpClass()
+        cls.utils.setUpClass(CommandType.SAVE_DIFF_AS_PATCHES)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper

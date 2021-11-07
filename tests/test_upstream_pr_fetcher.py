@@ -1,6 +1,7 @@
 import logging
 import unittest
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
 from yarndevtools.constants import APACHE, TRUNK, HADOOP_REPO_TEMPLATE
 from tests.test_utilities import TestUtilities, Object
@@ -18,7 +19,7 @@ class TestUpstreamPRFetcher(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, "dummy")
-        cls.utils.setUpClass()
+        cls.utils.setUpClass(CommandType.UPSTREAM_PR_FETCH)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper

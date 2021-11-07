@@ -15,6 +15,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingS
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
@@ -214,7 +215,7 @@ class JenkinsTestReporter:
 
     def main(self):
         SimpleLoggingSetup.init_logger(
-            project_name=PROJECT_NAME,
+            project_name=CommandType.JENKINS_TEST_REPORTER.value,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
             console_debug=self.config.args.debug,

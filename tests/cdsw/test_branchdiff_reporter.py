@@ -12,11 +12,12 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, SimpleProjectUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
-from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK
+from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
 CREATE_IMAGE = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
@@ -184,7 +185,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def _setup_logging(cls):
         loggging_setup: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-            execution_mode=ExecutionMode.TEST, console_debug=True, format_str="%(message)s"
+            project_name=CommandType.BRANCH_COMPARATOR.value,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+            execution_mode=ExecutionMode.TEST,
+            console_debug=True,
+            format_str="%(message)s",
         )
         CMD_LOG.propagate = False
         CMD_LOG.addHandler(loggging_setup.console_handler)

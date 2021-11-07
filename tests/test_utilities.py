@@ -8,12 +8,14 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
     HADOOP_REPO_APACHE,
     TRUNK,
     PROJECT_NAME,
     JIRA_UMBRELLA_DATA,
     ORIGIN_TRUNK,
+    YARNDEVTOOLS_MODULE_NAME,
 )
 from pythoncommons.git_constants import HEAD, ORIGIN
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
@@ -68,7 +70,7 @@ class TestUtilities:
         os.environ["HADOOP_DEV_DIR"] = upstream_repo
         os.environ["CLOUDERA_HADOOP_ROOT"] = downstream_repo
 
-    def setUpClass(self, repo_postfix=None, init_logging=True, console_debug=False):
+    def setUpClass(self, command_type: CommandType, repo_postfix=None, init_logging=True, console_debug=False):
         if repo_postfix:
             self.repo_postfix = repo_postfix
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
@@ -76,7 +78,11 @@ class TestUtilities:
             self.setup_repo()
             if init_logging:
                 SimpleLoggingSetup.init_logger(
-                    execution_mode=ExecutionMode.TEST, console_debug=console_debug, repos=[self.repo]
+                    project_name=command_type.value,
+                    logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+                    execution_mode=ExecutionMode.TEST,
+                    console_debug=console_debug,
+                    repos=[self.repo],
                 )
             self.repo_wrapper.setup_pull_mode_ff_only(global_mode=True)
             LOG.info("Git config: %s", self.repo_wrapper.read_config(global_mode=True))
