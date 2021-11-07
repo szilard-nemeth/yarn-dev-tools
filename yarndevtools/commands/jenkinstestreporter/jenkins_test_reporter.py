@@ -11,12 +11,16 @@ from typing import List, Dict, Set, Tuple
 
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 from urllib.error import HTTPError
+
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, PROJECT_NAME
 
 LOG = logging.getLogger(__name__)
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
@@ -141,20 +145,9 @@ class JobBuildDataCounters:
         return f"Failed: {self.failed}, Passed: {self.passed}, Skipped: {self.skipped}"
 
 
-def configure_logging():
-    # TODO Migrate to Setup.init_logger
-    logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.INFO)
-    # set up logger to write to stdout
-    sh = logging.StreamHandler(sys.stdout)
-    sh.setLevel(logging.INFO)
-    logger = logging.getLogger()
-    logger.removeHandler(logger.handlers[0])
-    # TODO sort this out later, it added two handlers to RootLogger so all messages were duped to stdout
-    # logger.addHandler(sh)
-
-
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
+        self.args = args
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         self.jenkins_url = args.jenkins_url
@@ -220,7 +213,16 @@ class JenkinsTestReporter:
         ]
 
     def main(self):
-        configure_logging()
+        SimpleLoggingSetup.init_logger(
+            project_name=PROJECT_NAME,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+            execution_mode=ExecutionMode.PRODUCTION,
+            console_debug=self.config.args.debug,
+            postfix=self.config.args.command,
+            repos=None,
+            verbose_git_log=self.config.args.verbose,
+        )
+
         LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
         self.report = self.find_flaky_tests()
         self._process_build_reports(fail_on_empty_report=False)
