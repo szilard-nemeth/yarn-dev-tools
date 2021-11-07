@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Dict
 from pythoncommons.docker_wrapper import DockerTestSetup
 from pythoncommons.file_utils import FileUtils, FindResultType
-from pythoncommons.logging_setup import SimpleLoggingSetupConfig
+from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
@@ -17,7 +17,6 @@ from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_RE
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK
-from yarndevtools.yarn_dev_tools import Setup
 
 CREATE_IMAGE = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
@@ -184,7 +183,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def _setup_logging(cls):
-        loggging_setup: SimpleLoggingSetupConfig = Setup.init_logger(
+        loggging_setup: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             execution_mode=ExecutionMode.TEST, console_debug=True, format_str="%(message)s"
         )
         CMD_LOG.propagate = False

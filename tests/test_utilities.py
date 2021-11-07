@@ -4,6 +4,7 @@ import unittest
 from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils
 
@@ -16,7 +17,6 @@ from yarndevtools.constants import (
 )
 from pythoncommons.git_constants import HEAD, ORIGIN
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
-from yarndevtools.yarn_dev_tools import Setup
 
 SANDBOX_REPO = "sandbox_repo"
 DUMMY_PATCHES = "dummy-patches"
@@ -75,7 +75,9 @@ class TestUtilities:
         try:
             self.setup_repo()
             if init_logging:
-                Setup.init_logger(execution_mode=ExecutionMode.TEST, console_debug=console_debug, repos=[self.repo])
+                SimpleLoggingSetup.init_logger(
+                    execution_mode=ExecutionMode.TEST, console_debug=console_debug, repos=[self.repo]
+                )
             self.repo_wrapper.setup_pull_mode_ff_only(global_mode=True)
             LOG.info("Git config: %s", self.repo_wrapper.read_config(global_mode=True))
             self.reset_and_checkout_trunk()

@@ -45,54 +45,13 @@ from yarndevtools.constants import (
     BRANCH_COMPARATOR,
     JENKINS_TEST_REPORTER,
     UNIT_TEST_RESULT_AGGREGATOR,
-    YARNDEVTOOLS_MODULE_NAME,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
 __author__ = "Szilard Nemeth"
-DEFAULT_FORMAT_STR = "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
 DEFAULT_BASE_BRANCH = TRUNK
 LOG = logging.getLogger(__name__)
 IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
-
-
-# TODO Migrate to python-commons
-class Setup:
-    @staticmethod
-    def init_logger(
-        execution_mode: ExecutionMode,
-        console_debug=False,
-        postfix: str = None,
-        repos=None,
-        verbose_git_log=False,
-        format_str=None,
-    ) -> SimpleLoggingSetupConfig:
-        final_format_str = DEFAULT_FORMAT_STR
-        if format_str:
-            final_format_str = format_str
-        logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logging(
-            project_name=PROJECT_NAME,
-            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
-            debug=True,
-            console_debug=console_debug,
-            format_str=final_format_str,
-            file_postfix=postfix,
-            execution_mode=execution_mode,
-        )
-        Setup._setup_gitpython_log(repos, verbose_git_log)
-        return logging_config
-
-    @staticmethod
-    def _setup_gitpython_log(repos, verbose_git_log):
-        # https://gitpython.readthedocs.io/en/stable/tutorial.html#git-command-debugging-and-customization
-        # THIS WON'T WORK BECAUSE GITPYTHON MODULE IS LOADED BEFORE THIS CALL
-        # os.environ["GIT_PYTHON_TRACE"] = "1"
-        # https://github.com/gitpython-developers/GitPython/issues/222#issuecomment-68597780
-        LOG.warning("Cannot enable GIT_PYTHON_TRACE because repos list is empty!")
-        if repos:
-            for repo in repos:
-                val = "full" if verbose_git_log else "1"
-                type(repo.git).GIT_PYTHON_TRACE = val
 
 
 class YarnDevTools:
@@ -267,7 +226,7 @@ if __name__ == "__main__":
 
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args(yarn_dev_tools)
-    logging_config: SimpleLoggingSetupConfig = Setup.init_logger(
+    logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
         postfix=args.command,
