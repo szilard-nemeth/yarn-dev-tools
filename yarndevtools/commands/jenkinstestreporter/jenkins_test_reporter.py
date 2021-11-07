@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import List, Dict, Set, Tuple
 
+from pythoncommons.constants import ExecutionMode
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
@@ -16,7 +17,6 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 from urllib.error import HTTPError
