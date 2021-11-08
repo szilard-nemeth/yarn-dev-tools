@@ -160,7 +160,7 @@ class CdswRunner(CdswRunnerBase):
         LOG.info(f"Locals: {locals()}")
         self.execute_yarndevtools_script(
             f"{debug} "
-            f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.val} "
+            f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.name} "
             f"--{exec_mode} "
             f"--gsheet-client-secret {gsheet_client_secret} "
             f"--gsheet-spreadsheet {gsheet_spreadsheet} "

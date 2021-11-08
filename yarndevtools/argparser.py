@@ -36,7 +36,7 @@ class CommandType(Enum):
     UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
 
     def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
-        self.val = value
+        self.name = value
         self.session_based = session_based
 
         if session_link_name:
@@ -50,7 +50,7 @@ class CommandType(Enum):
 
     @staticmethod
     def from_str(val):
-        val_to_enum = {ct.val: ct for ct in CommandType}
+        val_to_enum = {ct.name: ct for ct in CommandType}
         if val in val_to_enum:
             return val_to_enum[val]
         else:
@@ -115,14 +115,14 @@ class ArgParser:
     @staticmethod
     def add_save_patch_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.SAVE_PATCH.val, help="Saves patch from upstream repository to yarn patches dir"
+            CommandType.SAVE_PATCH.name, help="Saves patch from upstream repository to yarn patches dir"
         )
         parser.set_defaults(func=yarn_dev_tools.save_patch)
 
     @staticmethod
     def add_create_review_branch_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.CREATE_REVIEW_BRANCH.val, help="Creates review branch from upstream patch file"
+            CommandType.CREATE_REVIEW_BRANCH.name, help="Creates review branch from upstream patch file"
         )
         parser.add_argument("patch_file", type=str, help="Path to patch file")
         parser.set_defaults(func=yarn_dev_tools.create_review_branch)
@@ -130,7 +130,7 @@ class ArgParser:
     @staticmethod
     def add_backport_c6_parser(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.BACKPORT_C6.val,
+            CommandType.BACKPORT_C6.name,
             help="Backports upstream commit to C6 branch, " "Example usage: <command> YARN-7948 CDH-64201 cdh6.x",
         )
         parser.add_argument("upstream_jira_id", type=str, help="Upstream jira id. Example: YARN-4567")
@@ -152,7 +152,7 @@ class ArgParser:
     @staticmethod
     def add_upstream_pull_request_fetcher(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.UPSTREAM_PR_FETCH.val,
+            CommandType.UPSTREAM_PR_FETCH.name,
             help="Fetches upstream changes from a repo then cherry-picks single commit."
             "Example usage: <command> szilard-nemeth YARN-9999",
         )
@@ -163,7 +163,7 @@ class ArgParser:
     @staticmethod
     def add_save_diff_as_patches(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.SAVE_DIFF_AS_PATCHES.val,
+            CommandType.SAVE_DIFF_AS_PATCHES.name,
             help="Diffs branches and creates patch files with "
             "git format-patch and saves them to a directory."
             "Example: <command> master gpu",
@@ -177,7 +177,7 @@ class ArgParser:
     @staticmethod
     def diff_patches_of_jira(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.DIFF_PATCHES_OF_JIRA.val,
+            CommandType.DIFF_PATCHES_OF_JIRA.name,
             help="Diffs patches of a particular jira, for the provided branches."
             "Example: YARN-7913 trunk branch-3.2 branch-3.1",
         )
@@ -188,7 +188,7 @@ class ArgParser:
     @staticmethod
     def add_fetch_jira_umbrella_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.FETCH_JIRA_UMBRELLA_DATA.val,
+            CommandType.FETCH_JIRA_UMBRELLA_DATA.name,
             help="Fetches jira umbrella data for a provided Jira ID." "Example: fetch_jira_umbrella_data YARN-5734",
         )
         parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
@@ -212,7 +212,7 @@ class ArgParser:
     @staticmethod
     def add_branch_comparator(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.BRANCH_COMPARATOR.val,
+            CommandType.BRANCH_COMPARATOR.name,
             help="Branch comparator."
             "Usage: <algorithm> <feature branch> <master branch>"
             "Example: simple CDH-7.1-maint cdpd-master"
@@ -257,13 +257,13 @@ class ArgParser:
     @staticmethod
     def add_zip_latest_command_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.ZIP_LATEST_COMMAND_DATA.val,
+            CommandType.ZIP_LATEST_COMMAND_DATA.name,
             help="Zip latest command data." "Example: --dest_dir /tmp",
         )
         parser.add_argument(
             "cmd_type",
             type=str,
-            choices=[e.val for e in CommandType if e.session_based],
+            choices=[e.name for e in CommandType if e.session_based],
             help="Type of command. The Command itself should be session-based.",
         )
         parser.add_argument("--dest_dir", required=False, type=str, help="Directory to create the zip file into")
@@ -280,7 +280,7 @@ class ArgParser:
     @staticmethod
     def add_send_latest_command_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.SEND_LATEST_COMMAND_DATA.val,
+            CommandType.SEND_LATEST_COMMAND_DATA.name,
             help="Sends latest command data in email." "Example: --dest_dir /tmp",
         )
         parser.add_argument(
@@ -297,7 +297,7 @@ class ArgParser:
     @staticmethod
     def add_jenkins_test_reporter(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.JENKINS_TEST_REPORTER.val,
+            CommandType.JENKINS_TEST_REPORTER.name,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
             "Example: "
             "--job-name {job_name} "
@@ -387,7 +387,7 @@ class ArgParser:
     @staticmethod
     def add_test_result_aggregator(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.UNIT_TEST_RESULT_AGGREGATOR.val,
+            CommandType.UNIT_TEST_RESULT_AGGREGATOR.name,
             help="Aggregates unit test results from a gmail account."
             "Example: "
             "--gsheet "

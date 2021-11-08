@@ -76,7 +76,7 @@ class CdswRunner(CdswRunnerBase):
         run_legacy_script_str = "--run-legacy-script" if run_legacy_script else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
-            f"{CommandType.BRANCH_COMPARATOR.val} {algorithm} {repo_type_val} {feature_branch} {master_branch} "
+            f"{CommandType.BRANCH_COMPARATOR.name} {algorithm} {repo_type_val} {feature_branch} {master_branch} "
             f"--commit_author_exceptions {authors_to_filter} "
             f"{run_legacy_script_str}"
         )

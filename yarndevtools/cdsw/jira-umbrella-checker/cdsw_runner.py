@@ -67,7 +67,7 @@ class CdswRunner(CdswRunnerBase):
         exec_mode = "--force" if force else ""
         ignore_changes = "--ignore-changes" if ignore_changes else ""
         self.execute_yarndevtools_script(
-            f"--debug {CommandType.FETCH_JIRA_UMBRELLA_DATA.val} "
+            f"--debug {CommandType.FETCH_JIRA_UMBRELLA_DATA.name} "
             f"{umbrella_jira} "
             f"{exec_mode} "
             f"--branches {branches} "

@@ -200,7 +200,7 @@ class CdswRunnerBase(ABC):
         debug_mode = "--debug" if debug else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
-            f"{CommandType.ZIP_LATEST_COMMAND_DATA.val} {command_type.val} "
+            f"{CommandType.ZIP_LATEST_COMMAND_DATA.name} {command_type.name} "
             f"--dest_dir /tmp "
             f"--ignore-filetypes {ignore_filetypes} "
         )
@@ -212,7 +212,7 @@ class CdswRunnerBase(ABC):
         attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
         email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
         self.execute_yarndevtools_script(
-            f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.val} "
+            f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.name} "
             f"{self.common_mail_config.as_arguments()}"
             f'--subject "{subject}" '
             f'--sender "{sender}" '
