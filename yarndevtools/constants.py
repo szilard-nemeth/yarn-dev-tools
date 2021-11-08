@@ -2,6 +2,11 @@ import re
 from enum import Enum
 
 
+class GithubActionsEnvVar(Enum):
+    CI_EXECUTION = "CI"
+    GITHUB_ACTION_PATH = "GITHUB_ACTION_PATH"
+
+
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 APACHE = "apache"

@@ -18,7 +18,7 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
-from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, GithubActionsEnvVar
 
 CREATE_IMAGE = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
@@ -176,6 +176,10 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def get_cdsw_root_dir(cls):
+        is_ci_execution: bool = True if OsUtils.get_env_value(GithubActionsEnvVar.CI_EXECUTION.value) else False
+        github_action_path: bool = True if OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_ACTION_PATH.value) else None
+        print("is CI: " + str(is_ci_execution))
+        print("github_action_path: " + str(github_action_path))
         return SimpleProjectUtils.get_project_dir(
             basedir=LocalDirs.REPO_ROOT_DIR,
             parent_dir="yarndevtools",
