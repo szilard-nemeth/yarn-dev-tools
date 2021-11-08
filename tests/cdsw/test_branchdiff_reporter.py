@@ -144,8 +144,14 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py'
         # No such file or directory
         cls.python_module_mode = PythonModuleMode.USER
+
+        dockerfile = None
+        if GitHubUtils.is_github_ci_execution():
+            dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
+        else:
+            dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
         cls.docker_test_setup = DockerTestSetup(
-            DOCKER_IMAGE, create_image=CREATE_IMAGE, dockerfile_location=LocalDirs.CDSW_ROOT_DIR, logger=CMD_LOG
+            DOCKER_IMAGE, create_image=CREATE_IMAGE, dockerfile=dockerfile, logger=CMD_LOG
         )
         cls.docker_mounts = DockerMounts(cls.docker_test_setup, cls.exec_mode, cls.python_module_mode)
         cls.docker_mounts.setup_default_docker_mounts()
