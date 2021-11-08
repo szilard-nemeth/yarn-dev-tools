@@ -56,17 +56,20 @@ IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
 
 
 class YarnDevTools:
-    def __init__(self):
+    def __init__(self, execution_mode: ExecutionMode = ExecutionMode.PRODUCTION):
         self.env = {}
         self.downstream_repo = None
         self.upstream_repo = None
         self.project_out_root = None
         self.yarn_patch_dir = None
-        self.setup_dirs()
+        self.setup_dirs(execution_mode=execution_mode)
         self.init_repos()
 
-    def setup_dirs(self):
-        strategy = ProjectRootDeterminationStrategy.SYS_PATH
+    def setup_dirs(self, execution_mode: ExecutionMode = ExecutionMode.PRODUCTION):
+        if execution_mode == ExecutionMode.PRODUCTION:
+            strategy = ProjectRootDeterminationStrategy.SYS_PATH
+        elif execution_mode == ExecutionMode.TEST:
+            strategy = ProjectRootDeterminationStrategy.COMMON_FILE
         if YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value in os.environ:
             env_value = os.environ[YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value]
             LOG.info("Found specified project root determination strategy from env var: %s", env_value)

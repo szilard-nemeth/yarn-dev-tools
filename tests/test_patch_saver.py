@@ -1,6 +1,8 @@
 import logging
 import unittest
 
+from pythoncommons.constants import ExecutionMode
+
 from tests.test_utilities import TestUtilities
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.patch_saver import PatchSaver
@@ -64,7 +66,7 @@ class TestPatchSaver(unittest.TestCase):
         self.utils.add_some_file_changes(commit=True)
 
         self.utils.set_env_vars(self.utils.sandbox_repo_path, self.utils.sandbox_repo_path)
-        yarn_dev_tools = YarnDevTools()
+        yarn_dev_tools = YarnDevTools(execution_mode=ExecutionMode.TEST)
         yarn_dev_tools.upstream_repo = self.repo_wrapper
         yarn_dev_tools.yarn_patch_dir = self.saved_patches_dir
         args = object()

@@ -6,7 +6,7 @@ from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.patch_utils import PatchUtils
-from pythoncommons.project_utils import ProjectUtils
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
@@ -73,6 +73,7 @@ class TestUtilities:
     def setUpClass(self, command_type: CommandType, repo_postfix=None, init_logging=True, console_debug=False):
         if repo_postfix:
             self.repo_postfix = repo_postfix
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         try:
             self.setup_repo()

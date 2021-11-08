@@ -5,11 +5,12 @@ import unittest
 
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
+from pythoncommons.project_utils import ProjectRootDeterminationStrategy, ProjectUtils
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.unittestresultaggregator.common import TestCaseFilter, MatchExpression, AggregateFilter
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestCaseFilters
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, PROJECT_NAME
 
 CDP_7X = "CDPD-7.x"
 CDP_71X = "CDPD-7.1.x"
@@ -28,6 +29,8 @@ TEST_DIR_NAME = "somedir"
 class TestTestCaseFilters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
+        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         SimpleLoggingSetup.init_logger(
             project_name=CommandType.UNIT_TEST_RESULT_AGGREGATOR.real_name,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
