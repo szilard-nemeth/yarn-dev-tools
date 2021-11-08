@@ -8,6 +8,7 @@ from typing import Dict
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.docker_wrapper import DockerTestSetup
 from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.os_utils import OsUtils
@@ -176,9 +177,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def get_cdsw_root_dir(cls):
-        is_github_ci_execution: bool = (
-            True if OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_ACTIONS.value) else False
-        )
+        is_github_ci_execution: bool = GitHubUtils.is_github_ci_execution()
         if is_github_ci_execution:
             # When Github Actions CI runs the tests, it returns two or more paths
             # so it's better to define the path by hand.
@@ -187,7 +186,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/build/lib/yarndevtools/cdsw'
             # ]
             LOG.debug("Github Actions CI execution, crafting CDSW root dir path manually..")
-            github_actions_workspace: str = OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_WORKSPACE.value)
+            github_actions_workspace: str = GitHubUtils.get_workspace_path()
             return FileUtils.join_path(github_actions_workspace, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
         LOG.debug("Normal test execution, finding project dir..")
         return SimpleProjectUtils.get_project_dir(
