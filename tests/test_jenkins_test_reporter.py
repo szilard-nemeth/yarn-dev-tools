@@ -15,6 +15,7 @@ from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from tests.test_utilities import Object
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
 
@@ -269,6 +270,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.tc_filters = tc_filters
         args.skip_mail = True
         args.disable_file_cache = True
+        args.debug = True
+        args.verbose = True
+        args.command = CommandType.JENKINS_TEST_REPORTER.value
         return args
 
     @property
