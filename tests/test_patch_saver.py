@@ -28,6 +28,10 @@ class TestPatchSaver(unittest.TestCase):
         cls.saved_patches_dir = cls.utils.saved_patches_dir
         cls.base_branch = TRUNK
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
+
     def cleanup_and_checkout_branch(self, test_branch):
         self.utils.cleanup_and_checkout_test_branch(pull=False)
         self.assertEqual(test_branch, str(self.repo.head.ref))

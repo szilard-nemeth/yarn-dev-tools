@@ -1,12 +1,16 @@
 import logging
 import os
 import unittest
+from typing import List
+
 from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
+from pythoncommons.zip_utils import ZipFileUtils
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
@@ -93,6 +97,16 @@ class TestUtilities:
             Repo.clone_from(HADOOP_REPO_APACHE, self.sandbox_repo_path, progress=ProgressPrinter("clone"))
             self.setup_repo(log=False)
             self.reset_and_checkout_trunk()
+
+    @staticmethod
+    def tearDownClass():
+        if GitHubUtils.is_github_ci_execution():
+            target_dir_path: str = FileUtils.join_path(GitHubUtils.get_workspace_path(), "created_logs")
+            target_zip_file_path: str = FileUtils.join_path(GitHubUtils.get_workspace_path(), "all_logs.zip")
+            FileUtils.ensure_dir_created(target_dir_path)
+            all_log_files: List[str] = SimpleLoggingSetup.get_all_log_files()
+            FileUtils.copy_files_to_dir(all_log_files, target_dir_path)
+            ZipFileUtils.create_zip_file([target_dir_path], target_zip_file_path, compress=True)
 
     def setup_repo(self, log=True):
         # This call will raise InvalidGitRepositoryError in case git repo is not cloned yet to this path

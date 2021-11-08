@@ -51,6 +51,10 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         # Invoke this to setup main output directory and avoid test failures while initing config
         ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
+
     def cleanup_and_checkout_branch(self, test_branch):
         self.utils.cleanup_and_checkout_test_branch(pull=False)
         self.assertEqual(test_branch, str(self.repo.head.ref))

@@ -14,7 +14,7 @@ from coolname import generate_slug
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from tests.test_utilities import Object
+from tests.test_utilities import Object, TestUtilities
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
@@ -232,6 +232,10 @@ class TestJenkinsTestReporter(unittest.TestCase):
         # Invoke this to setup main output directory and avoid test failures while initing config
         cls.project_out_root = ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         ProjectUtils.get_test_output_child_dir(JENKINS_TEST_REPORTER)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
 
     def setUp(self):
         if not USE_REAL_API:

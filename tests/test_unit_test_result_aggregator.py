@@ -7,6 +7,7 @@ from pythoncommons.constants import ExecutionMode
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectRootDeterminationStrategy, ProjectUtils
 
+from tests.test_utilities import TestUtilities
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.unittestresultaggregator.common import TestCaseFilter, MatchExpression, AggregateFilter
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestCaseFilters
@@ -46,7 +47,7 @@ class TestTestCaseFilters(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        pass
+        TestUtilities.tearDownClass()
 
     def setUp(self):
         self.test_instance = self

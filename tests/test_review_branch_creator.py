@@ -33,6 +33,10 @@ class TestReviewBranchCreator(unittest.TestCase):
         cls.saved_patches_dir = cls.utils.saved_patches_dir
         cls.dummy_patches_dir = cls.utils.dummy_patches_dir
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
+
     def setUp(self):
         self.utils.reset_and_checkout_existing_branch(BASE_BRANCH, pull=False)
         self.repo_wrapper.remove_branches_with_prefix(REVIEW_BRANCH, checkout_before_remove=TRUNK)

@@ -53,6 +53,10 @@ class TestBackporter(unittest.TestCase):
         #     ["pythoncommons.git_wrapper"], logging.DEBUG, project_name_prefix=YARNDEVTOOLS_MODULE_NAME
         # )
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
+
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)
 

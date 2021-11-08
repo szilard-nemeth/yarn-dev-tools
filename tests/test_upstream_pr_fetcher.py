@@ -25,6 +25,10 @@ class TestUpstreamPRFetcher(unittest.TestCase):
         cls.repo_wrapper = cls.utils.repo_wrapper
         cls.base_branch = cls.repo_wrapper.checkout_parent_of_branch(DEFAULT_BRANCH)
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
+
     def setUp(self):
         self.utils.reset_and_checkout_existing_branch(DEFAULT_BRANCH, pull=False)
         # Setup committer config

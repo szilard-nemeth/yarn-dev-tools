@@ -31,6 +31,10 @@ class TestFormatPatchSaver(unittest.TestCase):
         cls.repo_wrapper = cls.utils.repo_wrapper
         cls.saved_patches_dir = cls.utils.saved_patches_dir
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        TestUtilities.tearDownClass()
+
     def setUp(self):
         self.current_datetime = DateUtils.get_current_datetime()
         self.patches_basedir = FileUtils.join_path(self.saved_patches_dir, DEST_DIR_PREFIX, self.current_datetime)
