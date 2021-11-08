@@ -38,7 +38,7 @@ class TestBackporter(unittest.TestCase):
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
 
         cls.downstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.downstream_utils.setUpClass(repo_postfix="_downstream", init_logging=False)
+        cls.downstream_utils.setUpClass(CommandType.BACKPORT_C6, repo_postfix="_downstream", init_logging=False)
         cls.downstream_utils.pull_to_trunk(ff_only=True)
         cls.downstream_repo = cls.downstream_utils.repo
         cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
