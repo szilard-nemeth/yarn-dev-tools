@@ -5,6 +5,7 @@ import unittest
 from pythoncommons.logging_utils import LoggingUtils
 
 from tests.test_utilities import TestUtilities, Object
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.backporter import Backporter
 from pythoncommons.git_constants import ORIGIN
 from yarndevtools.constants import TRUNK, BRANCH_3_1, YARNDEVTOOLS_MODULE_NAME
@@ -31,7 +32,7 @@ class TestBackporter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.upstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.upstream_utils.setUpClass(init_logging=True, console_debug=True)
+        cls.upstream_utils.setUpClass(CommandType.BACKPORT_C6, init_logging=True, console_debug=True)
         cls.upstream_utils.pull_to_trunk(ff_only=True)
         cls.upstream_repo = cls.upstream_utils.repo
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
