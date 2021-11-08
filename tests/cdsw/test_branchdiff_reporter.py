@@ -4,6 +4,8 @@ import sys
 import unittest
 from enum import Enum
 from typing import Dict
+
+from pythoncommons.constants import ExecutionMode
 from pythoncommons.docker_wrapper import DockerTestSetup
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
@@ -15,7 +17,6 @@ from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, SimpleProjectUtil
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import ExecutionMode
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
