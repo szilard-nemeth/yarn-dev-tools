@@ -2,8 +2,14 @@ import logging
 import os
 import sys
 import unittest
+
+from pythoncommons.constants import ExecutionMode
+from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
+
+from yarndevtools.argparser import CommandType
 from yarndevtools.commands.unittestresultaggregator.common import TestCaseFilter, MatchExpression, AggregateFilter
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestCaseFilters
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CDP_7X = "CDPD-7.x"
 CDP_71X = "CDPD-7.1.x"
@@ -14,7 +20,6 @@ MR_PATTERN = ".*org\\.apache\\.hadoop\\.mapreduce.*"
 YARN_PATTERN = ".*org\\.apache\\.hadoop\\.yarn.*"
 
 LOG = logging.getLogger(__name__)
-CMD_LOG = logging.getLogger(__name__)
 SOME_PARENT_DIR = "some_parent_dir"
 REPO_ROOT_DIRNAME = "some_repo_root_dirname"
 TEST_DIR_NAME = "somedir"
@@ -23,7 +28,12 @@ TEST_DIR_NAME = "somedir"
 class TestTestCaseFilters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls._setup_logging()
+        SimpleLoggingSetup.init_logger(
+            project_name=CommandType.UNIT_TEST_RESULT_AGGREGATOR.real_name,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+            execution_mode=ExecutionMode.TEST,
+            console_debug=True,
+        )
 
         match_expressions = [YARN_EXPRESSION, MR_EXPRESSION]
         aggr_filters = [CDP_71X, CDP_7X]
@@ -45,14 +55,6 @@ class TestTestCaseFilters(unittest.TestCase):
     def _ensure_env_var_is_present(cls, env_name):
         if env_name not in os.environ:
             raise ValueError(f"Please set '{env_name}' env var and re-run the test!")
-
-    @classmethod
-    def _setup_logging(cls):
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-        handler = logging.StreamHandler(stream=sys.stdout)
-        CMD_LOG.propagate = False
-        CMD_LOG.addHandler(handler)
-        handler.setFormatter(logging.Formatter("%(message)s"))
 
     @staticmethod
     def simple_matched_line_filters():

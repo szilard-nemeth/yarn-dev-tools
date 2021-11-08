@@ -41,9 +41,6 @@ BUILD_URL_MAWO_71X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_71X}/{{{BU
 USE_REAL_API = False
 
 LOG = logging.getLogger(__name__)
-# TODO Migrate to SimpleLoggingSetup.init_logger
-logging.basicConfig(format="%(levelname)s:%(message)s", level=logging.DEBUG)
-LOG.setLevel(logging.DEBUG)
 
 
 class TestCaseStatus(Enum):

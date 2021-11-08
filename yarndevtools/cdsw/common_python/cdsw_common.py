@@ -12,6 +12,7 @@ from typing import Dict, List
 # https://stackoverflow.com/a/50255019/1106893
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.logging_setup import SimpleLoggingSetup
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
@@ -25,7 +26,7 @@ from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
 SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.txt"
 LOG = logging.getLogger(__name__)
-CMD_LOG = logging.getLogger(__name__)
+CMD_LOG = SimpleLoggingSetup.create_command_logger(__name__)
 BASEDIR = None
 PY3 = "python3"
 BASH = "bash"
@@ -55,15 +56,6 @@ class PythonModuleMode(Enum):
 
 class CdswSetup:
     @staticmethod
-    def setup_logging():
-        # TODO Migrate to Setup.init_logger
-        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-        cmd_log_handler = logging.StreamHandler(stream=sys.stdout)
-        CMD_LOG.propagate = False
-        CMD_LOG.addHandler(cmd_log_handler)
-        cmd_log_handler.setFormatter(logging.Formatter("%(message)s"))
-
-    @staticmethod
     def fix_pythonpath(additional_dir):
         pypath = CdswEnvVar.PYTHONPATH.value
         if pypath in os.environ:
@@ -81,7 +73,6 @@ class CdswSetup:
 
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
-        CdswSetup.setup_logging()
         LOG.info(f"Python version info: {sys.version}")
         if not env_var_dict:
             env_var_dict = {}
