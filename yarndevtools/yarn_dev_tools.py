@@ -231,7 +231,7 @@ if __name__ == "__main__":
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args(yarn_dev_tools)
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-        project_name=CommandType.BRANCH_COMPARATOR.value,
+        project_name=PROJECT_NAME,
         logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
