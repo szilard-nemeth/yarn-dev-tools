@@ -19,7 +19,7 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
-from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, GithubActionsEnvVar
+from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
 CREATE_IMAGE = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
