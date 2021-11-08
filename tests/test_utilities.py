@@ -105,7 +105,7 @@ class TestUtilities:
             target_zip_file_path: str = FileUtils.join_path(GitHubUtils.get_workspace_path(), "all_logs.zip")
             FileUtils.ensure_dir_created(target_dir_path)
             all_log_files: List[str] = SimpleLoggingSetup.get_all_log_files()
-            FileUtils.copy_files_to_dir(all_log_files, target_dir_path)
+            FileUtils.copy_files_to_dir(all_log_files, target_dir_path, cut_basedir=True)
             ZipFileUtils.create_zip_file([target_dir_path], target_zip_file_path, compress=True)
 
     def setup_repo(self, log=True):
