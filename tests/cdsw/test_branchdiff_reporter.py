@@ -180,6 +180,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         github_action_path: bool = True if OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_ACTION_PATH.value) else None
         print("is CI: " + str(is_ci_execution))
         print("github_action_path: " + str(github_action_path))
+        print("OS environ: " + str(os.environ))
         return SimpleProjectUtils.get_project_dir(
             basedir=LocalDirs.REPO_ROOT_DIR,
             parent_dir="yarndevtools",
