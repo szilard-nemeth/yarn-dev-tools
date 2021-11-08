@@ -185,7 +185,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def _setup_logging(cls):
         loggging_setup: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-            project_name=CommandType.BRANCH_COMPARATOR.value,
+            project_name=CommandType.BRANCH_COMPARATOR.real_name,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.TEST,
             console_debug=True,

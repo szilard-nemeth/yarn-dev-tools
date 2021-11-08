@@ -78,7 +78,7 @@ class TestUtilities:
             self.setup_repo()
             if init_logging:
                 SimpleLoggingSetup.init_logger(
-                    project_name=command_type.value,
+                    project_name=command_type.real_name,
                     logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
                     execution_mode=ExecutionMode.TEST,
                     console_debug=console_debug,

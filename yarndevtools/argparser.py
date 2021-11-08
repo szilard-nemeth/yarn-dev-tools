@@ -36,7 +36,7 @@ class CommandType(Enum):
     UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
 
     def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
-        self.name = value
+        self.real_name = value
         self.session_based = session_based
 
         if session_link_name:

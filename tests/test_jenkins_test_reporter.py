@@ -272,7 +272,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.disable_file_cache = True
         args.debug = True
         args.verbose = True
-        args.command = CommandType.JENKINS_TEST_REPORTER.value
+        args.command = CommandType.JENKINS_TEST_REPORTER.real_name
         return args
 
     @property

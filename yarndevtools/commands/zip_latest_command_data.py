@@ -33,7 +33,7 @@ class Config:
 
     @staticmethod
     def _get_filename_by_command(cmd_type: CommandType):
-        return f"command_data_{cmd_type.name}.zip"
+        return f"command_data_{cmd_type.real_name}.zip"
 
 
 class ZipLatestCommandData:
