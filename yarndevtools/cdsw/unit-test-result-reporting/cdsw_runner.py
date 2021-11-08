@@ -3,6 +3,7 @@
 import logging
 from pythoncommons.os_utils import OsUtils
 
+from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     MAIL_ADDR_YARN_ENG_BP,
@@ -37,7 +38,7 @@ class CdswRunner(CdswRunnerBase):
         sender = "YARN jenkins test reporter"
         tc_filter_param = f"--testcase-filter {testcase_filter}"
         self.execute_yarndevtools_script(
-            f"--debug jenkins_test_reporter "
+            f"--debug {CommandType.JENKINS_TEST_REPORTER.name} "
             f"--job-name {job_name} "
             f"{self.common_mail_config.as_arguments()}"
             f'--sender "{sender}" '
