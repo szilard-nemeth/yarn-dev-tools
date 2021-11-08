@@ -176,11 +176,20 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def get_cdsw_root_dir(cls):
-        is_ci_execution: bool = True if OsUtils.get_env_value(GithubActionsEnvVar.CI_EXECUTION.value) else False
-        github_action_path: bool = True if OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_ACTION_PATH.value) else None
-        print("is CI: " + str(is_ci_execution))
-        print("github_action_path: " + str(github_action_path))
-        print("OS environ: " + str(os.environ))
+        is_github_ci_execution: bool = (
+            True if OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_ACTIONS.value) else False
+        )
+        if is_github_ci_execution:
+            # When Github Actions CI runs the tests, it returns two or more paths
+            # so it's better to define the path by hand.
+            # Example of paths: [
+            # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/yarndevtools/cdsw',
+            # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/build/lib/yarndevtools/cdsw'
+            # ]
+            LOG.debug("Github Actions CI execution, crafting CDSW root dir path manually..")
+            github_actions_workspace: str = OsUtils.get_env_value(GithubActionsEnvVar.GITHUB_WORKSPACE.value)
+            return FileUtils.join_path(github_actions_workspace, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
+        LOG.debug("Normal test execution, finding project dir..")
         return SimpleProjectUtils.get_project_dir(
             basedir=LocalDirs.REPO_ROOT_DIR,
             parent_dir="yarndevtools",
