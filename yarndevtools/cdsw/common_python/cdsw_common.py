@@ -106,7 +106,7 @@ class CdswSetup:
         # Defaults to user mode.
         module_mode_key = CdswEnvVar.PYTHON_MODULE_MODE.value
         if module_mode_key in os.environ:
-            python_module_mode = PythonModuleMode[os.environ[module_mode_key].lower()]
+            python_module_mode = PythonModuleMode[os.environ[module_mode_key].upper()]
         else:
             python_module_mode = PythonModuleMode.USER
 
