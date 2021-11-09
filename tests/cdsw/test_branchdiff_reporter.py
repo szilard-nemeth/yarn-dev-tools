@@ -13,7 +13,12 @@ from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingS
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
-from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, SimpleProjectUtils
+from pythoncommons.project_utils import (
+    PROJECTS_BASEDIR_NAME,
+    SimpleProjectUtils,
+    ProjectRootDeterminationStrategy,
+    ProjectUtils,
+)
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
@@ -133,6 +138,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
+        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
             raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
         cls._setup_logging()
