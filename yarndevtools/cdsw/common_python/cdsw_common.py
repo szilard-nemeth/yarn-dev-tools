@@ -10,12 +10,13 @@ from typing import Dict, List
 
 
 # https://stackoverflow.com/a/50255019/1106893
+from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME
 
 from pythoncommons.process import SubprocessCommandRunner
 
@@ -73,6 +74,15 @@ class CdswSetup:
 
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
+        # TODO Figure out why these are not printed from the stdout of the python3 process started by test_branchdiff_reporter.py
+        logging.basicConfig()
+        print("***TESTPRINT")
+        SimpleLoggingSetup.init_logger(
+            project_name=PROJECT_NAME,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+            execution_mode=ExecutionMode.PRODUCTION,
+            console_debug=True,
+        )
         LOG.info(f"Python version info: {sys.version}")
         if not env_var_dict:
             env_var_dict = {}
@@ -101,10 +111,10 @@ class CdswSetup:
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
-        # For CDSW, user module mode is preferred.
+        # For CDSW, user python module mode is preferred.
         # For tests, it depends on how the initial-cdsw-setup.sh script was executed in the container.
-        # Defaults to user mode.
         module_mode_key = CdswEnvVar.PYTHON_MODULE_MODE.value
+        LOG.debug("Value of env key '%s': %s", module_mode_key, os.environ[module_mode_key])
         if module_mode_key in os.environ:
             python_module_mode = PythonModuleMode[os.environ[module_mode_key].upper()]
         else:
