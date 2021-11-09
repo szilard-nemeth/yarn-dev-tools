@@ -1,28 +1,60 @@
 #!/bin/bash
 set -x
 
-GLOBAL_PYTHON_SITE=0
-
-if [[ "$1" == 'global' ]]; then
-  GLOBAL_PYTHON_SITE=1
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <python module mode> <execution mode>"
+    echo "Example: $0 global cloudera --> Uses 'global' module mode with execution mode: 'cloudera'"
+    echo "Example: $0 user upstream --> Uses 'user' module mode with execution mode: 'upstream'"
+    exit 1
 fi
 
+PYTHON_MODULE_MODE=""
+if [[ "$1" == "global" ]]; then
+  PYTHON_MODULE_MODE="global"
+  shift
+elif [[ "$1" == "user" ]]; then
+  PYTHON_MODULE_MODE="user"
+  shift
+fi
+
+EXEC_MODE=""
+if [[ "$1" == "upstream" ]]; then
+  EXEC_MODE="upstream"
+  shift
+elif [[ "$1" == "cloudera" ]]; then
+  EXEC_MODE="cloudera"
+  shift
+fi
+
+#Validations
+
+(( "$PYTHON_MODULE_MODE" != "global" || "$PYTHON_MODULE_MODE" != "user" )) && echo "Python module mode should be either 'user' or 'global'!" && exit 1
+(( "$EXEC_MODE" != "upstream" || "$EXEC_MODE" != "cloudera" )) && echo "Execution mode should be either 'upstream' or 'cloudera'!" && exit 1
+
+echo "Python module mode: $PYTHON_MODULE_MODE"
+echo "Execution mode: $EXEC_MODE"
+
 echo "Downloading clone repository scripts..."
-SCRIPTS_DIR="/home/cdsw/scripts"
+SCRIPTS_DIR="/home/cdsw/downloaded_scripts"
 mkdir $SCRIPTS_DIR
 
-#No errors allowe after this point!
+#No errors allowed after this point!
 set -e
+
 curl -o $SCRIPTS_DIR/clone_downstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_downstream_repos.sh
 curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_upstream_repos.sh
 chmod +x $SCRIPTS_DIR/clone_downstream_repos.sh
 chmod +x $SCRIPTS_DIR/clone_upstream_repos.sh
 
+# Always run clone_upstream_repos.sh
 echo "Cloning upstream repos..."
 $SCRIPTS_DIR/clone_upstream_repos.sh
 
-echo "Cloning downstream repos..."
-$SCRIPTS_DIR/clone_downstream_repos.sh
+# Only run clone_downstream_repos.sh if execution mode == "cloudera"
+if [[ "$EXEC_MODE" == "cloudera" ]]; then
+  echo "Cloning downstream repos..."
+  $SCRIPTS_DIR/clone_downstream_repos.sh
+fi
 
 echo "Installing python requirements..."
 # TODO Duplicated commands: install-requirements.sh
@@ -31,11 +63,13 @@ pip3 install -r /tmp/requirements-cdsw.txt --force-reinstall
 
 GLOBAL_SITE_PACKAGES=$(python3 -c 'import site; print(site.getsitepackages()[0])')
 USER_SITE_PACKAGES=$(python3 -m site --user-site)
+echo "GLOBAL_SITE_PACKAGES: $GLOBAL_SITE_PACKAGES"
+echo "USER_SITE_PACKAGES: $USER_SITE_PACKAGES"
 
-echo "Global python packages: $(ls -la $GLOBAL_SITE_PACKAGES)"
-echo "User python packages: $(ls -la $USER_SITE_PACKAGES)"
+echo "Listing: global python packages: $(ls -la $GLOBAL_SITE_PACKAGES)"
+echo "Listing user python packages: $(ls -la $USER_SITE_PACKAGES)"
 PYTHON_SITE=$USER_SITE_PACKAGES
-if [[ "$GLOBAL_PYTHON_SITE" -eq 1 ]]; then
+if [[ "$PYTHON_MODULE_MODE" == "global" ]]; then
   PYTHON_SITE=$GLOBAL_SITE_PACKAGES
 fi
 
