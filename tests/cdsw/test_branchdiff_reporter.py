@@ -3,7 +3,7 @@ import os
 import sys
 import unittest
 from enum import Enum
-from typing import Dict
+from typing import Dict, List
 
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.docker_wrapper import DockerTestSetup
@@ -27,11 +27,13 @@ from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
 CREATE_IMAGE = True
+MOUNT_CDSW_DIRS_FROM_LOCAL = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
 MOUNT_MODE_RW = "rw"
+MOUNT_MODE_READ_ONLY = "ro"
 PYTHON3 = "python3"
 BASH = "bash"
 CDSW_DIRNAME = "cdsw"
@@ -98,10 +100,26 @@ class DockerMounts:
 
     def setup_default_docker_mounts(self):
         self.setup_env_vars()
-        # Mount scripts dir, initial-cdsw-setup.sh will be executed from there
-        self.docker_test_setup.mount_dir(
-            LocalDirs.SCRIPTS_DIR, ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, mode=MOUNT_MODE_RW
-        )
+
+        if MOUNT_CDSW_DIRS_FROM_LOCAL:
+            # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
+            # files are being created to /home/cdsw inside the container.
+            # Mounting it with readonly mode also does not make sense as writing files would be prevented.
+            # So, the only option left is to mount dirs one by one.
+            dirs_to_mount = FileUtils.find_files(
+                LocalDirs.CDSW_ROOT_DIR, find_type=FindResultType.DIRS, single_level=True, full_path_result=True
+            )
+            for dir in dirs_to_mount:
+                self.docker_test_setup.mount_dir(
+                    dir,
+                    FileUtils.join_path(ContainerDirs.CDSW_BASEDIR, FileUtils.basename(dir)),
+                    mode=MOUNT_MODE_READ_ONLY,
+                )
+        else:
+            # Mount scripts dir, initial-cdsw-setup.sh will be executed from there
+            self.docker_test_setup.mount_dir(
+                LocalDirs.SCRIPTS_DIR, ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, mode=MOUNT_MODE_RW
+            )
         # Mount results dir so all output files will be available on the host
         self.docker_test_setup.mount_dir(
             LocalDirs.YARNDEVTOOLS_RESULT_DIR, ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR, mode=MOUNT_MODE_RW
@@ -132,7 +150,7 @@ class TestExecMode(Enum):
 
 class YarnCdswBranchDiffTests(unittest.TestCase):
     python_module_mode = None
-    exec_mode = None
+    exec_mode: TestExecMode = None
     docker_test_setup = None
     docker_mounts = None
 
@@ -145,12 +163,12 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         cls._setup_logging()
         cls.setup_local_dirs()
         cls.exec_mode: TestExecMode = cls.determine_execution_mode()
-        # Only user-site mode can work in Docker containers
-        # With global mode, the following error is coming up:
+        # Only global-site mode can work in Docker containers
+        # With user mode, the following error is coming up:
         # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
         # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py'
         # No such file or directory
-        cls.python_module_mode = PythonModuleMode.USER
+        cls.python_module_mode = PythonModuleMode.GLOBAL
 
         dockerfile = None
         if GitHubUtils.is_github_ci_execution():
