@@ -1,6 +1,7 @@
 from enum import Enum
 
 BRANCH_DIFF_REPORTER_DIR_NAME = "downstream-branchdiff-reporting"
+PROJECT_NAME = "cdsw"
 
 
 class CdswEnvVar(Enum):

@@ -170,7 +170,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         # No such file or directory
         cls.python_module_mode = PythonModuleMode.GLOBAL
 
-        dockerfile = None
         if GitHubUtils.is_github_ci_execution():
             dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
         else:
@@ -253,11 +252,14 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         )
 
     @classmethod
-    def exec_initial_cdsw_setup_script(cls, args="", env: Dict[str, str] = None):
-        if cls.python_module_mode == PythonModuleMode.GLOBAL:
-            args = PythonModuleMode.GLOBAL.value
+    def exec_initial_cdsw_setup_script(cls, args: List[str] = None, env: Dict[str, str] = None):
+        if not args:
+            args = []
+        args.append(cls.python_module_mode.value)
+        args.append(cls.exec_mode.value)
+        args_str = " ".join(args)
         return cls.docker_test_setup.exec_cmd_in_container(
-            f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args}", stdin=False, tty=False, env=env
+            f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args_str}", stdin=False, tty=False, env=env
         )
 
     def setUp(self):
@@ -284,6 +286,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
                 BranchComparatorEnvVar.MASTER_BRANCH,
                 BranchComparatorEnvVar.FEATURE_BRANCH,
                 EnvVar.IGNORE_SMTP_AUTH_ERROR,
+                CdswEnvVar.PYTHON_MODULE_MODE,
             ]
         }
         # TODO
@@ -303,7 +306,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     def test_basic_cdsw_runner(self):
         self.docker_mounts.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=CONTAINER_SLEEP)
-        # TODO Run this only at Docker image creation
+        # TODO Run this only at Docker image creation?
         self.exec_initial_cdsw_setup_script()
         # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
         exit_code = self.exec_branch_diff_script(env=self.cdsw_runner_env_dict())
