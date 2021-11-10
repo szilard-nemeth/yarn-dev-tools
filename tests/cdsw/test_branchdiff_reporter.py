@@ -112,6 +112,7 @@ class DockerMounts:
     def setup_default_docker_mounts(self):
         self.setup_env_vars()
 
+        # TODO Perhaps, mount logic can be changed to simple docker copy but keep the condition
         if MOUNT_CDSW_DIRS_FROM_LOCAL:
             # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
             # files are being created to /home/cdsw inside the container.
@@ -124,7 +125,6 @@ class DockerMounts:
                 full_path_result=True,
                 exclude_dirs=["yarndevtools-results"],
             )
-            # TODO Perhaps, mount logic can be changed to simple docker copy
             for dir in dirs_to_mount:
                 self.docker_test_setup.mount_dir(
                     dir,
