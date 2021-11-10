@@ -53,6 +53,9 @@ class TestExecMode(Enum):
     UPSTREAM = "upstream"
 
 
+DEFAULT_TEST_EXECUTION_MODE = TestExecMode.CLOUDERA.value
+
+
 class ContainerFiles:
     BRANCH_DIFF_SCRIPT = FileUtils.join_path(
         CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, BRANCH_DIFF_REPORTER_DIR_NAME, CDSW_RUNNER_PY
@@ -216,7 +219,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def determine_execution_mode(cls):
         exec_mode_env: str = OsUtils.get_env_value(
-            CdswEnvVar.TEST_EXECUTION_MODE.value, default_value=TestExecMode.CLOUDERA.value
+            CdswEnvVar.TEST_EXECUTION_MODE.value, default_value=DEFAULT_TEST_EXECUTION_MODE
         )
         return TestExecMode[exec_mode_env.upper()]
 
