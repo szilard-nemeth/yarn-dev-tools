@@ -76,7 +76,6 @@ class CdswSetup:
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         # TODO Figure out why these are not printed from the stdout of the python3 process started by test_branchdiff_reporter.py
-        logging.basicConfig()
         print("***TESTPRINT")
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
         ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
