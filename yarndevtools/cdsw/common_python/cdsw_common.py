@@ -13,7 +13,7 @@ from typing import Dict, List
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.logging_setup import SimpleLoggingSetup
+from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from yarndevtools.argparser import CommandType
@@ -79,13 +79,14 @@ class CdswSetup:
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
         ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         # TODO sanity_check_number_of_handlers should be set to True
-        SimpleLoggingSetup.init_logger(
+        logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
             console_debug=True,
             sanity_check_number_of_handlers=False,
         )
+        LOG.info("Logging to files: %s", logging_config.log_file_paths)
         LOG.info(f"Python version info: {sys.version}")
         if not env_var_dict:
             env_var_dict = {}
