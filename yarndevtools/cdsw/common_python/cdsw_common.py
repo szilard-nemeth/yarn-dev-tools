@@ -14,6 +14,7 @@ from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME
@@ -77,6 +78,7 @@ class CdswSetup:
         # TODO Figure out why these are not printed from the stdout of the python3 process started by test_branchdiff_reporter.py
         logging.basicConfig()
         print("***TESTPRINT")
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
         SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
