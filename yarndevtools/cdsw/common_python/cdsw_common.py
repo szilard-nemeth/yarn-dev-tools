@@ -75,15 +75,16 @@ class CdswSetup:
 
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
-        # TODO Figure out why these are not printed from the stdout of the python3 process started by test_branchdiff_reporter.py
         print("***TESTPRINT")
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
         ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+        # TODO sanity_check_number_of_handlers should be set to True
         SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
             console_debug=True,
+            sanity_check_number_of_handlers=False,
         )
         LOG.info(f"Python version info: {sys.version}")
         if not env_var_dict:
