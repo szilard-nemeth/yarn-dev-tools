@@ -239,6 +239,8 @@ if __name__ == "__main__":
         verbose_git_log=args.verbose,
     )
 
+    LOG.info("Logging to files: %s", logging_config.log_file_paths)
+
     cmd_type = CommandType.from_str(args.command)
     if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
         for log_level, log_file_path in logging_config.log_file_paths.items():
