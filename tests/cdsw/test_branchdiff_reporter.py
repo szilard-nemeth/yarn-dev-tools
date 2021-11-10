@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import unittest
 from enum import Enum
 from typing import Dict, List
@@ -18,6 +17,7 @@ from pythoncommons.project_utils import (
     SimpleProjectUtils,
     ProjectRootDeterminationStrategy,
     ProjectUtils,
+    ProjectUtilsEnvVar,
 )
 
 from yarndevtools.argparser import CommandType
@@ -25,6 +25,10 @@ from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModule
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
+
+PYTHON3 = "python3"
+GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
+USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
 
 CREATE_IMAGE = True
 MOUNT_CDSW_DIRS_FROM_LOCAL = True
@@ -34,7 +38,6 @@ DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
 MOUNT_MODE_RW = "rw"
 MOUNT_MODE_READ_ONLY = "ro"
-PYTHON3 = "python3"
 BASH = "bash"
 CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
@@ -43,6 +46,11 @@ LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 CONTAINER_SLEEP = 300
 INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"
+
+
+class TestExecMode(Enum):
+    CLOUDERA = "cloudera"
+    UPSTREAM = "upstream"
 
 
 class ContainerFiles:
@@ -55,8 +63,8 @@ class ContainerFiles:
 
 
 class ContainerDirs:
-    YARN_DEV_TOOLS_OUTPUT_DIR = FileUtils.join_path("root", PROJECTS_BASEDIR_NAME, "yarn_dev_tools")
     CDSW_BASEDIR = CommonDirs.CDSW_BASEDIR
+    YARN_DEV_TOOLS_OUTPUT_DIR = FileUtils.join_path(CDSW_BASEDIR, PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME)
     YARN_DEV_TOOLS_SCRIPTS_BASEDIR = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
     HADOOP_CLOUDERA_BASEDIR = CommonDirs.HADOOP_CLOUDERA_BASEDIR
     HADOOP_UPSTREAM_BASEDIR = CommonDirs.HADOOP_UPSTREAM_BASEDIR
@@ -70,12 +78,15 @@ class LocalDirs:
 
 
 class DockerMounts:
-    def __init__(self, docker_test_setup, exec_mode, python_module_mode):
+    def __init__(self, docker_test_setup, exec_mode: TestExecMode, python_module_mode):
         self.docker_test_setup = docker_test_setup
-        self.exec_mode = exec_mode
+        self.exec_mode: TestExecMode = exec_mode
         self.python_module_mode = python_module_mode
 
     def setup_env_vars(self):
+        os.environ[ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value] = FileUtils.join_path("home", "cdsw")
+        os.environ[CdswEnvVar.MAIL_RECIPIENTS.value] = "nsziszy@gmail.com"
+
         # !! WARNING: User-specific settings below !!
         if self.exec_mode == TestExecMode.CLOUDERA:
             # We need both upstream / downstream repos for Cloudera-mode
@@ -107,8 +118,13 @@ class DockerMounts:
             # Mounting it with readonly mode also does not make sense as writing files would be prevented.
             # So, the only option left is to mount dirs one by one.
             dirs_to_mount = FileUtils.find_files(
-                LocalDirs.CDSW_ROOT_DIR, find_type=FindResultType.DIRS, single_level=True, full_path_result=True
+                LocalDirs.CDSW_ROOT_DIR,
+                find_type=FindResultType.DIRS,
+                single_level=True,
+                full_path_result=True,
+                exclude_dirs=["yarndevtools-results"],
             )
+            # TODO Perhaps, mount logic can be changed to simple docker copy
             for dir in dirs_to_mount:
                 self.docker_test_setup.mount_dir(
                     dir,
@@ -130,6 +146,9 @@ class DockerMounts:
         elif self.exec_mode == TestExecMode.UPSTREAM:
             self._mount_upstream_hadoop_repo()
 
+        # Only print mounts in the end
+        self.docker_test_setup.print_mounts()
+
     def _mount_downstream_hadoop_repo(self):
         # Mount local Cloudera Hadoop dir so that container won't clone the repo again and again
         self.docker_test_setup.mount_dir(
@@ -143,13 +162,9 @@ class DockerMounts:
         )
 
 
-class TestExecMode(Enum):
-    CLOUDERA = "cloudera"
-    UPSTREAM = "upstream"
-
-
 class YarnCdswBranchDiffTests(unittest.TestCase):
     python_module_mode = None
+    python_module_root = None
     exec_mode: TestExecMode = None
     docker_test_setup = None
     docker_mounts = None
@@ -262,6 +277,14 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args_str}", stdin=False, tty=False, env=env
         )
 
+    @classmethod
+    def exec_get_python_module_root(cls, env: Dict[str, str] = None, callback=None):
+        if cls.python_module_mode == PythonModuleMode.GLOBAL:
+            cmd = GLOBAL_SITE_COMMAND
+        elif cls.python_module_mode == PythonModuleMode.USER:
+            cmd = USER_SITE_COMMAND
+        return cls.docker_test_setup.exec_cmd_in_container(cmd, stdin=False, tty=False, env=env, callback=callback)
+
     def setUp(self):
         self.docker_test_setup.test_instance = self
 
@@ -275,6 +298,20 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         command = f"docker cp {self.docker_test_setup.container.id}:{cont_target_path} {local_target_path}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(command)
 
+    def copy_yarndevtools_cdsw_recursively(self):
+        local_dir = LocalDirs.CDSW_ROOT_DIR
+        container_target_path = FileUtils.join_path(self.python_module_root, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
+        container_id = self.docker_test_setup.container.id
+        command = f"docker cp {local_dir}/. {container_id}:{container_target_path}"
+        LOG.info(
+            "Copying local directory '%s' to container directory '%s' (container id: %s). Command was: %s",
+            local_dir,
+            container_target_path,
+            container_id,
+            command,
+        )
+        SubprocessCommandRunner.run_and_follow_stdout_stderr(command)
+
     @classmethod
     def cdsw_runner_env_dict(cls):
         env_dict = {
@@ -282,11 +319,13 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             for e in [
                 CdswEnvVar.MAIL_ACC_USER,
                 CdswEnvVar.MAIL_ACC_PASSWORD,
+                CdswEnvVar.PYTHON_MODULE_MODE,
+                CdswEnvVar.MAIL_RECIPIENTS,
                 BranchComparatorEnvVar.REPO_TYPE,
                 BranchComparatorEnvVar.MASTER_BRANCH,
                 BranchComparatorEnvVar.FEATURE_BRANCH,
                 EnvVar.IGNORE_SMTP_AUTH_ERROR,
-                CdswEnvVar.PYTHON_MODULE_MODE,
+                ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR,
             ]
         }
         # TODO
@@ -304,11 +343,17 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         return CdswEnvVar.PYTHONPATH.value, new_pythonpath
 
     def test_basic_cdsw_runner(self):
+        def _callback(cmd, out, docker_setup):
+            self.python_module_root = out
+
         self.docker_mounts.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=CONTAINER_SLEEP)
+        self.exec_get_python_module_root(callback=_callback)
         # TODO Run this only at Docker image creation?
         self.exec_initial_cdsw_setup_script()
+        self.copy_yarndevtools_cdsw_recursively()
         # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
+        # TODO fix double bookkeeping of env vars
         exit_code = self.exec_branch_diff_script(env=self.cdsw_runner_env_dict())
         self.assertEqual(exit_code, 0)
         self.save_latest_zip_from_container()
