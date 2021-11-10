@@ -88,6 +88,7 @@ class DockerMounts:
     def setup_env_vars(self):
         os.environ[ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value] = FileUtils.join_path("home", "cdsw")
         os.environ[CdswEnvVar.MAIL_RECIPIENTS.value] = "nsziszy@gmail.com"
+        os.environ[CdswEnvVar.TEST_EXECUTION_MODE.value] = self.class_of_test.exec_mode.value
 
         # !! WARNING: User-specific settings below !!
         if self.exec_mode == TestExecMode.CLOUDERA:
@@ -326,6 +327,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
                 CdswEnvVar.MAIL_ACC_PASSWORD,
                 CdswEnvVar.PYTHON_MODULE_MODE,
                 CdswEnvVar.MAIL_RECIPIENTS,
+                CdswEnvVar.TEST_EXECUTION_MODE,
                 BranchComparatorEnvVar.REPO_TYPE,
                 BranchComparatorEnvVar.MASTER_BRANCH,
                 BranchComparatorEnvVar.FEATURE_BRANCH,

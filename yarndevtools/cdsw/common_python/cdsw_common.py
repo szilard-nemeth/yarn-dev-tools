@@ -188,7 +188,8 @@ class CdswRunnerBase(ABC):
                 )
             )
         script = results[0]
-        cmd = f"{BASHX} {script}"
+        exec_mode = OsUtils.get_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, "upstream")
+        cmd = f"{BASHX} {script} {exec_mode}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(
             cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
         )

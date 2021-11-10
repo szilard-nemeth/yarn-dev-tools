@@ -1,6 +1,8 @@
 #!/bin/bash
 set -x
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <python module mode> <execution mode>"
     echo "Example: $0 global cloudera --> Uses 'global' module mode with execution mode: 'cloudera'"
@@ -58,13 +60,8 @@ fi
 
 echo "Installing python requirements..."
 
-if [[ "$EXEC_MODE" == "cloudera" ]]; then
-  # TODO Duplicated commands: install-requirements.sh
-  curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
-else
-  curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements-github.txt
-fi
-pip3 install -r /tmp/requirements-cdsw.txt --force-reinstall
+
+. $DIR/install-requirements.sh $EXEC_MODE
 
 GLOBAL_SITE_PACKAGES=$(python3 -c 'import site; print(site.getsitepackages()[0])')
 USER_SITE_PACKAGES=$(python3 -m site --user-site)
