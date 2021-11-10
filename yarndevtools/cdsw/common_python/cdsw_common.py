@@ -14,7 +14,8 @@ from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
-from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR_CDSW
+from pythoncommons.os_utils import OsUtils
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME
@@ -77,7 +78,7 @@ class CdswSetup:
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         print("***TESTPRINT")
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
-        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR_CDSW)
+        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
         # TODO sanity_check_number_of_handlers should be set to True
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
@@ -211,9 +212,10 @@ class CdswRunnerBase(ABC):
         )
 
     def send_latest_command_data_in_email(
-        self, sender, subject, recipients=MAIL_ADDR_YARN_ENG_BP, attachment_filename=None, email_body_file: str = None
+        self, sender, subject, recipients=None, attachment_filename=None, email_body_file: str = None
     ):
-
+        if not recipients:
+            recipients = self.determine_recipients()
         attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
         email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
         self.execute_yarndevtools_script(
@@ -225,6 +227,12 @@ class CdswRunnerBase(ABC):
             f"--attachment-filename {attachment_filename_val} "
             f"{email_body_file_param}"
         )
+
+    def determine_recipients(self, default_recipients=MAIL_ADDR_YARN_ENG_BP):
+        recipients_env = OsUtils.get_env_value(CdswEnvVar.MAIL_RECIPIENTS.value)
+        if recipients_env:
+            return recipients_env
+        return default_recipients
 
 
 class CommonMailConfig:

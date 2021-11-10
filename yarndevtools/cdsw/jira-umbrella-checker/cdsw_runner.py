@@ -7,7 +7,6 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
-    MAIL_ADDR_YARN_ENG_BP,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import SUMMARY_FILE_TXT
@@ -43,7 +42,6 @@ class CdswRunner(CdswRunnerBase):
                 sender=sender,
                 subject=subject,
                 attachment_filename=attachment_fname,
-                recipients=MAIL_ADDR_YARN_ENG_BP,
                 email_body_file=SUMMARY_FILE_TXT,
             )
 

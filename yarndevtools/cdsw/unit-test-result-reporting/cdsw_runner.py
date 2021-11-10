@@ -6,7 +6,6 @@ from pythoncommons.os_utils import OsUtils
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
-    MAIL_ADDR_YARN_ENG_BP,
     CdswSetup,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JenkinsTestReporterEnvVar
@@ -29,10 +28,12 @@ class CdswRunner(CdswRunnerBase):
         self.run_test_reporter(job_name=cdpd_master_job)
         self.run_test_reporter(job_name=cdh_71_maint_job)
 
-    def run_test_reporter(self, job_name: str, recipients=MAIL_ADDR_YARN_ENG_BP, testcase_filter: str = TC_FILTER_ALL):
+    def run_test_reporter(self, job_name: str, recipients=None, testcase_filter: str = TC_FILTER_ALL):
         if not job_name:
             raise ValueError("Jenkins job name should be specified")
 
+        if not recipients:
+            recipients = self.determine_recipients()
         process_builds: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.BUILD_PROCESSING_LIMIT.value, 1)
         LOG.info(f"Processing {process_builds} builds...")
         sender = "YARN jenkins test reporter"
