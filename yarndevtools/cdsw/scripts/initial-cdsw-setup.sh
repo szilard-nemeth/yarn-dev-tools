@@ -57,8 +57,13 @@ if [[ "$EXEC_MODE" == "cloudera" ]]; then
 fi
 
 echo "Installing python requirements..."
-# TODO Duplicated commands: install-requirements.sh
-curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
+
+if [[ "$EXEC_MODE" == "cloudera" ]]; then
+  # TODO Duplicated commands: install-requirements.sh
+  curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
+else
+  curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements-github.txt
+fi
 pip3 install -r /tmp/requirements-cdsw.txt --force-reinstall
 
 GLOBAL_SITE_PACKAGES=$(python3 -c 'import site; print(site.getsitepackages()[0])')
