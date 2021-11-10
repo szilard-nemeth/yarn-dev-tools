@@ -30,8 +30,6 @@ PYTHON3 = "python3"
 GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
 USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
 
-CREATE_IMAGE = True
-MOUNT_CDSW_DIRS_FROM_LOCAL = True
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
@@ -81,7 +79,8 @@ class LocalDirs:
 
 
 class DockerMounts:
-    def __init__(self, docker_test_setup, exec_mode: TestExecMode, python_module_mode):
+    def __init__(self, class_of_test, docker_test_setup, exec_mode: TestExecMode, python_module_mode):
+        self.class_of_test = class_of_test
         self.docker_test_setup = docker_test_setup
         self.exec_mode: TestExecMode = exec_mode
         self.python_module_mode = python_module_mode
@@ -116,7 +115,7 @@ class DockerMounts:
         self.setup_env_vars()
 
         # TODO Perhaps, mount logic can be changed to simple docker copy but keep the condition
-        if MOUNT_CDSW_DIRS_FROM_LOCAL:
+        if self.class_of_test.MOUNT_CDSW_DIRS_FROM_LOCAL:
             # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
             # files are being created to /home/cdsw inside the container.
             # Mounting it with readonly mode also does not make sense as writing files would be prevented.
@@ -171,6 +170,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     exec_mode: TestExecMode = None
     docker_test_setup = None
     docker_mounts = None
+    CREATE_IMAGE = True
+    MOUNT_CDSW_DIRS_FROM_LOCAL = True
 
     @classmethod
     def setUpClass(cls):
@@ -190,12 +191,13 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
         if GitHubUtils.is_github_ci_execution():
             dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
+            cls.MOUNT_CDSW_DIRS_FROM_LOCAL = False
         else:
             dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
         cls.docker_test_setup = DockerTestSetup(
-            DOCKER_IMAGE, create_image=CREATE_IMAGE, dockerfile=dockerfile, logger=CMD_LOG
+            DOCKER_IMAGE, create_image=cls.CREATE_IMAGE, dockerfile=dockerfile, logger=CMD_LOG
         )
-        cls.docker_mounts = DockerMounts(cls.docker_test_setup, cls.exec_mode, cls.python_module_mode)
+        cls.docker_mounts = DockerMounts(cls, cls.docker_test_setup, cls.exec_mode, cls.python_module_mode)
         cls.docker_mounts.setup_default_docker_mounts()
 
     @classmethod
@@ -354,7 +356,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.exec_get_python_module_root(callback=_callback)
         # TODO Run this only at Docker image creation?
         self.exec_initial_cdsw_setup_script()
-        self.copy_yarndevtools_cdsw_recursively()
+        if self.MOUNT_CDSW_DIRS_FROM_LOCAL:
+            self.copy_yarndevtools_cdsw_recursively()
         # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
         # TODO fix double bookkeeping of env vars
         exit_code = self.exec_branch_diff_script(env=self.cdsw_runner_env_dict())
