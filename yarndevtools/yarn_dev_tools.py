@@ -29,7 +29,6 @@ from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmb
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
 from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar
 from yarndevtools.constants import (
-    PROJECT_NAME,
     ENV_HADOOP_DEV_DIR,
     ENV_CLOUDERA_HADOOP_ROOT,
     LOADED_ENV_DOWNSTREAM_DIR,
@@ -76,7 +75,7 @@ class YarnDevTools:
             strategy = ProjectRootDeterminationStrategy[env_value.upper()]
         LOG.info("Project root determination strategy is: %s", strategy)
         ProjectUtils.project_root_determine_strategy = strategy
-        self.project_out_root = ProjectUtils.get_output_basedir(PROJECT_NAME)
+        self.project_out_root = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
 
     @property
@@ -231,7 +230,7 @@ if __name__ == "__main__":
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args(yarn_dev_tools)
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-        project_name=PROJECT_NAME,
+        project_name=YARNDEVTOOLS_MODULE_NAME,
         logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,

@@ -16,7 +16,6 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.constants import (
     HADOOP_REPO_APACHE,
     TRUNK,
-    PROJECT_NAME,
     JIRA_UMBRELLA_DATA,
     ORIGIN_TRUNK,
     YARNDEVTOOLS_MODULE_NAME,
@@ -78,7 +77,7 @@ class TestUtilities:
         if repo_postfix:
             self.repo_postfix = repo_postfix
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
-        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
+        ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         try:
             self.setup_repo()
             if init_logging:

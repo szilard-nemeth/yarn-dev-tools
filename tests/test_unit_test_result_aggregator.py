@@ -11,7 +11,7 @@ from tests.test_utilities import TestUtilities
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.unittestresultaggregator.common import TestCaseFilter, MatchExpression, AggregateFilter
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestCaseFilters
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, PROJECT_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CDP_7X = "CDPD-7.x"
 CDP_71X = "CDPD-7.1.x"
@@ -31,7 +31,7 @@ class TestTestCaseFilters(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
-        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
+        ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         SimpleLoggingSetup.init_logger(
             project_name=CommandType.UNIT_TEST_RESULT_AGGREGATOR.real_name,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,

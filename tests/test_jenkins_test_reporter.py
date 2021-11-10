@@ -17,7 +17,7 @@ from pythoncommons.project_utils import ProjectUtils
 from tests.test_utilities import Object, TestUtilities
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
-from yarndevtools.constants import JENKINS_TEST_REPORTER, PROJECT_NAME
+from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
 P1 = "org.somepackage1"
 P2 = "org.somepackage2"
@@ -230,7 +230,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Invoke this to setup main output directory and avoid test failures while initing config
-        cls.project_out_root = ProjectUtils.get_test_output_basedir(PROJECT_NAME)
+        cls.project_out_root = ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         ProjectUtils.get_test_output_child_dir(JENKINS_TEST_REPORTER)
 
     @classmethod

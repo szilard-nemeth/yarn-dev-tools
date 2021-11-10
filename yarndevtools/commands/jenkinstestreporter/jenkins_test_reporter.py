@@ -21,7 +21,7 @@ from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 from urllib.error import HTTPError
 
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, PROJECT_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 LOG = logging.getLogger(__name__)
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
