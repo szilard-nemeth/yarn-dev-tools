@@ -235,7 +235,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass()
+        TestUtilities.tearDownClass(cls.__name__)
 
     def setUp(self):
         if not USE_REAL_API:

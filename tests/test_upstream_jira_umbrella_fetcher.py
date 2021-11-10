@@ -53,7 +53,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass()
+        TestUtilities.tearDownClass(cls.__name__)
 
     def cleanup_and_checkout_branch(self, test_branch):
         self.utils.cleanup_and_checkout_test_branch(pull=False)

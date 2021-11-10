@@ -35,7 +35,7 @@ class TestReviewBranchCreator(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass()
+        TestUtilities.tearDownClass(cls.__name__)
 
     def setUp(self):
         self.utils.reset_and_checkout_existing_branch(BASE_BRANCH, pull=False)

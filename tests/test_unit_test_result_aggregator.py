@@ -47,7 +47,7 @@ class TestTestCaseFilters(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass()
+        TestUtilities.tearDownClass(cls.__name__)
 
     def setUp(self):
         self.test_instance = self

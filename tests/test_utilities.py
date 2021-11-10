@@ -98,14 +98,31 @@ class TestUtilities:
             self.reset_and_checkout_trunk()
 
     @staticmethod
-    def tearDownClass():
+    def tearDownClass(test_name):
+        # TODO Add snemeth-dev-projects
         if GitHubUtils.is_github_ci_execution():
-            target_dir_path: str = FileUtils.join_path(GitHubUtils.get_workspace_path(), "created_logs")
-            target_zip_file_path: str = FileUtils.join_path(GitHubUtils.get_workspace_path(), "all_logs.zip")
-            FileUtils.ensure_dir_created(target_dir_path)
-            all_log_files: List[str] = SimpleLoggingSetup.get_all_log_files()
-            FileUtils.copy_files_to_dir(all_log_files, target_dir_path, cut_basedir=True)
-            ZipFileUtils.create_zip_file([target_dir_path], target_zip_file_path, compress=True)
+            github_ws_path = GitHubUtils.get_workspace_path()
+            created_logs_target_dir_path: str = FileUtils.join_path(github_ws_path, f"created_logs_{test_name}")
+            FileUtils.ensure_dir_created(created_logs_target_dir_path)
+            FileUtils.copy_files_to_dir(
+                SimpleLoggingSetup.get_all_log_files(), created_logs_target_dir_path, cut_basedir=True
+            )
+            ZipFileUtils.create_zip_file(
+                src_files=[created_logs_target_dir_path],
+                filename=FileUtils.join_path(github_ws_path, f"all_logs_{test_name}.zip"),
+                compress=True,
+            )
+
+            project_basedirs_target_dir_path: str = FileUtils.join_path(github_ws_path, f"project_basedirs_{test_name}")
+            FileUtils.ensure_dir_created(project_basedirs_target_dir_path)
+            FileUtils.copy_files_to_dir(
+                ProjectUtils.get_all_project_basedirs(), project_basedirs_target_dir_path, cut_basedir=True
+            )
+            ZipFileUtils.create_zip_file(
+                src_files=[project_basedirs_target_dir_path],
+                filename=FileUtils.join_path(github_ws_path, f"all_project_dirs_{test_name}.zip"),
+                compress=True,
+            )
 
     def setup_repo(self, log=True):
         # This call will raise InvalidGitRepositoryError in case git repo is not cloned yet to this path

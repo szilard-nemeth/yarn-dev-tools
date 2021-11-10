@@ -33,7 +33,7 @@ class TestFormatPatchSaver(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass()
+        TestUtilities.tearDownClass(cls.__name__)
 
     def setUp(self):
         self.current_datetime = DateUtils.get_current_datetime()

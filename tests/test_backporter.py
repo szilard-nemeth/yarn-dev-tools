@@ -55,7 +55,7 @@ class TestBackporter(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass()
+        TestUtilities.tearDownClass(cls.__name__)
 
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)
