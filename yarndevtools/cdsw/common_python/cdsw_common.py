@@ -78,8 +78,8 @@ class CdswSetup:
         # TODO Figure out why these are not printed from the stdout of the python3 process started by test_branchdiff_reporter.py
         logging.basicConfig()
         print("***TESTPRINT")
-        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
+        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
