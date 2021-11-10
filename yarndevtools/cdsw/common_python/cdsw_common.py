@@ -14,7 +14,7 @@ from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
-from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR_CDSW
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME
@@ -77,7 +77,7 @@ class CdswSetup:
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         print("***TESTPRINT")
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
-        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR_CDSW)
         # TODO sanity_check_number_of_handlers should be set to True
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
