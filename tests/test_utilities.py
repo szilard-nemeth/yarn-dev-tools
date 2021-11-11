@@ -115,8 +115,8 @@ class TestUtilities:
                 if github_ci_exec
                 else ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
             )
-            output_export_basedir = FileUtils.join_path(
-                FileUtils.ensure_dir_created(output_export_basedir, YARNDEVTOOLS_MODULE_NAME + "_export")
+            output_export_basedir = FileUtils.ensure_dir_created(
+                FileUtils.join_path(output_export_basedir, YARNDEVTOOLS_MODULE_NAME + "_export")
             )
             LOG.info("Export artifacts output basedir is: %s", output_export_basedir)
 
