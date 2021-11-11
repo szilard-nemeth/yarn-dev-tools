@@ -117,21 +117,16 @@ class TestUtilities:
             output_export_basedir = output_export_basedir.replace(
                 YARNDEVTOOLS_MODULE_NAME, YARNDEVTOOLS_MODULE_NAME + "_export"
             )
-            created_logs_target_dir_path: str = FileUtils.join_path(output_export_basedir, f"created_logs_{test_name}")
-            FileUtils.ensure_dir_created(created_logs_target_dir_path)
-            FileUtils.copy_files_to_dir(
-                SimpleLoggingSetup.get_all_log_files(), created_logs_target_dir_path, cut_basedir=True
+            LOG.info("Export artifacts output basedir is: %s", output_export_basedir)
+            logs_dir: str = FileUtils.ensure_dir_created(
+                FileUtils.join_path(output_export_basedir, f"created_logs_{test_name}")
             )
+            FileUtils.copy_files_to_dir(SimpleLoggingSetup.get_all_log_files(), logs_dir, cut_basedir=True)
             ZipFileUtils.create_zip_file(
-                src_files=[created_logs_target_dir_path],
+                src_files=[logs_dir],
                 filename=FileUtils.join_path(output_export_basedir, f"logs_{test_name}.zip"),
                 compress=True,
             )
-
-            project_basedirs_target_dir_path: str = FileUtils.join_path(
-                output_export_basedir, f"project_basedirs_{test_name}"
-            )
-            FileUtils.ensure_dir_created(project_basedirs_target_dir_path)
 
             for project_name, project_basedir in ProjectUtils.get_project_basedirs_dict().items():
                 ZipFileUtils.create_zip_file(
