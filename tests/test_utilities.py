@@ -139,6 +139,7 @@ class TestUtilities:
                     filename=FileUtils.join_path(
                         output_export_basedir, f"project_basedir_{project_name}_{test_name}.zip"
                     ),
+                    ignore_files=["sandbox_repo"],
                     compress=True,
                 )
 
