@@ -53,3 +53,11 @@ jobs:
           if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
         # Use always() to always run this step to publish test results when there are test failures
         if: ${{ always() }}
+
+      - name: Upload all created log files and project basedirs
+        uses: actions/upload-artifact@v2
+        with:
+          name: All logs
+          path: ${{ github.workspace }}/yarndevtools_export
+          if-no-files-found: error
+        if: ${{ always() }}
