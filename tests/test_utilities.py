@@ -105,38 +105,50 @@ class TestUtilities:
 
     @staticmethod
     def collect_and_zip_test_artifacts(test_name):
-        if (
-            OsUtils.get_env_value(YarnDevToolsTestEnvVar.FORCE_COLLECTING_ARTIFACTS.value)
-            or GitHubUtils.is_github_ci_execution()
-        ):
+        github_ci_exec: bool = GitHubUtils.is_github_ci_execution()
+        github_workspace_path = None
+        if github_ci_exec:
+            github_workspace_path = GitHubUtils.get_workspace_path()
+        if OsUtils.get_env_value(YarnDevToolsTestEnvVar.FORCE_COLLECTING_ARTIFACTS.value) or github_ci_exec:
             output_export_basedir = (
-                GitHubUtils.get_workspace_path()
-                if GitHubUtils.is_github_ci_execution()
+                github_workspace_path
+                if github_ci_exec
                 else ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
             )
-            output_export_basedir = output_export_basedir.replace(
-                YARNDEVTOOLS_MODULE_NAME, YARNDEVTOOLS_MODULE_NAME + "_export"
-            )
+            output_export_basedir = FileUtils.join_path(output_export_basedir, YARNDEVTOOLS_MODULE_NAME + "_export")
             LOG.info("Export artifacts output basedir is: %s", output_export_basedir)
-            logs_dir: str = FileUtils.ensure_dir_created(
-                FileUtils.join_path(output_export_basedir, f"created_logs_{test_name}")
-            )
-            FileUtils.copy_files_to_dir(SimpleLoggingSetup.get_all_log_files(), logs_dir, cut_basedir=True)
+
+            # Keep track of zip files
+            all_zip_files = []
+            # Export logs to a zip per testcase
+            logs_zipfile_path = FileUtils.join_path(output_export_basedir, f"test_logs_{test_name}.zip")
+            all_zip_files.append(logs_zipfile_path)
             ZipFileUtils.create_zip_file(
-                src_files=[logs_dir],
-                filename=FileUtils.join_path(output_export_basedir, f"logs_{test_name}.zip"),
+                src_files=SimpleLoggingSetup.get_all_log_files(),
+                filename=logs_zipfile_path,
                 compress=True,
             )
 
             for project_name, project_basedir in ProjectUtils.get_project_basedirs_dict().items():
+                # Export project basedirs individual zip files per testcase
+                project_basedir_zipfile_path = FileUtils.join_path(
+                    output_export_basedir, f"test_project_basedir_{project_name}_{test_name}.zip"
+                )
+                all_zip_files.append(project_basedir_zipfile_path)
                 ZipFileUtils.create_zip_file(
                     src_files=[project_basedir],
-                    filename=FileUtils.join_path(
-                        output_export_basedir, f"project_basedir_{project_name}_{test_name}.zip"
-                    ),
-                    ignore_files=["sandbox_repo"],
+                    filename=project_basedir_zipfile_path,
+                    ignore_files=[SANDBOX_REPO, "yarndevtools_export"],
                     compress=True,
                 )
+
+            # Finally, zip all created zip files into a single zip
+            project_basedir_zipfile_path = FileUtils.join_path(output_export_basedir, f"test_artifacts_{test_name}.zip")
+            ZipFileUtils.create_zip_file(
+                src_files=all_zip_files,
+                filename=project_basedir_zipfile_path,
+                compress=True,
+            )
 
     def setup_repo(self, log=True):
         # This call will raise InvalidGitRepositoryError in case git repo is not cloned yet to this path
