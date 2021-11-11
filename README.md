@@ -112,7 +112,7 @@ alias git-push-to-cdh71maint="git push <REMOTE> HEAD:refs/for/CDH-7.1-maint%<REV
 where REVIEWER_LIST is in this format: "r=user1,r=user2,r=user3,..."
 
 ## CDSW Initial setup
-1. Upload the initial setup scripts to the CDSW files:
+1. Upload the initial setup scripts to the CDSW files, to the root directory (/home/cdsw)
 - [initial-cdsw-setup.sh](yarndevtools/cdsw/scripts/initial-cdsw-setup.sh)
 - [install-requirements.sh](yarndevtools/cdsw/scripts/install-requirements.sh)
 
