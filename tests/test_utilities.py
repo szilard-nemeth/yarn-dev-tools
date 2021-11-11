@@ -8,11 +8,13 @@ from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.patch_utils import PatchUtils
-from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
 from pythoncommons.zip_utils import ZipFileUtils
 
 from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import YarnDevToolsTestEnvVar
 from yarndevtools.constants import (
     HADOOP_REPO_APACHE,
     TRUNK,
@@ -99,30 +101,42 @@ class TestUtilities:
 
     @staticmethod
     def tearDownClass(test_name):
-        # TODO Add snemeth-dev-projects
-        if GitHubUtils.is_github_ci_execution():
-            github_ws_path = GitHubUtils.get_workspace_path()
-            created_logs_target_dir_path: str = FileUtils.join_path(github_ws_path, f"created_logs_{test_name}")
+        if (
+            OsUtils.get_env_value(YarnDevToolsTestEnvVar.FORCE_COLLECTING_ARTIFACTS.value)
+            or GitHubUtils.is_github_ci_execution()
+        ):
+            output_export_basedir = (
+                GitHubUtils.get_workspace_path()
+                if GitHubUtils.is_github_ci_execution()
+                else ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
+            )
+            output_export_basedir = output_export_basedir.replace(
+                YARNDEVTOOLS_MODULE_NAME, YARNDEVTOOLS_MODULE_NAME + "_export"
+            )
+            created_logs_target_dir_path: str = FileUtils.join_path(output_export_basedir, f"created_logs_{test_name}")
             FileUtils.ensure_dir_created(created_logs_target_dir_path)
             FileUtils.copy_files_to_dir(
                 SimpleLoggingSetup.get_all_log_files(), created_logs_target_dir_path, cut_basedir=True
             )
             ZipFileUtils.create_zip_file(
                 src_files=[created_logs_target_dir_path],
-                filename=FileUtils.join_path(github_ws_path, f"all_logs_{test_name}.zip"),
+                filename=FileUtils.join_path(output_export_basedir, f"logs_{test_name}.zip"),
                 compress=True,
             )
 
-            project_basedirs_target_dir_path: str = FileUtils.join_path(github_ws_path, f"project_basedirs_{test_name}")
+            project_basedirs_target_dir_path: str = FileUtils.join_path(
+                output_export_basedir, f"project_basedirs_{test_name}"
+            )
             FileUtils.ensure_dir_created(project_basedirs_target_dir_path)
-            FileUtils.copy_files_to_dir(
-                ProjectUtils.get_all_project_basedirs(), project_basedirs_target_dir_path, cut_basedir=True
-            )
-            ZipFileUtils.create_zip_file(
-                src_files=[project_basedirs_target_dir_path],
-                filename=FileUtils.join_path(github_ws_path, f"all_project_dirs_{test_name}.zip"),
-                compress=True,
-            )
+
+            for project_name, project_basedir in ProjectUtils.get_project_basedirs_dict().items():
+                ZipFileUtils.create_zip_file(
+                    src_files=[project_basedir],
+                    filename=FileUtils.join_path(
+                        output_export_basedir, f"project_basedir_{project_name}_{test_name}.zip"
+                    ),
+                    compress=True,
+                )
 
     def setup_repo(self, log=True):
         # This call will raise InvalidGitRepositoryError in case git repo is not cloned yet to this path
