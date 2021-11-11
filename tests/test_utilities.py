@@ -101,6 +101,10 @@ class TestUtilities:
 
     @staticmethod
     def tearDownClass(test_name):
+        TestUtilities.collect_and_zip_test_artifacts(test_name)
+
+    @staticmethod
+    def collect_and_zip_test_artifacts(test_name):
         if (
             OsUtils.get_env_value(YarnDevToolsTestEnvVar.FORCE_COLLECTING_ARTIFACTS.value)
             or GitHubUtils.is_github_ci_execution()
