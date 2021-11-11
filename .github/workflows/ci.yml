@@ -12,6 +12,9 @@ jobs:
         python-version: [3.7, 3.8]
     runs-on: ubuntu-latest
     steps:
+      - name: Get current date
+        id: date
+        run: echo "::set-output name=date::$(date +%Y%m%d_%H%M%S)"
       - name: Checkout
         uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -57,7 +60,7 @@ jobs:
       - name: Upload all created log files and project basedirs
         uses: actions/upload-artifact@v2
         with:
-          name: All logs
+          name: all_logs_and_project_data__date-${{ steps.date.outputs.date }}_run-${{ github.run_number }}_attempt-${{ github.run_attempt }}
           path: ${{ github.workspace }}/yarndevtools_export
           if-no-files-found: error
         if: ${{ always() }}
