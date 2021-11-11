@@ -63,16 +63,16 @@ class CdswSetup:
         pypath = CdswEnvVar.PYTHONPATH.value
         if pypath in os.environ:
             LOG.debug(f"Old {pypath}: {CdswSetup._get_pythonpath()}")
-            os.environ[pypath] = f"{CdswSetup._get_pythonpath()}:{additional_dir}"
+            OsUtils.set_env_value(pypath, f"{CdswSetup._get_pythonpath()}:{additional_dir}")
             LOG.debug(f"New {pypath}: {CdswSetup._get_pythonpath()}")
         else:
             LOG.debug(f"Old {pypath}: not set")
-            os.environ[pypath] = additional_dir
+            OsUtils.set_env_value(pypath, additional_dir)
             LOG.debug(f"New {pypath}: {CdswSetup._get_pythonpath}")
 
     @staticmethod
     def _get_pythonpath():
-        return os.environ[CdswEnvVar.PYTHONPATH.value]
+        return OsUtils.get_env_value(CdswEnvVar.PYTHONPATH.value)
 
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
@@ -106,7 +106,7 @@ class CdswSetup:
 
         CdswSetup.prepare_env_vars(env_var_dict=env_var_dict, mandatory_env_vars=mandatory_env_vars)
         if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
-            basedir = os.environ[ENV_OVERRIDE_SCRIPT_BASEDIR]
+            basedir = OsUtils.get_env_value(ENV_OVERRIDE_SCRIPT_BASEDIR)
         else:
             basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
 
@@ -136,8 +136,7 @@ class CdswSetup:
     @staticmethod
     def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         for k, v in env_var_dict.items():
-            LOG.info(f"Setting env var. {k}={v}")
-            os.environ[k] = v
+            OsUtils.set_env_value(k, v)
 
         for env_var in mandatory_env_vars:
             if env_var not in os.environ:
@@ -236,8 +235,8 @@ class CommonMailConfig:
     def __init__(self):
         self.smtp_server = "smtp.gmail.com"
         self.smtp_port = 465
-        self.account_user = os.environ[CdswEnvVar.MAIL_ACC_USER.value]
-        self.account_password = os.environ[CdswEnvVar.MAIL_ACC_PASSWORD.value]
+        self.account_user = OsUtils.get_env_value(CdswEnvVar.MAIL_ACC_USER.value)
+        self.account_password = OsUtils.get_env_value(CdswEnvVar.MAIL_ACC_PASSWORD.value)
 
     def as_arguments(self):
         return (

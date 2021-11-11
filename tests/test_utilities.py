@@ -21,6 +21,8 @@ from yarndevtools.constants import (
     JIRA_UMBRELLA_DATA,
     ORIGIN_TRUNK,
     YARNDEVTOOLS_MODULE_NAME,
+    ENV_HADOOP_DEV_DIR,
+    ENV_CLOUDERA_HADOOP_ROOT,
 )
 from pythoncommons.git_constants import HEAD, ORIGIN
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
@@ -73,8 +75,8 @@ class TestUtilities:
         return ProjectUtils.get_test_output_child_dir(JIRA_UMBRELLA_DATA)
 
     def set_env_vars(self, upstream_repo, downstream_repo):
-        os.environ["HADOOP_DEV_DIR"] = upstream_repo
-        os.environ["CLOUDERA_HADOOP_ROOT"] = downstream_repo
+        OsUtils.set_env_value(ENV_HADOOP_DEV_DIR, upstream_repo)
+        OsUtils.set_env_value(ENV_CLOUDERA_HADOOP_ROOT, downstream_repo)
 
     def setUpClass(self, command_type: CommandType, repo_postfix=None, init_logging=True, console_debug=False):
         if repo_postfix:

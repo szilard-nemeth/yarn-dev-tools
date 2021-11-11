@@ -70,7 +70,7 @@ class YarnDevTools:
         elif execution_mode == ExecutionMode.TEST:
             strategy = ProjectRootDeterminationStrategy.COMMON_FILE
         if YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value in os.environ:
-            env_value = os.environ[YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value]
+            env_value = OsUtils.get_env_value(YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value)
             LOG.info("Found specified project root determination strategy from env var: %s", env_value)
             strategy = ProjectRootDeterminationStrategy[env_value.upper()]
         LOG.info("Project root determination strategy is: %s", strategy)

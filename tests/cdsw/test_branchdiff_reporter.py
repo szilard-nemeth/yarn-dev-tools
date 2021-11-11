@@ -86,31 +86,32 @@ class DockerMounts:
         self.python_module_mode = python_module_mode
 
     def setup_env_vars(self):
-        os.environ[ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value] = FileUtils.join_path("home", "cdsw")
-        os.environ[CdswEnvVar.MAIL_RECIPIENTS.value] = "nsziszy@gmail.com"
-        os.environ[CdswEnvVar.TEST_EXECUTION_MODE.value] = self.class_of_test.exec_mode.value
+        OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
+        OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
+        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, self.class_of_test.exec_mode.value)
 
         # !! WARNING: User-specific settings below !!
         if self.exec_mode == TestExecMode.CLOUDERA:
             # We need both upstream / downstream repos for Cloudera-mode
-            os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value] = FileUtils.join_path(
-                CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"
+            OsUtils.set_env_value(
+                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
+                FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"),
             )
-            os.environ[CdswEnvVar.HADOOP_DEV_DIR.value] = FileUtils.join_path(
-                CommonDirs.USER_DEV_ROOT, "apache", "hadoop"
+            OsUtils.set_env_value(
+                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
             )
         elif self.exec_mode == TestExecMode.UPSTREAM:
-            os.environ[CdswEnvVar.HADOOP_DEV_DIR.value] = FileUtils.join_path(
-                CommonDirs.USER_DEV_ROOT, "apache", "hadoop"
+            OsUtils.set_env_value(
+                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
             )
-            os.environ[BranchComparatorEnvVar.REPO_TYPE.value] = RepoType.UPSTREAM.value
-            os.environ[BranchComparatorEnvVar.FEATURE_BRANCH.value] = ORIGIN_BRANCH_3_3
-            os.environ[BranchComparatorEnvVar.MASTER_BRANCH.value] = ORIGIN_TRUNK
+            OsUtils.set_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.UPSTREAM.value)
+            OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
+            OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
 
         if self.python_module_mode == PythonModuleMode.GLOBAL:
-            os.environ[CdswEnvVar.PYTHON_MODULE_MODE.value] = PythonModuleMode.GLOBAL.value
+            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
         elif self.python_module_mode == PythonModuleMode.USER:
-            os.environ[CdswEnvVar.PYTHON_MODULE_MODE.value] = PythonModuleMode.USER.value
+            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
 
     def setup_default_docker_mounts(self):
         self.setup_env_vars()
@@ -155,13 +156,17 @@ class DockerMounts:
     def _mount_downstream_hadoop_repo(self):
         # Mount local Cloudera Hadoop dir so that container won't clone the repo again and again
         self.docker_test_setup.mount_dir(
-            os.environ[CdswEnvVar.CLOUDERA_HADOOP_ROOT.value], ContainerDirs.HADOOP_CLOUDERA_BASEDIR, mode=MOUNT_MODE_RW
+            OsUtils.get_env_value(CdswEnvVar.CLOUDERA_HADOOP_ROOT.value),
+            ContainerDirs.HADOOP_CLOUDERA_BASEDIR,
+            mode=MOUNT_MODE_RW,
         )
 
     def _mount_upstream_hadoop_repo(self):
         # Mount local upstream Hadoop dir so that container won't clone the repo again and again
         self.docker_test_setup.mount_dir(
-            os.environ[CdswEnvVar.HADOOP_DEV_DIR.value], ContainerDirs.HADOOP_UPSTREAM_BASEDIR, mode=MOUNT_MODE_RW
+            OsUtils.get_env_value(CdswEnvVar.HADOOP_DEV_DIR.value),
+            ContainerDirs.HADOOP_UPSTREAM_BASEDIR,
+            mode=MOUNT_MODE_RW,
         )
 
 
@@ -340,7 +345,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @staticmethod
     def create_python_path_env_var(new_dir, fresh=True):
         if not fresh:
-            curr_pythonpath = os.environ[CdswEnvVar.PYTHONPATH.value]
+            curr_pythonpath = OsUtils.get_env_value(CdswEnvVar.PYTHONPATH.value)
             new_pythonpath = f"{curr_pythonpath}:{new_dir}"
         else:
             new_pythonpath = new_dir
