@@ -48,11 +48,6 @@ class TestBackporter(unittest.TestCase):
         # Setup debug logging of git commands
         cls.downstream_repo_wrapper.enable_debug_logging(full=True)
 
-        # TODO Figure out why logging level is set to WARNING while running by Github Actions CI
-        # LoggingUtils.ensure_loggers_are_on_level(
-        #     ["pythoncommons.git_wrapper"], logging.DEBUG, project_name_prefix=YARNDEVTOOLS_MODULE_NAME
-        # )
-
     @classmethod
     def tearDownClass(cls) -> None:
         TestUtilities.tearDownClass(cls.__name__)
