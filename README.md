@@ -112,26 +112,34 @@ alias git-push-to-cdh71maint="git push <REMOTE> HEAD:refs/for/CDH-7.1-maint%<REV
 where REVIEWER_LIST is in this format: "r=user1,r=user2,r=user3,..."
 
 ## CDSW Initial setup
-1. Create a new CDSW session
+1. Upload the initial setup scripts to the CDSW files:
+- [initial-cdsw-setup.sh](yarndevtools/cdsw/scripts/initial-cdsw-setup.sh)
+- [install-requirements.sh](yarndevtools/cdsw/scripts/install-requirements.sh)
+
+2. Create a new CDSW session.
 Wait for the session to be launched and open up a terminal by Clicking "Terminal access" on the top menu bar.
 
-2. Upload the initial setup script to CDSW files.
+
+3. Execute this command:
+```
+~/initial-cdsw-setup.sh user cloudera
+```
 
 
 The script performs the following actions: 
-1. Downloads the scripts that are downloading the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module.
+1. Downloads the scripts that are cloning the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module.
 The download location is: `/home/cdsw/scripts`
-Please note that the files will be downloaded from the internal Cloudera mirror of this repo!!
+Please note that the files will be downloaded from the internal Cloudera mirror of this repository!
 - [clone_downstream_repos.sh](yarndevtools/cdsw/scripts/clone_downstream_repos.sh)
 - [clone_upstream_repos.sh](yarndevtools/cdsw/scripts/clone_upstream_repos.sh)
 
-3. Executes the scripts that are downloading the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module. 
+3. Executes the script described in step 2. 
 This can take some time, especially cloning Hadoop.
 Note: The individual CDSW jobs should make sure for themselves to clone the repositories.
 
 4. Copies the cdsw_runner.py scripts for all jobs to `/home/cdsw/jobs`
 
-5. All you have to do is to set up the projects and their starter scripts like this:
+5. All you have to do in CDSW is to set up the projects and their starter scripts like this:
 
 Project | Starter script location |
 --- | --- | 
