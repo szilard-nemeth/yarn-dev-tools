@@ -26,6 +26,7 @@ from pythoncommons.git_constants import HEAD, ORIGIN
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
 
 SANDBOX_REPO = "sandbox_repo"
+SANDBOX_REPO_DOWNSTREAM_HOTFIX = "_downstream"
 DUMMY_PATCHES = "dummy-patches"
 SAVED_PATCHES = "saved-patches"
 
@@ -140,7 +141,7 @@ class TestUtilities:
                 ZipFileUtils.create_zip_file(
                     src_files=[project_basedir],
                     filename=project_basedir_zipfile_path,
-                    ignore_files=[SANDBOX_REPO, "yarndevtools_export"],
+                    ignore_files=[SANDBOX_REPO, SANDBOX_REPO + SANDBOX_REPO_DOWNSTREAM_HOTFIX, "yarndevtools_export"],
                     compress=True,
                 )
 

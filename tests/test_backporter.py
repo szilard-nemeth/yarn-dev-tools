@@ -2,9 +2,7 @@ import logging
 import sys
 import unittest
 
-from pythoncommons.logging_utils import LoggingUtils
-
-from tests.test_utilities import TestUtilities, Object
+from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_HOTFIX
 from yarndevtools.argparser import CommandType
 from yarndevtools.commands.backporter import Backporter
 from pythoncommons.git_constants import ORIGIN
@@ -38,7 +36,9 @@ class TestBackporter(unittest.TestCase):
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
 
         cls.downstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.downstream_utils.setUpClass(CommandType.BACKPORT_C6, repo_postfix="_downstream", init_logging=False)
+        cls.downstream_utils.setUpClass(
+            CommandType.BACKPORT_C6, repo_postfix=SANDBOX_REPO_DOWNSTREAM_HOTFIX, init_logging=False
+        )
         cls.downstream_utils.pull_to_trunk(ff_only=True)
         cls.downstream_repo = cls.downstream_utils.repo
         cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
