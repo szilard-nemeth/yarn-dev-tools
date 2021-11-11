@@ -118,12 +118,8 @@ class CdswSetup:
     def _setup_python_module_root_and_yarndevtools_path():
         # For CDSW, user python module mode is preferred.
         # For tests, it depends on how the initial-cdsw-setup.sh script was executed in the container.
-        module_mode_key = CdswEnvVar.PYTHON_MODULE_MODE.value
-        LOG.debug("Value of env key '%s': %s", module_mode_key, os.environ[module_mode_key])
-        if module_mode_key in os.environ:
-            python_module_mode = PythonModuleMode[os.environ[module_mode_key].upper()]
-        else:
-            python_module_mode = PythonModuleMode.USER
+        env_value = OsUtils.get_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
+        python_module_mode = PythonModuleMode[env_value.upper()]
 
         LOG.info("Using Python module mode: %s", python_module_mode.value)
         if python_module_mode == PythonModuleMode.GLOBAL:

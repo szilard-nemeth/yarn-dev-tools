@@ -4,6 +4,7 @@ BRANCH_DIFF_REPORTER_DIR_NAME = "downstream-branchdiff-reporting"
 PROJECT_NAME = "cdsw"
 
 
+# TODO Add default value of all env vars to enum
 class CdswEnvVar(Enum):
     MAIL_ACC_PASSWORD = "MAIL_ACC_PASSWORD"
     MAIL_ACC_USER = "MAIL_ACC_USER"
