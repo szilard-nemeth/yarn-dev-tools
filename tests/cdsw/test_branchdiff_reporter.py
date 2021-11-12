@@ -85,37 +85,7 @@ class DockerMounts:
         self.exec_mode: TestExecMode = exec_mode
         self.python_module_mode = python_module_mode
 
-    def setup_env_vars(self):
-        OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
-        OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
-        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, self.class_of_test.exec_mode.value)
-
-        # !! WARNING: User-specific settings below !!
-        if self.exec_mode == TestExecMode.CLOUDERA:
-            # We need both upstream / downstream repos for Cloudera-mode
-            OsUtils.set_env_value(
-                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
-                FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"),
-            )
-            OsUtils.set_env_value(
-                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
-            )
-        elif self.exec_mode == TestExecMode.UPSTREAM:
-            OsUtils.set_env_value(
-                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
-            )
-            OsUtils.set_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.UPSTREAM.value)
-            OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
-            OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
-
-        if self.python_module_mode == PythonModuleMode.GLOBAL:
-            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
-        elif self.python_module_mode == PythonModuleMode.USER:
-            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
-
     def setup_default_docker_mounts(self):
-        self.setup_env_vars()
-
         # TODO Perhaps, mount logic can be changed to simple docker copy but keep the condition
         if self.class_of_test.MOUNT_CDSW_DIRS_FROM_LOCAL:
             # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
@@ -203,12 +173,52 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         cls.docker_test_setup = DockerTestSetup(
             DOCKER_IMAGE, create_image=cls.CREATE_IMAGE, dockerfile=dockerfile, logger=CMD_LOG
         )
+        cls.env_dict: Dict[str, str] = cls.setup_env_vars()
         cls.docker_mounts = DockerMounts(cls, cls.docker_test_setup, cls.exec_mode, cls.python_module_mode)
         cls.docker_mounts.setup_default_docker_mounts()
 
     @classmethod
     def tearDownClass(cls) -> None:
         pass
+
+    @classmethod
+    def setup_env_vars(cls) -> Dict[str, str]:
+        OsUtils.track_env_updates()
+        OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
+        OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
+        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, cls.exec_mode.value)
+
+        # !! WARNING: User-specific settings below !!
+        if cls.exec_mode == TestExecMode.CLOUDERA:
+            # We need both upstream / downstream repos for Cloudera-mode
+            OsUtils.set_env_value(
+                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
+                FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"),
+            )
+            OsUtils.set_env_value(
+                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
+            )
+        elif cls.exec_mode == TestExecMode.UPSTREAM:
+            OsUtils.set_env_value(
+                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
+            )
+            OsUtils.set_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.UPSTREAM.value)
+            OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
+            OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
+
+        if cls.python_module_mode == PythonModuleMode.GLOBAL:
+            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
+        elif cls.python_module_mode == PythonModuleMode.USER:
+            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
+
+        tracked_env_updates: Dict[str, str] = OsUtils.get_tracked_updates()
+        env_keys = set(tracked_env_updates.keys())
+        OsUtils.stop_tracking_updates(clear_updates_dict=True)
+        env_keys.update(
+            (CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value, EnvVar.IGNORE_SMTP_AUTH_ERROR.value)
+        )
+        env_dict = {env_name: OsUtils.get_env_value(env_name) for env_name in env_keys}
+        return env_dict
 
     @classmethod
     def setup_local_dirs(cls):
@@ -323,25 +333,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         )
         SubprocessCommandRunner.run_and_follow_stdout_stderr(command)
 
-    @classmethod
-    def cdsw_runner_env_dict(cls):
-        env_dict = {
-            e.value: OsUtils.get_env_value(e.value, None)
-            for e in [
-                CdswEnvVar.MAIL_ACC_USER,
-                CdswEnvVar.MAIL_ACC_PASSWORD,
-                CdswEnvVar.PYTHON_MODULE_MODE,
-                CdswEnvVar.MAIL_RECIPIENTS,
-                CdswEnvVar.TEST_EXECUTION_MODE,
-                BranchComparatorEnvVar.REPO_TYPE,
-                BranchComparatorEnvVar.MASTER_BRANCH,
-                BranchComparatorEnvVar.FEATURE_BRANCH,
-                EnvVar.IGNORE_SMTP_AUTH_ERROR,
-                ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR,
-            ]
-        }
-        return env_dict
-
     @staticmethod
     def create_python_path_env_var(new_dir, fresh=True):
         if not fresh:
@@ -363,8 +354,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         if self.MOUNT_CDSW_DIRS_FROM_LOCAL:
             self.copy_yarndevtools_cdsw_recursively()
         # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
-        # TODO fix double bookkeeping of env vars
-        exit_code = self.exec_branch_diff_script(env=self.cdsw_runner_env_dict())
+        exit_code = self.exec_branch_diff_script(env=self.env_dict)
         self.assertEqual(exit_code, 0)
         self.save_latest_zip_from_container()
         # TODO check if zip exists and size is bigger than 0 and extractable
