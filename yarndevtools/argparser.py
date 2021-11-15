@@ -347,10 +347,17 @@ class ArgParser:
         )
 
         parser.add_argument(
-            "--force-mode",
+            "--force-download-jobs",
             action="store_true",
-            dest="force_mode",
-            help="Force fetching data from all builds.",
+            dest="force_download_mode",
+            help="Force downloading data from all builds.",
+        )
+
+        parser.add_argument(
+            "--force-email",
+            action="store_true",
+            dest="force_send_email",
+            help="Force sending email for all builds.",
         )
 
         parser.add_argument(

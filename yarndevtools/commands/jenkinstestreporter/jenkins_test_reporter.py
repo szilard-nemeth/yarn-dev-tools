@@ -196,11 +196,12 @@ class JenkinsTestReporterConfig:
         self.num_builds: int = self._determine_number_of_builds_to_examine(args.num_builds, self.request_limit)
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
-        self.send_mail: bool = not args.skip_mail
         self.enable_file_cache: bool = not args.disable_file_cache
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
-        self.force_mode = args.force_mode if hasattr(args, "force_mode") else False
+        self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
+        self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
+        self.send_mail: bool = not args.skip_mail and not self.force_send_email
 
         # Validation
         if not self.tc_filters:
@@ -235,6 +236,8 @@ class JenkinsTestReporterConfig:
             f"Jenkins job names: {self.job_names}\n"
             f"Number of builds to check: {self.num_builds}\n"
             f"Testcase filters: {self.tc_filters}\n"
+            f"Force download mode: {self.force_download_mode}\n"
+            f"Force email send mode: {self.force_send_email}\n"
         )
 
 
@@ -313,8 +316,8 @@ class JenkinsTestReporter:
             verbose_git_log=self.config.args.verbose,
         )
 
-        if self.config.force_mode:
-            LOG.info("FORCE MODE is on")
+        if self.config.force_download_mode:
+            LOG.info("FORCE DOWNLOAD MODE is on")
         else:
             loaded = self.load_pickled_data()
             if loaded:
@@ -360,9 +363,8 @@ class JenkinsTestReporter:
                 for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
                     LOG.info(f"{report.all_failing_tests[tn]}: {tn}")
             report_text = report.convert_to_text(build_data_idx=build_idx)
-            # TODO Implement force mode: Send report for all jobs, even if report was already sent
             if self.config.send_mail:
-                if not report.mail_sent:
+                if not report.mail_sent or self.config.force_send_email:
                     self.send_mail(build_idx, report, report_text)
                     report.mark_sent()
                 else:
@@ -511,7 +513,7 @@ class JenkinsTestReporter:
 
             # Try to get build data from cache, if found jump to next build URL
             if (
-                not self.config.force_mode
+                not self.config.force_download_mode
                 and job_name in self.reports
                 and failed_build_url in self.reports[job_name].known_build_urls
             ):
