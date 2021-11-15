@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import logging
+from typing import List
+
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.argparser import CommandType
@@ -16,21 +18,18 @@ TC_FILTER_YARN = "YARN:org.apache.hadoop.yarn"
 TC_FILTER_MR = "MAPREDUCE:org.apache.hadoop.mapreduce"
 TC_FILTER_HDFS = "HDFS:org.apache.hadoop.hdfs"
 TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS}"
+MAWO_JOBS = ["Mawo-UT-hadoop-CDPD-7.x", "Mawo-UT-hadoop-CDPD-7.1.x"]
 
 
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
         self.start_common(basedir)
         self.run_clone_downstream_repos_script(basedir)
+        self.run_test_reporter(job_names=MAWO_JOBS)
 
-        cdpd_master_job = "Mawo-UT-hadoop-CDPD-7.x"
-        cdh_71_maint_job = "Mawo-UT-hadoop-CDPD-7.1.x"
-        self.run_test_reporter(job_name=cdpd_master_job)
-        self.run_test_reporter(job_name=cdh_71_maint_job)
-
-    def run_test_reporter(self, job_name: str, recipients=None, testcase_filter: str = TC_FILTER_ALL):
-        if not job_name:
-            raise ValueError("Jenkins job name should be specified")
+    def run_test_reporter(self, job_names: List[str], recipients=None, testcase_filter: str = TC_FILTER_ALL):
+        if not job_names:
+            raise ValueError("Jenkins job names should be specified in a list!")
 
         if not recipients:
             recipients = self.determine_recipients()
@@ -38,9 +37,10 @@ class CdswRunner(CdswRunnerBase):
         LOG.info(f"Processing {process_builds} builds...")
         sender = "YARN jenkins test reporter"
         tc_filter_param = f"--testcase-filter {testcase_filter}"
+        job_names_param = ",".join(job_names)
         self.execute_yarndevtools_script(
             f"--debug {CommandType.JENKINS_TEST_REPORTER.name} "
-            f"--job-name {job_name} "
+            f"--job-names {job_names_param} "
             f"{self.common_mail_config.as_arguments()}"
             f'--sender "{sender}" '
             f'--recipients "{recipients}" '

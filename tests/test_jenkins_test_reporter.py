@@ -252,7 +252,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
     @staticmethod
     def generate_args(
         tc_filters: List[str] = None,
-        job_name: str = MAWO_JOB_NAME_7X,
+        job_names: str = MAWO_JOB_NAME_7X,
         jenkins_url: str = JENKINS_MAIN_URL,
         num_prev_days: int = 14,
     ):
@@ -266,7 +266,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.recipients = ["test@recipient.com"]
         args.sender = "Jenkins test reporter"
         args.jenkins_url = jenkins_url
-        args.job_name = job_name
+        args.job_names = job_names
         args.num_prev_days = num_prev_days
         args.tc_filters = tc_filters
         args.skip_mail = True

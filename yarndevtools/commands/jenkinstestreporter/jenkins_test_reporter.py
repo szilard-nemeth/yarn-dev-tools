@@ -53,9 +53,10 @@ class FilteredResult:
 
 
 class Report:
-    def __init__(self, job_build_datas, all_failing_tests):
+    def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int):
         self.job_build_datas: List[JobBuildData] = job_build_datas
         self.all_failing_tests: Dict[str, int] = all_failing_tests
+        self.total_no_of_builds: int = total_no_of_builds
 
     def convert_to_text(self, build_data_idx=-1):
         if build_data_idx > -1:
@@ -152,7 +153,7 @@ class JenkinsTestReporterConfig:
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         self.jenkins_url = args.jenkins_url
-        self.job_name = args.job_name
+        self.job_names: List[str] = args.job_names.split(",")
         self.num_prev_days = args.num_prev_days
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
@@ -168,7 +169,7 @@ class JenkinsTestReporterConfig:
         return (
             f"Full command was: {self.full_cmd}\n"
             f"Jenkins URL: {self.jenkins_url}\n"
-            f"Jenkins job name: {self.job_name}\n"
+            f"Jenkins job names: {self.job_names}\n"
             f"Number of days to check: {self.num_prev_days}\n"
             f"Testcase filters: {self.tc_filters}\n"
         )
@@ -224,9 +225,9 @@ class JenkinsTestReporter:
             verbose_git_log=self.config.args.verbose,
         )
 
-        LOG.info(f"****Recently FAILED builds in url: {self.config.jenkins_url}/job/{self.config.job_name}")
-        self.report = self.find_flaky_tests()
-        self._process_build_reports(fail_on_empty_report=False)
+        for job_name in self.config.job_names:
+            self.report = self.find_flaky_tests(job_name)
+            self._process_build_reports(fail_on_empty_report=False)
 
     def _process_build_reports(self, fail_on_empty_report: bool = True):
         LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in self.report.job_build_datas]}")
@@ -253,7 +254,9 @@ class JenkinsTestReporter:
             # At this point it's certain that we have some failed tests or the build itself is invalid
             LOG.info(f"Report of build {report_url} is not valid or contains failed tests!")
             if self.report.is_valid_build(build_idx):
-                LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
+                LOG.info(
+                    f"\nAmong {self.report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
+                )
                 # Print summary section: all failed tests sorted by how many times they failed
                 LOG.info("TESTCASE SUMMARY:")
                 for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
@@ -264,32 +267,35 @@ class JenkinsTestReporter:
             build_idx += 1
 
     # TODO move to pythoncommons but debug this before.
-    def load_url_data(self, url):
+    @staticmethod
+    def load_url_data(url):
         """ Load data from specified url """
         ourl = urllib.request.urlopen(url)
         codec = ourl.info().get_param("charset")
         content = ourl.read().decode(codec)
         return json.loads(content, strict=False)
 
-    def list_builds(self):
+    def list_builds(self, job_name: str):
         """ List all builds of the target project. """
-        url = self.get_jenkins_list_builds_url()
+        LOG.info(f"Fetching builds from Jenkins in url: {self.config.jenkins_url}/job/{job_name}")
+        url = self.get_jenkins_list_builds_url(job_name)
         try:
             return self.load_url_data(url)["builds"]
         except Exception:
             LOG.error(f"Could not fetch: {url}")
             raise
 
-    def get_jenkins_list_builds_url(self) -> str:
+    def get_jenkins_list_builds_url(self, job_name: str) -> str:
         jenkins_url = self.config.jenkins_url
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        return f"{jenkins_url}/job/{self.config.job_name}/api/json?tree=builds[url,result,timestamp]"
+        return f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
 
-    def get_file_name_for_report(self, build_number):
+    @staticmethod
+    def get_file_name_for_report(build_number, job_name: str):
         # TODO utilize pythoncommon ProjectUtils to get output dir
         cwd = os.getcwd()
-        job_filename = self.config.job_name.replace(".", "_")
+        job_filename = job_name.replace(".", "_")
         job_dir_path = os.path.join(cwd, "workdir", "reports", job_filename)
         if not os.path.exists(job_dir_path):
             os.makedirs(job_dir_path)
@@ -326,10 +332,10 @@ class JenkinsTestReporter:
 
         return data
 
-    def find_failing_tests(self, test_report_api_json, job_console_output, build_url, build_number):
+    def find_failing_tests(self, test_report_api_json, job_console_output, build_url, build_number, job_name: str):
         """ Find the names of any tests which failed in the given build output URL. """
         try:
-            data = self.gather_report_data_for_build(build_number, test_report_api_json)
+            data = self.gather_report_data_for_build(build_number, test_report_api_json, job_name)
         except Exception:
             traceback.print_exc()
             LOG.error(f"Could not open test report, check {job_console_output} for reason why it was reported failed")
@@ -339,9 +345,9 @@ class JenkinsTestReporter:
 
         return self.parse_job_data(data, build_url, build_number, job_console_output)
 
-    def gather_report_data_for_build(self, build_number, test_report_api_json):
+    def gather_report_data_for_build(self, build_number, test_report_api_json, job_name: str):
         if self.config.enable_file_cache:
-            target_file_path = self.get_file_name_for_report(build_number)
+            target_file_path = self.get_file_name_for_report(build_number, job_name)
             if os.path.exists(target_file_path):
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = self.read_test_report_from_file(target_file_path)
@@ -366,17 +372,17 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self):
+    def find_flaky_tests(self, job_name: str):
         """ Iterate runs of specified job within num_prev_days and collect results """
         # First list all builds
-        builds = self.list_builds()
-        self.total_no_of_builds = len(builds)
+        builds = self.list_builds(job_name)
+        total_no_of_builds = len(builds)
         last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_prev_days)
         failed_build_data: List[Tuple[str, int]] = self._get_failed_build_urls(last_n_builds)
         failed_build_data = sorted(failed_build_data, key=lambda tup: tup[1], reverse=True)
         LOG.info(
             f"There are {len(failed_build_data)} builds "
-            f"(out of {self.total_no_of_builds}) that have failed tests "
+            f"(out of {total_no_of_builds}) that have failed tests "
             f"in the past {self.config.num_prev_days} days. "
             f"Listing builds: {failed_build_data}"
         )
@@ -401,7 +407,7 @@ class JenkinsTestReporter:
             LOG.info(f"===>{test_report} ({st})")
 
             job_data: JobBuildData = self.find_failing_tests(
-                test_report_api_json, job_console_output, failed_build, build_number
+                test_report_api_json, job_console_output, failed_build, build_number, job_name
             )
             job_data.filter_testcases(self.config.tc_filters)
             job_datas.append(job_data)
@@ -411,7 +417,7 @@ class JenkinsTestReporter:
                     LOG.info(f"Failed test: {failed_testcase}")
                     tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
-        return Report(job_datas, tc_to_fail_count)
+        return Report(job_datas, tc_to_fail_count, total_no_of_builds)
 
     @staticmethod
     def _get_failed_build_urls(builds):

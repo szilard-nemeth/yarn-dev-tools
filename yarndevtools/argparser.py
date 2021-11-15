@@ -300,7 +300,8 @@ class ArgParser:
             CommandType.JENKINS_TEST_REPORTER.name,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
             "Example: "
-            "--job-name {job_name} "
+            "--jenkins-url {jenkins_base_url} "
+            "--job-names {job_names} "
             "--testcase-filter org.apache.hadoop.yarn "
             "--smtp_server smtp.gmail.com "
             "--smtp_port 465 "
@@ -328,9 +329,9 @@ class ArgParser:
         )
         parser.add_argument(
             "-j",
-            "--job-name",
+            "--job-names",
             type=str,
-            dest="job_name",
+            dest="job_names",
             help="Jenkins job name to fetch results from",
             default="Mawo-UT-hadoop-CDPD-7.x",
         )
