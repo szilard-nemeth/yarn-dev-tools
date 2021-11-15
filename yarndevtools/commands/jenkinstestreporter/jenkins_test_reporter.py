@@ -152,7 +152,11 @@ class JenkinsTestReporterConfig:
         self.args = args
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
-        self.jenkins_mode: JenkinsTestReporterMode = JenkinsTestReporterMode[args.jenkins_mode.upper()]
+        self.jenkins_mode: JenkinsTestReporterMode = (
+            JenkinsTestReporterMode[args.jenkins_mode.upper()]
+            if hasattr(args, "jenkins_mode") and args.jenkins_mode
+            else None
+        )
         self.jenkins_url = args.jenkins_url
         self.job_names: List[str] = args.job_names.split(",")
         self.num_prev_days = args.num_prev_days

@@ -349,7 +349,6 @@ class ArgParser:
             type=str,
             dest="jenkins_mode",
             choices=[m.mode_name.lower() for m in JenkinsTestReporterMode],
-            default=JenkinsTestReporterMode.JENKINS_MASTER.mode_name,
             help="Jenkins mode. Used to pre-configure --jenkins-url and --job-names. "
             "Will take precendence over URL and job names, if they are also specified!",
         )
