@@ -12,11 +12,11 @@ from typing import List, Dict, Set, Tuple
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
+from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.argparser import CommandType, JenkinsTestReporterMode
+from yarndevtools.argparser import CommandType, JenkinsTestReporterMode, JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 from urllib.error import HTTPError
@@ -159,7 +159,7 @@ class JenkinsTestReporterConfig:
         )
         self.jenkins_url = args.jenkins_url
         self.job_names: List[str] = args.job_names.split(",")
-        self.num_prev_days = args.num_prev_days
+        self.num_builds: int = self._determine_number_of_builds_to_examine(args.num_builds, self.request_limit)
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
         self.send_mail: bool = not args.skip_mail
@@ -183,12 +183,22 @@ class JenkinsTestReporterConfig:
             self.jenkins_url = self.jenkins_mode.jenkins_base_url
             self.job_names = self.jenkins_mode.job_names
 
+    @staticmethod
+    def _determine_number_of_builds_to_examine(config_value, request_limit) -> int:
+        if config_value == JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL:
+            return sys.maxsize
+
+        no_of_builds = int(config_value)
+        if request_limit < no_of_builds:
+            LOG.warning("Limiting the number of builds to fetch by the request limit: %s", request_limit)
+        return min(no_of_builds, request_limit)
+
     def __str__(self):
         return (
             f"Full command was: {self.full_cmd}\n"
             f"Jenkins URL: {self.jenkins_url}\n"
             f"Jenkins job names: {self.job_names}\n"
-            f"Number of days to check: {self.num_prev_days}\n"
+            f"Number of builds to check: {self.num_builds}\n"
             f"Testcase filters: {self.tc_filters}\n"
         )
 
@@ -249,13 +259,12 @@ class JenkinsTestReporter:
 
     def _process_build_reports(self, fail_on_empty_report: bool = True):
         LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in self.report.job_build_datas]}")
-        builds_reports_to_process: int = min(self.config.num_prev_days, self.config.request_limit)
-        LOG.info(f"Processing {builds_reports_to_process} build reports...")
+        LOG.info(f"Processing {self.config.num_builds} build reports...")
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
 
         build_idx = 0
-        while build_idx < builds_reports_to_process:
+        while build_idx < self.config.num_builds:
             report_url: str = self.report.get_build_url(build_idx)
             LOG.info(f"Processing report of build: {report_url}")
             if (
@@ -280,6 +289,8 @@ class JenkinsTestReporter:
                 for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
                     LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
             self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
+            # TODO Only send mail if build report is not yet sent
+            # TODO Implement force mode: Send report for all jobs, even if report was already sent
             if self.config.send_mail:
                 self.send_mail(build_idx)
             build_idx += 1
@@ -391,17 +402,17 @@ class JenkinsTestReporter:
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
     def find_flaky_tests(self, job_name: str):
-        """ Iterate runs of specified job within num_prev_days and collect results """
+        """ Iterate runs of specified job within num_builds and collect results """
         # First list all builds
         builds = self.list_builds(job_name)
         total_no_of_builds = len(builds)
-        last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_prev_days)
+        last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_builds)
         failed_build_data: List[Tuple[str, int]] = self._get_failed_build_urls(last_n_builds)
         failed_build_data = sorted(failed_build_data, key=lambda tup: tup[1], reverse=True)
         LOG.info(
             f"There are {len(failed_build_data)} builds "
             f"(out of {total_no_of_builds}) that have failed tests "
-            f"in the past {self.config.num_prev_days} days. "
+            f"in the past {self.config.num_builds} days. "
             f"Listing builds: {failed_build_data}"
         )
 

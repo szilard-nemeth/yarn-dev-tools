@@ -25,6 +25,9 @@ else:
 # TODO Move all parser static methods to individual commands (maybe abstract base class?)
 
 
+JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL = "jenkins_examine_unlimited_builds"
+
+
 class JenkinsTestReporterMode(Enum):
     JENKINS_MASTER = (
         "jenkins_master",
@@ -371,11 +374,12 @@ class ArgParser:
         )
         parser.add_argument(
             "-n",
-            "--num-days",
-            type=int,
-            dest="num_prev_days",
-            help="Number of days to examine",
-            default=14,
+            "--num-builds",
+            type=str,
+            dest="num_builds",
+            help="Number of days of Jenkins jobs to examine. "
+            "Special value of 'jenkins_examine_unlimited' will examine all unknown builds.",
+            default="14",
         )
         parser.add_argument(
             "-rl",
@@ -383,7 +387,7 @@ class ArgParser:
             type=int,
             dest="req_limit",
             help="Request limit",
-            default=1,
+            default=999,
         )
 
         def tc_filter_validator(value):

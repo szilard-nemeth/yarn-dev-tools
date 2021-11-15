@@ -208,7 +208,7 @@ class JenkinsReportGenerator:
 
 class JenkinsBuildsGenerator:
     @staticmethod
-    def generate(build_url_template: str, num_builds: int = 51, latest_build_num: int = 215) -> JenkinsBuilds:
+    def generate(build_url_template: str, num_builds: str = "51", latest_build_num: int = 215) -> JenkinsBuilds:
         if BUILD_URL_ID_KEY not in build_url_template:
             raise ValueError(
                 "Should have received a build URL template that contains placeholder: " "{" + BUILD_URL_ID_KEY + "}'"
@@ -216,7 +216,7 @@ class JenkinsBuildsGenerator:
 
         now: datetime = DateUtils.now()
         builds: List[JenkinsBuild] = []
-        for i in range(num_builds):
+        for i in range(int(num_builds)):
             build_url = build_url_template.format(**{BUILD_URL_ID_KEY: latest_build_num - i})
             # Jenkins uses milliseconds as timestamp value
             timestamp: int = DateUtils.datetime_minus(now, days=i).timestamp() * 1000
@@ -254,7 +254,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         tc_filters: List[str] = None,
         job_names: str = MAWO_JOB_NAME_7X,
         jenkins_url: str = JENKINS_MAIN_URL,
-        num_prev_days: int = 14,
+        num_builds: str = "14",
     ):
         if not tc_filters:
             tc_filters = [YARN_TC_FILTER]
@@ -267,7 +267,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.sender = "Jenkins test reporter"
         args.jenkins_url = jenkins_url
         args.job_names = job_names
-        args.num_prev_days = num_prev_days
+        args.num_builds = num_builds
         args.tc_filters = tc_filters
         args.skip_mail = True
         args.disable_file_cache = True
