@@ -15,6 +15,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
+from pythoncommons.string_utils import auto_str
 
 from yarndevtools.argparser import CommandType, JenkinsTestReporterMode, JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL
 from yarndevtools.common.shared_command_utils import FullEmailConfig
@@ -36,6 +37,19 @@ class TestcaseFilter:
     @property
     def as_filter_spec(self):
         return f"{self.project_name}:{self.filter_expr}"
+
+
+@auto_str
+class DownloadProgress:
+    def __init__(self, failed_build_data: List[Tuple[str, int]]):
+        self.all_builds = len(failed_build_data)
+        self.current_build_idx = 0
+
+    def process_next_build(self):
+        self.current_build_idx += 1
+
+    def short_str(self):
+        return f"{self.current_build_idx + 1}/{self.all_builds}"
 
 
 @dataclass
@@ -174,7 +188,7 @@ class JenkinsTestReporterConfig:
             LOG.warning(
                 "Jenkins mode is set to %s. \n"
                 "Specified values for jenkins URL: %s\n"
-                "Specified values for job names: %s"
+                "Specified values for job names: %s\n"
                 "Jenkins mode will take precedence!",
                 self.jenkins_mode,
                 self.jenkins_url,
@@ -291,6 +305,7 @@ class JenkinsTestReporter:
             self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
             # TODO Only send mail if build report is not yet sent
             # TODO Implement force mode: Send report for all jobs, even if report was already sent
+            # TODO save pickled data on every iteration, in case of script fails with runtime error
             if self.config.send_mail:
                 self.send_mail(build_idx)
             build_idx += 1
@@ -345,7 +360,9 @@ class JenkinsTestReporter:
 
     # TODO move to pythoncommons
     def download_test_report(self, test_report_api_json, target_file_path):
-        LOG.info(f"Loading test report from URL: {test_report_api_json}")
+        LOG.info(
+            f"Loading test report from URL: {test_report_api_json}. Download progress: {self.download_progress.short_str()}"
+        )
         try:
             data = self.load_url_data(test_report_api_json)
         except urllib.error.HTTPError as e:
@@ -418,6 +435,7 @@ class JenkinsTestReporter:
 
         job_datas: List[JobBuildData] = []
         tc_to_fail_count: Dict[str, int] = {}
+        self.download_progress = DownloadProgress(failed_build_data)
         for i, failed_build_with_time in enumerate(failed_build_data):
             if i >= self.config.request_limit:
                 LOG.error(f"Reached request limit: {i}")
@@ -445,6 +463,7 @@ class JenkinsTestReporter:
                 for failed_testcase in job_data.testcases:
                     LOG.info(f"Failed test: {failed_testcase}")
                     tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
+            self.download_progress.process_next_build()
 
         return Report(job_datas, tc_to_fail_count, total_no_of_builds)
 
