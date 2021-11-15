@@ -429,17 +429,18 @@ class JenkinsTestReporter:
     def find_failing_tests(self, test_report_api_json, job_console_output, build_url, build_number, job_name: str):
         """ Find the names of any tests which failed in the given build output URL. """
         try:
-            data = self.gather_report_data_for_build(build_number, test_report_api_json, job_name)
+            data, loaded_from_cache = self.gather_report_data_for_build(build_number, test_report_api_json, job_name)
         except Exception:
             traceback.print_exc()
             LOG.error(f"Could not open test report, check {job_console_output} for reason why it was reported failed")
-            return JobBuildData(build_number, build_url, None, set())
+            return JobBuildData(build_number, build_url, None, set()), False
         if not data or len(data) == 0:
-            return JobBuildData(build_number, build_url, None, [], empty_or_not_found=True)
+            return JobBuildData(build_number, build_url, None, [], empty_or_not_found=True), loaded_from_cache
 
-        return self.parse_job_data(data, build_url, build_number, job_console_output)
+        return self.parse_job_data(data, build_url, build_number, job_console_output), loaded_from_cache
 
     def gather_report_data_for_build(self, build_number, test_report_api_json, job_name: str):
+        loaded_from_cache = True
         if self.config.enable_file_cache:
             target_file_path = self.get_file_name_for_report(build_number, job_name)
             if os.path.exists(target_file_path):
@@ -447,9 +448,10 @@ class JenkinsTestReporter:
                 data = self.read_test_report_from_file(target_file_path)
             else:
                 data = self.download_test_report(test_report_api_json, target_file_path)
+                loaded_from_cache = False
         else:
             data = self.download_test_report(test_report_api_json, None)
-        return data
+        return data, loaded_from_cache
 
     @staticmethod
     def parse_job_data(data, build_url, build_number, job_console_output_url):
@@ -484,9 +486,10 @@ class JenkinsTestReporter:
 
         job_datas: List[JobBuildData] = []
         tc_to_fail_count: Dict[str, int] = {}
+        sent_requests: int = 0
         self.download_progress = DownloadProgress(failed_build_data)
         for i, failed_build_with_time in enumerate(failed_build_data):
-            if i >= self.config.request_limit:
+            if sent_requests >= self.config.request_limit:
                 LOG.error(f"Reached request limit: {i}")
                 break
             failed_build_url = failed_build_with_time[0]
@@ -514,13 +517,15 @@ class JenkinsTestReporter:
             st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
             LOG.info(f"===>{test_report} ({st})")
 
-            job_data: JobBuildData = self.find_failing_tests(
+            job_data, loaded_from_cache = self.find_failing_tests(
                 test_report_api_json, job_console_output, failed_build_url, build_number, job_name
             )
             job_data.filter_testcases(self.config.tc_filters)
             job_datas.append(job_data)
             self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
             self.download_progress.process_next_build()
+            if not loaded_from_cache:
+                sent_requests += 1
 
         return JenkinsJobReport(job_datas, tc_to_fail_count, total_no_of_builds)
 
