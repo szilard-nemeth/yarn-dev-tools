@@ -79,6 +79,7 @@ class JenkinsJobReport:
         self.jobs_by_url: Dict[str, JobBuildData] = {jbd.build_url: jbd for jbd in job_build_datas}
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
+        self.mail_sent = False
 
     @property
     def known_build_urls(self):
@@ -94,6 +95,9 @@ class JenkinsJobReport:
 
     def get_build_url(self, build_data_idx):
         return self.job_build_datas[build_data_idx].build_url
+
+    def mark_sent(self):
+        self.mail_sent = True
 
 
 class JobBuildData:
@@ -273,8 +277,9 @@ class JenkinsTestReporter:
             LOG.info("Pickled data file not found under path: %s", self.pickled_data_file_path)
             return False
 
-    def pickle_report_data(self):
-        LOG.debug("Final cached data object: %s", self.reports)
+    def pickle_report_data(self, log: bool = False):
+        if log:
+            LOG.debug("Final cached data object: %s", self.reports)
         LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.pickled_data_file_path)
         PickleUtils.dump(self.reports, self.pickled_data_file_path)
 
@@ -353,10 +358,14 @@ class JenkinsTestReporter:
             report_text = report.convert_to_text(build_data_idx=build_idx)
             # TODO Only send mail if build report is not yet sent
             # TODO Implement force mode: Send report for all jobs, even if report was already sent
-            # TODO save pickled data on every iteration, in case of script fails with runtime error
             if self.config.send_mail:
                 self.send_mail(build_idx, report, report_text)
+                report.mark_sent()
             build_idx += 1
+            if build_idx == self.config.num_builds:
+                self.pickle_report_data(log=True)
+            else:
+                self.pickle_report_data(log=False)
 
     # TODO move to pythoncommons but debug this before.
     @staticmethod
