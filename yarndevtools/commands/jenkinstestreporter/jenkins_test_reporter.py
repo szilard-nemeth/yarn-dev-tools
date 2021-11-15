@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Set, Tuple
 
 from pythoncommons.constants import ExecutionMode
+from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
@@ -80,6 +81,7 @@ class JenkinsJobReport:
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
         self.mail_sent = False
+        self.sent_date = None
 
     @property
     def known_build_urls(self):
@@ -98,6 +100,8 @@ class JenkinsJobReport:
 
     def mark_sent(self):
         self.mail_sent = True
+        current_datetime_fmt: str = DateUtils.get_current_datetime()
+        self.sent_date = current_datetime_fmt
 
 
 class JobBuildData:
@@ -356,11 +360,13 @@ class JenkinsTestReporter:
                 for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
                     LOG.info(f"{report.all_failing_tests[tn]}: {tn}")
             report_text = report.convert_to_text(build_data_idx=build_idx)
-            # TODO Only send mail if build report is not yet sent
             # TODO Implement force mode: Send report for all jobs, even if report was already sent
             if self.config.send_mail:
-                self.send_mail(build_idx, report, report_text)
-                report.mark_sent()
+                if not report.mail_sent:
+                    self.send_mail(build_idx, report, report_text)
+                    report.mark_sent()
+                else:
+                    LOG.info("Not sending report as it was already sent before. Date of send: %s", report.sent_date)
             build_idx += 1
             if build_idx == self.config.num_builds:
                 self.pickle_report_data(log=True)
