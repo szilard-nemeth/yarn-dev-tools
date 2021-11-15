@@ -14,6 +14,7 @@ from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
+from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import auto_str
 
@@ -72,11 +73,16 @@ class FilteredResult:
         return s
 
 
-class Report:
+class JenkinsJobReport:
     def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int):
         self.job_build_datas: List[JobBuildData] = job_build_datas
+        self.jobs_by_url: Dict[str, JobBuildData] = {jbd.build_url: jbd for jbd in job_build_datas}
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
+
+    @property
+    def known_build_urls(self):
+        return self.jobs_by_url.keys()
 
     def convert_to_text(self, build_data_idx=-1):
         if build_data_idx > -1:
@@ -186,6 +192,7 @@ class JenkinsTestReporterConfig:
         self.enable_file_cache: bool = not args.disable_file_cache
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
+        self.force_mode = args.force_mode if hasattr(args, "force_mode") else False
 
         # Validation
         if not self.tc_filters:
@@ -226,37 +233,62 @@ class JenkinsTestReporterConfig:
 class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
-        self.report: Report or None = None
+        self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
         self.main()
 
-    @property
-    def failed_tests(self) -> List[str]:
-        if not self.report:
-            raise ValueError("Report is not queried yet or it is None!")
-        return list(self.report.all_failing_tests.keys())
+    def _get_latest_report(self, job_name):
+        return self.reports[job_name]
 
-    @property
-    def num_build_data(self):
-        return len(self.report.job_build_datas)
+    def get_failed_tests(self, job_name) -> List[str]:
+        latest_report = self._get_latest_report(job_name)
+        if not latest_report:
+            raise ValueError("Report is not queried yet or it is None!")
+        return list(latest_report.all_failing_tests.keys())
+
+    def get_num_build_data(self, job_name):
+        return len(self._get_latest_report(job_name).job_build_datas)
 
     @property
     def testcase_filters(self) -> List[str]:
         return [tcf.as_filter_spec for tcf in self.config.tc_filters]
 
-    def get_all_filtered_testcases_from_build(self, build_data_idx: int):
+    @property
+    def pickled_data_file_path(self):
+        # TODO Utilize pythoncommons ProjectUtils
+        cwd = os.getcwd()
+        cached_data_dir = os.path.join(cwd, "workdir", "cached_data")
+        if not os.path.exists(cached_data_dir):
+            os.makedirs(cached_data_dir)
+        return FileUtils.join_path(cached_data_dir, PICKLED_DATA_FILENAME)
+
+    def load_pickled_data(self):
+        LOG.info("Trying to load pickled data from file: %s", self.pickled_data_file_path)
+        if FileUtils.does_file_exist(self.pickled_data_file_path):
+            self.reports = PickleUtils.load(self.pickled_data_file_path)
+            return True
+        else:
+            LOG.info("Pickled data file not found under path: %s", self.pickled_data_file_path)
+            return False
+
+    def pickle_report_data(self):
+        LOG.debug("Final cached data object: %s", self.reports)
+        LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.pickled_data_file_path)
+        PickleUtils.dump(self.reports, self.pickled_data_file_path)
+
+    def get_all_filtered_testcases_from_build(self, build_data_idx: int, job_name: str):
         return [
             tc
-            for filtered_res in self.report.job_build_datas[build_data_idx].filtered_testcases
+            for filtered_res in self._get_latest_report(job_name).job_build_datas[build_data_idx].filtered_testcases
             for tc in filtered_res.testcases
         ]
 
-    def get_filtered_testcases_from_build(self, build_data_idx: int, package: str):
+    def get_filtered_testcases_from_build(self, build_data_idx: int, package: str, job_name: str):
         return [
             tc
-            for filtered_res in self.report.job_build_datas[build_data_idx].filtered_testcases
+            for filtered_res in self._get_latest_report(job_name).job_build_datas[build_data_idx].filtered_testcases
             for tc in filtered_res.testcases
             if package in tc
         ]
@@ -272,24 +304,35 @@ class JenkinsTestReporter:
             verbose_git_log=self.config.args.verbose,
         )
 
-        for job_name in self.config.job_names:
-            self.report = self.find_flaky_tests(job_name)
-            self._process_build_reports(fail_on_empty_report=False)
+        if self.config.force_mode:
+            LOG.info("FORCE MODE is on")
+        else:
+            loaded = self.load_pickled_data()
+            if loaded:
+                LOG.info("Loaded pickled data from: %s", self.pickled_data_file_path)
+        self.do_fetch()
 
-    def _process_build_reports(self, fail_on_empty_report: bool = True):
-        LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in self.report.job_build_datas]}")
+    def do_fetch(self):
+        for job_name in self.config.job_names:
+            report = self._find_flaky_tests(job_name)
+            self.reports[job_name] = report
+            self._process_build_reports(report, fail_on_empty_report=False)
+        self.pickle_report_data()
+
+    def _process_build_reports(self, report, fail_on_empty_report: bool = True):
+        LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in report.job_build_datas]}")
         LOG.info(f"Processing {self.config.num_builds} build reports...")
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
 
         build_idx = 0
         while build_idx < self.config.num_builds:
-            report_url: str = self.report.get_build_url(build_idx)
+            report_url: str = report.get_build_url(build_idx)
             LOG.info(f"Processing report of build: {report_url}")
             if (
                 fail_on_empty_report
-                and len(self.report.all_failing_tests) == 0
-                and self.report.is_valid_build(build_data_idx=build_idx)
+                and len(report.all_failing_tests) == 0
+                and report.is_valid_build(build_data_idx=build_idx)
             ):
                 LOG.info(
                     f"Report with URL {report_url} is valid but does not contain any failed tests. "
@@ -299,20 +342,20 @@ class JenkinsTestReporter:
 
             # At this point it's certain that we have some failed tests or the build itself is invalid
             LOG.info(f"Report of build {report_url} is not valid or contains failed tests!")
-            if self.report.is_valid_build(build_idx):
+            if report.is_valid_build(build_idx):
                 LOG.info(
-                    f"\nAmong {self.report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
+                    f"\nAmong {report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
                 )
                 # Print summary section: all failed tests sorted by how many times they failed
                 LOG.info("TESTCASE SUMMARY:")
-                for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
-                    LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
-            report_text = self.report.convert_to_text(build_data_idx=build_idx)
+                for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
+                    LOG.info(f"{report.all_failing_tests[tn]}: {tn}")
+            report_text = report.convert_to_text(build_data_idx=build_idx)
             # TODO Only send mail if build report is not yet sent
             # TODO Implement force mode: Send report for all jobs, even if report was already sent
             # TODO save pickled data on every iteration, in case of script fails with runtime error
             if self.config.send_mail:
-                self.send_mail(build_idx, report_text)
+                self.send_mail(build_idx, report, report_text)
             build_idx += 1
 
     # TODO move to pythoncommons but debug this before.
@@ -424,7 +467,7 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(build_number, build_url, counters, failed_testcases)
 
-    def find_flaky_tests(self, job_name: str):
+    def _find_flaky_tests(self, job_name: str):
         """ Iterate runs of specified job within num_builds and collect results """
         # First list all builds
         builds = self.list_builds(job_name)
@@ -446,12 +489,24 @@ class JenkinsTestReporter:
             if i >= self.config.request_limit:
                 LOG.error(f"Reached request limit: {i}")
                 break
-            failed_build = failed_build_with_time[0]
+            failed_build_url = failed_build_with_time[0]
+
+            # Try to get build data from cache, if found jump to next build URL
+            if (
+                not self.config.force_mode
+                and job_name in self.reports
+                and failed_build_url in self.reports[job_name].known_build_urls
+            ):
+                LOG.info("Found build in cache, skipping: %s", failed_build_url)
+                job_data = self.reports[job_name].jobs_by_url[failed_build_url]
+                job_datas.append(job_data)
+                self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
+                continue
 
             # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
-            build_number = failed_build.rsplit("/")[-2]
-            job_console_output = failed_build + "Console"
-            test_report = failed_build + "testReport"
+            build_number = failed_build_url.rsplit("/")[-2]
+            job_console_output = failed_build_url + "Console"
+            test_report = failed_build_url + "testReport"
             test_report_api_json = test_report + "/api/json"
             test_report_api_json += "?pretty=true"
 
@@ -460,18 +515,21 @@ class JenkinsTestReporter:
             LOG.info(f"===>{test_report} ({st})")
 
             job_data: JobBuildData = self.find_failing_tests(
-                test_report_api_json, job_console_output, failed_build, build_number, job_name
+                test_report_api_json, job_console_output, failed_build_url, build_number, job_name
             )
             job_data.filter_testcases(self.config.tc_filters)
             job_datas.append(job_data)
-
-            if job_data.has_failed_testcases():
-                for failed_testcase in job_data.testcases:
-                    LOG.info(f"Failed test: {failed_testcase}")
-                    tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
+            self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
             self.download_progress.process_next_build()
 
-        return Report(job_datas, tc_to_fail_count, total_no_of_builds)
+        return JenkinsJobReport(job_datas, tc_to_fail_count, total_no_of_builds)
+
+    @staticmethod
+    def _create_testcase_to_fail_count_dict(job_data, tc_to_fail_count):
+        if job_data.has_failed_testcases():
+            for failed_testcase in job_data.testcases:
+                LOG.info(f"Failed test: {failed_testcase}")
+                tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
     @staticmethod
     def _get_failed_build_urls(builds):
@@ -483,8 +541,8 @@ class JenkinsTestReporter:
         min_time = int(time.time()) - SECONDS_PER_DAY * days
         return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
-    def send_mail(self, build_idx, report_text):
-        email_subject = self._get_email_subject(build_idx, self.report)
+    def send_mail(self, build_idx, report, report_text):
+        email_subject = self._get_email_subject(build_idx, report)
         LOG.info(f"\nPRINTING REPORT: \n\n{report_text}")
         LOG.info("Sending report in email")
         email_service = EmailService(self.config.full_email_conf.email_conf)

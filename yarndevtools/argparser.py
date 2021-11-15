@@ -347,6 +347,13 @@ class ArgParser:
         )
 
         parser.add_argument(
+            "--force-mode",
+            action="store_true",
+            dest="force_mode",
+            help="Force fetching data from all builds.",
+        )
+
+        parser.add_argument(
             "-m",
             "--mode",
             type=str,
