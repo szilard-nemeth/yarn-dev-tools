@@ -16,7 +16,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingS
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.argparser import CommandType
+from yarndevtools.argparser import CommandType, JenkinsTestReporterMode
 from yarndevtools.common.shared_command_utils import FullEmailConfig
 import urllib.request
 from urllib.error import HTTPError
@@ -152,18 +152,32 @@ class JenkinsTestReporterConfig:
         self.args = args
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
+        self.jenkins_mode: JenkinsTestReporterMode = JenkinsTestReporterMode[args.jenkins_mode.upper()]
         self.jenkins_url = args.jenkins_url
         self.job_names: List[str] = args.job_names.split(",")
         self.num_prev_days = args.num_prev_days
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
-        if not self.tc_filters:
-            LOG.warning("TESTCASE FILTER IS NOT SET!")
-
         self.send_mail: bool = not args.skip_mail
         self.enable_file_cache: bool = not args.disable_file_cache
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
+
+        # Validation
+        if not self.tc_filters:
+            LOG.warning("TESTCASE FILTER IS NOT SET!")
+        if self.jenkins_mode and (self.jenkins_url or self.job_names):
+            LOG.warning(
+                "Jenkins mode is set to %s. \n"
+                "Specified values for jenkins URL: %s\n"
+                "Specified values for job names: %s"
+                "Jenkins mode will take precedence!",
+                self.jenkins_mode,
+                self.jenkins_url,
+                self.job_names,
+            )
+            self.jenkins_url = self.jenkins_mode.jenkins_base_url
+            self.job_names = self.jenkins_mode.job_names
 
     def __str__(self):
         return (

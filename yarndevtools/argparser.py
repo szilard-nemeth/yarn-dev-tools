@@ -3,6 +3,8 @@ import logging
 import re
 import sys
 from enum import Enum
+from typing import List
+
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
 from yarndevtools.commands.unittestresultaggregator.common import SummaryMode, MATCH_EXPRESSION_PATTERN
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
@@ -19,6 +21,27 @@ else:
     LOG.info("Detected python version: " + str(sys.version_info[:2]))
     LOG.info("Replacing ArgumentParser with DelegatedArgumentParser for compatibility reasons.")
     from cdsw_compat import DelegatedArgumentParser as ArgumentParser
+
+# TODO Move all parser static methods to individual commands (maybe abstract base class?)
+
+
+class JenkinsTestReporterMode(Enum):
+    JENKINS_MASTER = (
+        "jenkins_master",
+        "https://master-02.jenkins.cloudera.com/",
+        [
+            "cdpd-master-Hadoop-Common-Unit",
+            "cdpd-master-Hadoop-HDFS-Unit",
+            "cdpd-master-Hadoop-MR-Unit",
+            "cdpd-master-Hadoop-YARN-Unit",
+        ],
+    )
+    MAWO = ("MAWO", "http://build.infra.cloudera.com/", ["Mawo-UT-hadoop-CDPD-7.x", "Mawo-UT-hadoop-CDPD-7.1.x"])
+
+    def __init__(self, mode_name: str, jenkins_base_url: str, job_names: List[str]):
+        self.mode_name = mode_name
+        self.jenkins_base_url = jenkins_base_url
+        self.job_names = job_names
 
 
 class CommandType(Enum):
@@ -300,6 +323,7 @@ class ArgParser:
             CommandType.JENKINS_TEST_REPORTER.name,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
             "Example: "
+            "--mode {mode} "
             "--jenkins-url {jenkins_base_url} "
             "--job-names {job_names} "
             "--testcase-filter org.apache.hadoop.yarn "
@@ -317,6 +341,17 @@ class ArgParser:
             "--console-mode",
             action="store_true",
             help="Console mode: Instead of writing output files, print everything to the console",
+        )
+
+        parser.add_argument(
+            "-m",
+            "--mode",
+            type=str,
+            dest="jenkins_mode",
+            choices=[m.mode_name.lower() for m in JenkinsTestReporterMode],
+            default=JenkinsTestReporterMode.JENKINS_MASTER.mode_name,
+            help="Jenkins mode. Used to pre-configure --jenkins-url and --job-names. "
+            "Will take precendence over URL and job names, if they are also specified!",
         )
 
         parser.add_argument(

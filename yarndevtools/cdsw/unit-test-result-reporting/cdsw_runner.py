@@ -11,25 +11,26 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JenkinsTestReporterEnvVar
+from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporterMode
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 TC_FILTER_YARN = "YARN:org.apache.hadoop.yarn"
 TC_FILTER_MR = "MAPREDUCE:org.apache.hadoop.mapreduce"
 TC_FILTER_HDFS = "HDFS:org.apache.hadoop.hdfs"
-TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS}"
-MAWO_JOBS = ["Mawo-UT-hadoop-CDPD-7.x", "Mawo-UT-hadoop-CDPD-7.1.x"]
+TC_FILTER_HADOOP_COMMON = "HADOOP COMMON:org.apache.hadoop"
+TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS} {TC_FILTER_HADOOP_COMMON}"
 
 
 class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
         self.start_common(basedir)
         self.run_clone_downstream_repos_script(basedir)
-        self.run_test_reporter(job_names=MAWO_JOBS)
+        self.run_test_reporter(mode=JenkinsTestReporterMode.MAWO)
 
-    def run_test_reporter(self, job_names: List[str], recipients=None, testcase_filter: str = TC_FILTER_ALL):
-        if not job_names:
-            raise ValueError("Jenkins job names should be specified in a list!")
+    def run_test_reporter(self, mode: JenkinsTestReporterMode, recipients=None, testcase_filter: str = TC_FILTER_ALL):
+        if not mode:
+            raise ValueError("Jenkins job mode should be specified!")
 
         if not recipients:
             recipients = self.determine_recipients()
@@ -37,10 +38,9 @@ class CdswRunner(CdswRunnerBase):
         LOG.info(f"Processing {process_builds} builds...")
         sender = "YARN jenkins test reporter"
         tc_filter_param = f"--testcase-filter {testcase_filter}"
-        job_names_param = ",".join(job_names)
         self.execute_yarndevtools_script(
             f"--debug {CommandType.JENKINS_TEST_REPORTER.name} "
-            f"--job-names {job_names_param} "
+            f"--mode {mode} "
             f"{self.common_mail_config.as_arguments()}"
             f'--sender "{sender}" '
             f'--recipients "{recipients}" '
