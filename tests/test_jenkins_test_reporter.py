@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Tuple, Set
+from unittest.mock import patch
 
 import httpretty as httpretty
 from coolname import generate_slug
@@ -255,6 +256,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         job_names: str = MAWO_JOB_NAME_7X,
         jenkins_url: str = JENKINS_MAIN_URL,
         num_builds: str = "14",
+        skip_sending_mail: bool = True,
     ):
         if not tc_filters:
             tc_filters = [YARN_TC_FILTER]
@@ -269,7 +271,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.job_names = job_names
         args.num_builds = num_builds
         args.tc_filters = tc_filters
-        args.skip_mail = True
+        args.skip_mail = skip_sending_mail
         args.disable_file_cache = True
         args.debug = True
         args.verbose = True
@@ -355,7 +357,19 @@ class TestJenkinsTestReporter(unittest.TestCase):
             self.assertEqual(len(expected_failed_testcases), len(actual_failed_testcases))
             self.assertListEqual(sorted(actual_failed_testcases), sorted(expected_failed_testcases))
 
-    def test_successful_api_response_verify_failed_testcases(self):
+    def _assert_send_mail(self, mock_send_mail_call):
+        self.assertEqual(mock_send_mail_call.call_count, 1)
+        report_result = mock_send_mail_call.call_args_list[0]
+        LOG.info("Report result: %s", report_result)
+        self.assertTrue(
+            report_result.startswith(
+                "Counters:\nFailed: 30, Passed: 30, Build number: 200\n, "
+                "Build URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPDP-7.x/200/"
+            )
+        )
+
+    @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
+    def test_successful_api_response_verify_failed_testcases(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={P3: 10, P4: 20},
             skipped={P1: 10, P2: 20},
@@ -366,9 +380,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
+        reporter = JenkinsTestReporter(self.generate_args(skip_sending_mail=False), self.output_dir)
         reporter.run()
-        LOG.info("Report result: %s", reporter.report_text)
+        self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
         self._assert_num_filtered_testcases_single_build(
             reporter,
@@ -377,7 +391,8 @@ class TestJenkinsTestReporter(unittest.TestCase):
             expected_failed_testcases_dict={YARN_TC_FILTER: []},
         )
 
-    def test_successful_api_response_verify_filtered_testcases(self):
+    @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
+    def test_successful_api_response_verify_filtered_testcases(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={P3: 10, P4: 20, self._get_package_from_filter(YARN_TC_FILTER): 25},
             skipped={P1: 10, P2: 20},
@@ -389,9 +404,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
+        reporter = JenkinsTestReporter(self.generate_args(skip_sending_mail=False), self.output_dir)
         reporter.run()
-        LOG.info("Report result: %s", reporter.report_text)
+        self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
         self._assert_num_filtered_testcases_single_build(
             reporter,
@@ -400,7 +415,8 @@ class TestJenkinsTestReporter(unittest.TestCase):
             expected_failed_testcases_dict={YARN_TC_FILTER: failed_testcases},
         )
 
-    def test_successful_api_response_verify_multi_filtered(self):
+    @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
+    def test_successful_api_response_verify_multi_filtered(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={
                 P3: 10,
@@ -418,9 +434,11 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
+        reporter = JenkinsTestReporter(
+            self.generate_args(tc_filters=MULTI_FILTER, skip_sending_mail=False), self.output_dir
+        )
         reporter.run()
-        LOG.info("Report result: %s", reporter.report_text)
+        self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=45)
         self._assert_num_filtered_testcases_single_build(
             reporter,

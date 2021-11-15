@@ -26,7 +26,13 @@ from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 LOG = logging.getLogger(__name__)
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
+PICKLED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
 SECONDS_PER_DAY = 86400
+
+
+@dataclass
+class PickledData:
+    project_name: str
 
 
 @dataclass
@@ -221,7 +227,6 @@ class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
         self.report: Report or None = None
-        self.report_text: str or None = None
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
@@ -302,12 +307,12 @@ class JenkinsTestReporter:
                 LOG.info("TESTCASE SUMMARY:")
                 for tn in sorted(self.report.all_failing_tests, key=self.report.all_failing_tests.get, reverse=True):
                     LOG.info(f"{self.report.all_failing_tests[tn]}: {tn}")
-            self.report_text = self.report.convert_to_text(build_data_idx=build_idx)
+            report_text = self.report.convert_to_text(build_data_idx=build_idx)
             # TODO Only send mail if build report is not yet sent
             # TODO Implement force mode: Send report for all jobs, even if report was already sent
             # TODO save pickled data on every iteration, in case of script fails with runtime error
             if self.config.send_mail:
-                self.send_mail(build_idx)
+                self.send_mail(build_idx, report_text)
             build_idx += 1
 
     # TODO move to pythoncommons but debug this before.
@@ -403,7 +408,8 @@ class JenkinsTestReporter:
             data = self.download_test_report(test_report_api_json, None)
         return data
 
-    def parse_job_data(self, data, build_url, build_number, job_console_output_url):
+    @staticmethod
+    def parse_job_data(data, build_url, build_number, job_console_output_url):
         failed_testcases = set()
         for suite in data["suites"]:
             for case in suite["cases"]:
@@ -477,15 +483,15 @@ class JenkinsTestReporter:
         min_time = int(time.time()) - SECONDS_PER_DAY * days
         return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
-    def send_mail(self, build_idx):
+    def send_mail(self, build_idx, report_text):
         email_subject = self._get_email_subject(build_idx, self.report)
-        LOG.info(f"\nPRINTING REPORT: \n\n{self.report_text}")
+        LOG.info(f"\nPRINTING REPORT: \n\n{report_text}")
         LOG.info("Sending report in email")
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
             self.config.full_email_conf.sender,
             email_subject,
-            self.report_text,
+            report_text,
             self.config.full_email_conf.recipients,
             body_mimetype=EmailMimeType.PLAIN,
         )
