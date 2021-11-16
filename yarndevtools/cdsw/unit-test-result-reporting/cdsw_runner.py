@@ -25,7 +25,7 @@ class CdswRunner(CdswRunnerBase):
     def start(self, basedir):
         self.start_common(basedir)
         self.run_clone_downstream_repos_script(basedir)
-        self.run_test_reporter(mode=JenkinsTestReporterMode.MAWO)
+        self.run_test_reporter(mode=JenkinsTestReporterMode.JENKINS_MASTER)
 
     def run_test_reporter(
         self,
