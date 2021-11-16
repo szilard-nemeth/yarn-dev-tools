@@ -49,6 +49,7 @@ class TestcaseFilter:
 
 @auto_str
 class DownloadProgress:
+    # TODO Store awaiting download / awaiting cache load separately
     def __init__(self, failed_build_data: List[Tuple[str, int]]):
         self.all_builds = len(failed_build_data)
         self.current_build_idx = 0
@@ -80,8 +81,6 @@ class JenkinsJobReport:
         self.jobs_by_url: Dict[str, JobBuildData] = {jbd.build_url: jbd for jbd in job_build_datas}
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
-        self.mail_sent = False
-        self.sent_date = None
 
     @property
     def known_build_urls(self):
@@ -98,10 +97,20 @@ class JenkinsJobReport:
     def get_build_url(self, build_data_idx):
         return self.job_build_datas[build_data_idx].build_url
 
-    def mark_sent(self):
-        self.mail_sent = True
-        current_datetime_fmt: str = DateUtils.get_current_datetime()
-        self.sent_date = current_datetime_fmt
+    def is_mail_sent(self, job_url):
+        job_data = self.jobs_by_url[job_url]
+        return job_data.mail_sent
+
+    def get_sent_date(self, job_url):
+        return self.jobs_by_url[job_url].sent_date
+
+    def are_all_mail_sent(self):
+        return all(job_data.mail_sent for job_data in self.jobs_by_url.values())
+
+    def mark_sent(self, job_url):
+        job_data = self.jobs_by_url[job_url]
+        job_data.sent_date = DateUtils.get_current_datetime()
+        job_data.mail_sent = True
 
 
 class JobBuildData:
@@ -115,6 +124,8 @@ class JobBuildData:
         self.no_of_failed_filtered_tc = None
         self.unmatched_testcases: Set[str] = set()
         self.empty_or_not_found = empty_or_not_found
+        self.mail_sent = False
+        self.sent_date = None
 
     def has_failed_testcases(self):
         return len(self.testcases) > 0
@@ -279,7 +290,10 @@ class JenkinsTestReporter:
         LOG.info("Trying to load pickled data from file: %s", self.pickled_data_file_path)
         if FileUtils.does_file_exist(self.pickled_data_file_path):
             self.reports = PickleUtils.load(self.pickled_data_file_path)
-            # TODO Print reports and email sent status
+            LOG.info("Printing email send status for jobs and builds...")
+            for job_name, jenkins_job_report in self.reports.items():
+                for job_url, job_build_data in jenkins_job_report.jobs_by_url.items():
+                    LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
             return True
         else:
             LOG.info("Pickled data file not found under path: %s", self.pickled_data_file_path)
@@ -341,21 +355,22 @@ class JenkinsTestReporter:
 
         build_idx = 0
         while build_idx < actual_num_builds:
-            report_url: str = report.get_build_url(build_idx)
-            LOG.info(f"Processing report of build: {report_url}")
+            build_url: str = report.get_build_url(build_idx)
+            LOG.info(f"Processing report of build: {build_url}")
             if (
                 fail_on_empty_report
                 and len(report.all_failing_tests) == 0
                 and report.is_valid_build(build_data_idx=build_idx)
             ):
                 LOG.info(
-                    f"Report with URL {report_url} is valid but does not contain any failed tests. "
+                    f"Report with URL {build_url} is valid but does not contain any failed tests. "
                     f"Won't process further, exiting..."
                 )
+                # TODO We don't want to exit here in case of multile reports!
                 raise SystemExit(0)
 
             # At this point it's certain that we have some failed tests or the build itself is invalid
-            LOG.info(f"Report of build {report_url} is not valid or contains failed tests!")
+            LOG.info(f"Report of build {build_url} is not valid or contains failed tests!")
             if report.is_valid_build(build_idx):
                 LOG.info(
                     f"\nAmong {report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
@@ -366,11 +381,15 @@ class JenkinsTestReporter:
                     LOG.info(f"{report.all_failing_tests[tn]}: {tn}")
             report_text = report.convert_to_text(build_data_idx=build_idx)
             if self.config.send_mail:
-                if not report.mail_sent or self.config.force_send_email:
-                    self.send_mail(build_idx, report, report_text)
-                    report.mark_sent()
+                if not report.is_mail_sent(build_url) or self.config.force_send_email:
+                    self.send_mail(build_idx, report, report_text, build_url)
+                    report.mark_sent(build_url)
                 else:
-                    LOG.info("Not sending report as it was already sent before. Date of send: %s", report.sent_date)
+                    LOG.info(
+                        "Not sending report of job URL %s, as it was already sent before on %s.",
+                        build_url,
+                        report.get_sent_date(build_url),
+                    )
             build_idx += 1
             if build_idx == actual_num_builds:
                 self.pickle_report_data(log=True)
@@ -565,10 +584,11 @@ class JenkinsTestReporter:
         min_time = int(time.time()) - SECONDS_PER_DAY * days
         return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
-    def send_mail(self, build_idx, report, report_text):
+    def send_mail(self, build_idx, report, report_text, report_url):
         email_subject = self._get_email_subject(build_idx, report)
         LOG.info(f"\nPRINTING REPORT: \n\n{report_text}")
-        LOG.info("Sending report in email")
+        # TODO Add MailSendProgress class to track how many emails were sent
+        LOG.info("Sending report in email (Job URL: %s)", report_url)
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
             self.config.full_email_conf.sender,
