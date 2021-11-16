@@ -213,6 +213,7 @@ class JenkinsTestReporterConfig:
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
         self.send_mail: bool = not args.skip_mail and not self.force_send_email
+        self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
 
         # Validation
         if not self.tc_filters:
@@ -371,7 +372,7 @@ class JenkinsTestReporter:
 
             # At this point it's certain that we have some failed tests or the build itself is invalid
             LOG.info(f"Report of build {build_url} is not valid or contains failed tests!")
-            if report.is_valid_build(build_idx):
+            if not self.config.omit_job_summary and report.is_valid_build(build_idx):
                 LOG.info(
                     f"\nAmong {report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
                 )
@@ -545,6 +546,7 @@ class JenkinsTestReporter:
                 continue
 
             # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
+            # TODO Introduce class: JenkinsUrls
             build_number = failed_build_url.rsplit("/")[-2]
             job_console_output = failed_build_url + "Console"
             test_report = failed_build_url + "testReport"
@@ -552,6 +554,7 @@ class JenkinsTestReporter:
             test_report_api_json += "?pretty=true"
 
             timestamp = float(failed_build_with_time[1]) / 1000.0
+            # TODO Use pythoncommons for date formatting
             st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
             LOG.info(f"===>{test_report} ({st})")
 
@@ -586,7 +589,8 @@ class JenkinsTestReporter:
 
     def send_mail(self, build_idx, report, report_text, report_url):
         email_subject = self._get_email_subject(build_idx, report)
-        LOG.info(f"\nPRINTING REPORT: \n\n{report_text}")
+        if not self.config.omit_job_summary:
+            LOG.info(f"\nPRINTING REPORT: \n\n{report_text}")
         # TODO Add MailSendProgress class to track how many emails were sent
         LOG.info("Sending report in email (Job URL: %s)", report_url)
         email_service = EmailService(self.config.full_email_conf.email_conf)

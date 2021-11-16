@@ -340,10 +340,18 @@ class ArgParser:
         )
         ArgParser.add_email_arguments(parser, add_subject=False, add_attachment_filename=False)
 
+        # TODO seems to be unused
         parser.add_argument(
             "--console-mode",
             action="store_true",
             help="Console mode: Instead of writing output files, print everything to the console",
+        )
+
+        parser.add_argument(
+            "--omit-job-summary",
+            action="store_true",
+            default=False,
+            help="Do not print job summaries to the console or the log file",
         )
 
         parser.add_argument(
