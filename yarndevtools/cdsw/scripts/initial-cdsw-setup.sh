@@ -58,9 +58,6 @@ if [[ "$EXEC_MODE" == "cloudera" ]]; then
   $SCRIPTS_DIR/clone_downstream_repos.sh
 fi
 
-echo "Installing python requirements..."
-
-
 . $DIR/install-requirements.sh $EXEC_MODE
 
 GLOBAL_SITE_PACKAGES=$(python3 -c 'import site; print(site.getsitepackages()[0])')
@@ -84,7 +81,8 @@ JOB_UT_RESULT_AGGREGATOR="unit-test-result-aggregator"
 JOB_UT_RESULT_REPORTER="unit-test-result-reporting"
 CDSW_RUNNER_SCRIPT="cdsw_runner.py"
 
-echo "Copying scripts to place..."
+echo "Linking scripts to place..."
+rm -rf $JOBS_ROOT
 mkdir -p $JOBS_ROOT
 mkdir -p $JOBS_ROOT/$JOB_DS_BRANCHDIFF_REPORTING
 mkdir -p $JOBS_ROOT/$JOB_JIRA_UMBRELLA_CHECKER/

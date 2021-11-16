@@ -20,4 +20,5 @@ if [[ "$EXEC_MODE" == "cloudera" ]]; then
 else
   curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements-github.txt
 fi
+echo "Installing python requirements..."
 pip3 install -r /tmp/requirements-cdsw.txt --upgrade --force-reinstall
