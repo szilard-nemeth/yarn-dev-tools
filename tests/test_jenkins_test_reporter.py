@@ -20,6 +20,8 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
+DEFAULT_LATEST_BUILD_NUM = 215
+DEFAULT_NUM_BUILDS = 51
 
 PACK_1 = "org.somepackage1"
 PACK_2 = "org.somepackage2"
@@ -211,7 +213,9 @@ class JenkinsReportGenerator:
 
 class JenkinsBuildsGenerator:
     @staticmethod
-    def generate(build_url_template: str, num_builds: str = "51", latest_build_num: int = 215) -> JenkinsBuilds:
+    def generate(
+        build_url_template: str, num_builds: int = DEFAULT_NUM_BUILDS, latest_build_num: int = DEFAULT_LATEST_BUILD_NUM
+    ) -> JenkinsBuilds:
         if BUILD_URL_ID_KEY not in build_url_template:
             raise ValueError(
                 "Should have received a build URL template that contains placeholder: " "{" + BUILD_URL_ID_KEY + "}'"
@@ -219,7 +223,7 @@ class JenkinsBuildsGenerator:
 
         now: datetime = DateUtils.now()
         builds: List[JenkinsBuild] = []
-        for i in range(int(num_builds)):
+        for i in range(num_builds):
             build_url = build_url_template.format(**{BUILD_URL_ID_KEY: latest_build_num - i})
             # Jenkins uses milliseconds as timestamp value
             timestamp: int = DateUtils.datetime_minus(now, days=i).timestamp() * 1000
@@ -257,8 +261,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
         tc_filters: List[str] = None,
         job_names: str = MAWO_JOB_NAME_7X,
         jenkins_url: str = JENKINS_MAIN_URL,
-        num_builds: str = "14",
-        skip_sending_mail: bool = True,
+        num_builds: str = "14",  # input should be string as JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL is a special value
+        skip_sending_mail: bool = False,
+        force_sending_mail: bool = True,
         force_mode: bool = True,
     ):
         if not tc_filters:
@@ -270,6 +275,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.smtp_server = "smtp.gmail.com"
         args.recipients = ["test@recipient.com"]
         args.sender = "Jenkins test reporter"
+        args.force_send_email = force_sending_mail
         args.jenkins_url = jenkins_url
         args.job_names = job_names
         args.num_builds = num_builds
@@ -387,7 +393,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(skip_sending_mail=False), self.output_dir)
+        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
@@ -411,7 +417,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(skip_sending_mail=False), self.output_dir)
+        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
@@ -441,9 +447,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(
-            self.generate_args(tc_filters=MULTI_FILTER, skip_sending_mail=False), self.output_dir
-        )
+        reporter = JenkinsTestReporter(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
         reporter.run()
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=45)

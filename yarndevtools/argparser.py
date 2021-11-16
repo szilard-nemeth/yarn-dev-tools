@@ -378,10 +378,18 @@ class ArgParser:
         )
 
         parser.add_argument(
-            "--force-email",
+            "--force-sending-email",
             action="store_true",
             dest="force_send_email",
-            help="Force sending email for all builds.",
+            help="Force sending email report for all builds.",
+        )
+
+        parser.add_argument(
+            "-s",
+            "--skip-sending-email",
+            dest="skip_email",
+            type=bool,
+            help="Skip sending email report for all builds.",
         )
 
         parser.add_argument(
@@ -441,14 +449,6 @@ class ArgParser:
             nargs="+",
             type=tc_filter_validator,
             help="Testcase filters in format: <project:filter statement>",
-        )
-
-        parser.add_argument(
-            "-s",
-            "--skip-sending-mail",
-            dest="skip_mail",
-            type=bool,
-            help="Whether to skip sending email report",
         )
 
         parser.add_argument(

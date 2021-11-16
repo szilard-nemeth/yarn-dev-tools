@@ -212,7 +212,7 @@ class JenkinsTestReporterConfig:
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
-        self.send_mail: bool = not args.skip_mail and not self.force_send_email
+        self.send_mail: bool = not args.skip_mail or not self.force_send_email
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
         self.download_uncached_job_data: bool = (
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
