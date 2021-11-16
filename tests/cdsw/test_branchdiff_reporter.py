@@ -22,7 +22,12 @@ from pythoncommons.project_utils import (
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME, BranchComparatorEnvVar
+from yarndevtools.cdsw.common_python.constants import (
+    CdswEnvVar,
+    BRANCH_DIFF_REPORTER_DIR_NAME,
+    BranchComparatorEnvVar,
+    CDSW_RUNNER_PY,
+)
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
@@ -39,7 +44,6 @@ MOUNT_MODE_READ_ONLY = "ro"
 BASH = "bash"
 CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
-CDSW_RUNNER_PY = "cdsw_runner.py"
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 CONTAINER_SLEEP = 300

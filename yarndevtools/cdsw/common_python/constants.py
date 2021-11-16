@@ -3,6 +3,7 @@ from enum import Enum
 BRANCH_DIFF_REPORTER_DIR_NAME = "downstream-branchdiff-reporting"
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
+CDSW_RUNNER_PY = "cdsw_runner.py"
 
 
 # TODO Add default value of all env vars to enum

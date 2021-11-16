@@ -12,13 +12,18 @@ from typing import Dict, List
 # https://stackoverflow.com/a/50255019/1106893
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
-from pythoncommons.file_utils import FileUtils
+from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME, INSTALL_REQUIREMENTS_SCRIPT
+from yarndevtools.cdsw.common_python.constants import (
+    CdswEnvVar,
+    PROJECT_NAME,
+    INSTALL_REQUIREMENTS_SCRIPT,
+    CDSW_RUNNER_PY,
+)
 
 from pythoncommons.process import SubprocessCommandRunner
 
@@ -46,6 +51,12 @@ class CommonDirs:
     HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
     USER_DEV_ROOT = FileUtils.join_path("/", "Users", "snemeth", "development")
     YARN_DEV_TOOLS_MODULE_ROOT = None
+    CDSW_SCRIPT_DIR_NAMES: List[str] = [
+        "downstream-branchdiff-reporting",
+        "jira-umbrella-checker",
+        "unit-test-result-aggregator",
+        "unit-test-result-reporting",
+    ]
 
 
 class CommonFiles:
@@ -112,7 +123,7 @@ class CdswSetup:
 
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
         CdswSetup._run_install_requirements_script()
-        # TODO Re-link all jobs from /home/cdsw/jobs to pythonpath/yarndevtools/cdsw/../cdsw-runner.py
+        CdswSetup._relink_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts()
         LOG.info("Using basedir for scripts: " + basedir)
         return basedir
 
@@ -156,6 +167,31 @@ class CdswSetup:
             raise ValueError("Invalid python module mode: " + python_module_mode)
         CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, YARNDEVTOOLS_MODULE_NAME)
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
+
+    @staticmethod
+    def _relink_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts():
+        LOG.info("Linking jobs to place...")
+        FileUtils.remove_dir(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR)
+        for cdsw_script_dirname in CommonDirs.CDSW_SCRIPT_DIR_NAMES:
+            found_files = FileUtils.find_files(
+                CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                find_type=FindResultType.FILES,
+                regex=CDSW_RUNNER_PY,
+                parent_dir=cdsw_script_dirname,
+                single_level=False,
+                full_path_result=True,
+            )
+            if len(found_files) != 1:
+                raise ValueError(
+                    f"Expected to find 1 file with name {CDSW_RUNNER_PY} "
+                    f"and parent dir '{cdsw_script_dirname}'. "
+                    f"Actual results: {found_files}"
+                )
+            cdsw_script_path = found_files[0]
+            new_cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
+            FileUtils.create_new_dir(new_cdsw_job_dir)
+            new_link_path = FileUtils.join_path(new_cdsw_job_dir, CDSW_RUNNER_PY)
+            FileUtils.create_symlink(cdsw_script_path, new_link_path)
 
     @staticmethod
     def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):

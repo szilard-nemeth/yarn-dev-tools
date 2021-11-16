@@ -109,6 +109,7 @@ class CdswRunner(CdswRunnerBase):
                     "but but found multiple files from base directory '%s'. Found files: %s",
                     SKIP_AGGREGATION_DEFAULTS_FILENAME,
                     CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                    results,
                 )
             else:
                 found_with_auto_discovery = results[0]
