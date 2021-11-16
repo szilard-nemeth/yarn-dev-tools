@@ -171,8 +171,11 @@ class CdswSetup:
     @staticmethod
     def _relink_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts():
         LOG.info("Linking jobs to place...")
-        FileUtils.remove_dir(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR)
         for cdsw_script_dirname in CommonDirs.CDSW_SCRIPT_DIR_NAMES:
+            # It's safer to delete dirs one by one explictly, without specifying just the parent
+            cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
+            FileUtils.remove_dir(cdsw_job_dir, force=True)
+
             found_files = FileUtils.find_files(
                 CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
                 find_type=FindResultType.FILES,
@@ -188,9 +191,8 @@ class CdswSetup:
                     f"Actual results: {found_files}"
                 )
             cdsw_script_path = found_files[0]
-            new_cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
-            FileUtils.create_new_dir(new_cdsw_job_dir)
-            new_link_path = FileUtils.join_path(new_cdsw_job_dir, CDSW_RUNNER_PY)
+            FileUtils.create_new_dir(cdsw_job_dir)
+            new_link_path = FileUtils.join_path(cdsw_job_dir, CDSW_RUNNER_PY)
             FileUtils.create_symlink(cdsw_script_path, new_link_path)
 
     @staticmethod
