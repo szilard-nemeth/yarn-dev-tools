@@ -214,6 +214,9 @@ class JenkinsTestReporterConfig:
         self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
         self.send_mail: bool = not args.skip_mail and not self.force_send_email
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
+        self.download_uncached_job_data: bool = (
+            args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
+        )
 
         # Validation
         if not self.tc_filters:
@@ -479,18 +482,25 @@ class JenkinsTestReporter:
         return self.parse_job_data(data, build_url, build_number, job_console_output), loaded_from_cache
 
     def gather_report_data_for_build(self, build_number, test_report_api_json, job_name: str):
-        loaded_from_cache = True
         if self.config.enable_file_cache:
-            target_file_path = self.get_file_name_for_report(build_number, job_name)
-            if os.path.exists(target_file_path):
+            found_in_cache, target_file_path = self._is_build_data_downloaded(job_name, build_number)
+            if found_in_cache:
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = self.read_test_report_from_file(target_file_path)
+                return data, True
             else:
                 data = self.download_test_report(test_report_api_json, target_file_path)
-                loaded_from_cache = False
+                return data, False
         else:
             data = self.download_test_report(test_report_api_json, None)
-        return data, loaded_from_cache
+            return data, False
+
+    def _is_build_data_downloaded(self, job_name, build_number):
+        target_file_path = self.get_file_name_for_report(build_number, job_name)
+        if os.path.exists(target_file_path):
+            LOG.debug("Build found in cache. Job name: %s, Build number: %s", job_name, build_number)
+            return True, target_file_path
+        return False, target_file_path
 
     @staticmethod
     def parse_job_data(data, build_url, build_number, job_console_output_url):
@@ -510,7 +520,6 @@ class JenkinsTestReporter:
 
     def _find_flaky_tests(self, job_name: str):
         """ Iterate runs of specified job within num_builds and collect results """
-        # First list all builds
         builds = self.list_builds(job_name)
         total_no_of_builds = len(builds)
         last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_builds)
@@ -533,18 +542,6 @@ class JenkinsTestReporter:
                 break
             failed_build_url = failed_build_with_time[0]
 
-            # Try to get build data from cache, if found jump to next build URL
-            if (
-                not self.config.force_download_mode
-                and job_name in self.reports
-                and failed_build_url in self.reports[job_name].known_build_urls
-            ):
-                LOG.info("Found build in cache, skipping: %s", failed_build_url)
-                job_data = self.reports[job_name].jobs_by_url[failed_build_url]
-                job_datas.append(job_data)
-                self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
-                continue
-
             # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
             # TODO Introduce class: JenkinsUrls
             build_number = failed_build_url.rsplit("/")[-2]
@@ -553,22 +550,47 @@ class JenkinsTestReporter:
             test_report_api_json = test_report + "/api/json"
             test_report_api_json += "?pretty=true"
 
-            timestamp = float(failed_build_with_time[1]) / 1000.0
-            # TODO Use pythoncommons for date formatting
-            st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-            LOG.info(f"===>{test_report} ({st})")
+            download_build = False
+            job_added_from_cache = False
+            if self.config.download_uncached_job_data and not self._is_build_data_downloaded(job_name, build_number)[0]:
+                download_build = True
 
-            job_data, loaded_from_cache = self.find_failing_tests(
-                test_report_api_json, job_console_output, failed_build_url, build_number, job_name
-            )
-            job_data.filter_testcases(self.config.tc_filters)
-            job_datas.append(job_data)
-            self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
-            self.download_progress.process_next_build()
-            if not loaded_from_cache:
-                sent_requests += 1
+            # Try to get build data from cache, if found, jump to next build URL
+            if self._should_load_build_data_from_cache(failed_build_url, job_name):
+                LOG.info("Found build in cache, skipping: %s", failed_build_url)
+                job_data = self.reports[job_name].jobs_by_url[failed_build_url]
+                job_datas.append(job_data)
+                self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
+                job_added_from_cache = True
+
+            # We would like to download job data if job is not found in cache and
+            # config.download_uncached_job_data is True OR when job data is not found in file cache.
+            if download_build or not job_added_from_cache:
+                # TODO Use pythoncommons for date formatting
+                timestamp = float(failed_build_with_time[1]) / 1000.0
+                st = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                LOG.info(f"===>{test_report} ({st})")
+
+                job_data, loaded_from_cache = self.find_failing_tests(
+                    test_report_api_json, job_console_output, failed_build_url, build_number, job_name
+                )
+
+                if not job_added_from_cache:
+                    job_data.filter_testcases(self.config.tc_filters)
+                    job_datas.append(job_data)
+                    self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
+                self.download_progress.process_next_build()
+                if not loaded_from_cache:
+                    sent_requests += 1
 
         return JenkinsJobReport(job_datas, tc_to_fail_count, total_no_of_builds)
+
+    def _should_load_build_data_from_cache(self, failed_build_url, job_name):
+        return (
+            not self.config.force_download_mode
+            and job_name in self.reports
+            and failed_build_url in self.reports[job_name].known_build_urls
+        )
 
     @staticmethod
     def _create_testcase_to_fail_count_dict(job_data, tc_to_fail_count):

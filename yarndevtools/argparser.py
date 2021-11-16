@@ -37,6 +37,11 @@ class JenkinsTestReporterMode(Enum):
             "cdpd-master-Hadoop-HDFS-Unit",
             "cdpd-master-Hadoop-MR-Unit",
             "cdpd-master-Hadoop-YARN-Unit",
+            # TODO uncomment these jobs
+            # "CDH-7.1-maint-Hadoop-Common-Unit",
+            # "CDH-7.1-maint-Hadoop-HDFS-Unit",
+            # "CDH-7.1-maint-Hadoop-MR-Unit",
+            # "CDH-7.1-maint-Hadoop-YARN-Unit",
         ],
     )
     MAWO = ("MAWO", "http://build.infra.cloudera.com/", ["Mawo-UT-hadoop-CDPD-7.x", "Mawo-UT-hadoop-CDPD-7.1.x"])
@@ -326,7 +331,7 @@ class ArgParser:
             CommandType.JENKINS_TEST_REPORTER.name,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
             "Example: "
-            "--mode {mode} "
+            "--mode jenkins_master "
             "--jenkins-url {jenkins_base_url} "
             "--job-names {job_names} "
             "--testcase-filter org.apache.hadoop.yarn "
@@ -335,8 +340,11 @@ class ArgParser:
             "--account_user someuser@somemail.com "
             "--account_password somepassword "
             "--sender 'YARN jenkins test reporter' "
-            "--recipients snemeth@cloudera.com"
-            #
+            "--recipients snemeth@cloudera.com "
+            "--testcase-filter YARN:org.apache.hadoop.yarn MAPREDUCE:org.apache.hadoop.mapreduce HDFS:org.apache.hadoop.hdfs "
+            "--num-builds jenkins_examine_unlimited_builds "
+            "--omit-job-summary "
+            "--download-uncached-job-data",
         )
         ArgParser.add_email_arguments(parser, add_subject=False, add_attachment_filename=False)
 
@@ -358,7 +366,15 @@ class ArgParser:
             "--force-download-jobs",
             action="store_true",
             dest="force_download_mode",
-            help="Force downloading data from all builds.",
+            help="Force downloading data from all builds. "
+            "If this is set to true, all job data will be downloaded, regardless if they are already in the cache",
+        )
+
+        parser.add_argument(
+            "--download-uncached-job-data",
+            action="store_true",
+            dest="download_uncached_job_data",
+            help="Download data for all builds that are not in cache yet or was removed from the cache, for any reason.",
         )
 
         parser.add_argument(
