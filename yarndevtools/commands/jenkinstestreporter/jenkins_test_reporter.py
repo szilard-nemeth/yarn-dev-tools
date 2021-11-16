@@ -279,6 +279,7 @@ class JenkinsTestReporter:
         LOG.info("Trying to load pickled data from file: %s", self.pickled_data_file_path)
         if FileUtils.does_file_exist(self.pickled_data_file_path):
             self.reports = PickleUtils.load(self.pickled_data_file_path)
+            # TODO Print reports and email sent status
             return True
         else:
             LOG.info("Pickled data file not found under path: %s", self.pickled_data_file_path)
@@ -333,12 +334,13 @@ class JenkinsTestReporter:
 
     def _process_build_reports(self, report, fail_on_empty_report: bool = True):
         LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in report.job_build_datas]}")
-        LOG.info(f"Processing {self.config.num_builds} build reports...")
+        actual_num_builds = min(self.config.num_builds, report.total_no_of_builds)
+        LOG.info(f"Processing {actual_num_builds} build reports...")
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
 
         build_idx = 0
-        while build_idx < self.config.num_builds:
+        while build_idx < actual_num_builds:
             report_url: str = report.get_build_url(build_idx)
             LOG.info(f"Processing report of build: {report_url}")
             if (
@@ -370,7 +372,7 @@ class JenkinsTestReporter:
                 else:
                     LOG.info("Not sending report as it was already sent before. Date of send: %s", report.sent_date)
             build_idx += 1
-            if build_idx == self.config.num_builds:
+            if build_idx == actual_num_builds:
                 self.pickle_report_data(log=True)
             else:
                 self.pickle_report_data(log=False)
