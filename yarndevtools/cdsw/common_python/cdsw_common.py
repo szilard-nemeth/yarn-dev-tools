@@ -18,7 +18,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, PROJECT_NAME, INSTALL_REQUIREMENTS_SCRIPT
 
 from pythoncommons.process import SubprocessCommandRunner
 
@@ -111,8 +111,32 @@ class CdswSetup:
             basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
 
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
+        CdswSetup._run_install_requirements_script()
+        # TODO Re-link all jobs from /home/cdsw/jobs to pythonpath/yarndevtools/cdsw/../cdsw-runner.py
         LOG.info("Using basedir for scripts: " + basedir)
         return basedir
+
+    @staticmethod
+    def _run_install_requirements_script(exit_on_nonzero_exitcode=False):
+        """
+        Do not exit on non-zero exit code as pip can fail to remove residual package files on NFS.
+        See: https://github.com/pypa/pip/issues/6327
+        :param exit_on_nonzero_exitcode:
+        :return:
+        """
+        results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, INSTALL_REQUIREMENTS_SCRIPT)
+        if not results:
+            raise ValueError(
+                "Expected to find file: {} from basedir: {}".format(
+                    INSTALL_REQUIREMENTS_SCRIPT, CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
+                )
+            )
+        script = results[0]
+        exec_mode = OsUtils.get_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, "upstream")
+        cmd = f"{BASHX} {script} {exec_mode}"
+        SubprocessCommandRunner.run_and_follow_stdout_stderr(
+            cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
+        )
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
@@ -149,7 +173,6 @@ class CdswRunnerBase(ABC):
 
     def start_common(self, basedir):
         LOG.info("Starting CDSW runner...")
-        self.run_install_requirements_script()
 
     @abstractmethod
     def start(self, basedir):
@@ -166,28 +189,6 @@ class CdswRunnerBase(ABC):
         script = os.path.join(basedir, "clone_upstream_repos.sh")
         cmd = f"{BASHX} {script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
-
-    @staticmethod
-    def run_install_requirements_script(exit_on_nonzero_exitcode=False):
-        """
-        Do not exit on non-zero exit code as pip can fail to remove residual package files on NFS.
-        See: https://github.com/pypa/pip/issues/6327
-        :param exit_on_nonzero_exitcode:
-        :return:
-        """
-        results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "install-requirements.sh")
-        if not results:
-            raise ValueError(
-                "Expected to find file: install-requirements.sh from basedir: {}".format(
-                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
-                )
-            )
-        script = results[0]
-        exec_mode = OsUtils.get_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, "upstream")
-        cmd = f"{BASHX} {script} {exec_mode}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(
-            cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
-        )
 
     @staticmethod
     def execute_yarndevtools_script(script_args):
