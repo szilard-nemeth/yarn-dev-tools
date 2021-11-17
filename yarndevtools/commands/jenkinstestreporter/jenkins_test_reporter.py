@@ -77,44 +77,34 @@ class FilteredResult:
 
 
 class JenkinsJobReport:
-    def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int):
-        self.job_build_datas: List[JobBuildData] = job_build_datas
-        self.jobs_by_url: Dict[str, JobBuildData] = {jbd.build_url: jbd for jbd in job_build_datas}
+    def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
+        self.jobs_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in job_build_datas}
+        # Sort by URL, descending
+        self._job_urls = list(sorted(self.jobs_by_url.keys(), reverse=True))
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
+        self.actual_num_builds = self._determine_actual_number_of_builds(num_builds_per_config)
+        self._index = 0
 
-    @property
-    def known_build_urls(self):
-        return self.jobs_by_url.keys()
+    def start_processing(self):
+        LOG.info(f"Report list contains build results: {self._job_urls}")
+        LOG.info(f"Processing {self.actual_num_builds} in Report...")
 
-    def convert_to_text(self, build_data_idx=-1):
-        if build_data_idx > -1:
-            return self.job_build_datas[build_data_idx].__str__()
+    def __len__(self):
+        return self.actual_num_builds
 
-    def is_valid_build(self, build_data_idx=-1):
-        if build_data_idx > -1:
-            return not self.job_build_datas[build_data_idx].empty_or_not_found
+    def __iter__(self):
+        return self
 
-    def get_build_url(self, build_data_idx):
-        return self.job_build_datas[build_data_idx].build_url
+    def __next__(self):
+        if self._index == self.actual_num_builds:
+            raise StopIteration
+        result = self.jobs_by_url[self._job_urls[self._index]]
+        self._index += 1
+        return result
 
-    def is_mail_sent(self, job_url):
-        job_data = self.jobs_by_url[job_url]
-        return job_data.mail_sent
-
-    def get_sent_date(self, job_url):
-        return self.jobs_by_url[job_url].sent_date
-
-    def are_all_mail_sent(self):
-        return all(job_data.mail_sent for job_data in self.jobs_by_url.values())
-
-    def mark_sent(self, job_url):
-        job_data = self.jobs_by_url[job_url]
-        job_data.sent_date = DateUtils.get_current_datetime()
-        job_data.mail_sent = True
-
-    def determine_actual_number_of_builds(self, num_builds_per_config):
-        build_data_count = len(self.job_build_datas)
+    def _determine_actual_number_of_builds(self, num_builds_per_config):
+        build_data_count = len(self.jobs_by_url)
         total_no_of_builds = self.total_no_of_builds
         if build_data_count < total_no_of_builds:
             LOG.warning(
@@ -126,6 +116,21 @@ class JenkinsJobReport:
         else:
             actual_num_builds = min(num_builds_per_config, self.total_no_of_builds)
         return actual_num_builds
+
+    @property
+    def known_build_urls(self):
+        return self.jobs_by_url.keys()
+
+    def are_all_mail_sent(self):
+        return all(job_data.mail_sent for job_data in self.jobs_by_url.values())
+
+    def mark_sent(self, build_url):
+        job_data = self.jobs_by_url[build_url]
+        job_data.sent_date = DateUtils.get_current_datetime()
+        job_data.mail_sent = True
+
+    def get_job_data(self, build_url: str):
+        return self.jobs_by_url[build_url]
 
 
 class JobBuildData:
@@ -156,6 +161,14 @@ class JobBuildData:
             matched_testcases.update(matched_for_filter)
         self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
         self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
+
+    @property
+    def is_valid(self):
+        return self.empty_or_not_found
+
+    @property
+    def is_mail_sent(self):
+        return self.mail_sent
 
     @property
     def tc_filters(self):
@@ -282,17 +295,17 @@ class JenkinsTestReporter:
         LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
         self.main()
 
-    def _get_latest_report(self, job_name):
+    def _get_report_by_job_name(self, job_name):
         return self.reports[job_name]
 
     def get_failed_tests(self, job_name) -> List[str]:
-        latest_report = self._get_latest_report(job_name)
-        if not latest_report:
+        report = self._get_report_by_job_name(job_name)
+        if not report:
             raise ValueError("Report is not queried yet or it is None!")
-        return list(latest_report.all_failing_tests.keys())
+        return list(report.all_failing_tests.keys())
 
     def get_num_build_data(self, job_name):
-        return len(self._get_latest_report(job_name).job_build_datas)
+        return len(self._get_report_by_job_name(job_name).jobs_by_url)
 
     @property
     def testcase_filters(self) -> List[str]:
@@ -326,17 +339,10 @@ class JenkinsTestReporter:
         LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.pickled_data_file_path)
         PickleUtils.dump(self.reports, self.pickled_data_file_path)
 
-    def get_all_filtered_testcases_from_build(self, build_data_idx: int, job_name: str):
+    def get_filtered_testcases_from_build(self, build_url: str, package: str, job_name: str):
         return [
             tc
-            for filtered_res in self._get_latest_report(job_name).job_build_datas[build_data_idx].filtered_testcases
-            for tc in filtered_res.testcases
-        ]
-
-    def get_filtered_testcases_from_build(self, build_data_idx: int, package: str, job_name: str):
-        return [
-            tc
-            for filtered_res in self._get_latest_report(job_name).job_build_datas[build_data_idx].filtered_testcases
+            for filtered_res in self._get_report_by_job_name(job_name).get_job_data(build_url).filtered_testcases
             for tc in filtered_res.testcases
             if package in tc
         ]
@@ -368,32 +374,23 @@ class JenkinsTestReporter:
         self.pickle_report_data()
 
     def _process_build_report(self, report, fail_on_empty_report: bool = True):
-        LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in report.job_build_datas]}")
-        actual_num_builds = report.determine_actual_number_of_builds(report, self.config.num_builds)
-        LOG.info(f"Processing {actual_num_builds} in Report...")
+        report.start_processing()
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
 
-        # TODO Remove indexing logic
-        build_idx = 0
-        while build_idx < actual_num_builds:
-            build_url: str = report.get_build_url(build_idx)
-            LOG.info(f"Processing report of build: {build_url}")
-            if (
-                fail_on_empty_report
-                and len(report.all_failing_tests) == 0
-                and report.is_valid_build(build_data_idx=build_idx)
-            ):
+        for i, build_data in enumerate(report):
+            LOG.info(f"Processing report of build: {build_data.build_url}")
+            if fail_on_empty_report and len(report.all_failing_tests) == 0 and build_data.is_valid:
                 LOG.info(
-                    f"Report with URL {build_url} is valid but does not contain any failed tests. "
+                    f"Report with URL {build_data.build_url} is valid but does not contain any failed tests. "
                     f"Won't process further, exiting..."
                 )
                 # TODO We don't want to exit here in case of multile reports!
                 raise SystemExit(0)
 
             # At this point it's certain that we have some failed tests or the build itself is invalid
-            LOG.info(f"Report of build {build_url} is not valid or contains failed tests!")
-            if not self.config.omit_job_summary and report.is_valid_build(build_idx):
+            LOG.info(f"Report of build {build_data.build_url} is not valid or contains failed tests!")
+            if not self.config.omit_job_summary and build_data.is_valid:
                 # TODO Move this to method of Report
                 LOG.info(
                     f"\nAmong {report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
@@ -402,24 +399,20 @@ class JenkinsTestReporter:
                 LOG.info("TESTCASE SUMMARY:")
                 for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
                     LOG.info(f"{report.all_failing_tests[tn]}: {tn}")
-            report_text = report.convert_to_text(build_data_idx=build_idx)
             if self.config.send_mail:
-                if not report.is_mail_sent(build_url) or self.config.force_send_email:
-                    self.send_mail(build_idx, report, report_text, build_url)
-                    report.mark_sent(build_url)
+                if not build_data.is_mail_sent or self.config.force_send_email:
+                    self.send_mail(build_data)
+                    report.mark_sent(build_data.build_url)
                 else:
                     LOG.info(
                         "Not sending report of job URL %s, as it was already sent before on %s.",
-                        build_url,
-                        report.get_sent_date(build_url),
+                        build_data.build_url,
+                        build_data.sent_date(),
                     )
-            build_idx += 1
-            if build_idx == actual_num_builds:
-                self.pickle_report_data(log=True)
-            else:
-                self.pickle_report_data(log=False)
+            log_report = i == len(report) - 1
+            self.pickle_report_data(log=log_report)
 
-    # TODO move to pythoncommons but debug this before.
+    # TODO move to pythoncommons
     @staticmethod
     def load_url_data(url):
         """ Load data from specified url """
@@ -591,7 +584,7 @@ class JenkinsTestReporter:
                 if not loaded_from_cache:
                     sent_requests += 1
 
-        return JenkinsJobReport(job_datas, tc_to_fail_count, total_no_of_builds)
+        return JenkinsJobReport(job_datas, tc_to_fail_count, total_no_of_builds, self.config.num_builds)
 
     def _should_load_build_data_from_cache(self, failed_build_url, job_name):
         return (
@@ -617,27 +610,28 @@ class JenkinsTestReporter:
         min_time = int(time.time()) - SECONDS_PER_DAY * days
         return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
-    def send_mail(self, build_idx, report, report_text, report_url):
-        email_subject = self._get_email_subject(build_idx, report)
+    def send_mail(self, build_data: JobBuildData):
+        email_subject = self._get_email_subject(build_data)
         if not self.config.omit_job_summary:
-            LOG.info(f"\nPRINTING REPORT: \n\n{report_text}")
+            LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
         # TODO Add MailSendProgress class to track how many emails were sent
-        LOG.info("Sending report in email (Job URL: %s)", report_url)
+        LOG.info("Sending report in email (Job URL: %s)", build_data.build_url)
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
             self.config.full_email_conf.sender,
             email_subject,
-            report_text,
+            str(build_data),
             self.config.full_email_conf.recipients,
             body_mimetype=EmailMimeType.PLAIN,
         )
         LOG.info("Finished sending email to recipients")
 
     @staticmethod
-    def _get_email_subject(build_idx, report):
-        build_url = report.get_build_url(build_data_idx=build_idx)
-        if report.is_valid_build(build_data_idx=build_idx):
-            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_url}"
+    def _get_email_subject(build_data: JobBuildData):
+        if build_data.is_valid:
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_data.build_url}"
         else:
-            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, build is invalid: {build_url}"
+            email_subject = (
+                f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, " f"build is invalid: {build_data.build_url}"
+            )
         return email_subject

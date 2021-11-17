@@ -365,6 +365,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         for tc_filter in filters:
             package = self._get_package_from_filter(tc_filter)
+            # TODO Index is hardcoded
             actual_failed_testcases = reporter.get_filtered_testcases_from_build(0, package, job_name)
             expected_failed_testcases: List[str] = expected_failed_testcases_dict[tc_filter]
             self.assertEqual(len(expected_failed_testcases), len(actual_failed_testcases))
