@@ -34,11 +34,6 @@ DEFAULT_REQUEST_LIMIT = 999
 
 
 @dataclass
-class PickledData:
-    project_name: str
-
-
-@dataclass
 class TestcaseFilter:
     project_name: str
     filter_expr: str
@@ -236,7 +231,10 @@ class JenkinsTestReporterConfig:
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
         self.enable_file_cache: bool = not args.disable_file_cache
-        self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
+        self.output_dir = output_dir
+        self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
+        self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(self.output_dir, "cached_data"))
+        self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(self.output_dir, "reports"))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         skip_email = args.skip_email if hasattr(args, "skip_email") else False
@@ -291,6 +289,15 @@ class JenkinsTestReporter:
         self.config = JenkinsTestReporterConfig(output_dir, args)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
 
+    @property
+    def pickled_data_file_path(self):
+        return FileUtils.join_path(self.config.cached_data_dir, PICKLED_DATA_FILENAME)
+
+    def generate_file_name_for_report(self, job_name: str, build_number: str):
+        job_name = job_name.replace(".", "_")
+        job_dir_path = FileUtils.ensure_dir_created(FileUtils.join_path(self.config.reports_dir, job_name))
+        return FileUtils.join_path(job_dir_path, f"{build_number}-testreport.json")
+
     def run(self):
         LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
         self.main()
@@ -310,15 +317,6 @@ class JenkinsTestReporter:
     @property
     def testcase_filters(self) -> List[str]:
         return [tcf.as_filter_spec for tcf in self.config.tc_filters]
-
-    @property
-    def pickled_data_file_path(self):
-        # TODO Utilize pythoncommons ProjectUtils
-        cwd = os.getcwd()
-        cached_data_dir = os.path.join(cwd, "workdir", "cached_data")
-        if not os.path.exists(cached_data_dir):
-            os.makedirs(cached_data_dir)
-        return FileUtils.join_path(cached_data_dir, PICKLED_DATA_FILENAME)
 
     def load_pickled_data(self):
         LOG.info("Trying to load pickled data from file: %s", self.pickled_data_file_path)
@@ -437,17 +435,6 @@ class JenkinsTestReporter:
             jenkins_url = jenkins_url[:-1]
         return f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
 
-    @staticmethod
-    def get_file_name_for_report(build_number, job_name: str):
-        # TODO utilize pythoncommon ProjectUtils to get output dir
-        cwd = os.getcwd()
-        job_filename = job_name.replace(".", "_")
-        job_dir_path = os.path.join(cwd, "workdir", "reports", job_filename)
-        if not os.path.exists(job_dir_path):
-            os.makedirs(job_dir_path)
-
-        return os.path.join(job_dir_path, f"{build_number}-testreport.json")
-
     # TODO move to pythoncommons
     def download_test_report(self, test_report_api_json, target_file_path):
         LOG.info(
@@ -496,7 +483,7 @@ class JenkinsTestReporter:
             return data, False
 
     def _is_build_data_downloaded(self, job_name, build_number):
-        target_file_path = self.get_file_name_for_report(build_number, job_name)
+        target_file_path = self.generate_file_name_for_report(job_name, build_number)
         if os.path.exists(target_file_path):
             LOG.debug("Build found in cache. Job name: %s, Build number: %s", job_name, build_number)
             return True, target_file_path

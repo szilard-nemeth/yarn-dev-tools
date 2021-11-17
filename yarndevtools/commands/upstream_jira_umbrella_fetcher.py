@@ -231,6 +231,7 @@ class UpstreamJiraUmbrellaFetcherConfig:
     def __init__(
         self, output_dir: str, args, upstream_base_branch: str, upstream_repo: GitWrapper, downstream_repo: GitWrapper
     ):
+        # TODO This is overwritten below
         self.output_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.execution_mode = (
             ExecutionMode.MANUAL_BRANCH_MODE
