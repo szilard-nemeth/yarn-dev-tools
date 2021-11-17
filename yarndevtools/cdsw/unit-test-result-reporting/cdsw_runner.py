@@ -10,7 +10,10 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JenkinsTestReporterEnvVar
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporterMode
+from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
+    JenkinsTestReporterMode,
+    DEFAULT_REQUEST_LIMIT,
+)
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
@@ -41,7 +44,9 @@ class CdswRunner(CdswRunnerBase):
 
         if not recipients:
             recipients = self.determine_recipients()
-        process_builds: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.BUILD_PROCESSING_LIMIT.value, 1)
+        process_builds: int = OsUtils.get_env_value(
+            JenkinsTestReporterEnvVar.BUILD_PROCESSING_LIMIT.value, DEFAULT_REQUEST_LIMIT
+        )
         LOG.info(f"Processing {process_builds} builds...")
         sender = "YARN jenkins test reporter"
         omit_job_summary_param = "--omit-job-summary" if omit_job_summary else ""

@@ -30,6 +30,7 @@ LOG = logging.getLogger(__name__)
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 PICKLED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
 SECONDS_PER_DAY = 86400
+DEFAULT_REQUEST_LIMIT = 999
 
 
 @dataclass
