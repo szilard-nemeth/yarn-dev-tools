@@ -186,6 +186,11 @@ class JenkinsJobReport:
     def are_all_mail_sent(self):
         return all(job_data.mail_sent for job_data in self.jobs_by_url.values())
 
+    def reset_mail_sent_state(self):
+        for job_data in self.jobs_by_url.values():
+            job_data.sent_date = None
+            job_data.mail_sent = False
+
     def mark_sent(self, build_url):
         job_data = self.jobs_by_url[build_url]
         job_data.sent_date = DateUtils.get_current_datetime()
@@ -319,6 +324,9 @@ class JenkinsTestReporterConfig:
         self.download_uncached_job_data: bool = (
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
+        self.reset_email_sent_state: List[str] = (
+            args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else False
+        )
 
         # Validation
         if not self.tc_filters:
@@ -335,6 +343,12 @@ class JenkinsTestReporterConfig:
             )
             self.jenkins_base_url = self.jenkins_mode.jenkins_base_url
             self.job_names = self.jenkins_mode.job_names
+
+        if not all([reset in self.job_names for reset in self.reset_email_sent_state]):
+            raise ValueError(
+                "Not all jobs are recognized while trying to reset email sent state for jobs! "
+                "Valid job names: {}, Current job names: {}".format(self.job_names, self.reset_email_sent_state)
+            )
 
     @staticmethod
     def _determine_number_of_builds_to_examine(config_value, request_limit) -> int:
@@ -359,6 +373,8 @@ class JenkinsTestReporterConfig:
         )
 
 
+# TODO rename pickle to cache everywhere
+# TODO Move all cache handling related stuff to new class
 class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
@@ -440,6 +456,12 @@ class JenkinsTestReporter:
         self.do_fetch()
 
     def do_fetch(self):
+        if self.config.reset_email_sent_state:
+            # Try to reset email sent state of asked jobs
+            LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
+            for job_name in self.config.reset_email_sent_state:
+                self.reports[job_name].reset_mail_sent_state()
+
         for job_name in self.config.job_names:
             report = self._find_flaky_tests(job_name)
             self.reports[job_name] = report

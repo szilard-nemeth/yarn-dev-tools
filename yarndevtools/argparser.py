@@ -392,6 +392,14 @@ class ArgParser:
         )
 
         parser.add_argument(
+            "--reset-sent-state-for-jobs",
+            nargs="+",
+            type=str,
+            dest="reset_sent_state_for_jobs",
+            help="Reset email sent state for these jobs.",
+        )
+
+        parser.add_argument(
             "-m",
             "--mode",
             type=str,
