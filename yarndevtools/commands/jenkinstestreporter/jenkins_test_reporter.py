@@ -14,6 +14,7 @@ from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils, JsonFileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
+from pythoncommons.network_utils import NetworkUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.project_utils import ProjectUtils
@@ -410,21 +411,12 @@ class JenkinsTestReporter:
             log_report = i == len(report) - 1
             self.pickle_report_data(log=log_report)
 
-    # TODO move to pythoncommons
-    @staticmethod
-    def load_url_data(url):
-        """ Load data from specified url """
-        ourl = urllib.request.urlopen(url)
-        codec = ourl.info().get_param("charset")
-        content = ourl.read().decode(codec)
-        return json.loads(content, strict=False)
-
     def list_builds(self, job_name: str):
         """ List all builds of the target project. """
         LOG.info(f"Fetching builds from Jenkins in url: {self.config.jenkins_url}/job/{job_name}")
         url = self.get_jenkins_list_builds_url(job_name)
         try:
-            return self.load_url_data(url)["builds"]
+            return NetworkUtils.fetch_json(url)["builds"]
         except Exception:
             LOG.error(f"Could not fetch: {url}")
             raise
@@ -435,24 +427,23 @@ class JenkinsTestReporter:
             jenkins_url = jenkins_url[:-1]
         return f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
 
-    # TODO move to pythoncommons
     def download_test_report(self, test_report_api_json, target_file_path):
         LOG.info(
-            f"Loading test report from URL: {test_report_api_json}. Download progress: {self.download_progress.short_str()}"
+            f"Loading test report from URL: {test_report_api_json}. "
+            f"Download progress: {self.download_progress.short_str()}"
         )
-        try:
-            data = self.load_url_data(test_report_api_json)
-        except urllib.error.HTTPError as e:
-            if e.code == 404:
-                LOG.error(f"Test report cannot be found for build URL (HTTP 404): {test_report_api_json}")
-                return {}
-            else:
-                raise e
-
+        data = NetworkUtils.fetch_json(
+            test_report_api_json,
+            do_not_raise_http_statuses={404},
+            http_callbacks={
+                404: lambda x: LOG.error(
+                    f"Test report cannot be found for build URL (HTTP 404): {test_report_api_json}"
+                )
+            },
+        )
         if target_file_path:
             LOG.info(f"Saving test report response JSON to cache: {target_file_path}")
             JsonFileUtils.write_data_to_file_as_json(target_file_path, data)
-
         return data
 
     def find_failing_tests(self, test_report_api_json, job_console_output, build_url, build_number, job_name: str):
