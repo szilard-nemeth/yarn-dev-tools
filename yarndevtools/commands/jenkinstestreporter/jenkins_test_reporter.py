@@ -436,9 +436,7 @@ class JenkinsTestReporter:
             test_report_api_json,
             do_not_raise_http_statuses={404},
             http_callbacks={
-                404: lambda x: LOG.error(
-                    f"Test report cannot be found for build URL (HTTP 404): {test_report_api_json}"
-                )
+                404: lambda: LOG.error(f"Test report cannot be found for build URL (HTTP 404): {test_report_api_json}")
             },
         )
         if target_file_path:
