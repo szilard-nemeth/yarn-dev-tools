@@ -396,6 +396,7 @@ class ArgParser:
             nargs="+",
             type=str,
             dest="reset_sent_state_for_jobs",
+            default=[],
             help="Reset email sent state for these jobs.",
         )
 
