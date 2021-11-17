@@ -325,7 +325,7 @@ class JenkinsTestReporterConfig:
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
         self.reset_email_sent_state: List[str] = (
-            args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else False
+            args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else []
         )
 
         # Validation
@@ -637,7 +637,7 @@ class JenkinsTestReporter:
         if not self.config.omit_job_summary:
             LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
         # TODO Add MailSendProgress class to track how many emails were sent
-        LOG.info("Sending report in email (Job URL: %s)", build_data.build_url)
+        LOG.info("Sending report in email for job: %s", build_data.build_url)
         email_service = EmailService(self.config.full_email_conf.email_conf)
         email_service.send_mail(
             self.config.full_email_conf.sender,
