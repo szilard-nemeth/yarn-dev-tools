@@ -47,10 +47,57 @@ class JenkinsJobInstanceUrls:
     # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
     def __init__(self, full_url):
         self.full_url = full_url
-        self.build_number = full_url.rsplit("/")[-2]
         self.job_console_output_url = full_url + "Console"
         self.test_report_url = full_url + "testReport"
         self.test_report_api_json_url = self.test_report_url + "/api/json?pretty=true"
+
+
+class FailedJenkinsBuild:
+    def __init__(self, full_url_of_job: str, timestamp: int, job_name):
+        self.url = full_url_of_job
+        self.urls = JenkinsJobInstanceUrls(full_url_of_job)
+        self.build_number = full_url_of_job.rsplit("/")[-2]
+        self.timestamp = timestamp
+        self.job_name = job_name
+
+
+class FailedJenkinsBuilds:
+    def __init__(self, jenkins_base_url: str, job_name: str, days=DEFAULT_REQUEST_LIMIT):
+        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(jenkins_base_url, job_name)
+        all_builds: List[Dict[str, str]] = self._list_builds(jenkins_urls)
+        self.total_no_of_builds = len(all_builds)
+
+        self._last_n_builds: List[Dict[str, str]] = self._filter_builds_last_n_days(all_builds, days=days)
+        fbd: List[Tuple[str, int]] = self._get_failed_build_urls_with_timestamps(self._last_n_builds)
+        self._failed_build_data: List[Tuple[str, int]] = sorted(fbd, key=lambda tup: tup[1], reverse=True)
+        self.failed_builds = [FailedJenkinsBuild(tup[0], tup[1], job_name) for tup in self._failed_build_data]
+        LOG.info(
+            f"There are {len(self._failed_build_data)} builds "
+            f"(out of {self.total_no_of_builds}) that have failed tests "
+            f"in the past {days} days. "
+            f"Listing builds: {self._failed_build_data}"
+        )
+
+    @staticmethod
+    def _list_builds(urls: JenkinsJobUrls):
+        """ List all builds of the target project. """
+        url = urls.list_builds
+        try:
+            LOG.info("Fetching builds from Jenkins in url: %s", url)
+            return NetworkUtils.fetch_json(url)["builds"]
+        except Exception:
+            LOG.error(f"Could not fetch: {url}")
+            raise
+
+    @staticmethod
+    def _filter_builds_last_n_days(builds, days):
+        # Select only those in the last N days
+        min_time = int(time.time()) - SECONDS_PER_DAY * days
+        return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
+
+    @staticmethod
+    def _get_failed_build_urls_with_timestamps(builds):
+        return [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
 
 
 @dataclass
@@ -66,8 +113,8 @@ class TestcaseFilter:
 @auto_str
 class DownloadProgress:
     # TODO Store awaiting download / awaiting cache load separately
-    def __init__(self, failed_build_data: List[Tuple[str, int]]):
-        self.all_builds = len(failed_build_data)
+    def __init__(self, number_of_failed_builds):
+        self.all_builds: int = number_of_failed_builds
         self.current_build_idx = 0
 
     def process_next_build(self):
@@ -156,9 +203,10 @@ class JenkinsJobReport:
 
 
 class JobBuildData:
-    def __init__(self, instance_urls: JenkinsJobInstanceUrls, counters, testcases, empty_or_not_found=False):
-        self.build_number = instance_urls.build_number
-        self.build_url = instance_urls.full_url
+    def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, empty_or_not_found=False):
+        # TODO do not copy here, use properties
+        self.build_number = failed_build.build_number
+        self.build_url = failed_build.url
         self.counters = counters
         self.testcases: List[str] = testcases
         self.filtered_testcases: List[FilteredResult] = []
@@ -320,10 +368,10 @@ class JenkinsTestReporter:
     def pickled_data_file_path(self):
         return FileUtils.join_path(self.config.cached_data_dir, PICKLED_DATA_FILENAME)
 
-    def generate_file_name_for_report(self, job_name: str, build_number: str):
-        job_name = job_name.replace(".", "_")
+    def generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
+        job_name = failed_build.job_name.replace(".", "_")
         job_dir_path = FileUtils.ensure_dir_created(FileUtils.join_path(self.config.reports_dir, job_name))
-        return FileUtils.join_path(job_dir_path, f"{build_number}-testreport.json")
+        return FileUtils.join_path(job_dir_path, f"{failed_build.build_number}-testreport.json")
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
@@ -430,18 +478,8 @@ class JenkinsTestReporter:
             log_report = i == len(report) - 1
             self.pickle_report_data(log=log_report)
 
-    @staticmethod
-    def list_builds(urls: JenkinsJobUrls):
-        """ List all builds of the target project. """
-        url = urls.list_builds
-        try:
-            LOG.info("Fetching builds from Jenkins in url: %s", url)
-            return NetworkUtils.fetch_json(url)["builds"]
-        except Exception:
-            LOG.error(f"Could not fetch: {url}")
-            raise
-
-    def download_test_report(self, url: str, target_file_path):
+    def download_test_report(self, failed_build: FailedJenkinsBuild, target_file_path):
+        url = failed_build.urls.test_report_api_json_url
         LOG.info(f"Loading test report from URL: {url}. " f"Download progress: {self.download_progress.short_str()}")
         data = NetworkUtils.fetch_json(
             url,
@@ -453,45 +491,47 @@ class JenkinsTestReporter:
             JsonFileUtils.write_data_to_file_as_json(target_file_path, data)
         return data
 
-    def find_failing_tests(self, instance_urls: JenkinsJobInstanceUrls, job_name: str):
+    def find_failing_tests(self, failed_build: FailedJenkinsBuild):
         """ Find the names of any tests which failed in the given build output URL. """
         try:
-            data, loaded_from_cache = self.gather_report_data_for_build(instance_urls, job_name)
+            data, loaded_from_cache = self.gather_report_data_for_build(failed_build)
         except Exception:
             traceback.print_exc()
             LOG.error(
                 "Could not open test report, check %s for reason why it was reported failed",
-                instance_urls.job_console_output_url,
+                failed_build.urls.job_console_output_url,
             )
-            return JobBuildData(instance_urls, None, set()), False
+            return JobBuildData(failed_build, None, set()), False
         if not data or len(data) == 0:
-            return JobBuildData(instance_urls, None, [], empty_or_not_found=True), loaded_from_cache
+            return JobBuildData(failed_build, None, [], empty_or_not_found=True), loaded_from_cache
 
-        return self.parse_job_data(data, instance_urls), loaded_from_cache
+        return self.parse_job_data(data, failed_build), loaded_from_cache
 
-    def gather_report_data_for_build(self, instance_urls: JenkinsJobInstanceUrls, job_name: str):
+    def gather_report_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.enable_file_cache:
-            found_in_cache, target_file_path = self._is_build_data_downloaded(job_name, instance_urls.build_number)
+            found_in_cache, target_file_path = self._is_build_data_downloaded(failed_build)
             if found_in_cache:
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = JsonFileUtils.load_data_from_json_file(target_file_path)
                 return data, True
             else:
-                data = self.download_test_report(instance_urls.test_report_api_json_url, target_file_path)
+                data = self.download_test_report(failed_build, target_file_path)
                 return data, False
         else:
-            data = self.download_test_report(instance_urls.test_report_api_json_url, None)
+            data = self.download_test_report(failed_build, None)
             return data, False
 
-    def _is_build_data_downloaded(self, job_name, build_number):
-        target_file_path = self.generate_file_name_for_report(job_name, build_number)
+    def _is_build_data_downloaded(self, failed_build: FailedJenkinsBuild):
+        target_file_path = self.generate_file_name_for_report(failed_build)
         if os.path.exists(target_file_path):
-            LOG.debug("Build found in cache. Job name: %s, Build number: %s", job_name, build_number)
+            LOG.debug(
+                "Build found in cache. Job name: %s, Build number: %s", failed_build.job_name, failed_build.build_number
+            )
             return True, target_file_path
         return False, target_file_path
 
     @staticmethod
-    def parse_job_data(data, instance_urls: JenkinsJobInstanceUrls) -> JobBuildData:
+    def parse_job_data(data, failed_build: FailedJenkinsBuild) -> JobBuildData:
         failed_testcases = set()
         for suite in data["suites"]:
             for case in suite["cases"]:
@@ -501,52 +541,36 @@ class JenkinsTestReporter:
                     failed_testcases.add(f"{case['className']}.{case['name']}")
         if len(failed_testcases) == 0:
             LOG.info(
-                f"No failed tests in test report, check {instance_urls.job_console_output_url} for why it was reported failed."
+                f"No failed tests in test report, check {failed_build.urls.job_console_output_url} for why it was reported failed."
             )
-            return JobBuildData(instance_urls, None, failed_testcases)
+            return JobBuildData(failed_build, None, failed_testcases)
         else:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
-            return JobBuildData(instance_urls, counters, failed_testcases)
+            return JobBuildData(failed_build, counters, failed_testcases)
 
     def _find_flaky_tests(self, job_name: str):
         """ Iterate runs of specified job within num_builds and collect results """
-        jenkins_urls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
-        builds = self.list_builds(jenkins_urls)
-        total_no_of_builds = len(builds)
-        last_n_builds = self._filter_builds_last_n_days(builds, days=self.config.num_builds)
-        # TODO Introduce class: FailedJenkinsBuilds
-        failed_build_data: List[Tuple[str, int]] = self._get_failed_build_urls(last_n_builds)
-        failed_build_data = sorted(failed_build_data, key=lambda tup: tup[1], reverse=True)
-        LOG.info(
-            f"There are {len(failed_build_data)} builds "
-            f"(out of {total_no_of_builds}) that have failed tests "
-            f"in the past {self.config.num_builds} days. "
-            f"Listing builds: {failed_build_data}"
+        failed_builds: FailedJenkinsBuilds = FailedJenkinsBuilds(
+            self.config.jenkins_base_url, job_name, days=self.config.num_builds
         )
-
         job_datas: List[JobBuildData] = []
         tc_to_fail_count: Dict[str, int] = {}
         sent_requests: int = 0
-        self.download_progress = DownloadProgress(failed_build_data)
-        for i, failed_build_with_time in enumerate(failed_build_data):
+        self.download_progress = DownloadProgress(len(failed_builds.failed_builds))
+        for failed_build in failed_builds.failed_builds:
             if sent_requests >= self.config.request_limit:
                 LOG.error(f"Reached request limit: {sent_requests}")
                 break
-            instance_urls: JenkinsJobInstanceUrls = JenkinsJobInstanceUrls(failed_build_with_time[0])
-            failed_build_url = instance_urls.full_url
 
             download_build = False
             job_added_from_cache = False
-            if (
-                self.config.download_uncached_job_data
-                and not self._is_build_data_downloaded(job_name, instance_urls.build_number)[0]
-            ):
+            if self.config.download_uncached_job_data and not self._is_build_data_downloaded(failed_build)[0]:
                 download_build = True
 
             # Try to get build data from cache, if found, jump to next build URL
-            if self._should_load_build_data_from_cache(failed_build_url, job_name):
-                LOG.info("Found build in cache, skipping: %s", failed_build_url)
-                job_data = self.reports[job_name].jobs_by_url[failed_build_url]
+            if self._should_load_build_data_from_cache(failed_build):
+                LOG.info("Found build in cache, skipping: %s", failed_build.url)
+                job_data = self.reports[job_name].jobs_by_url[failed_build.url]
                 job_datas.append(job_data)
                 self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
                 job_added_from_cache = True
@@ -556,11 +580,11 @@ class JenkinsTestReporter:
             # 2. when job data is not found in file cache.
             if download_build or not job_added_from_cache:
                 # TODO Use pythoncommons for date formatting
-                timestamp = float(failed_build_with_time[1]) / 1000.0
+                timestamp = float(failed_build.timestamp) / 1000.0
                 formatted_timestamp = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-                LOG.info(f"===>{instance_urls.test_report_url} ({formatted_timestamp})")
+                LOG.info(f"===>{failed_build.urls.test_report_url} ({formatted_timestamp})")
 
-                job_data, loaded_from_cache = self.find_failing_tests(instance_urls, job_name)
+                job_data, loaded_from_cache = self.find_failing_tests(failed_build)
 
                 if not job_added_from_cache:
                     job_data.filter_testcases(self.config.tc_filters)
@@ -570,13 +594,13 @@ class JenkinsTestReporter:
                 if not loaded_from_cache:
                     sent_requests += 1
 
-        return JenkinsJobReport(job_datas, tc_to_fail_count, total_no_of_builds, self.config.num_builds)
+        return JenkinsJobReport(job_datas, tc_to_fail_count, failed_builds.total_no_of_builds, self.config.num_builds)
 
-    def _should_load_build_data_from_cache(self, failed_build_url, job_name):
+    def _should_load_build_data_from_cache(self, failed_build: FailedJenkinsBuild):
         return (
             not self.config.force_download_mode
-            and job_name in self.reports
-            and failed_build_url in self.reports[job_name].known_build_urls
+            and failed_build.job_name in self.reports
+            and failed_build.url in self.reports[failed_build.job_name].known_build_urls
         )
 
     @staticmethod
@@ -585,16 +609,6 @@ class JenkinsTestReporter:
             for failed_testcase in job_data.testcases:
                 LOG.info(f"Failed test: {failed_testcase}")
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
-
-    @staticmethod
-    def _get_failed_build_urls(builds):
-        return [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
-
-    @staticmethod
-    def _filter_builds_last_n_days(builds, days):
-        # Select only those in the last N days
-        min_time = int(time.time()) - SECONDS_PER_DAY * days
-        return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
 
     def send_mail(self, build_data: JobBuildData):
         email_subject = self._get_email_subject(build_data)
