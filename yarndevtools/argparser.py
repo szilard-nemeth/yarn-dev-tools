@@ -37,11 +37,10 @@ class JenkinsTestReporterMode(Enum):
             "cdpd-master-Hadoop-HDFS-Unit",
             "cdpd-master-Hadoop-MR-Unit",
             "cdpd-master-Hadoop-YARN-Unit",
-            # TODO uncomment these jobs
-            # "CDH-7.1-maint-Hadoop-Common-Unit",
-            # "CDH-7.1-maint-Hadoop-HDFS-Unit",
-            # "CDH-7.1-maint-Hadoop-MR-Unit",
-            # "CDH-7.1-maint-Hadoop-YARN-Unit",
+            "CDH-7.1-maint-Hadoop-Common-Unit",
+            "CDH-7.1-maint-Hadoop-HDFS-Unit",
+            "CDH-7.1-maint-Hadoop-MR-Unit",
+            "CDH-7.1-maint-Hadoop-YARN-Unit",
         ],
     )
     MAWO = ("MAWO", "http://build.infra.cloudera.com/", ["Mawo-UT-hadoop-CDPD-7.x", "Mawo-UT-hadoop-CDPD-7.1.x"])
