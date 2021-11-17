@@ -123,7 +123,7 @@ class CdswSetup:
 
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
         CdswSetup._run_install_requirements_script()
-        CdswSetup._relink_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts()
+        CdswSetup._copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts()
         LOG.info("Using basedir for scripts: " + basedir)
         return basedir
 
@@ -169,8 +169,10 @@ class CdswSetup:
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
 
     @staticmethod
-    def _relink_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts():
-        LOG.info("Linking jobs to place...")
+    def _copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts():
+        # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
+        # the linked script is not there.
+        LOG.info("Copying jobs to place...")
         for cdsw_script_dirname in CommonDirs.CDSW_SCRIPT_DIR_NAMES:
             # It's safer to delete dirs one by one explictly, without specifying just the parent
             cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
@@ -193,7 +195,7 @@ class CdswSetup:
             cdsw_script_path = found_files[0]
             FileUtils.create_new_dir(cdsw_job_dir)
             new_link_path = FileUtils.join_path(cdsw_job_dir, CDSW_RUNNER_PY)
-            FileUtils.create_symlink(cdsw_script_path, new_link_path)
+            FileUtils.copy_file(cdsw_script_path, new_link_path)
 
     @staticmethod
     def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
