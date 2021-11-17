@@ -128,6 +128,13 @@ class JenkinsJobReport:
     def get_job_data(self, build_url: str):
         return self.jobs_by_url[build_url]
 
+    def print_report(self):
+        LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
+        # Print summary section: all failed tests sorted by how many times they failed
+        LOG.info("TESTCASE SUMMARY:")
+        for tn in sorted(self.all_failing_tests, key=self.all_failing_tests.get, reverse=True):
+            LOG.info(f"{self.all_failing_tests[tn]}: {tn}")
+
 
 class JobBuildData:
     def __init__(self, build_number, build_url, counters, testcases, empty_or_not_found=False):
@@ -390,14 +397,7 @@ class JenkinsTestReporter:
             # At this point it's certain that we have some failed tests or the build itself is invalid
             LOG.info(f"Report of build {build_data.build_url} is not valid or contains failed tests!")
             if not self.config.omit_job_summary and build_data.is_valid:
-                # TODO Move this to method of Report
-                LOG.info(
-                    f"\nAmong {report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
-                )
-                # Print summary section: all failed tests sorted by how many times they failed
-                LOG.info("TESTCASE SUMMARY:")
-                for tn in sorted(report.all_failing_tests, key=report.all_failing_tests.get, reverse=True):
-                    LOG.info(f"{report.all_failing_tests[tn]}: {tn}")
+                report.print_report()
             if self.config.send_mail:
                 if not build_data.is_mail_sent or self.config.force_send_email:
                     self.send_mail(build_data)
