@@ -234,7 +234,7 @@ class JobBuildData:
 
     @property
     def is_valid(self):
-        return self.empty_or_not_found
+        return not self.empty_or_not_found
 
     @property
     def is_mail_sent(self):
