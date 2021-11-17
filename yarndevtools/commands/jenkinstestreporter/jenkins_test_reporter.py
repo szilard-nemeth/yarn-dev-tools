@@ -12,7 +12,7 @@ from typing import List, Dict, Set, Tuple
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService, EmailMimeType
-from pythoncommons.file_utils import FileUtils
+from pythoncommons.file_utils import FileUtils, JsonFileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
@@ -261,6 +261,7 @@ class JenkinsTestReporterConfig:
         return min(no_of_builds, request_limit)
 
     def __str__(self):
+        # TODO Add all config properties
         return (
             f"Full command was: {self.full_cmd}\n"
             f"Jenkins URL: {self.jenkins_url}\n"
@@ -373,6 +374,7 @@ class JenkinsTestReporter:
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
 
+        # TODO Remove indexing logic
         build_idx = 0
         while build_idx < actual_num_builds:
             build_url: str = report.get_build_url(build_idx)
@@ -392,6 +394,7 @@ class JenkinsTestReporter:
             # At this point it's certain that we have some failed tests or the build itself is invalid
             LOG.info(f"Report of build {build_url} is not valid or contains failed tests!")
             if not self.config.omit_job_summary and report.is_valid_build(build_idx):
+                # TODO Move this to method of Report
                 LOG.info(
                     f"\nAmong {report.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:"
                 )
@@ -453,18 +456,6 @@ class JenkinsTestReporter:
         return os.path.join(job_dir_path, f"{build_number}-testreport.json")
 
     # TODO move to pythoncommons
-    @staticmethod
-    def write_test_report_to_file(data, target_file_path):
-        with open(target_file_path, "w") as target_file:
-            json.dump(data, target_file)
-
-    # TODO move to pythoncommons
-    @staticmethod
-    def read_test_report_from_file(file_path):
-        with open(file_path) as json_file:
-            return json.load(json_file)
-
-    # TODO move to pythoncommons
     def download_test_report(self, test_report_api_json, target_file_path):
         LOG.info(
             f"Loading test report from URL: {test_report_api_json}. Download progress: {self.download_progress.short_str()}"
@@ -480,7 +471,7 @@ class JenkinsTestReporter:
 
         if target_file_path:
             LOG.info(f"Saving test report response JSON to cache: {target_file_path}")
-            self.write_test_report_to_file(data, target_file_path)
+            JsonFileUtils.write_data_to_file_as_json(target_file_path, data)
 
         return data
 
@@ -502,7 +493,7 @@ class JenkinsTestReporter:
             found_in_cache, target_file_path = self._is_build_data_downloaded(job_name, build_number)
             if found_in_cache:
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
-                data = self.read_test_report_from_file(target_file_path)
+                data = JsonFileUtils.load_data_from_json_file(target_file_path)
                 return data, True
             else:
                 data = self.download_test_report(test_report_api_json, target_file_path)
