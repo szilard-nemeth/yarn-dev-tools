@@ -353,7 +353,17 @@ class JenkinsTestReporter:
 
     def _process_build_reports(self, report, fail_on_empty_report: bool = True):
         LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in report.job_build_datas]}")
-        actual_num_builds = min(self.config.num_builds, report.total_no_of_builds)
+        build_data_count = len(report.job_build_datas)
+        total_no_of_builds = report.total_no_of_builds
+        if build_data_count < total_no_of_builds:
+            LOG.warning(
+                "Report contains less builds than total number of builds. " "Report has: %d, Total: %d",
+                build_data_count,
+                total_no_of_builds,
+            )
+            actual_num_builds = min(self.config.num_builds, build_data_count)
+        else:
+            actual_num_builds = min(self.config.num_builds, report.total_no_of_builds)
         LOG.info(f"Processing {actual_num_builds} build reports...")
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
@@ -539,7 +549,7 @@ class JenkinsTestReporter:
         self.download_progress = DownloadProgress(failed_build_data)
         for i, failed_build_with_time in enumerate(failed_build_data):
             if sent_requests >= self.config.request_limit:
-                LOG.error(f"Reached request limit: {i}")
+                LOG.error(f"Reached request limit: {sent_requests}")
                 break
             failed_build_url = failed_build_with_time[0]
 
@@ -564,8 +574,9 @@ class JenkinsTestReporter:
                 self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
                 job_added_from_cache = True
 
-            # We would like to download job data if job is not found in cache and
-            # config.download_uncached_job_data is True OR when job data is not found in file cache.
+            # We would like to download job data if:
+            # 1. job is not found in cache and config.download_uncached_job_data is True OR
+            # 2. when job data is not found in file cache.
             if download_build or not job_added_from_cache:
                 # TODO Use pythoncommons for date formatting
                 timestamp = float(failed_build_with_time[1]) / 1000.0

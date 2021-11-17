@@ -418,13 +418,17 @@ class ArgParser:
             help="Jenkins job name to fetch results from",
             default="Mawo-UT-hadoop-CDPD-7.x",
         )
+
+        # TODO Rationalize this vs. request-limit:
+        # Num builds is intended to be used for determining to process the builds that are not yet processed / sent in mail
+        # Request limit is to limit the number of builds processed for each Jenkins job
         parser.add_argument(
             "-n",
             "--num-builds",
             type=str,
             dest="num_builds",
             help="Number of days of Jenkins jobs to examine. "
-            "Special value of 'jenkins_examine_unlimited' will examine all unknown builds.",
+            "Special value of 'jenkins_examine_unlimited_builds' will examine all unknown builds.",
             default="14",
         )
         parser.add_argument(
