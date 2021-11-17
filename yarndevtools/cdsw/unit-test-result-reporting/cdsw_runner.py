@@ -49,8 +49,12 @@ class CdswRunner(CdswRunnerBase):
         )
         LOG.info(f"Processing {process_builds} builds...")
         sender = "YARN jenkins test reporter"
+
         omit_job_summary_param = "--omit-job-summary" if omit_job_summary else ""
         download_uncached_job_data_param = "--download-uncached-job-data" if download_uncached_job_data else ""
+
+        force_sending_mail: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.FORCE_SENDING_MAIL.value, False)
+        force_sending_mail_param = "--force-sending-email" if force_sending_mail else ""
         self.execute_yarndevtools_script(
             f"--debug {CommandType.JENKINS_TEST_REPORTER.name} "
             f"--mode {mode.mode_name} "
@@ -62,6 +66,7 @@ class CdswRunner(CdswRunnerBase):
             f"--num-builds {num_builds} "
             f"{omit_job_summary_param} "
             f"{download_uncached_job_data_param} "
+            f"{force_sending_mail_param} "
         )
 
 
