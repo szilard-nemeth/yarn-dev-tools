@@ -112,6 +112,20 @@ class JenkinsJobReport:
         job_data.sent_date = DateUtils.get_current_datetime()
         job_data.mail_sent = True
 
+    def determine_actual_number_of_builds(self, num_builds_per_config):
+        build_data_count = len(self.job_build_datas)
+        total_no_of_builds = self.total_no_of_builds
+        if build_data_count < total_no_of_builds:
+            LOG.warning(
+                "Report contains less builds than total number of builds. " "Report has: %d, Total: %d",
+                build_data_count,
+                total_no_of_builds,
+            )
+            actual_num_builds = min(num_builds_per_config, build_data_count)
+        else:
+            actual_num_builds = min(num_builds_per_config, self.total_no_of_builds)
+        return actual_num_builds
+
 
 class JobBuildData:
     def __init__(self, build_number, build_url, counters, testcases, empty_or_not_found=False):
@@ -348,23 +362,13 @@ class JenkinsTestReporter:
         for job_name in self.config.job_names:
             report = self._find_flaky_tests(job_name)
             self.reports[job_name] = report
-            self._process_build_reports(report, fail_on_empty_report=False)
+            self._process_build_report(report, fail_on_empty_report=False)
         self.pickle_report_data()
 
-    def _process_build_reports(self, report, fail_on_empty_report: bool = True):
+    def _process_build_report(self, report, fail_on_empty_report: bool = True):
         LOG.info(f"Report list contains build results: {[bdata.build_url for bdata in report.job_build_datas]}")
-        build_data_count = len(report.job_build_datas)
-        total_no_of_builds = report.total_no_of_builds
-        if build_data_count < total_no_of_builds:
-            LOG.warning(
-                "Report contains less builds than total number of builds. " "Report has: %d, Total: %d",
-                build_data_count,
-                total_no_of_builds,
-            )
-            actual_num_builds = min(self.config.num_builds, build_data_count)
-        else:
-            actual_num_builds = min(self.config.num_builds, report.total_no_of_builds)
-        LOG.info(f"Processing {actual_num_builds} build reports...")
+        actual_num_builds = report.determine_actual_number_of_builds(report, self.config.num_builds)
+        LOG.info(f"Processing {actual_num_builds} in Report...")
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
 
