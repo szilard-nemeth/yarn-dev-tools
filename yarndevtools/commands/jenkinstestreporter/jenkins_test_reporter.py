@@ -450,9 +450,9 @@ class JenkinsTestReporter:
                 self.reports[job_name].reset_mail_sent_state()
 
         for job_name in self.config.job_names:
-            report = self._find_flaky_tests(job_name)
+            report: JenkinsJobReport = self._create_jenkins_report(job_name)
             self.reports[job_name] = report
-            self._process_build_report(report, fail_on_empty_report=False)
+            self._process_jenkins_report(report, fail_on_empty_report=False)
         self.dump_data_to_cache()
 
     def _get_report_by_job_name(self, job_name):
@@ -499,7 +499,7 @@ class JenkinsTestReporter:
             if package in tc
         ]
 
-    def _process_build_report(self, report, fail_on_empty_report: bool = True):
+    def _process_jenkins_report(self, report, fail_on_empty_report: bool = True):
         report.start_processing()
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
@@ -601,7 +601,7 @@ class JenkinsTestReporter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(failed_build, counters, failed_testcases)
 
-    def _find_flaky_tests(self, job_name: str):
+    def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
         """ Iterate runs of specified job within num_builds and collect results """
         failed_builds: FailedJenkinsBuilds = FailedJenkinsBuilds(
             self.config.jenkins_base_url, job_name, days=self.config.num_builds
