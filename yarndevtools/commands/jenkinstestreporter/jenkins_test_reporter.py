@@ -375,9 +375,11 @@ class JenkinsTestReporterConfig:
 
 # TODO rename pickle to cache everywhere
 # TODO Move all cache handling related stuff to new class
+# TODO Separate all email functionality: Config, email send, etc?
 class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
+        self.email_service = EmailService(self.config.full_email_conf.email_conf)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
 
     @property
@@ -633,20 +635,18 @@ class JenkinsTestReporter:
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
     def send_mail(self, build_data: JobBuildData):
-        email_subject = self._get_email_subject(build_data)
         if not self.config.omit_job_summary:
             LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
         # TODO Add MailSendProgress class to track how many emails were sent
         LOG.info("Sending report in email for job: %s", build_data.build_url)
-        email_service = EmailService(self.config.full_email_conf.email_conf)
-        email_service.send_mail(
-            self.config.full_email_conf.sender,
-            email_subject,
-            str(build_data),
-            self.config.full_email_conf.recipients,
+        self.email_service.send_mail(
+            sender=self.config.full_email_conf.sender,
+            subject=self._get_email_subject(build_data),
+            body=str(build_data),
+            recipients=self.config.full_email_conf.recipients,
             body_mimetype=EmailMimeType.PLAIN,
         )
-        LOG.info("Finished sending email to recipients")
+        LOG.info("Finished sending report in email for job: %s", build_data.build_url)
 
     @staticmethod
     def _get_email_subject(build_data: JobBuildData):
