@@ -230,9 +230,7 @@ class JenkinsJobReport:
 
 class JobBuildData:
     def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, empty_or_not_found=False):
-        # TODO do not copy here, use properties
-        self.build_number = failed_build.build_number
-        self.build_url = failed_build.url
+        self._failed_build = failed_build
         self.counters = counters
         self.testcases: List[str] = testcases
         self.filtered_testcases: List[FilteredResult] = []
@@ -257,6 +255,14 @@ class JobBuildData:
             matched_testcases.update(matched_for_filter)
         self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
         self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
+
+    @property
+    def build_number(self):
+        return self._failed_build.build_number
+
+    @property
+    def build_url(self):
+        return self._failed_build.url
 
     @property
     def is_valid(self):
