@@ -239,7 +239,7 @@ class JenkinsJobReport:
 
 class JobBuildData:
     def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, empty_or_not_found=False):
-        self._failed_build = failed_build
+        self._failed_build: FailedJenkinsBuild = failed_build
         self.counters = counters
         self.testcases: List[str] = testcases
         self.filtered_testcases: List[FilteredResult] = []
@@ -331,9 +331,63 @@ class JobBuildDataCounters:
         return f"Failed: {self.failed}, Passed: {self.passed}, Skipped: {self.skipped}"
 
 
+class JenkinsTestReporterCache:
+    def __init__(self, config):
+        self.config: JenkinsTestReporterCacheConfig = config
+
+    def generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
+        job_name = failed_build.job_name.replace(".", "_")
+        job_dir_path = FileUtils.ensure_dir_created(FileUtils.join_path(self.config.reports_dir, job_name))
+        return FileUtils.join_path(job_dir_path, f"{failed_build.build_number}-testreport.json")
+
+    def is_build_data_downloaded(self, failed_build: FailedJenkinsBuild):
+        target_file_path = self.generate_file_name_for_report(failed_build)
+        if os.path.exists(target_file_path):
+            LOG.debug(
+                "Build found in cache. Job name: %s, Build number: %s", failed_build.job_name, failed_build.build_number
+            )
+            return True, target_file_path
+        return False, target_file_path
+
+    def load_cached_data(self) -> Dict[str, JenkinsJobReport]:
+        LOG.info("Trying to load cached data from file: %s", self.config.data_file_path)
+        if FileUtils.does_file_exist(self.config.data_file_path):
+            reports: Dict[str, JenkinsJobReport] = PickleUtils.load(self.config.data_file_path)
+            LOG.info("Printing email send status for jobs and builds...")
+            for job_name, jenkins_job_report in reports.items():
+                for job_url, job_build_data in jenkins_job_report.jobs_by_url.items():
+                    LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
+            LOG.info("Loaded cached data from: %s", self.config.data_file_path)
+            return reports
+        else:
+            LOG.info("Cached data file not found in: %s", self.config.data_file_path)
+            return {}
+
+    def dump_data_to_cache(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
+        if log:
+            LOG.debug("Final cached data object: %s", reports)
+        LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.config.data_file_path)
+        PickleUtils.dump(reports, self.config.data_file_path)
+
+
+class JenkinsTestReporterCacheConfig:
+    def __init__(self, args, output_dir):
+        self.enabled: bool = not args.disable_file_cache
+        self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
+        self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "cached_data"))
+        self.download_uncached_job_data: bool = (
+            args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
+        )
+
+    @property
+    def data_file_path(self):
+        return FileUtils.join_path(self.cached_data_dir, CACHED_DATA_FILENAME)
+
+
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
         self.args = args
+        self.cache: JenkinsTestReporterCacheConfig = JenkinsTestReporterCacheConfig(args, output_dir)
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         self.jenkins_mode: JenkinsTestReporterMode = (
@@ -346,20 +400,13 @@ class JenkinsTestReporterConfig:
         self.num_builds: int = self._determine_number_of_builds_to_examine(args.num_builds, self.request_limit)
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
-        self.enable_file_cache: bool = not args.disable_file_cache
-        self.output_dir = output_dir
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
-        self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(self.output_dir, "cached_data"))
-        self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(self.output_dir, "reports"))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         skip_email = args.skip_email if hasattr(args, "skip_email") else False
         self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
         self.send_mail: bool = not skip_email or not self.force_send_email
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
-        self.download_uncached_job_data: bool = (
-            args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
-        )
         self.reset_email_sent_state: List[str] = (
             args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else []
         )
@@ -417,15 +464,7 @@ class JenkinsTestReporter:
         self.config = JenkinsTestReporterConfig(output_dir, args)
         self.email_service = EmailService(self.config.full_email_conf.email_conf)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
-
-    @property
-    def cached_data_file_path(self):
-        return FileUtils.join_path(self.config.cached_data_dir, CACHED_DATA_FILENAME)
-
-    def generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
-        job_name = failed_build.job_name.replace(".", "_")
-        job_dir_path = FileUtils.ensure_dir_created(FileUtils.join_path(self.config.reports_dir, job_name))
-        return FileUtils.join_path(job_dir_path, f"{failed_build.build_number}-testreport.json")
+        self.cache: JenkinsTestReporterCache = JenkinsTestReporterCache(self.config.cache)
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. Details: %s", str(self.config))
@@ -441,7 +480,7 @@ class JenkinsTestReporter:
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
         else:
-            self.load_cached_data()
+            self.reports = self.cache.load_cached_data()
 
         # Try to reset email sent state of asked jobs
         if self.config.reset_email_sent_state:
@@ -453,7 +492,7 @@ class JenkinsTestReporter:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
             self.reports[job_name] = report
             self._process_jenkins_report(report, fail_on_empty_report=False)
-        self.dump_data_to_cache()
+        self.cache.dump_data_to_cache(self.reports)
 
     def _get_report_by_job_name(self, job_name):
         return self.reports[job_name]
@@ -470,26 +509,6 @@ class JenkinsTestReporter:
     @property
     def testcase_filters(self) -> List[str]:
         return [tcf.as_filter_spec for tcf in self.config.tc_filters]
-
-    def load_cached_data(self):
-        LOG.info("Trying to load cached data from file: %s", self.cached_data_file_path)
-        if FileUtils.does_file_exist(self.cached_data_file_path):
-            self.reports = PickleUtils.load(self.cached_data_file_path)
-            LOG.info("Printing email send status for jobs and builds...")
-            for job_name, jenkins_job_report in self.reports.items():
-                for job_url, job_build_data in jenkins_job_report.jobs_by_url.items():
-                    LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
-            LOG.info("Loaded cached data from: %s", self.cached_data_file_path)
-            return True
-        else:
-            LOG.info("Cached data file not found under path: %s", self.cached_data_file_path)
-            return False
-
-    def dump_data_to_cache(self, log: bool = False):
-        if log:
-            LOG.debug("Final cached data object: %s", self.reports)
-        LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.cached_data_file_path)
-        PickleUtils.dump(self.reports, self.cached_data_file_path)
 
     def get_filtered_testcases_from_build(self, build_url: str, package: str, job_name: str):
         return [
@@ -529,7 +548,7 @@ class JenkinsTestReporter:
                         build_data.sent_date,
                     )
             log_report = i == len(report) - 1
-            self.dump_data_to_cache(log=log_report)
+            self.cache.dump_data_to_cache(self.reports, log=log_report)
 
     def download_test_report(self, failed_build: FailedJenkinsBuild, target_file_path):
         url = failed_build.urls.test_report_api_json_url
@@ -561,8 +580,8 @@ class JenkinsTestReporter:
         return self.parse_job_data(data, failed_build), loaded_from_cache
 
     def gather_report_data_for_build(self, failed_build: FailedJenkinsBuild):
-        if self.config.enable_file_cache:
-            found_in_cache, target_file_path = self._is_build_data_downloaded(failed_build)
+        if self.config.cache.enabled:
+            found_in_cache, target_file_path = self.cache.is_build_data_downloaded(failed_build)
             if found_in_cache:
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = JsonFileUtils.load_data_from_json_file(target_file_path)
@@ -573,15 +592,6 @@ class JenkinsTestReporter:
         else:
             data = self.download_test_report(failed_build, None)
             return data, False
-
-    def _is_build_data_downloaded(self, failed_build: FailedJenkinsBuild):
-        target_file_path = self.generate_file_name_for_report(failed_build)
-        if os.path.exists(target_file_path):
-            LOG.debug(
-                "Build found in cache. Job name: %s, Build number: %s", failed_build.job_name, failed_build.build_number
-            )
-            return True, target_file_path
-        return False, target_file_path
 
     @staticmethod
     def parse_job_data(data, failed_build: FailedJenkinsBuild) -> JobBuildData:
@@ -609,6 +619,8 @@ class JenkinsTestReporter:
         job_datas: List[JobBuildData] = []
         tc_to_fail_count: Dict[str, int] = {}
         sent_requests: int = 0
+        # TODO This seems to be wrong, len(failed_builds) is not the same number of builds that should be downloaded
+        #  as some of the builds can be cached. TODO: Take the cache into account
         self.download_progress = DownloadProgress(len(failed_builds.failed_builds))
         for failed_build in failed_builds.failed_builds:
             if sent_requests >= self.config.request_limit:
@@ -617,7 +629,10 @@ class JenkinsTestReporter:
 
             download_build = False
             job_added_from_cache = False
-            if self.config.download_uncached_job_data and not self._is_build_data_downloaded(failed_build)[0]:
+            if (
+                self.config.cache.download_uncached_job_data
+                and not self.cache.is_build_data_downloaded(failed_build)[0]
+            ):
                 download_build = True
 
             # Try to get build data from cache, if found, jump to next build URL
