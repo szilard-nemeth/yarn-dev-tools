@@ -122,14 +122,6 @@ class JenkinsApiConverter:
         return int(ts / 1000)
 
 
-class FailedJenkinsBuilds:
-    # TODO Discrepancy: request limit vs. days parameter
-    # TODO implement iterable
-    def __init__(self, jenkins_base_url: str, job_name: str, days=DEFAULT_REQUEST_LIMIT):
-        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(jenkins_base_url, job_name)
-        self.failed_builds, self.total_no_of_builds = JenkinsApiConverter.convert(job_name, jenkins_urls, days)
-
-
 @dataclass
 class TestcaseFilter:
     project_name: str
@@ -613,16 +605,18 @@ class JenkinsTestReporter:
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
         """ Iterate runs of specified job within num_builds and collect results """
-        failed_builds: FailedJenkinsBuilds = FailedJenkinsBuilds(
-            self.config.jenkins_base_url, job_name, days=self.config.num_builds
+        # TODO Discrepancy: request limit vs. days parameter
+        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
+        self.failed_builds, self.total_no_of_builds = JenkinsApiConverter.convert(
+            job_name, jenkins_urls, days=DEFAULT_REQUEST_LIMIT
         )
         job_datas: List[JobBuildData] = []
         tc_to_fail_count: Dict[str, int] = {}
         sent_requests: int = 0
         # TODO This seems to be wrong, len(failed_builds) is not the same number of builds that should be downloaded
         #  as some of the builds can be cached. TODO: Take the cache into account
-        self.download_progress = DownloadProgress(len(failed_builds.failed_builds))
-        for failed_build in failed_builds.failed_builds:
+        self.download_progress = DownloadProgress(len(self.failed_builds))
+        for failed_build in self.failed_builds:
             if sent_requests >= self.config.request_limit:
                 LOG.error(f"Reached request limit: {sent_requests}")
                 break
@@ -660,7 +654,7 @@ class JenkinsTestReporter:
                 if not loaded_from_cache:
                     sent_requests += 1
 
-        return JenkinsJobReport(job_datas, tc_to_fail_count, failed_builds.total_no_of_builds, self.config.num_builds)
+        return JenkinsJobReport(job_datas, tc_to_fail_count, self.total_no_of_builds, self.config.num_builds)
 
     def _should_load_build_data_from_cache(self, failed_build: FailedJenkinsBuild):
         return (
