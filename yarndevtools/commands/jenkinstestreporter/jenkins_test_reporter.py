@@ -624,11 +624,8 @@ class JenkinsTestReporter:
             # 1. job is not found in cache and config.download_uncached_job_data is True OR
             # 2. when job data is not found in file cache.
             if download_build or not job_added_from_cache:
-                # TODO Use pythoncommons for date formatting
-                formatted_timestamp = datetime.datetime.fromtimestamp(failed_build.timestamp).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
-                LOG.info(f"===>{failed_build.urls.test_report_url} ({formatted_timestamp})")
+                fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
+                LOG.info(f"===>{failed_build.urls.test_report_url} ({fmt_timestamp})")
 
                 job_data, loaded_from_cache = self.find_failing_tests(failed_build)
 
