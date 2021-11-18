@@ -2,7 +2,6 @@
 import os
 import sys
 import traceback
-import datetime
 import logging
 import time
 from dataclasses import dataclass
@@ -418,8 +417,32 @@ class JenkinsTestReporter:
         return FileUtils.join_path(job_dir_path, f"{failed_build.build_number}-testreport.json")
 
     def run(self):
-        LOG.info("Starting Jenkins test reporter. " "Details: \n" f"{str(self.config)}")
-        self.main()
+        LOG.info("Starting Jenkins test reporter. Details: %s", str(self.config))
+        SimpleLoggingSetup.init_logger(
+            project_name=CommandType.JENKINS_TEST_REPORTER.value,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+            execution_mode=ExecutionMode.PRODUCTION,
+            console_debug=self.config.args.debug,
+            postfix=self.config.args.command,
+            repos=None,
+            verbose_git_log=self.config.args.verbose,
+        )
+        if self.config.force_download_mode:
+            LOG.info("FORCE DOWNLOAD MODE is on")
+        else:
+            self.load_cached_data()
+
+        # Try to reset email sent state of asked jobs
+        if self.config.reset_email_sent_state:
+            LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
+            for job_name in self.config.reset_email_sent_state:
+                self.reports[job_name].reset_mail_sent_state()
+
+        for job_name in self.config.job_names:
+            report = self._find_flaky_tests(job_name)
+            self.reports[job_name] = report
+            self._process_build_report(report, fail_on_empty_report=False)
+        self.dump_data_to_cache()
 
     def _get_report_by_job_name(self, job_name):
         return self.reports[job_name]
@@ -464,36 +487,6 @@ class JenkinsTestReporter:
             for tc in filtered_res.testcases
             if package in tc
         ]
-
-    def main(self):
-        SimpleLoggingSetup.init_logger(
-            project_name=CommandType.JENKINS_TEST_REPORTER.value,
-            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
-            execution_mode=ExecutionMode.PRODUCTION,
-            console_debug=self.config.args.debug,
-            postfix=self.config.args.command,
-            repos=None,
-            verbose_git_log=self.config.args.verbose,
-        )
-
-        if self.config.force_download_mode:
-            LOG.info("FORCE DOWNLOAD MODE is on")
-        else:
-            self.load_cached_data()
-        self.do_fetch()
-
-    def do_fetch(self):
-        if self.config.reset_email_sent_state:
-            # Try to reset email sent state of asked jobs
-            LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
-            for job_name in self.config.reset_email_sent_state:
-                self.reports[job_name].reset_mail_sent_state()
-
-        for job_name in self.config.job_names:
-            report = self._find_flaky_tests(job_name)
-            self.reports[job_name] = report
-            self._process_build_report(report, fail_on_empty_report=False)
-        self.dump_data_to_cache()
 
     def _process_build_report(self, report, fail_on_empty_report: bool = True):
         report.start_processing()
