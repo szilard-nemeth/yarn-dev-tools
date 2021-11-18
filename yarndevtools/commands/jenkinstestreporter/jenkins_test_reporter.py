@@ -62,6 +62,7 @@ class FailedJenkinsBuild:
 
 
 class FailedJenkinsBuilds:
+    # TODO Discrepancy: request limit vs. days parameter
     def __init__(self, jenkins_base_url: str, job_name: str, days=DEFAULT_REQUEST_LIMIT):
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(jenkins_base_url, job_name)
         all_builds: List[Dict[str, str]] = self._list_builds(jenkins_urls)
@@ -72,7 +73,12 @@ class FailedJenkinsBuilds:
             last_n_failed_build_tuples, key=lambda tup: tup[1], reverse=True
         )
         self.failed_builds = [
-            FailedJenkinsBuild(full_url_of_job=tup[0], timestamp=tup[1], job_name=job_name) for tup in failed_build_data
+            FailedJenkinsBuild(
+                full_url_of_job=tup[0],
+                timestamp=FailedJenkinsBuilds._convert_to_unix_timestamp(tup[1]),
+                job_name=job_name,
+            )
+            for tup in failed_build_data
         ]
         self.total_no_of_builds = len(all_builds)
         LOG.info(
@@ -97,11 +103,22 @@ class FailedJenkinsBuilds:
     def _filter_builds_last_n_days(builds, days):
         # Select only those in the last N days
         min_time = int(time.time()) - SECONDS_PER_DAY * days
-        return [b for b in builds if (int(b["timestamp"]) / 1000) > min_time]
+        return [b for b in builds if (FailedJenkinsBuilds._convert_to_unix_timestamp_from_json(b)) > min_time]
 
     @staticmethod
     def _get_failed_build_urls_with_timestamps(builds):
         return [(b["url"], b["timestamp"]) for b in builds if (b["result"] in ("UNSTABLE", "FAILURE"))]
+
+    @staticmethod
+    def _convert_to_unix_timestamp_from_json(build_json):
+        timestamp_str = build_json["timestamp"]
+        return FailedJenkinsBuilds._convert_to_unix_timestamp(int(timestamp_str))
+
+    @staticmethod
+    def _convert_to_unix_timestamp(ts: int):
+        # Jenkins' uses milliseconds format to store the timestamp, divide it by 1000
+        # See: https://stackoverflow.com/a/24308978/1106893
+        return int(ts / 1000)
 
 
 @dataclass
@@ -608,8 +625,9 @@ class JenkinsTestReporter:
             # 2. when job data is not found in file cache.
             if download_build or not job_added_from_cache:
                 # TODO Use pythoncommons for date formatting
-                timestamp = float(failed_build.timestamp) / 1000.0
-                formatted_timestamp = datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                formatted_timestamp = datetime.datetime.fromtimestamp(failed_build.timestamp).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
                 LOG.info(f"===>{failed_build.urls.test_report_url} ({formatted_timestamp})")
 
                 job_data, loaded_from_cache = self.find_failing_tests(failed_build)
