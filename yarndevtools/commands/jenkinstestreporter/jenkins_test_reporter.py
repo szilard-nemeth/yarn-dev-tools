@@ -26,7 +26,7 @@ from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 LOG = logging.getLogger(__name__)
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
-PICKLED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
+CACHED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
 SECONDS_PER_DAY = 86400
 DEFAULT_REQUEST_LIMIT = 999
 
@@ -400,7 +400,6 @@ class JenkinsTestReporterConfig:
         )
 
 
-# TODO rename pickle to cache everywhere
 # TODO Move all cache handling related stuff to new class
 # TODO Separate all email functionality: Config, email send, etc?
 class JenkinsTestReporter:
@@ -410,8 +409,8 @@ class JenkinsTestReporter:
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
 
     @property
-    def pickled_data_file_path(self):
-        return FileUtils.join_path(self.config.cached_data_dir, PICKLED_DATA_FILENAME)
+    def cached_data_file_path(self):
+        return FileUtils.join_path(self.config.cached_data_dir, CACHED_DATA_FILENAME)
 
     def generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
         job_name = failed_build.job_name.replace(".", "_")
@@ -438,24 +437,25 @@ class JenkinsTestReporter:
     def testcase_filters(self) -> List[str]:
         return [tcf.as_filter_spec for tcf in self.config.tc_filters]
 
-    def load_pickled_data(self):
-        LOG.info("Trying to load pickled data from file: %s", self.pickled_data_file_path)
-        if FileUtils.does_file_exist(self.pickled_data_file_path):
-            self.reports = PickleUtils.load(self.pickled_data_file_path)
+    def load_cached_data(self):
+        LOG.info("Trying to load cached data from file: %s", self.cached_data_file_path)
+        if FileUtils.does_file_exist(self.cached_data_file_path):
+            self.reports = PickleUtils.load(self.cached_data_file_path)
             LOG.info("Printing email send status for jobs and builds...")
             for job_name, jenkins_job_report in self.reports.items():
                 for job_url, job_build_data in jenkins_job_report.jobs_by_url.items():
                     LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
+            LOG.info("Loaded cached data from: %s", self.cached_data_file_path)
             return True
         else:
-            LOG.info("Pickled data file not found under path: %s", self.pickled_data_file_path)
+            LOG.info("Cached data file not found under path: %s", self.cached_data_file_path)
             return False
 
-    def pickle_report_data(self, log: bool = False):
+    def dump_data_to_cache(self, log: bool = False):
         if log:
             LOG.debug("Final cached data object: %s", self.reports)
-        LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.pickled_data_file_path)
-        PickleUtils.dump(self.reports, self.pickled_data_file_path)
+        LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.cached_data_file_path)
+        PickleUtils.dump(self.reports, self.cached_data_file_path)
 
     def get_filtered_testcases_from_build(self, build_url: str, package: str, job_name: str):
         return [
@@ -479,9 +479,7 @@ class JenkinsTestReporter:
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
         else:
-            loaded = self.load_pickled_data()
-            if loaded:
-                LOG.info("Loaded pickled data from: %s", self.pickled_data_file_path)
+            self.load_cached_data()
         self.do_fetch()
 
     def do_fetch(self):
@@ -495,7 +493,7 @@ class JenkinsTestReporter:
             report = self._find_flaky_tests(job_name)
             self.reports[job_name] = report
             self._process_build_report(report, fail_on_empty_report=False)
-        self.pickle_report_data()
+        self.dump_data_to_cache()
 
     def _process_build_report(self, report, fail_on_empty_report: bool = True):
         report.start_processing()
@@ -527,7 +525,7 @@ class JenkinsTestReporter:
                         build_data.sent_date,
                     )
             log_report = i == len(report) - 1
-            self.pickle_report_data(log=log_report)
+            self.dump_data_to_cache(log=log_report)
 
     def download_test_report(self, failed_build: FailedJenkinsBuild, target_file_path):
         url = failed_build.urls.test_report_api_json_url
