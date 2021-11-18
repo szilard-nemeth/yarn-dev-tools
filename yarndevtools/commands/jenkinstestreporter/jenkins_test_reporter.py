@@ -60,32 +60,34 @@ class FailedJenkinsBuild:
         self.job_name = job_name
 
 
-class FailedJenkinsBuilds:
-    # TODO Discrepancy: request limit vs. days parameter
-    def __init__(self, jenkins_base_url: str, job_name: str, days=DEFAULT_REQUEST_LIMIT):
-        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(jenkins_base_url, job_name)
-        all_builds: List[Dict[str, str]] = self._list_builds(jenkins_urls)
-
-        last_n_builds: List[Dict[str, str]] = self._filter_builds_last_n_days(all_builds, days=days)
-        last_n_failed_build_tuples: List[Tuple[str, int]] = self._get_failed_build_urls_with_timestamps(last_n_builds)
+class JenkinsApiConverter:
+    @staticmethod
+    def convert(job_name: str, jenkins_urls: JenkinsJobUrls, days: int):
+        all_builds: List[Dict[str, str]] = JenkinsApiConverter._list_builds(jenkins_urls)
+        last_n_builds: List[Dict[str, str]] = JenkinsApiConverter._filter_builds_last_n_days(all_builds, days=days)
+        last_n_failed_build_tuples: List[Tuple[str, int]] = JenkinsApiConverter._get_failed_build_urls_with_timestamps(
+            last_n_builds
+        )
         failed_build_data: List[Tuple[str, int]] = sorted(
             last_n_failed_build_tuples, key=lambda tup: tup[1], reverse=True
         )
-        self.failed_builds = [
+        failed_builds = [
             FailedJenkinsBuild(
                 full_url_of_job=tup[0],
-                timestamp=FailedJenkinsBuilds._convert_to_unix_timestamp(tup[1]),
+                timestamp=JenkinsApiConverter._convert_to_unix_timestamp(tup[1]),
                 job_name=job_name,
             )
             for tup in failed_build_data
         ]
-        self.total_no_of_builds = len(all_builds)
+
+        total_no_of_builds = len(all_builds)
         LOG.info(
             f"There are {len(failed_build_data)} builds "
-            f"(out of {self.total_no_of_builds}) that have failed tests "
+            f"(out of {total_no_of_builds}) that have failed tests "
             f"in the past {days} days. "
             f"Listing builds: {failed_build_data}"
         )
+        return failed_builds, total_no_of_builds
 
     @staticmethod
     def _list_builds(urls: JenkinsJobUrls):
@@ -102,7 +104,7 @@ class FailedJenkinsBuilds:
     def _filter_builds_last_n_days(builds, days):
         # Select only those in the last N days
         min_time = int(time.time()) - SECONDS_PER_DAY * days
-        return [b for b in builds if (FailedJenkinsBuilds._convert_to_unix_timestamp_from_json(b)) > min_time]
+        return [b for b in builds if (JenkinsApiConverter._convert_to_unix_timestamp_from_json(b)) > min_time]
 
     @staticmethod
     def _get_failed_build_urls_with_timestamps(builds):
@@ -111,13 +113,21 @@ class FailedJenkinsBuilds:
     @staticmethod
     def _convert_to_unix_timestamp_from_json(build_json):
         timestamp_str = build_json["timestamp"]
-        return FailedJenkinsBuilds._convert_to_unix_timestamp(int(timestamp_str))
+        return JenkinsApiConverter._convert_to_unix_timestamp(int(timestamp_str))
 
     @staticmethod
     def _convert_to_unix_timestamp(ts: int):
         # Jenkins' uses milliseconds format to store the timestamp, divide it by 1000
         # See: https://stackoverflow.com/a/24308978/1106893
         return int(ts / 1000)
+
+
+class FailedJenkinsBuilds:
+    # TODO Discrepancy: request limit vs. days parameter
+    # TODO implement iterable
+    def __init__(self, jenkins_base_url: str, job_name: str, days=DEFAULT_REQUEST_LIMIT):
+        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(jenkins_base_url, job_name)
+        self.failed_builds, self.total_no_of_builds = JenkinsApiConverter.convert(job_name, jenkins_urls, days)
 
 
 @dataclass
@@ -401,6 +411,7 @@ class JenkinsTestReporterConfig:
 
 # TODO Move all cache handling related stuff to new class
 # TODO Separate all email functionality: Config, email send, etc?
+# TODO Separate all download functionality: Progress of downloads, code that fetches API, etc.
 class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
