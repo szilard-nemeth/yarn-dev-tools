@@ -332,7 +332,7 @@ class JenkinsTestReporterCache:
         job_dir_path = FileUtils.ensure_dir_created(FileUtils.join_path(self.config.reports_dir, job_name))
         return FileUtils.join_path(job_dir_path, f"{failed_build.build_number}-testreport.json")
 
-    def is_build_data_downloaded(self, failed_build: FailedJenkinsBuild):
+    def is_build_data_in_cache(self, failed_build: FailedJenkinsBuild):
         target_file_path = self.generate_file_name_for_report(failed_build)
         if os.path.exists(target_file_path):
             LOG.debug(
@@ -483,7 +483,7 @@ class JenkinsTestReporter:
         for job_name in self.config.job_names:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
             self.reports[job_name] = report
-            self._process_jenkins_report(report, fail_on_empty_report=False)
+            self.process_jenkins_report(report, fail_on_empty_report=False)
         self.cache.dump_data_to_cache(self.reports)
 
     def _get_report_by_job_name(self, job_name):
@@ -510,7 +510,7 @@ class JenkinsTestReporter:
             if package in tc
         ]
 
-    def _process_jenkins_report(self, report, fail_on_empty_report: bool = True):
+    def process_jenkins_report(self, report, fail_on_empty_report: bool = True):
         report.start_processing()
         if not self.config.send_mail:
             LOG.info("Skip sending email, as per configuration.")
@@ -573,8 +573,8 @@ class JenkinsTestReporter:
 
     def gather_report_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
-            found_in_cache, target_file_path = self.cache.is_build_data_downloaded(failed_build)
-            if found_in_cache:
+            cache_hit, target_file_path = self.cache.is_build_data_in_cache(failed_build)
+            if cache_hit:
                 LOG.info(f"Loading cached test report from file: {target_file_path}")
                 data = JsonFileUtils.load_data_from_json_file(target_file_path)
                 return data, True
@@ -623,10 +623,7 @@ class JenkinsTestReporter:
 
             download_build = False
             job_added_from_cache = False
-            if (
-                self.config.cache.download_uncached_job_data
-                and not self.cache.is_build_data_downloaded(failed_build)[0]
-            ):
+            if self.config.cache.download_uncached_job_data and not self.cache.is_build_data_in_cache(failed_build)[0]:
                 download_build = True
 
             # Try to get build data from cache, if found, jump to next build URL
