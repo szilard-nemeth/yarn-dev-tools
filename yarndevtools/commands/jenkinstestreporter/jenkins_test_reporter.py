@@ -376,6 +376,7 @@ class JenkinsTestReporterCacheConfig:
         return FileUtils.join_path(self.cached_data_dir, CACHED_DATA_FILENAME)
 
 
+# TODO Extract email config to separate class
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
         self.args = args

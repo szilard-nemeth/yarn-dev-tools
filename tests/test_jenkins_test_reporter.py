@@ -20,6 +20,7 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
+
 DEFAULT_LATEST_BUILD_NUM = 215
 DEFAULT_NUM_BUILDS = 51
 
@@ -44,6 +45,7 @@ BUILD_URL_MAWO_7X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_7X}/{{{BUIL
 BUILD_URL_MAWO_71X_TEMPLATE = f"{JENKINS_MAIN_URL}/job/{MAWO_JOB_NAME_71X}/{{{BUILD_URL_ID_KEY}}}/"
 
 USE_REAL_API = False
+JOB_NAME = MAWO_JOB_NAME_7X
 
 LOG = logging.getLogger(__name__)
 
@@ -259,7 +261,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
     @staticmethod
     def generate_args(
         tc_filters: List[str] = None,
-        job_names: str = MAWO_JOB_NAME_7X,
+        job_names: str = JOB_NAME,
         jenkins_url: str = JENKINS_MAIN_URL,
         num_builds: str = "14",  # input should be string as JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL is a special value
         skip_sending_mail: bool = False,
@@ -308,19 +310,24 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @staticmethod
     def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, job_name=DEFAULT_JOB_NAME, build_id=200):
-        if jenkins_url.endswith("/"):
-            jenkins_url = jenkins_url[:-1]
+        build_url = TestJenkinsTestReporter.get_build_url(jenkins_url, job_name, build_id)
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(rf"{jenkins_url}/job/{job_name}/{build_id}/testReport/api/json.*"),
+            re.compile(rf"{build_url}/testReport/api/json.*"),
             body=report_json,
         )
+
+    @staticmethod
+    def get_build_url(jenkins_url: str, job_name: str, build_id: int):
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
+        return f"{jenkins_url}/job/{job_name}/{build_id}/"
 
     @staticmethod
     def _mock_jenkins_build_api(
         builds_json,
         jenkins_url=JENKINS_MAIN_URL,
-        job_name=MAWO_JOB_NAME_7X,
+        job_name=JOB_NAME,
     ):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
@@ -341,11 +348,12 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     def _assert_num_filtered_testcases_single_build(
         self,
-        reporter,
+        reporter: JenkinsTestReporter,
         filters: List[str] = None,
         expected_num_build_data=-1,
         expected_failed_testcases_dict: Dict[str, List[str]] = None,
         job_name=DEFAULT_JOB_NAME,
+        job_url: str = None,
     ):
         if not expected_failed_testcases_dict:
             expected_failed_testcases_dict = {}
@@ -365,8 +373,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         for tc_filter in filters:
             package = self._get_package_from_filter(tc_filter)
-            # TODO Index is hardcoded
-            actual_failed_testcases = reporter.get_filtered_testcases_from_build(0, package, job_name)
+            actual_failed_testcases = reporter.get_filtered_testcases_from_build(job_url, package, job_name)
             expected_failed_testcases: List[str] = expected_failed_testcases_dict[tc_filter]
             self.assertEqual(len(expected_failed_testcases), len(actual_failed_testcases))
             self.assertListEqual(sorted(actual_failed_testcases), sorted(expected_failed_testcases))
@@ -396,6 +403,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
+        job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
         self._assert_num_filtered_testcases_single_build(
@@ -403,6 +411,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             filters=[YARN_TC_FILTER],
             expected_num_build_data=1,
             expected_failed_testcases_dict={YARN_TC_FILTER: []},
+            job_url=job_url,
         )
 
     @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
@@ -420,6 +429,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
         reporter.run()
+        job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
         self._assert_num_filtered_testcases_single_build(
@@ -427,6 +437,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             filters=[YARN_TC_FILTER],
             expected_num_build_data=1,
             expected_failed_testcases_dict={YARN_TC_FILTER: failed_testcases},
+            job_url=job_url,
         )
 
     @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
@@ -450,6 +461,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = JenkinsTestReporter(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
         reporter.run()
+        job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=45)
         self._assert_num_filtered_testcases_single_build(
@@ -460,6 +472,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
                 YARN_TC_FILTER: failed_yarn_testcases,
                 MAPRED_TC_FILTER: failed_mr_testcases,
             },
+            job_url=job_url,
         )
 
     # TODO Add TC to test cache loading
