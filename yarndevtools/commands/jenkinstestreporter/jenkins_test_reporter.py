@@ -471,7 +471,7 @@ class JenkinsTestReporter:
         )
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
-        else:
+        elif self.config.cache.enabled:
             self.reports = self.cache.load_cached_data()
 
         # Try to reset email sent state of asked jobs
