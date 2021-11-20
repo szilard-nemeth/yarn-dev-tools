@@ -311,17 +311,14 @@ class TestJenkinsTestReporter(unittest.TestCase):
     @staticmethod
     def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, job_name=DEFAULT_JOB_NAME, build_id=200):
         build_url = TestJenkinsTestReporter.get_build_url(jenkins_url, job_name, build_id)
+        final_url = rf"{build_url}/testReport/api/json.*"
+        final_url = TestJenkinsTestReporter.sanitize_url(final_url)
+        LOG.info("Mocked URL: %s", final_url)
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(rf"{build_url}/testReport/api/json.*"),
+            re.compile(final_url),
             body=report_json,
         )
-
-    @staticmethod
-    def get_build_url(jenkins_url: str, job_name: str, build_id: int):
-        if jenkins_url.endswith("/"):
-            jenkins_url = jenkins_url[:-1]
-        return f"{jenkins_url}/job/{job_name}/{build_id}/"
 
     @staticmethod
     def _mock_jenkins_build_api(
@@ -329,13 +326,37 @@ class TestJenkinsTestReporter(unittest.TestCase):
         jenkins_url=JENKINS_MAIN_URL,
         job_name=JOB_NAME,
     ):
-        if jenkins_url.endswith("/"):
-            jenkins_url = jenkins_url[:-1]
+        job_url = TestJenkinsTestReporter.get_job_url(jenkins_url, job_name)
+        final_url = rf"{job_url}/api/json.*"
+        final_url = TestJenkinsTestReporter.sanitize_url(final_url)
+        LOG.info("Mocked URL: %s", final_url)
         httpretty.register_uri(
             httpretty.GET,
-            re.compile(rf"{jenkins_url}/job/{job_name}/api/json.*"),
+            re.compile(final_url),
             body=builds_json,
         )
+
+    @staticmethod
+    def get_job_url(jenkins_url: str, job_name: str):
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
+        return TestJenkinsTestReporter.sanitize_url(f"{jenkins_url}/job/{job_name}/")
+
+    @staticmethod
+    def get_build_url(jenkins_url: str, job_name: str, build_id: int):
+        if jenkins_url.endswith("/"):
+            jenkins_url = jenkins_url[:-1]
+        job_url = TestJenkinsTestReporter.get_job_url(jenkins_url, job_name)
+        return TestJenkinsTestReporter.sanitize_url(f"{job_url}/{build_id}/")
+
+    @staticmethod
+    def sanitize_url(url: str):
+        if url.startswith("http://"):
+            parts = url.split("http://")
+            fixed = parts[1].replace("//", "/")
+            return "http://" + fixed
+        else:
+            raise ValueError("Unexpected URL: " + url)
 
     def _assert_all_failed_testcases(
         self, reporter: JenkinsTestReporter, spec, expected_failed_count=-1, job_name=DEFAULT_JOB_NAME
