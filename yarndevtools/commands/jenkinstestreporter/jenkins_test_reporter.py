@@ -30,6 +30,20 @@ SECONDS_PER_DAY = 86400
 DEFAULT_REQUEST_LIMIT = 999
 
 
+@auto_str
+class DownloadProgress:
+    # TODO Store awaiting download / awaiting cache load separately
+    def __init__(self, number_of_failed_builds):
+        self.all_builds: int = number_of_failed_builds
+        self.current_build_idx = 0
+
+    def process_next_build(self):
+        self.current_build_idx += 1
+
+    def short_str(self):
+        return f"{self.current_build_idx + 1}/{self.all_builds}"
+
+
 @dataclass
 class TestcaseFilter:
     project_name: str
@@ -233,19 +247,16 @@ class JenkinsApiConverter:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
             return JobBuildData(failed_build, counters, failed_testcases)
 
-
-@auto_str
-class DownloadProgress:
-    # TODO Store awaiting download / awaiting cache load separately
-    def __init__(self, number_of_failed_builds):
-        self.all_builds: int = number_of_failed_builds
-        self.current_build_idx = 0
-
-    def process_next_build(self):
-        self.current_build_idx += 1
-
-    def short_str(self):
-        return f"{self.current_build_idx + 1}/{self.all_builds}"
+    @staticmethod
+    def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
+        url = failed_build.urls.test_report_api_json_url
+        LOG.info(f"Loading test report from URL: {url}. Download progress: {download_progress.short_str()}")
+        data = NetworkUtils.fetch_json(
+            url,
+            do_not_raise_http_statuses={404},
+            http_callbacks={404: lambda: LOG.error(f"Test report cannot be found for build URL (HTTP 404): {url}")},
+        )
+        return data
 
 
 @dataclass
@@ -357,8 +368,8 @@ class JenkinsTestReporterCache:
             LOG.debug(
                 "Build found in cache. Job name: %s, Build number: %s", failed_build.job_name, failed_build.build_number
             )
-            return True, target_file_path
-        return False, target_file_path
+            return True
+        return False
 
     def load_cached_data(self) -> Dict[str, JenkinsJobReport]:
         LOG.info("Trying to load cached data from file: %s", self.config.data_file_path)
@@ -374,11 +385,22 @@ class JenkinsTestReporterCache:
             LOG.info("Cached data file not found in: %s", self.config.data_file_path)
             return {}
 
-    def dump_data_to_cache(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
+    def save_reports(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
         if log:
             LOG.debug("Final cached data object: %s", reports)
         LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.config.data_file_path)
         PickleUtils.dump(reports, self.config.data_file_path)
+
+    def save_report(self, data, failed_build):
+        target_file_path = self.generate_file_name_for_report(failed_build)
+        LOG.info(f"Saving test report response JSON to cache: {target_file_path}")
+        JsonFileUtils.write_data_to_file_as_json(target_file_path, data)
+
+    def load_report(self, failed_build):
+        report_file_path = self.generate_file_name_for_report(failed_build)
+        LOG.info(f"Loading cached test report from file: {report_file_path}")
+        data = JsonFileUtils.load_data_from_json_file(report_file_path)
+        return data
 
 
 class JenkinsTestReporterCacheConfig:
@@ -554,7 +576,7 @@ class JenkinsTestReporter:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
             self.reports[job_name] = report
             self.process_jenkins_report(report, fail_on_empty_report=False)
-        self.cache.dump_data_to_cache(self.reports)
+        self.cache.save_reports(self.reports)
 
     def _get_report_by_job_name(self, job_name):
         return self.reports[job_name]
@@ -599,23 +621,10 @@ class JenkinsTestReporter:
                 report.print_report(build_data)
             self.invoke_report_processors(build_data, report)
             log_report = i == len(report) - 1
-            self.cache.dump_data_to_cache(self.reports, log=log_report)
+            self.cache.save_reports(self.reports, log=log_report)
 
     def invoke_report_processors(self, build_data, report):
         self.email.process(build_data, report)
-
-    def download_test_report(self, failed_build: FailedJenkinsBuild, target_file_path):
-        url = failed_build.urls.test_report_api_json_url
-        LOG.info(f"Loading test report from URL: {url}. " f"Download progress: {self.download_progress.short_str()}")
-        data = NetworkUtils.fetch_json(
-            url,
-            do_not_raise_http_statuses={404},
-            http_callbacks={404: lambda: LOG.error(f"Test report cannot be found for build URL (HTTP 404): {url}")},
-        )
-        if target_file_path:
-            LOG.info(f"Saving test report response JSON to cache: {target_file_path}")
-            JsonFileUtils.write_data_to_file_as_json(target_file_path, data)
-        return data
 
     def find_failing_tests(self, failed_build: FailedJenkinsBuild):
         """ Find the names of any tests which failed in the given build output URL. """
@@ -635,16 +644,14 @@ class JenkinsTestReporter:
 
     def gather_report_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
-            cache_hit, target_file_path = self.cache.is_build_data_in_cache(failed_build)
+            cache_hit = self.cache.is_build_data_in_cache(failed_build)
             if cache_hit:
-                LOG.info(f"Loading cached test report from file: {target_file_path}")
-                data = JsonFileUtils.load_data_from_json_file(target_file_path)
+                data = self.cache.load_report(failed_build)
                 return data, True
-            else:
-                data = self.download_test_report(failed_build, target_file_path)
-                return data, False
         else:
-            data = self.download_test_report(failed_build, None)
+            data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
+            if self.config.cache.enabled:
+                self.cache.save_report(data, failed_build)
             return data, False
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
@@ -667,7 +674,7 @@ class JenkinsTestReporter:
 
             download_build = False
             job_added_from_cache = False
-            if self.config.cache.download_uncached_job_data and not self.cache.is_build_data_in_cache(failed_build)[0]:
+            if self.config.cache.download_uncached_job_data and not self.cache.is_build_data_in_cache(failed_build):
                 download_build = True
 
             # Try to get build data from cache, if found, jump to next build URL
