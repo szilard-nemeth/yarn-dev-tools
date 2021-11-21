@@ -650,6 +650,10 @@ class JenkinsTestReporter:
                 data = self.cache.load_report(failed_build)
                 return data
         else:
+            fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
+            LOG.debug(
+                f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})"
+            )
             data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
             self.sent_requests += 1
             if self.config.cache.enabled:
@@ -690,9 +694,6 @@ class JenkinsTestReporter:
             # 1. job is not found in cache and config.download_uncached_job_data is True OR
             # 2. when job data is not found in file cache.
             if download_build or not job_added_from_cache:
-                fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
-                LOG.info(f"===>{failed_build.urls.test_report_url} ({fmt_timestamp})")
-
                 job_data = self.create_job_build_data(failed_build)
                 if not job_added_from_cache:
                     job_data.filter_testcases(self.config.tc_filters)
