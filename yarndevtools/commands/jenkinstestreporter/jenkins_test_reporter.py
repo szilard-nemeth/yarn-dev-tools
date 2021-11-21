@@ -627,10 +627,10 @@ class JenkinsTestReporter:
     def invoke_report_processors(self, build_data, report):
         self.email.process(build_data, report)
 
-    def find_failing_tests(self, failed_build: FailedJenkinsBuild):
+    def create_job_build_data(self, failed_build: FailedJenkinsBuild):
         """ Find the names of any tests which failed in the given build output URL. """
         try:
-            data = self.gather_report_data_for_build(failed_build)
+            data = self.gather_raw_data_for_build(failed_build)
         except Exception:
             traceback.print_exc()
             LOG.error(
@@ -643,7 +643,7 @@ class JenkinsTestReporter:
 
         return JenkinsApiConverter.parse_job_data(data, failed_build)
 
-    def gather_report_data_for_build(self, failed_build: FailedJenkinsBuild):
+    def gather_raw_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
             cache_hit = self.cache.is_build_data_in_cache(failed_build)
             if cache_hit:
@@ -693,8 +693,7 @@ class JenkinsTestReporter:
                 fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
                 LOG.info(f"===>{failed_build.urls.test_report_url} ({fmt_timestamp})")
 
-                job_data = self.find_failing_tests(failed_build)
-
+                job_data = self.create_job_build_data(failed_build)
                 if not job_added_from_cache:
                     job_data.filter_testcases(self.config.tc_filters)
                     job_datas.append(job_data)
