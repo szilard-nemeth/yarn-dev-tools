@@ -20,6 +20,9 @@ from yarndevtools.argparser import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
+SEND_MAIL_PATCH_PATH = (
+    "yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporterEmail.send_mail"
+)
 
 DEFAULT_LATEST_BUILD_NUM = 215
 DEFAULT_NUM_BUILDS = 51
@@ -410,7 +413,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             )
         )
 
-    @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
+    @patch(SEND_MAIL_PATCH_PATH)
     def test_successful_api_response_verify_failed_testcases(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={PACK_3: 10, PACK_4: 20},
@@ -435,7 +438,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             job_url=job_url,
         )
 
-    @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
+    @patch(SEND_MAIL_PATCH_PATH)
     def test_successful_api_response_verify_filtered_testcases(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={PACK_3: 10, PACK_4: 20, self._get_package_from_filter(YARN_TC_FILTER): 25},
@@ -461,7 +464,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             job_url=job_url,
         )
 
-    @patch("yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporter.send_mail")
+    @patch(SEND_MAIL_PATCH_PATH)
     def test_successful_api_response_verify_multi_filtered(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={
