@@ -221,7 +221,8 @@ class JenkinsJobReport:
     def get_job_data(self, build_url: str):
         return self.jobs_by_url[build_url]
 
-    def print_report(self):
+    def print_report(self, build_data):
+        LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
         LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
         # Print summary section: all failed tests sorted by how many times they failed
         LOG.info("TESTCASE SUMMARY:")
@@ -376,13 +377,79 @@ class JenkinsTestReporterCacheConfig:
         return FileUtils.join_path(self.cached_data_dir, CACHED_DATA_FILENAME)
 
 
-# TODO Extract email config to separate class
+class JenkinsTestReporterEmailConfig:
+    def __init__(self, args):
+        self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
+        skip_email = args.skip_email if hasattr(args, "skip_email") else False
+        self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
+        self.send_mail: bool = not skip_email or not self.force_send_email
+        self.reset_email_sent_state: List[str] = (
+            args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else []
+        )
+        if not self.send_mail:
+            LOG.info("Skip sending emails, as per configuration.")
+
+    def validate(self, job_names: List[str]):
+        if not all([reset in job_names for reset in self.reset_email_sent_state]):
+            raise ValueError(
+                "Not all jobs are recognized while trying to reset email sent state for jobs! "
+                "Valid job names: {}, Current job names: {}".format(job_names, self.reset_email_sent_state)
+            )
+
+
+class JenkinsTestReporterEmail:
+    def __init__(self, config):
+        self.config: JenkinsTestReporterEmailConfig = config
+        self.email_service = EmailService(config.full_email_conf.email_conf)
+
+    def initialize(self, reports: Dict[str, JenkinsJobReport]):
+        # Try to reset email sent state of asked jobs
+        if self.config.reset_email_sent_state:
+            LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
+            for job_name in self.config.reset_email_sent_state:
+                reports[job_name].reset_mail_sent_state()
+
+    def send_mail(self, build_data: JobBuildData):
+        # TODO Add MailSendProgress class to track how many emails were sent
+        LOG.info("Sending report in email for job: %s", build_data.build_url)
+        self.email_service.send_mail(
+            sender=self.config.full_email_conf.sender,
+            subject=self._get_email_subject(build_data),
+            body=str(build_data),
+            recipients=self.config.full_email_conf.recipients,
+            body_mimetype=EmailMimeType.PLAIN,
+        )
+        LOG.info("Finished sending report in email for job: %s", build_data.build_url)
+
+    @staticmethod
+    def _get_email_subject(build_data: JobBuildData):
+        if build_data.is_valid:
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_data.build_url}"
+        else:
+            email_subject = (
+                f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, " f"build is invalid: {build_data.build_url}"
+            )
+        return email_subject
+
+    def process(self, build_data, report):
+        if self.config.send_mail:
+            if not build_data.is_mail_sent or self.config.force_send_email:
+                self.send_mail(build_data)
+                report.mark_sent(build_data.build_url)
+            else:
+                LOG.info(
+                    "Not sending report of job URL %s, as it was already sent before on %s.",
+                    build_data.build_url,
+                    build_data.sent_date,
+                )
+
+
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
         self.args = args
         self.cache: JenkinsTestReporterCacheConfig = JenkinsTestReporterCacheConfig(args, output_dir)
+        self.email: JenkinsTestReporterEmailConfig = JenkinsTestReporterEmailConfig(args)
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
-        self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         self.jenkins_mode: JenkinsTestReporterMode = (
             JenkinsTestReporterMode[args.jenkins_mode.upper()]
             if hasattr(args, "jenkins_mode") and args.jenkins_mode
@@ -396,13 +463,7 @@ class JenkinsTestReporterConfig:
         self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
-        skip_email = args.skip_email if hasattr(args, "skip_email") else False
-        self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
-        self.send_mail: bool = not skip_email or not self.force_send_email
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
-        self.reset_email_sent_state: List[str] = (
-            args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else []
-        )
 
         # Validation
         if not self.tc_filters:
@@ -420,11 +481,7 @@ class JenkinsTestReporterConfig:
             self.jenkins_base_url = self.jenkins_mode.jenkins_base_url
             self.job_names = self.jenkins_mode.job_names
 
-        if not all([reset in self.job_names for reset in self.reset_email_sent_state]):
-            raise ValueError(
-                "Not all jobs are recognized while trying to reset email sent state for jobs! "
-                "Valid job names: {}, Current job names: {}".format(self.job_names, self.reset_email_sent_state)
-            )
+        self.email.validate(self.job_names)
 
     @staticmethod
     def _determine_number_of_builds_to_examine(config_value, request_limit) -> int:
@@ -445,19 +502,17 @@ class JenkinsTestReporterConfig:
             f"Number of builds to check: {self.num_builds}\n"
             f"Testcase filters: {self.tc_filters}\n"
             f"Force download mode: {self.force_download_mode}\n"
-            f"Force email send mode: {self.force_send_email}\n"
+            f"Force email send mode: {self.email.force_send_email}\n"
         )
 
 
-# TODO Move all cache handling related stuff to new class
-# TODO Separate all email functionality: Config, email send, etc?
 # TODO Separate all download functionality: Progress of downloads, code that fetches API, etc.
 class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
-        self.email_service = EmailService(self.config.full_email_conf.email_conf)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
         self.cache: JenkinsTestReporterCache = JenkinsTestReporterCache(self.config.cache)
+        self.email: JenkinsTestReporterEmail = JenkinsTestReporterEmail(self.config.email)
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. Details: %s", str(self.config))
@@ -475,11 +530,7 @@ class JenkinsTestReporter:
         elif self.config.cache.enabled:
             self.reports = self.cache.load_cached_data()
 
-        # Try to reset email sent state of asked jobs
-        if self.config.reset_email_sent_state:
-            LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
-            for job_name in self.config.reset_email_sent_state:
-                self.reports[job_name].reset_mail_sent_state()
+        self.email.initialize(self.reports)
 
         for job_name in self.config.job_names:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
@@ -513,8 +564,6 @@ class JenkinsTestReporter:
 
     def process_jenkins_report(self, report, fail_on_empty_report: bool = True):
         report.start_processing()
-        if not self.config.send_mail:
-            LOG.info("Skip sending email, as per configuration.")
 
         for i, build_data in enumerate(report):
             LOG.info(f"Processing report of build: {build_data.build_url}")
@@ -529,19 +578,13 @@ class JenkinsTestReporter:
             # At this point it's certain that we have some failed tests or the build itself is invalid
             LOG.info(f"Report of build {build_data.build_url} is not valid or contains failed tests!")
             if not self.config.omit_job_summary and build_data.is_valid:
-                report.print_report()
-            if self.config.send_mail:
-                if not build_data.is_mail_sent or self.config.force_send_email:
-                    self.send_mail(build_data)
-                    report.mark_sent(build_data.build_url)
-                else:
-                    LOG.info(
-                        "Not sending report of job URL %s, as it was already sent before on %s.",
-                        build_data.build_url,
-                        build_data.sent_date,
-                    )
+                report.print_report(build_data)
+            self.invoke_report_processors(build_data, report)
             log_report = i == len(report) - 1
             self.cache.dump_data_to_cache(self.reports, log=log_report)
+
+    def invoke_report_processors(self, build_data, report):
+        self.email.process(build_data, report)
 
     def download_test_report(self, failed_build: FailedJenkinsBuild, target_file_path):
         url = failed_build.urls.test_report_api_json_url
@@ -667,27 +710,3 @@ class JenkinsTestReporter:
             for failed_testcase in job_data.testcases:
                 LOG.info(f"Failed test: {failed_testcase}")
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
-
-    def send_mail(self, build_data: JobBuildData):
-        if not self.config.omit_job_summary:
-            LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
-        # TODO Add MailSendProgress class to track how many emails were sent
-        LOG.info("Sending report in email for job: %s", build_data.build_url)
-        self.email_service.send_mail(
-            sender=self.config.full_email_conf.sender,
-            subject=self._get_email_subject(build_data),
-            body=str(build_data),
-            recipients=self.config.full_email_conf.recipients,
-            body_mimetype=EmailMimeType.PLAIN,
-        )
-        LOG.info("Finished sending report in email for job: %s", build_data.build_url)
-
-    @staticmethod
-    def _get_email_subject(build_data: JobBuildData):
-        if build_data.is_valid:
-            email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_data.build_url}"
-        else:
-            email_subject = (
-                f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, " f"build is invalid: {build_data.build_url}"
-            )
-        return email_subject
