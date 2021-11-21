@@ -30,6 +30,109 @@ SECONDS_PER_DAY = 86400
 DEFAULT_REQUEST_LIMIT = 999
 
 
+@dataclass
+class TestcaseFilter:
+    project_name: str
+    filter_expr: str
+
+    @property
+    def as_filter_spec(self):
+        return f"{self.project_name}:{self.filter_expr}"
+
+
+class FailedJenkinsBuild:
+    def __init__(self, full_url_of_job: str, timestamp: int, job_name):
+        self.url = full_url_of_job
+        self.urls = JenkinsJobInstanceUrls(full_url_of_job)
+        self.build_number = full_url_of_job.rsplit("/")[-2]
+        self.timestamp = timestamp
+        self.job_name = job_name
+
+
+class JobBuildData:
+    def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, empty_or_not_found=False):
+        self._failed_build: FailedJenkinsBuild = failed_build
+        self.counters = counters
+        self.testcases: List[str] = testcases
+        self.filtered_testcases: List[FilteredResult] = []
+        self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
+        self.no_of_failed_filtered_tc = None
+        self.unmatched_testcases: Set[str] = set()
+        self.empty_or_not_found = empty_or_not_found
+        self.mail_sent = False
+        self.sent_date = None
+
+    def has_failed_testcases(self):
+        return len(self.testcases) > 0
+
+    def filter_testcases(self, tc_filters: List[TestcaseFilter]):
+        matched_testcases = set()
+        for tcf in tc_filters:
+            matched_for_filter = list(filter(lambda tc: tcf.filter_expr in tc, self.testcases))
+            self.filtered_testcases.append(FilteredResult(tcf, matched_for_filter))
+            if tcf.filter_expr not in self.filtered_testcases_by_expr:
+                self.filtered_testcases_by_expr[tcf.filter_expr] = []
+            self.filtered_testcases_by_expr[tcf.filter_expr].extend(matched_for_filter)
+            matched_testcases.update(matched_for_filter)
+        self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
+        self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
+
+    @property
+    def build_number(self):
+        return self._failed_build.build_number
+
+    @property
+    def build_url(self):
+        return self._failed_build.url
+
+    @property
+    def is_valid(self):
+        return not self.empty_or_not_found
+
+    @property
+    def is_mail_sent(self):
+        return self.mail_sent
+
+    @property
+    def tc_filters(self):
+        return [res.filter for res in self.filtered_testcases]
+
+    def __str__(self):
+        if self.empty_or_not_found:
+            return self._str_empty_report()
+        else:
+            return self._str_normal_report()
+
+    def _str_empty_report(self):
+        return (
+            f"Build number: {self.build_number}\n"
+            f"Build URL: {self.build_url}\n"
+            f"!!REPORT WAS NOT FOUND OR IT IS EMPTY!!\n"
+        )
+
+    def _str_normal_report(self):
+        filtered_testcases: str = ""
+        if self.tc_filters:
+            for idx, ftcs in enumerate(self.filtered_testcases):
+                filtered_testcases += f"\nFILTER #{idx + 1}\n{str(ftcs)}\n"
+        if filtered_testcases:
+            filtered_testcases = f"\n{filtered_testcases}\n"
+
+        all_failed_testcases = "\n".join(self.testcases)
+        unmatched_testcases = "\n".join(self.unmatched_testcases)
+        return (
+            f"Counters:\n"
+            f"{self.counters}, "
+            f"Build number: {self.build_number}\n"
+            f"Build URL: {self.build_url}\n"
+            f"Matched testcases: {self.no_of_failed_filtered_tc}\n"
+            f"Unmatched testcases: {len(self.unmatched_testcases)}\n"
+            f"{filtered_testcases}\n"
+            f"Unmatched testcases:\n{unmatched_testcases}\n"
+            f"ALL Failed testcases:\n{all_failed_testcases}"
+        )
+
+
 class JenkinsJobUrls:
     def __init__(self, jenkins_base_url, job_name):
         self.jenkins_base_url = jenkins_base_url
@@ -49,15 +152,6 @@ class JenkinsJobInstanceUrls:
         self.job_console_output_url = full_url + "Console"
         self.test_report_url = full_url + "testReport"
         self.test_report_api_json_url = self.test_report_url + "/api/json?pretty=true"
-
-
-class FailedJenkinsBuild:
-    def __init__(self, full_url_of_job: str, timestamp: int, job_name):
-        self.url = full_url_of_job
-        self.urls = JenkinsJobInstanceUrls(full_url_of_job)
-        self.build_number = full_url_of_job.rsplit("/")[-2]
-        self.timestamp = timestamp
-        self.job_name = job_name
 
 
 class JenkinsApiConverter:
@@ -121,15 +215,23 @@ class JenkinsApiConverter:
         # See: https://stackoverflow.com/a/24308978/1106893
         return int(ts / 1000)
 
-
-@dataclass
-class TestcaseFilter:
-    project_name: str
-    filter_expr: str
-
-    @property
-    def as_filter_spec(self):
-        return f"{self.project_name}:{self.filter_expr}"
+    @staticmethod
+    def parse_job_data(data, failed_build: FailedJenkinsBuild) -> JobBuildData:
+        failed_testcases = set()
+        for suite in data["suites"]:
+            for case in suite["cases"]:
+                status = case["status"]
+                err_details = case["errorDetails"]
+                if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
+                    failed_testcases.add(f"{case['className']}.{case['name']}")
+        if len(failed_testcases) == 0:
+            LOG.info(
+                f"No failed tests in test report, check {failed_build.urls.job_console_output_url} for why it was reported failed."
+            )
+            return JobBuildData(failed_build, None, failed_testcases)
+        else:
+            counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
+            return JobBuildData(failed_build, counters, failed_testcases)
 
 
 @auto_str
@@ -228,90 +330,6 @@ class JenkinsJobReport:
         LOG.info("TESTCASE SUMMARY:")
         for tn in sorted(self.all_failing_tests, key=self.all_failing_tests.get, reverse=True):
             LOG.info(f"{self.all_failing_tests[tn]}: {tn}")
-
-
-class JobBuildData:
-    def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, empty_or_not_found=False):
-        self._failed_build: FailedJenkinsBuild = failed_build
-        self.counters = counters
-        self.testcases: List[str] = testcases
-        self.filtered_testcases: List[FilteredResult] = []
-        self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
-        self.no_of_failed_filtered_tc = None
-        self.unmatched_testcases: Set[str] = set()
-        self.empty_or_not_found = empty_or_not_found
-        self.mail_sent = False
-        self.sent_date = None
-
-    def has_failed_testcases(self):
-        return len(self.testcases) > 0
-
-    def filter_testcases(self, tc_filters: List[TestcaseFilter]):
-        matched_testcases = set()
-        for tcf in tc_filters:
-            matched_for_filter = list(filter(lambda tc: tcf.filter_expr in tc, self.testcases))
-            self.filtered_testcases.append(FilteredResult(tcf, matched_for_filter))
-            if tcf.filter_expr not in self.filtered_testcases_by_expr:
-                self.filtered_testcases_by_expr[tcf.filter_expr] = []
-            self.filtered_testcases_by_expr[tcf.filter_expr].extend(matched_for_filter)
-            matched_testcases.update(matched_for_filter)
-        self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
-        self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
-
-    @property
-    def build_number(self):
-        return self._failed_build.build_number
-
-    @property
-    def build_url(self):
-        return self._failed_build.url
-
-    @property
-    def is_valid(self):
-        return not self.empty_or_not_found
-
-    @property
-    def is_mail_sent(self):
-        return self.mail_sent
-
-    @property
-    def tc_filters(self):
-        return [res.filter for res in self.filtered_testcases]
-
-    def __str__(self):
-        if self.empty_or_not_found:
-            return self._str_empty_report()
-        else:
-            return self._str_normal_report()
-
-    def _str_empty_report(self):
-        return (
-            f"Build number: {self.build_number}\n"
-            f"Build URL: {self.build_url}\n"
-            f"!!REPORT WAS NOT FOUND OR IT IS EMPTY!!\n"
-        )
-
-    def _str_normal_report(self):
-        filtered_testcases: str = ""
-        if self.tc_filters:
-            for idx, ftcs in enumerate(self.filtered_testcases):
-                filtered_testcases += f"\nFILTER #{idx + 1}\n{str(ftcs)}\n"
-        if filtered_testcases:
-            filtered_testcases = f"\n{filtered_testcases}\n"
-
-        all_failed_testcases = "\n".join(self.testcases)
-        unmatched_testcases = "\n".join(self.unmatched_testcases)
-        return (
-            f"Counters:\n"
-            f"{self.counters}, "
-            f"Build number: {self.build_number}\n"
-            f"Build URL: {self.build_url}\n"
-            f"Matched testcases: {self.no_of_failed_filtered_tc}\n"
-            f"Unmatched testcases: {len(self.unmatched_testcases)}\n"
-            f"{filtered_testcases}\n"
-            f"Unmatched testcases:\n{unmatched_testcases}\n"
-            f"ALL Failed testcases:\n{all_failed_testcases}"
-        )
 
 
 class JobBuildDataCounters:
@@ -613,7 +631,7 @@ class JenkinsTestReporter:
         if not data or len(data) == 0:
             return JobBuildData(failed_build, None, [], empty_or_not_found=True), loaded_from_cache
 
-        return self.parse_job_data(data, failed_build), loaded_from_cache
+        return JenkinsApiConverter.parse_job_data(data, failed_build), loaded_from_cache
 
     def gather_report_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
@@ -628,24 +646,6 @@ class JenkinsTestReporter:
         else:
             data = self.download_test_report(failed_build, None)
             return data, False
-
-    @staticmethod
-    def parse_job_data(data, failed_build: FailedJenkinsBuild) -> JobBuildData:
-        failed_testcases = set()
-        for suite in data["suites"]:
-            for case in suite["cases"]:
-                status = case["status"]
-                err_details = case["errorDetails"]
-                if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
-                    failed_testcases.add(f"{case['className']}.{case['name']}")
-        if len(failed_testcases) == 0:
-            LOG.info(
-                f"No failed tests in test report, check {failed_build.urls.job_console_output_url} for why it was reported failed."
-            )
-            return JobBuildData(failed_build, None, failed_testcases)
-        else:
-            counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
-            return JobBuildData(failed_build, counters, failed_testcases)
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
         """ Iterate runs of specified job within num_builds and collect results """
