@@ -565,6 +565,7 @@ class JenkinsTestReporter:
             postfix=self.config.args.command,
             repos=None,
             verbose_git_log=self.config.args.verbose,
+            disable_logging_setup_debug_details=True,
         )
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
