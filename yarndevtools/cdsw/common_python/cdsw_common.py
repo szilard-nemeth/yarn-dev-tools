@@ -31,6 +31,14 @@ from pythoncommons.process import SubprocessCommandRunner
 # Move this to EnvVar enum
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
+
+class TestExecMode(Enum):
+    CLOUDERA = "cloudera"
+    UPSTREAM = "upstream"
+
+
+DEFAULT_TEST_EXECUTION_MODE = TestExecMode.CLOUDERA.value
+
 ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
 SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.txt"
 LOG = logging.getLogger(__name__)
@@ -143,7 +151,9 @@ class CdswSetup:
                 )
             )
         script = results[0]
-        exec_mode = OsUtils.get_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, "upstream")
+        exec_mode: str = OsUtils.get_env_value(
+            CdswEnvVar.TEST_EXECUTION_MODE.value, default_value=DEFAULT_TEST_EXECUTION_MODE
+        )
         cmd = f"{BASHX} {script} {exec_mode}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(
             cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
