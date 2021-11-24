@@ -113,7 +113,7 @@ class JobBuildData:
 
     @property
     def is_valid(self):
-        return not self.status == JobBuildDataStatus.HAVE_FAILED_TESTCASES
+        return self.status == JobBuildDataStatus.HAVE_FAILED_TESTCASES
 
     @property
     def is_mail_sent(self):
@@ -466,7 +466,9 @@ class Email:
         if self.config.reset_email_sent_state:
             LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
             for job_name in self.config.reset_email_sent_state:
-                reports[job_name].reset_mail_sent_state()
+                # Reports can be empty at this point if cache was empty for this job or not found
+                if job_name in reports:
+                    reports[job_name].reset_mail_sent_state()
 
     def send_mail(self, build_data: JobBuildData):
         # TODO Add MailSendProgress class to track how many emails were sent
