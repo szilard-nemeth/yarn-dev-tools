@@ -698,16 +698,19 @@ class JenkinsTestReporter:
             if cache_hit:
                 data = self.cache.load_report(failed_build)
                 return data
+            else:
+                return self._download_build_data(failed_build)
         else:
-            fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
-            LOG.debug(
-                f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})"
-            )
-            data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
-            self.sent_requests += 1
-            if self.config.cache.enabled:
-                self.cache.save_report(data, failed_build)
-            return data
+            return self._download_build_data(failed_build)
+
+    def _download_build_data(self, failed_build):
+        fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
+        LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
+        data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
+        self.sent_requests += 1
+        if self.config.cache.enabled:
+            self.cache.save_report(data, failed_build)
+        return data
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
         """ Iterate runs of specified job within num_builds and collect results """
