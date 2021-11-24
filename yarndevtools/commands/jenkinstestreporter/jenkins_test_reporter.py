@@ -354,9 +354,9 @@ class JobBuildDataCounters:
         return f"Failed: {self.failed}, Passed: {self.passed}, Skipped: {self.skipped}"
 
 
-class JenkinsTestReporterCache:
+class Cache:
     def __init__(self, config):
-        self.config: JenkinsTestReporterCacheConfig = config
+        self.config: CacheConfig = config
 
     def generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
         job_name = failed_build.job_name.replace(".", "_")
@@ -404,7 +404,7 @@ class JenkinsTestReporterCache:
         return data
 
 
-class JenkinsTestReporterCacheConfig:
+class CacheConfig:
     def __init__(self, args, output_dir):
         self.enabled: bool = not args.disable_file_cache
         self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
@@ -418,7 +418,7 @@ class JenkinsTestReporterCacheConfig:
         return FileUtils.join_path(self.cached_data_dir, CACHED_DATA_FILENAME)
 
 
-class JenkinsTestReporterEmailConfig:
+class EmailConfig:
     def __init__(self, args):
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         skip_email = args.skip_email if hasattr(args, "skip_email") else False
@@ -438,9 +438,9 @@ class JenkinsTestReporterEmailConfig:
             )
 
 
-class JenkinsTestReporterEmail:
+class Email:
     def __init__(self, config):
-        self.config: JenkinsTestReporterEmailConfig = config
+        self.config: EmailConfig = config
         self.email_service = EmailService(config.full_email_conf.email_conf)
 
     def initialize(self, reports: Dict[str, JenkinsJobReport]):
@@ -488,8 +488,8 @@ class JenkinsTestReporterEmail:
 class JenkinsTestReporterConfig:
     def __init__(self, output_dir: str, args):
         self.args = args
-        self.cache: JenkinsTestReporterCacheConfig = JenkinsTestReporterCacheConfig(args, output_dir)
-        self.email: JenkinsTestReporterEmailConfig = JenkinsTestReporterEmailConfig(args)
+        self.cache: CacheConfig = CacheConfig(args, output_dir)
+        self.email: EmailConfig = EmailConfig(args)
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.jenkins_mode: JenkinsTestReporterMode = (
             JenkinsTestReporterMode[args.jenkins_mode.upper()]
@@ -553,8 +553,8 @@ class JenkinsTestReporter:
     def __init__(self, args, output_dir):
         self.config = JenkinsTestReporterConfig(output_dir, args)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
-        self.cache: JenkinsTestReporterCache = JenkinsTestReporterCache(self.config.cache)
-        self.email: JenkinsTestReporterEmail = JenkinsTestReporterEmail(self.config.email)
+        self.cache: Cache = Cache(self.config.cache)
+        self.email: Email = Email(self.config.email)
         self.sent_requests: int = 0
 
     def run(self):
