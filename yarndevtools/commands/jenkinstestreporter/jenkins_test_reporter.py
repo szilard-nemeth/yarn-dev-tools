@@ -243,10 +243,10 @@ class JenkinsApiConverter:
             LOG.info(
                 f"No failed tests in test report, check {failed_build.urls.job_console_output_url} for why it was reported failed."
             )
-            return JobBuildData(failed_build, None, failed_testcases)
+            return JobBuildData(failed_build, None, failed_testcases, empty_or_not_found=True)
         else:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
-            return JobBuildData(failed_build, counters, failed_testcases)
+            return JobBuildData(failed_build, counters, failed_testcases, empty_or_not_found=False)
 
     @staticmethod
     def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
@@ -650,7 +650,7 @@ class JenkinsTestReporter:
                 "Could not open test report, check %s for reason why it was reported failed",
                 failed_build.urls.job_console_output_url,
             )
-            return JobBuildData(failed_build, None, set())
+            return JobBuildData(failed_build, None, set(), empty_or_not_found=True)
         if not data or len(data) == 0:
             return JobBuildData(failed_build, None, [], empty_or_not_found=True)
 
