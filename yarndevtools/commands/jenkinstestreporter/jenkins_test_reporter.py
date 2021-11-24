@@ -607,7 +607,7 @@ class JenkinsTestReporter:
             if package in tc
         ]
 
-    def process_jenkins_report(self, report):
+    def process_jenkins_report(self, report: JenkinsJobReport):
         report.start_processing()
         for i, build_data in enumerate(report):
             self._process_build_data_from_report(build_data, report)
@@ -615,7 +615,7 @@ class JenkinsTestReporter:
             self._invoke_report_processors(build_data, report)
             self._save_all_reports_to_cache(i, report)
 
-    def _process_build_data_from_report(self, build_data, report):
+    def _process_build_data_from_report(self, build_data: JobBuildData, report: JenkinsJobReport):
         LOG.info(f"Processing report of build: {build_data.build_url}")
         if self.config.fail_on_empty_report and len(report.all_failing_tests) == 0 and build_data.is_valid:
             LOG.info(
@@ -624,16 +624,19 @@ class JenkinsTestReporter:
             )
             raise SystemExit(0)
 
-    def _print_report(self, build_data, report):
+    def _print_report(self, build_data: JobBuildData, report: JenkinsJobReport):
         # At this point it's certain that we have some failed tests or the build itself is invalid
-        LOG.info(f"Report of build {build_data.build_url} is not valid or contains failed tests!")
+        if build_data.is_valid:
+            LOG.info(f"Report of build {build_data.build_url} contains failed tests!")
+        else:
+            LOG.info(f"Report of build {build_data.build_url} is not valid!")
         if not self.config.omit_job_summary and build_data.is_valid:
             report.print_report(build_data)
 
-    def _invoke_report_processors(self, build_data, report):
+    def _invoke_report_processors(self, build_data: JobBuildData, report: JenkinsJobReport):
         self.email.process(build_data, report)
 
-    def _save_all_reports_to_cache(self, i, report):
+    def _save_all_reports_to_cache(self, i, report: JenkinsJobReport):
         log_report: bool = i == len(report) - 1
         self.cache.save_reports(self.reports, log=log_report)
 
