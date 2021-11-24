@@ -1,7 +1,6 @@
 import logging
 import os
 import unittest
-from enum import Enum
 from typing import Dict, List
 
 from pythoncommons.constants import ExecutionMode
@@ -21,7 +20,12 @@ from pythoncommons.project_utils import (
 )
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.cdsw_common import CommonDirs, PythonModuleMode
+from yarndevtools.cdsw.common_python.cdsw_common import (
+    CommonDirs,
+    PythonModuleMode,
+    TestExecMode,
+    DEFAULT_TEST_EXECUTION_MODE,
+)
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     BRANCH_DIFF_REPORTER_DIR_NAME,
@@ -48,14 +52,6 @@ LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 CONTAINER_SLEEP = 300
 INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"
-
-
-class TestExecMode(Enum):
-    CLOUDERA = "cloudera"
-    UPSTREAM = "upstream"
-
-
-DEFAULT_TEST_EXECUTION_MODE = TestExecMode.CLOUDERA.value
 
 
 class ContainerFiles:
