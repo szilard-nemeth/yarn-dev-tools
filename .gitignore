@@ -6,4 +6,3 @@ __pycache__
 **/credentials.json
 **/token.pickle
 tests/logs
-tests/workdir
