@@ -73,6 +73,7 @@ class JobBuildData:
         self.no_of_failed_filtered_tc = None
         self.unmatched_testcases: Set[str] = set()
         self.empty_or_not_found = empty_or_not_found
+        # TODO Save this to separate pickled object, so when JobBuildData's structure changes, we don't lose sent state for all jobs
         self.mail_sent = False
         self.sent_date = None
 
@@ -504,6 +505,7 @@ class JenkinsTestReporterConfig:
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
+        self.fail_on_empty_report: bool = False  # TODO hardcoded
 
         # Validation
         if not self.tc_filters:
@@ -578,7 +580,7 @@ class JenkinsTestReporter:
         for job_name in self.config.job_names:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
             self.reports[job_name] = report
-            self.process_jenkins_report(report, fail_on_empty_report=False)
+            self.process_jenkins_report(report)
         self.cache.save_reports(self.reports)
 
     def _get_report_by_job_name(self, job_name):
@@ -605,28 +607,35 @@ class JenkinsTestReporter:
             if package in tc
         ]
 
-    def process_jenkins_report(self, report, fail_on_empty_report: bool = True):
+    def process_jenkins_report(self, report):
         report.start_processing()
-
         for i, build_data in enumerate(report):
-            LOG.info(f"Processing report of build: {build_data.build_url}")
-            if fail_on_empty_report and len(report.all_failing_tests) == 0 and build_data.is_valid:
-                LOG.info(
-                    f"Report with URL {build_data.build_url} is valid but does not contain any failed tests. "
-                    f"Won't process further, exiting..."
-                )
-                raise SystemExit(0)
+            self._process_build_data_from_report(build_data, report)
+            self._print_report(build_data, report)
+            self._invoke_report_processors(build_data, report)
+            self._save_all_reports_to_cache(i, report)
 
-            # At this point it's certain that we have some failed tests or the build itself is invalid
-            LOG.info(f"Report of build {build_data.build_url} is not valid or contains failed tests!")
-            if not self.config.omit_job_summary and build_data.is_valid:
-                report.print_report(build_data)
-            self.invoke_report_processors(build_data, report)
-            log_report: bool = i == len(report) - 1
-            self.cache.save_reports(self.reports, log=log_report)
+    def _process_build_data_from_report(self, build_data, report):
+        LOG.info(f"Processing report of build: {build_data.build_url}")
+        if self.config.fail_on_empty_report and len(report.all_failing_tests) == 0 and build_data.is_valid:
+            LOG.info(
+                f"Report with URL {build_data.build_url} is valid but does not contain any failed tests. "
+                f"Will not process further reports, exiting..."
+            )
+            raise SystemExit(0)
 
-    def invoke_report_processors(self, build_data, report):
+    def _print_report(self, build_data, report):
+        # At this point it's certain that we have some failed tests or the build itself is invalid
+        LOG.info(f"Report of build {build_data.build_url} is not valid or contains failed tests!")
+        if not self.config.omit_job_summary and build_data.is_valid:
+            report.print_report(build_data)
+
+    def _invoke_report_processors(self, build_data, report):
         self.email.process(build_data, report)
+
+    def _save_all_reports_to_cache(self, i, report):
+        log_report: bool = i == len(report) - 1
+        self.cache.save_reports(self.reports, log=log_report)
 
     def create_job_build_data(self, failed_build: FailedJenkinsBuild):
         """ Find the names of any tests which failed in the given build output URL. """
