@@ -5,6 +5,7 @@ import traceback
 import logging
 import time
 from dataclasses import dataclass
+from enum import Enum
 from typing import List, Dict, Set, Tuple
 
 from pythoncommons.constants import ExecutionMode
@@ -63,8 +64,18 @@ class FailedJenkinsBuild:
         self.job_name = job_name
 
 
+class JobBuildDataStatus(Enum):
+    # Invalid statuses
+    EMPTY = "Report does not contain testcase data"
+    NO_JSON_DATA_FOUND = "No JSON data found for build report"
+    CANNOT_FETCH = "Cannot fetch build report"
+    ALL_GREEN = "Build report contains tests but all are green"
+    # Valid statuses
+    HAVE_FAILED_TESTCASES = "Valid build report. Contains some failed tests"
+
+
 class JobBuildData:
-    def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, empty_or_not_found=False):
+    def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, status: JobBuildDataStatus):
         self._failed_build: FailedJenkinsBuild = failed_build
         self.counters = counters
         self.testcases: List[str] = testcases
@@ -72,7 +83,7 @@ class JobBuildData:
         self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
         self.no_of_failed_filtered_tc = None
         self.unmatched_testcases: Set[str] = set()
-        self.empty_or_not_found = empty_or_not_found
+        self.status: JobBuildDataStatus = status
         # TODO Save this to separate pickled object, so when JobBuildData's structure changes, we don't lose sent state for all jobs
         self.mail_sent = False
         self.sent_date = None
@@ -102,7 +113,7 @@ class JobBuildData:
 
     @property
     def is_valid(self):
-        return not self.empty_or_not_found
+        return not self.status == JobBuildDataStatus.HAVE_FAILED_TESTCASES
 
     @property
     def is_mail_sent(self):
@@ -113,16 +124,16 @@ class JobBuildData:
         return [res.filter for res in self.filtered_testcases]
 
     def __str__(self):
-        if self.empty_or_not_found:
-            return self._str_empty_report()
-        else:
+        if self.is_valid:
             return self._str_normal_report()
+        else:
+            return self._str_invalid_report()
 
-    def _str_empty_report(self):
+    def _str_invalid_report(self):
         return (
             f"Build number: {self.build_number}\n"
             f"Build URL: {self.build_url}\n"
-            f"!!REPORT WAS NOT FOUND OR IT IS EMPTY!!\n"
+            f"Invalid report! Details: {self.status.value}\n"
         )
 
     def _str_normal_report(self):
@@ -233,20 +244,27 @@ class JenkinsApiConverter:
     @staticmethod
     def parse_job_data(data, failed_build: FailedJenkinsBuild) -> JobBuildData:
         failed_testcases = set()
+        found_testcases: int = 0
         for suite in data["suites"]:
             for case in suite["cases"]:
+                found_testcases += 1
                 status = case["status"]
                 err_details = case["errorDetails"]
                 if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
                     failed_testcases.add(f"{case['className']}.{case['name']}")
         if len(failed_testcases) == 0:
-            LOG.info(
-                f"No failed tests in test report, check {failed_build.urls.job_console_output_url} for why it was reported failed."
-            )
-            return JobBuildData(failed_build, None, failed_testcases, empty_or_not_found=True)
+            if found_testcases:
+                LOG.info(
+                    f"No failed tests in test report, check {failed_build.urls.job_console_output_url} for why it was reported failed."
+                )
+                return JobBuildData(failed_build, None, failed_testcases, status=JobBuildDataStatus.ALL_GREEN)
+            else:
+                return JobBuildData(failed_build, None, failed_testcases, status=JobBuildDataStatus.EMPTY)
         else:
             counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
-            return JobBuildData(failed_build, counters, failed_testcases, empty_or_not_found=False)
+            return JobBuildData(
+                failed_build, counters, failed_testcases, status=JobBuildDataStatus.HAVE_FAILED_TESTCASES
+            )
 
     @staticmethod
     def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
@@ -467,9 +485,7 @@ class Email:
         if build_data.is_valid:
             email_subject = f"{EMAIL_SUBJECT_PREFIX} Failed tests with build: {build_data.build_url}"
         else:
-            email_subject = (
-                f"{EMAIL_SUBJECT_PREFIX} Failed to fetch test report, " f"build is invalid: {build_data.build_url}"
-            )
+            email_subject = f"{EMAIL_SUBJECT_PREFIX} Error with test report, build is invalid: {build_data.build_url}"
         return email_subject
 
     def process(self, build_data, report):
@@ -505,7 +521,9 @@ class JenkinsTestReporterConfig:
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
+        self.fail_on_all_green_report: bool = False  # TODO hardcoded
         self.fail_on_empty_report: bool = False  # TODO hardcoded
+        self.fail_reports_with_no_data: bool = False  # TODO hardcoded
 
         # Validation
         if not self.tc_filters:
@@ -617,19 +635,35 @@ class JenkinsTestReporter:
 
     def _process_build_data_from_report(self, build_data: JobBuildData, report: JenkinsJobReport):
         LOG.info(f"Processing report of build: {build_data.build_url}")
-        if self.config.fail_on_empty_report and len(report.all_failing_tests) == 0 and build_data.is_valid:
-            LOG.info(
-                f"Report with URL {build_data.build_url} is valid but does not contain any failed tests. "
-                f"Will not process further reports, exiting..."
+        should_exit: bool = False
+        if build_data.status == JobBuildDataStatus.ALL_GREEN:
+            LOG.error(
+                "Report with URL %s does exist but does not contain any failed tests as all testcases are green. ",
+                build_data.build_url,
             )
+            if self.config.fail_on_all_green_report:
+                should_exit = True
+        elif build_data.status == JobBuildDataStatus.EMPTY:
+            LOG.info(
+                "Report with URL %s is valid but does not contain any testcase data, A.K.A. empty.",
+                build_data.build_url,
+            )
+            if self.config.fail_on_empty_report:
+                should_exit = True
+        elif build_data.status in (JobBuildDataStatus.NO_JSON_DATA_FOUND, JobBuildDataStatus.CANNOT_FETCH):
+            LOG.info("Report with URL %s but couldn't fetch build or JSON data.", build_data.build_url)
+            if self.config.fail_reports_with_no_data:
+                should_exit = True
+
+        if should_exit:
+            LOG.info("Will not process more reports, exiting...")
             raise SystemExit(0)
 
     def _print_report(self, build_data: JobBuildData, report: JenkinsJobReport):
-        # At this point it's certain that we have some failed tests or the build itself is invalid
         if build_data.is_valid:
-            LOG.info(f"Report of build {build_data.build_url} contains failed tests!")
+            LOG.info("Report of build %s contains failed tests!", build_data.build_url)
         else:
-            LOG.info(f"Report of build {build_data.build_url} is not valid!")
+            LOG.info("Report of build %s is not valid! Details: %s", build_data.build_url, build_data.status.value)
         if not self.config.omit_job_summary and build_data.is_valid:
             report.print_report(build_data)
 
@@ -650,9 +684,9 @@ class JenkinsTestReporter:
                 "Could not open test report, check %s for reason why it was reported failed",
                 failed_build.urls.job_console_output_url,
             )
-            return JobBuildData(failed_build, None, set(), empty_or_not_found=True)
+            return JobBuildData(failed_build, None, set(), status=JobBuildDataStatus.CANNOT_FETCH)
         if not data or len(data) == 0:
-            return JobBuildData(failed_build, None, [], empty_or_not_found=True)
+            return JobBuildData(failed_build, None, [], status=JobBuildDataStatus.NO_JSON_DATA_FOUND)
 
         return JenkinsApiConverter.parse_job_data(data, failed_build)
 
