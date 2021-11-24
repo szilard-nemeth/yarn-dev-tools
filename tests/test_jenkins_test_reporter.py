@@ -17,11 +17,12 @@ from pythoncommons.project_utils import ProjectUtils
 
 from tests.test_utilities import Object, TestUtilities
 from yarndevtools.argparser import CommandType
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
+from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter, Email
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
-SEND_MAIL_PATCH_PATH = (
-    "yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.JenkinsTestReporterEmail.send_mail"
+EMAIL_CLASS_NAME = Email.__name__
+SEND_MAIL_PATCH_PATH = "yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.{}.send_mail".format(
+    EMAIL_CLASS_NAME
 )
 
 DEFAULT_LATEST_BUILD_NUM = 215
