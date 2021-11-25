@@ -51,6 +51,11 @@ class JenkinsTestReporterMode(Enum):
         self.job_names = job_names
 
 
+class JenkinsTestReporterCacheType(Enum):
+    FILE = "FILE"
+    GOOGLE_DRIVE = "GOOGLE_DRIVE"
+
+
 class CommandType(Enum):
     SAVE_PATCH = ("save_patch", False)
     CREATE_REVIEW_BRANCH = ("create_review_branch", False)
@@ -463,12 +468,22 @@ class ArgParser:
             help="Testcase filters in format: <project:filter statement>",
         )
 
+        # TODO change this to disable cache
         parser.add_argument(
             "-d",
             "--disable-file-cache",
             dest="disable_file_cache",
             type=bool,
             help="Whether to disable Jenkins report file cache",
+        )
+
+        parser.add_argument(
+            "-ct",
+            "--cache-type",
+            type=str,
+            dest="cache_type",
+            choices=[ct.name.lower() for ct in JenkinsTestReporterCacheType],
+            help="The type of the cache. Either file or google_drive",
         )
 
         parser.set_defaults(func=yarn_dev_tools.fetch_send_jenkins_test_report)
