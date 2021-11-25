@@ -47,6 +47,7 @@ SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects"
 @auto_str
 class DownloadProgress:
     # TODO Store awaiting download / awaiting cache load separately
+    # TODO Decide on startup: What build need to be downloaded, what is in the cache, etc.
     def __init__(self, number_of_failed_builds):
         self.all_builds: int = number_of_failed_builds
         self.current_build_idx = 0
@@ -412,6 +413,11 @@ class Cache(ABC):
         pass
 
     @staticmethod
+    def get_job_dirname(failed_build):
+        job_dir_name = failed_build.job_name.replace(".", "_")
+        return job_dir_name
+
+    @staticmethod
     def generate_report_filename(failed_build: FailedJenkinsBuild):
         return f"{failed_build.build_number}-testreport.json"
 
@@ -421,8 +427,8 @@ class FileCache(Cache):
         self.config: CacheConfig = config
 
     def _generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
-        job_dir_name = failed_build.job_name.replace(".", "_")
-        job_dir_path = FileUtils.ensure_dir_created(FileUtils.join_path(self.config.reports_dir, job_dir_name))
+        job_dir_path = FileUtils.join_path(self.config.reports_dir, self.get_job_dirname(failed_build))
+        job_dir_path = FileUtils.ensure_dir_created(job_dir_path)
         return FileUtils.join_path(job_dir_path, self.generate_report_filename(failed_build))
 
     def is_build_data_in_cache(self, failed_build: FailedJenkinsBuild):
@@ -472,6 +478,7 @@ class FileCache(Cache):
 
 class GoogleDriveCache(Cache):
     DRIVE_FINAL_CACHE_DIR = JENKINS_TEST_REPORTER + "_" + CACHED_DATA_DIRNAME
+    # TODO imlement throttling: Too many requests to Google Drive?
 
     def __init__(self, config):
         self.config: CacheConfig = config
@@ -487,11 +494,14 @@ class GoogleDriveCache(Cache):
         self.drive_meta_dir_path = FileUtils.join_path(
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR
         )
+        self.drive_reports_basedir = FileUtils.join_path(
+            PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR, "reports"
+        )
 
     def _generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
-        # job_dir_name = failed_build.job_name.replace(".", "_")
-        # TODO Create Google drive dir?
-        return self.generate_report_filename(failed_build)
+        return FileUtils.join_path(
+            self.drive_reports_basedir, self.get_job_dirname(failed_build), self.generate_report_filename(failed_build)
+        )
 
     def is_build_data_in_cache(self, failed_build: FailedJenkinsBuild):
         # TODO Check in Drive and if not successful, decide based on local file cache
@@ -503,16 +513,13 @@ class GoogleDriveCache(Cache):
 
     def save_reports_meta(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
         self.file_cache.save_reports_meta(reports)
-        self.drive_wrapper.upload_file(
-            FileUtils.basename(self.meta_file_path), self.meta_file_path, self.drive_meta_dir_path
-        )
+        drive_path = FileUtils.join_path(self.drive_meta_dir_path, CACHED_DATA_FILENAME)
+        self.drive_wrapper.upload_file(self.meta_file_path, drive_path)
 
     def save_report(self, data, failed_build: FailedJenkinsBuild):
         saved_report_file_path = self.file_cache.save_report(data, failed_build)
-        # TODO PATH IS NOT RIGHT HERE
-        self.drive_wrapper.upload_file(
-            FileUtils.basename(saved_report_file_path), saved_report_file_path, self.drive_meta_dir_path
-        )
+        drive_path = self._generate_file_name_for_report(failed_build)
+        self.drive_wrapper.upload_file(saved_report_file_path, drive_path)
 
     def load_report(self, failed_build: FailedJenkinsBuild):
         cache_hit = self.file_cache.is_build_data_in_cache(failed_build)
