@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from os.path import expanduser
-from typing import List, Dict, Set, Tuple
+from typing import List, Dict, Set, Tuple, Any
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
@@ -409,7 +409,7 @@ class CachedBuild:
 
 class Cache(ABC):
     @abstractmethod
-    def initialize(self):
+    def initialize(self) -> Dict[str, JenkinsJobReport]:
         pass
 
     @abstractmethod
@@ -454,7 +454,7 @@ class FileCache(Cache):
     def __init__(self, config):
         self.config: CacheConfig = config
 
-    def initialize(self):
+    def initialize(self) -> Dict[str, JenkinsJobReport]:
         report_files = FileUtils.find_files(
             self.config.reports_dir,
             find_type=FindResultType.FILES,
@@ -735,6 +735,9 @@ class JenkinsTestReporterConfig:
         self.fail_on_all_green_report: bool = False  # TODO hardcoded
         self.fail_on_empty_report: bool = False  # TODO hardcoded
         self.fail_reports_with_no_data: bool = False  # TODO hardcoded
+        self.reset_job_build_data_for_jobs: List[str] = (
+            args.reset_job_build_data_for_jobs if hasattr(args, "reset_job_build_data_for_jobs") else []
+        )
 
         # Validation
         if not self.tc_filters:
@@ -751,6 +754,12 @@ class JenkinsTestReporterConfig:
             )
             self.jenkins_base_url = self.jenkins_mode.jenkins_base_url
             self.job_names = self.jenkins_mode.job_names
+
+        if not all([reset in self.job_names for reset in self.reset_job_build_data_for_jobs]):
+            raise ValueError(
+                "Not all jobs are recognized while trying to reset job build data for jobs! "
+                "Valid job names: {}, Current job names: {}".format(self.job_names, self.reset_job_build_data_for_jobs)
+            )
 
         self.email.validate(self.job_names)
 
@@ -818,7 +827,11 @@ class JenkinsTestReporter:
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
         elif self.config.cache.enabled:
-            self.reports = self.cache.initialize()
+            self.reports: Dict[str, JenkinsJobReport] = self.cache.initialize()
+        for reset_job in self.config.reset_job_build_data_for_jobs:
+            LOG.info("Reset job build data for job: %s", reset_job)
+            if reset_job in self.reports:
+                del self.reports[reset_job]
 
         self.email.initialize(self.reports)
 
@@ -966,10 +979,13 @@ class JenkinsTestReporter:
             # Try to get build data from cache, if found, jump to next build URL
             if self._should_load_build_data_from_cache(failed_build):
                 LOG.info("Found build in cache, skipping: %s", failed_build.url)
-                job_data = self.reports[job_name].jobs_by_url[failed_build.url]
-                job_datas.append(job_data)
-                self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
-                job_added_from_cache = True
+                # If job build data was intentionally reset by config option 'reset_job_build_data_for_jobs',
+                # build data for job is already removed from the dict 'self.reports'
+                if job_name in self.reports:
+                    job_data = self.reports[job_name].jobs_by_url[failed_build.url]
+                    job_datas.append(job_data)
+                    self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
+                    job_added_from_cache = True
 
             # We would like to download job data if:
             # 1. job is not found in cache and config.download_uncached_job_data is True OR

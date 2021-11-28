@@ -406,6 +406,15 @@ class ArgParser:
         )
 
         parser.add_argument(
+            "--reset-job-build-data-for-jobs",
+            nargs="+",
+            type=str,
+            dest="reset_job_build_data_for_jobs",
+            default=[],
+            help="Reset job build data for these jobs. Useful when job build data is corrupted.",
+        )
+
+        parser.add_argument(
             "-m",
             "--mode",
             type=str,
