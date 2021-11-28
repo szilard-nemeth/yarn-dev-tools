@@ -439,8 +439,11 @@ class Cache(ABC):
 
     @staticmethod
     def generate_job_dirname(cached_build_key: CachedBuildKey):
-        job_dir_name = cached_build_key.job_name.replace(".", "_")
-        return job_dir_name
+        return Cache.escape_job_name(cached_build_key.job_name)
+
+    @staticmethod
+    def escape_job_name(job_name: str):
+        return job_name.replace(".", "_")
 
     @staticmethod
     def generate_report_filename(cached_build_key: CachedBuildKey):
@@ -780,7 +783,11 @@ class JenkinsTestReporter:
 
     @staticmethod
     def _convert_to_cache_build_key(failed_build: FailedJenkinsBuild):
-        return CachedBuildKey(failed_build.job_name, failed_build.build_number)
+        # Cached build data is stored in dirs with dots replaced by underscores,
+        # make CachedBuildKey to follow the dir name pattern, so job_names are always consistent when used in
+        # CachedBuildKey.
+        job_name = Cache.escape_job_name(failed_build.job_name)
+        return CachedBuildKey(job_name, failed_build.build_number)
 
     @staticmethod
     def _create_cache(config: JenkinsTestReporterConfig):
