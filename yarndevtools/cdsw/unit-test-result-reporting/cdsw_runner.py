@@ -55,7 +55,7 @@ class CdswRunner(CdswRunnerBase):
         omit_job_summary_param = "--omit-job-summary" if omit_job_summary else ""
         download_uncached_job_data_param = "--download-uncached-job-data" if download_uncached_job_data else ""
         cache_type_param = (
-            f"--cache-type {JenkinsTestReporterCacheType.GOOGLE_DRIVE.value}" if use_google_drive_cache else ""
+            f"--cache-type {JenkinsTestReporterCacheType.GOOGLE_DRIVE.value.lower()}" if use_google_drive_cache else ""
         )
 
         force_sending_mail: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.FORCE_SENDING_MAIL.value, False)
