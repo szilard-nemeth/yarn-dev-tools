@@ -535,7 +535,7 @@ class FileCache(Cache):
 
 class GoogleDriveCache(Cache):
     DRIVE_FINAL_CACHE_DIR = JENKINS_TEST_REPORTER + "_" + CACHED_DATA_DIRNAME
-    # TODO imlement throttling: Too many requests to Google Drive?
+    # TODO implement throttling: Too many requests to Google Drive?
 
     def __init__(self, config):
         self.config: CacheConfig = config
@@ -564,6 +564,10 @@ class GoogleDriveCache(Cache):
         return reports
 
     def _sync_from_file_cache(self):
+        # TODO In order to decrease the # of requests, try to find all report files at once and diff number of files with file cache
+        # What to save:
+        # Filename, id, parent id, mod date
+        # Search for all, if these matches for files, don't need to do anything for a particular file
         # TODO Create progressTracker object to show current status of Google Drive uploads
         for cached_build_key, cached_build in self.file_cache.cached_builds.items():
             drive_report_file_path = self._generate_file_name_for_report(cached_build_key)
@@ -597,6 +601,7 @@ class GoogleDriveCache(Cache):
         return self.file_cache.load_reports_meta()
 
     def save_reports_meta(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
+        # TODO implement throttling: Too many requests to Google Drive
         self.file_cache.save_reports_meta(reports)
         drive_path = FileUtils.join_path(self.drive_meta_dir_path, CACHED_DATA_FILENAME)
         self.drive_wrapper.upload_file(self.meta_file_path, drive_path)
