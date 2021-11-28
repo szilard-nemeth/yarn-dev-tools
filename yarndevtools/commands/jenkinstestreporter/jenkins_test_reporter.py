@@ -12,7 +12,15 @@ from typing import List, Dict, Set, Tuple
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
-from googleapiwrapper.google_drive import DriveApiWrapper, DriveApiScope
+from googleapiwrapper.google_drive import (
+    DriveApiWrapper,
+    DriveApiScope,
+    DuplicateFileWriteResolutionMode,
+    DriveApiWrapperSessionSettings,
+    FileFindMode,
+    DriveApiWrapperSingleOperationSettings,
+    SearchResultHandlingMode,
+)
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService, EmailMimeType
@@ -386,13 +394,25 @@ class JobBuildDataCounters:
         return f"Failed: {self.failed}, Passed: {self.passed}, Skipped: {self.skipped}"
 
 
+@dataclass(frozen=True)
+class CachedBuildKey:
+    job_name: str
+    build_number: str
+
+
+@dataclass
+class CachedBuild:
+    build_key: CachedBuildKey
+    full_report_file_path: str
+
+
 class Cache(ABC):
     @abstractmethod
     def initialize(self):
         pass
 
     @abstractmethod
-    def is_build_data_in_cache(self, failed_build: FailedJenkinsBuild):
+    def is_build_data_in_cache(self, cached_build_key: CachedBuildKey):
         pass
 
     @abstractmethod
@@ -404,11 +424,11 @@ class Cache(ABC):
         pass
 
     @abstractmethod
-    def save_report(self, data, failed_build: FailedJenkinsBuild):
+    def save_report(self, data, cached_build_key: CachedBuildKey):
         pass
 
     @abstractmethod
-    def load_report(self, failed_build: FailedJenkinsBuild):
+    def load_report(self, cached_build_key: CachedBuildKey):
         pass
 
     @property
@@ -417,21 +437,13 @@ class Cache(ABC):
         pass
 
     @staticmethod
-    def generate_job_dirname(failed_build):
-        job_dir_name = failed_build.job_name.replace(".", "_")
+    def generate_job_dirname(cached_build_key: CachedBuildKey):
+        job_dir_name = cached_build_key.job_name.replace(".", "_")
         return job_dir_name
 
     @staticmethod
-    def generate_report_filename(failed_build: FailedJenkinsBuild):
-        return f"{failed_build.build_number}-testreport.json"
-
-
-@auto_str
-class CachedBuild:
-    def __init__(self, job_name, build_number, full_report_file_path):
-        self.job_name = job_name
-        self.build_number = build_number
-        self.full_report_file_path = full_report_file_path
+    def generate_report_filename(cached_build_key: CachedBuildKey):
+        return f"{cached_build_key.build_number}-testreport.json"
 
 
 class FileCache(Cache):
@@ -446,35 +458,37 @@ class FileCache(Cache):
             full_path_result=True,
             extension="json",
         )
-        self.cached_builds: Dict[Tuple[str, str]] = self._load_cached_builds_from_fs(report_files)
+        self.cached_builds: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(report_files)
         LOG.info("Loaded cached builds: %s", self.cached_builds)
         return self.load_reports_meta()
 
     def _load_cached_builds_from_fs(self, report_files):
-        cached_builds: Dict[Tuple[str, str], CachedBuild] = {}
-        for file_path in report_files:
+        cached_builds: Dict[CachedBuildKey, CachedBuild] = {}
+        for report_file in report_files:
+            orig_file_path = report_file
             # Example: CDH-7_1-maint-Hadoop-Common-Unit/1-testreport.json
-            if file_path.startswith(self.config.reports_dir):
-                file_path = file_path[len(self.config.reports_dir) :]
-            comps = file_path.split(os.sep)
+            if report_file.startswith(self.config.reports_dir):
+                report_file = report_file[len(self.config.reports_dir) :]
+            comps = report_file.split(os.sep)
             comps = [c for c in comps if c]
             job_name = comps[0]
             report_filename = comps[1]
             build_number = report_filename.split("-")[0]
-            key = (job_name, build_number)
-            cached_builds[key] = CachedBuild(job_name, build_number, file_path)
+            key = CachedBuildKey(job_name, build_number)
+            cached_builds[key] = CachedBuild(key, orig_file_path)
         return cached_builds
 
-    def _generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
-        job_dir_path = FileUtils.join_path(self.config.reports_dir, self.generate_job_dirname(failed_build))
+    def _generate_file_name_for_report(self, cached_build_key: CachedBuildKey):
+        job_dir_path = FileUtils.join_path(self.config.reports_dir, self.generate_job_dirname(cached_build_key))
         job_dir_path = FileUtils.ensure_dir_created(job_dir_path)
-        return FileUtils.join_path(job_dir_path, self.generate_report_filename(failed_build))
+        return FileUtils.join_path(job_dir_path, self.generate_report_filename(cached_build_key))
 
-    def is_build_data_in_cache(self, failed_build: FailedJenkinsBuild):
-        key = (failed_build.job_name, failed_build.build_number)
-        if key in self.cached_builds:
+    def is_build_data_in_cache(self, cached_build_key: CachedBuildKey):
+        if cached_build_key in self.cached_builds:
             LOG.debug(
-                "Build found in cache. Job name: %s, Build number: %s", failed_build.job_name, failed_build.build_number
+                "Build found in cache. Job name: %s, Build number: %s",
+                cached_build_key.job_name,
+                cached_build_key.build_number,
             )
             return True
         return False
@@ -499,14 +513,14 @@ class FileCache(Cache):
         LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.meta_file_path)
         PickleUtils.dump(reports, self.meta_file_path)
 
-    def save_report(self, data, failed_build: FailedJenkinsBuild):
-        report_file_path = self._generate_file_name_for_report(failed_build)
-        LOG.info(f"Saving test report response JSON to cache: {report_file_path}")
+    def save_report(self, data, cached_build_key: CachedBuildKey):
+        report_file_path = self._generate_file_name_for_report(cached_build_key)
+        LOG.info(f"Saving test report response JSON to file cache: {report_file_path}")
         JsonFileUtils.write_data_to_file_as_json(report_file_path, data)
         return report_file_path
 
-    def load_report(self, failed_build: FailedJenkinsBuild):
-        report_file_path = self._generate_file_name_for_report(failed_build)
+    def load_report(self, cached_build_key: CachedBuildKey):
+        report_file_path = self._generate_file_name_for_report(cached_build_key)
         LOG.info(f"Loading cached test report from file: {report_file_path}")
         return JsonFileUtils.load_data_from_json_file(report_file_path)
 
@@ -529,7 +543,10 @@ class GoogleDriveCache(Cache):
             account_email="snemeth@cloudera.com",
             scopes=[DriveApiScope.DRIVE_PER_FILE_ACCESS.value],
         )
-        self.drive_wrapper = DriveApiWrapper(self.authorizer)
+        session_settings = DriveApiWrapperSessionSettings(
+            FileFindMode.JUST_UNTRASHED, DuplicateFileWriteResolutionMode.ADD_NEW_REVISION, enable_path_cache=True
+        )
+        self.drive_wrapper = DriveApiWrapper(self.authorizer, session_settings=session_settings)
         self.drive_meta_dir_path = FileUtils.join_path(
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR
         )
@@ -538,20 +555,38 @@ class GoogleDriveCache(Cache):
         )
 
     def initialize(self):
-        reports = self.file_cache.load_reports_meta()
-        self.file_cache.initialize()
+        reports = self.file_cache.initialize()
+        self._sync_from_file_cache()
         return reports
 
-    def _generate_file_name_for_report(self, failed_build: FailedJenkinsBuild):
+    def _sync_from_file_cache(self):
+        # TODO Create progressTracker object to show current status of Google Drive uploads
+        for cached_build_key, cached_build in self.file_cache.cached_builds.items():
+            drive_report_file_path = self._generate_file_name_for_report(cached_build_key)
+            settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
+                file_find_mode=None,
+                duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST,
+                search_result_handling_mode=SearchResultHandlingMode.SINGLE_FILE_PER_SEARCH_RESULT,
+            )
+            exist = self.drive_wrapper.does_file_exist(drive_report_file_path, op_settings=settings)
+            if not exist:
+                settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
+                    file_find_mode=None, duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST
+                )
+                self.drive_wrapper.upload_file(
+                    cached_build.full_report_file_path, drive_report_file_path, op_settings=settings
+                )
+
+    def _generate_file_name_for_report(self, cached_build_key: CachedBuildKey):
         return FileUtils.join_path(
             self.drive_reports_basedir,
-            self.generate_job_dirname(failed_build),
-            self.generate_report_filename(failed_build),
+            self.generate_job_dirname(cached_build_key),
+            self.generate_report_filename(cached_build_key),
         )
 
-    def is_build_data_in_cache(self, failed_build: FailedJenkinsBuild):
+    def is_build_data_in_cache(self, cached_build_key: CachedBuildKey):
         # TODO Check in Drive and if not successful, decide based on local file cache
-        return self.file_cache.is_build_data_in_cache(failed_build)
+        return self.file_cache.is_build_data_in_cache(cached_build_key)
 
     def load_reports_meta(self) -> Dict[str, JenkinsJobReport]:
         # TODO Load from Drive and if not successful, load from local file cache
@@ -562,18 +597,18 @@ class GoogleDriveCache(Cache):
         drive_path = FileUtils.join_path(self.drive_meta_dir_path, CACHED_DATA_FILENAME)
         self.drive_wrapper.upload_file(self.meta_file_path, drive_path)
 
-    def save_report(self, data, failed_build: FailedJenkinsBuild):
-        saved_report_file_path = self.file_cache.save_report(data, failed_build)
-        drive_path = self._generate_file_name_for_report(failed_build)
+    def save_report(self, data, cached_build_key: CachedBuildKey):
+        saved_report_file_path = self.file_cache.save_report(data, cached_build_key)
+        drive_path = self._generate_file_name_for_report(cached_build_key)
         self.drive_wrapper.upload_file(saved_report_file_path, drive_path)
 
-    def load_report(self, failed_build: FailedJenkinsBuild):
-        cache_hit = self.file_cache.is_build_data_in_cache(failed_build)
+    def load_report(self, cached_build_key: CachedBuildKey):
+        cache_hit = self.file_cache.is_build_data_in_cache(cached_build_key)
         if cache_hit:
-            self.file_cache.load_report(failed_build)
+            self.file_cache.load_report(cached_build_key)
         else:
-            filename = self._generate_file_name_for_report(failed_build)
-            self.drive_wrapper.get_files(filename)
+            filename = self._generate_file_name_for_report(cached_build_key)
+            self.drive_wrapper.get_file(filename)
         # TODO Load from Drive and if not successful, load from local file cache
         # TODO IF report.json is only found in local cache, save it to Drive
 
@@ -743,6 +778,10 @@ class JenkinsTestReporter:
         self.sent_requests: int = 0
 
     @staticmethod
+    def _convert_to_cache_build_key(failed_build: FailedJenkinsBuild):
+        return CachedBuildKey(failed_build.job_name, failed_build.build_number)
+
+    @staticmethod
     def _create_cache(config: JenkinsTestReporterConfig):
         if config.cache.cache_type == JenkinsTestReporterCacheType.FILE:
             LOG.info("Using file cache.")
@@ -868,9 +907,10 @@ class JenkinsTestReporter:
 
     def gather_raw_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
-            cache_hit = self.cache.is_build_data_in_cache(failed_build)
+            cache_build_key = self._convert_to_cache_build_key(failed_build)
+            cache_hit = self.cache.is_build_data_in_cache(cache_build_key)
             if cache_hit:
-                data = self.cache.load_report(failed_build)
+                data = self.cache.load_report(cache_build_key)
                 return data
             else:
                 return self._download_build_data(failed_build)
@@ -883,7 +923,7 @@ class JenkinsTestReporter:
         data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
         self.sent_requests += 1
         if self.config.cache.enabled:
-            self.cache.save_report(data, failed_build)
+            self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
         return data
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
@@ -905,7 +945,9 @@ class JenkinsTestReporter:
 
             download_build = False
             job_added_from_cache = False
-            if self.config.cache.download_uncached_job_data and not self.cache.is_build_data_in_cache(failed_build):
+            if self.config.cache.download_uncached_job_data and not self.cache.is_build_data_in_cache(
+                self._convert_to_cache_build_key(failed_build)
+            ):
                 download_build = True
 
             # Try to get build data from cache, if found, jump to next build URL
