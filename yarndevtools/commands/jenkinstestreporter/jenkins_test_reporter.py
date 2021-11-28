@@ -77,13 +77,14 @@ class TestcaseFilter:
         return f"{self.project_name}:{self.filter_expr}"
 
 
+@auto_str
 class FailedJenkinsBuild:
     def __init__(self, full_url_of_job: str, timestamp: int, job_name):
         self.url = full_url_of_job
         self.urls = JenkinsJobInstanceUrls(full_url_of_job)
         self.build_number = full_url_of_job.rsplit("/")[-2]
         self.timestamp = timestamp
-        self.job_name = job_name
+        self.job_name: str = job_name
 
 
 class JobBuildDataStatus(Enum):
