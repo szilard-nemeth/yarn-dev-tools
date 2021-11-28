@@ -20,6 +20,7 @@ from googleapiwrapper.google_drive import (
     FileFindMode,
     DriveApiWrapperSingleOperationSettings,
     SearchResultHandlingMode,
+    DriveApiFile,
 )
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
@@ -315,6 +316,7 @@ class FilteredResult:
         return s
 
 
+@auto_str
 class JenkinsJobReport:
     def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
         self.jobs_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in job_build_datas}
@@ -564,12 +566,24 @@ class GoogleDriveCache(Cache):
         return reports
 
     def _sync_from_file_cache(self):
-        # TODO In order to decrease the # of requests, try to find all report files at once and diff number of files with file cache
-        # What to save:
-        # Filename, id, parent id, mod date
-        # Search for all, if these matches for files, don't need to do anything for a particular file
-        # TODO Create progressTracker object to show current status of Google Drive uploads
-        for cached_build_key, cached_build in self.file_cache.cached_builds.items():
+        all_report_files: List[DriveApiFile] = self.drive_wrapper.get_files("*-testreport.json")
+        found_builds: Set[CachedBuildKey] = set()
+        for report_drive_file in all_report_files:
+            job_name = report_drive_file._parent.name
+            components = report_drive_file.name.split("-")
+            if len(components) != 2:
+                LOG.error("Found test report with unexpected name: %s", job_name)
+                continue
+            found_builds.add(CachedBuildKey(job_name, components[0]))
+        LOG.debug("Found %d builds from Google Drive: %s", len(found_builds), found_builds)
+        builds_to_check_from_drive = {
+            key: value for (key, value) in self.file_cache.cached_builds.items() if key not in found_builds
+        }
+        LOG.debug("Will check these builds in Google Drive: %s", builds_to_check_from_drive)
+
+        # TODO Implement sync from GDrive -> Filesystem (other way around)
+        # TODO Create progressTracker object to show current status of Google Drive uploads / queries
+        for cached_build_key, cached_build in builds_to_check_from_drive.items():
             drive_report_file_path = self._generate_file_name_for_report(cached_build_key)
             settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
                 file_find_mode=None,
@@ -873,7 +887,8 @@ class JenkinsTestReporter:
             self._process_build_data_from_report(build_data, report)
             self._print_report(build_data, report)
             self._invoke_report_processors(build_data, report)
-            self._save_all_reports_to_cache(i, report)
+            # TODO fix
+            # self._save_all_reports_to_cache(i, report)
 
     def _process_build_data_from_report(self, build_data: JobBuildData, report: JenkinsJobReport):
         LOG.info(f"Processing report of build: {build_data.build_url}")
