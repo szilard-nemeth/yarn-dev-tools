@@ -4,7 +4,7 @@ import logging
 
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.argparser import CommandType, JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL
+from yarndevtools.argparser import CommandType, JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL, JenkinsTestReporterCacheType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
@@ -38,6 +38,8 @@ class CdswRunner(CdswRunnerBase):
         num_builds: str = JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL,
         omit_job_summary: bool = False,
         download_uncached_job_data: bool = True,
+        use_google_drive_cache: bool = True,
+        reset_build_data_for_jobs: bool = False,
     ):
         if not mode:
             raise ValueError("Jenkins job mode should be specified!")
@@ -52,9 +54,21 @@ class CdswRunner(CdswRunnerBase):
 
         omit_job_summary_param = "--omit-job-summary" if omit_job_summary else ""
         download_uncached_job_data_param = "--download-uncached-job-data" if download_uncached_job_data else ""
+        cache_type_param = (
+            f"--cache-type {JenkinsTestReporterCacheType.GOOGLE_DRIVE.value}" if use_google_drive_cache else ""
+        )
 
         force_sending_mail: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.FORCE_SENDING_MAIL.value, False)
         force_sending_mail_param = "--force-sending-email" if force_sending_mail else ""
+
+        all_jobs_by_name: str = " ".join(JenkinsTestReporterMode.JENKINS_MASTER.job_names)
+        reset_build_data_env: bool = OsUtils.get_env_value(JenkinsTestReporterEnvVar.RESET_JOB_BUILD_DATA.value, False)
+        reset_build_data_param = (
+            f"--reset-job-build-data-for-jobs {all_jobs_by_name}"
+            if reset_build_data_for_jobs or reset_build_data_env
+            else ""
+        )
+
         self.execute_yarndevtools_script(
             f"--debug {CommandType.JENKINS_TEST_REPORTER.name} "
             f"--mode {mode.mode_name} "
@@ -67,6 +81,8 @@ class CdswRunner(CdswRunnerBase):
             f"{omit_job_summary_param} "
             f"{download_uncached_job_data_param} "
             f"{force_sending_mail_param} "
+            f"{cache_type_param} "
+            f"{reset_build_data_param} "
         )
 
 

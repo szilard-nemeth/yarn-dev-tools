@@ -27,3 +27,4 @@ class BranchComparatorEnvVar(Enum):
 class JenkinsTestReporterEnvVar(Enum):
     BUILD_PROCESSING_LIMIT = "BUILD_PROCESSING_LIMIT"
     FORCE_SENDING_MAIL = "FORCE_SENDING_MAIL"
+    RESET_JOB_BUILD_DATA = "RESET_JOB_BUILD_DATA"
