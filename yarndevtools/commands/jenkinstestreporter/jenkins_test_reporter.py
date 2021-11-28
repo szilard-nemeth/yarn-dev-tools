@@ -611,13 +611,14 @@ class GoogleDriveCache(Cache):
         drive_path = self._generate_file_name_for_report(cached_build_key)
         self.drive_wrapper.upload_file(saved_report_file_path, drive_path)
 
-    def load_report(self, cached_build_key: CachedBuildKey):
+    def load_report(self, cached_build_key: CachedBuildKey) -> Any:
         cache_hit = self.file_cache.is_build_data_in_cache(cached_build_key)
         if cache_hit:
-            self.file_cache.load_report(cached_build_key)
+            return self.file_cache.load_report(cached_build_key)
         else:
             filename = self._generate_file_name_for_report(cached_build_key)
             self.drive_wrapper.get_file(filename)
+            # TODO missing return
         # TODO Load from Drive and if not successful, load from local file cache
         # TODO IF report.json is only found in local cache, save it to Drive
 
@@ -936,8 +937,7 @@ class JenkinsTestReporter:
             cache_build_key = self._convert_to_cache_build_key(failed_build)
             cache_hit = self.cache.is_build_data_in_cache(cache_build_key)
             if cache_hit:
-                data = self.cache.load_report(cache_build_key)
-                return data
+                return self.cache.load_report(cache_build_key)
             else:
                 return self._download_build_data(failed_build)
         else:
