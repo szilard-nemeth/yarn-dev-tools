@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Dict, List, Set, Tuple, FrozenSet
 
 from pythoncommons.collection_utils import CollectionUtils
+from pythoncommons.object_utils import ListUtils
 from pythoncommons.result_printer import ResultPrinter, DEFAULT_TABLE_FORMATS
 from pythoncommons.string_utils import StringUtils, auto_str
 
@@ -440,6 +441,25 @@ class CommitGrouper:
         hashes_2 = [ch for g in self._groups_by_msg[br_type] for ch in g.commit_hashes]
         return hashes_1 + hashes_2
 
+    def identify_groups_for_suspicious_commits(self, hashes: Set[str], br_type: BranchType):
+        chash_to_groups: Dict[str, Dict[str, List[CommitGroup]]] = {
+            "by_jira_id": {},
+            "by_message": {},
+        }
+        chash_to_groups["by_jira_id"] = self._look_for_groups(hashes, self._groups_by_jira_id[br_type])
+        chash_to_groups["by_message"] = self._look_for_groups(hashes, self._groups_by_msg[br_type])
+        return chash_to_groups
+
+    @staticmethod
+    def _look_for_groups(hashes, commit_groups: List[CommitGroup]):
+        chash_to_groups: Dict[str, List[CommitGroup]] = {}
+        for group in commit_groups:
+            for curr_hash in group.commit_hashes:
+                if curr_hash in hashes:
+                    val = chash_to_groups.setdefault(curr_hash, [])
+                    val.append(group)
+        return chash_to_groups
+
     def sanity_check(self):
         for br_type in self.branch_data.keys():
             # This will get commits_after_merge_base_filtered from BranchData
@@ -465,9 +485,27 @@ class CommitGrouper:
             LOG.error(message)
 
             if len(hashes_on_branch) < len(hashes_of_groups):
-                # TODO think about this what could be a useful exception message here
+                group_hashes_set = set(hashes_of_groups)
+                branch_hashes_set = set(hashes_on_branch)
+                set_diff = group_hashes_set.difference(branch_hashes_set)
+                duplicate_hashes: Set[str] = ListUtils.get_duplicates(hashes_of_groups)
+                if set_diff:
+                    LOG.error("Suspicious commits: %s", set_diff)
+                    LOG.error(
+                        "Listing for branch: %s, groups of suspicious commits: %s",
+                        br_type,
+                        self.identify_groups_for_suspicious_commits(set_diff, br_type),
+                    )
+                if duplicate_hashes:
+                    LOG.error("Hashes that are in multiple groups: %s", duplicate_hashes)
+                    LOG.error(
+                        "Listing for branch: %s, groups of suspicious commits: %s",
+                        br_type,
+                        self.identify_groups_for_suspicious_commits(duplicate_hashes, br_type),
+                    )
+
                 raise NotImplementedError(
-                    "len(Commits of all groups) > len(commits on branch) sanity check is not yet implemented"
+                    "len(Commits of all groups) > len(commits on branch) sanity check failed. Look for diagnostic info above!"
                 )
 
             diffed_hashes = set(hashes_on_branch).difference(set(hashes_of_groups))
