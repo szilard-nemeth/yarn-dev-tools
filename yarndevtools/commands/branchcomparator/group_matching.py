@@ -504,7 +504,7 @@ class CommitGrouper:
                         self.identify_groups_for_suspicious_commits(duplicate_hashes, br_type),
                     )
 
-                raise NotImplementedError(
+                raise ValueError(
                     "len(Commits of all groups) > len(commits on branch) sanity check failed. Look for diagnostic info above!"
                 )
 
