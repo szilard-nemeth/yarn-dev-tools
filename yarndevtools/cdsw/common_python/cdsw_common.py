@@ -18,6 +18,7 @@ from googleapiwrapper.google_drive import (
     FileFindMode,
     DuplicateFileWriteResolutionMode,
     DriveApiScope,
+    DriveApiFile,
 )
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
@@ -276,20 +277,29 @@ class CdswRunnerBase(ABC):
             f"--ignore-filetypes {ignore_filetypes} "
         )
 
-    def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str):
+    def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:
         output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         # TODO Copied from: yarndevtools.commands.zip_latest_command_data.Config._get_filename_by_command
         cmd_data_filename = f"command_data_{cmd_type.real_name}.zip"
         full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_data_filename)
-        self.drive_cdsw_helper.upload(full_file_path_of_cmd_data, drive_filename)
+        return self.drive_cdsw_helper.upload(full_file_path_of_cmd_data, drive_filename)
 
     def send_latest_command_data_in_email(
-        self, sender, subject, recipients=None, attachment_filename=None, email_body_file: str = None
+        self,
+        sender,
+        subject,
+        recipients=None,
+        attachment_filename=None,
+        email_body_file: str = None,
+        prepend_text_to_email_body: str = None,
     ):
         if not recipients:
             recipients = self.determine_recipients()
         attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
         email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
+        email_body_prepend_param = (
+            f"--prepend_email_body_with_text {prepend_text_to_email_body}" if prepend_text_to_email_body else ""
+        )
         self.execute_yarndevtools_script(
             f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.name} "
             f"{self.common_mail_config.as_arguments()}"
@@ -298,6 +308,7 @@ class CdswRunnerBase(ABC):
             f'--recipients "{recipients}" '
             f"--attachment-filename {attachment_filename_val} "
             f"{email_body_file_param}"
+            f"{email_body_prepend_param}"
         )
 
     def determine_recipients(self, default_recipients=MAIL_ADDR_YARN_ENG_BP):
@@ -342,4 +353,5 @@ class GoogleDriveCdswHelper:
 
     def upload(self, local_file_path: str, drive_filename: str):
         drive_path = FileUtils.join_path(self.drive_command_data_basedir, drive_filename)
-        self.drive_wrapper.upload_file(local_file_path, drive_path)
+        drive_api_file: DriveApiFile = self.drive_wrapper.upload_file(local_file_path, drive_path)
+        return drive_api_file.link

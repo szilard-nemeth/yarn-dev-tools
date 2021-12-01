@@ -326,6 +326,15 @@ class ArgParser:
             help="The specified file from the latest command data zip will be added to the email body.",
             default=SUMMARY_FILE_HTML,
         )
+
+        parser.add_argument(
+            "--prepend_email_body_with_text",
+            dest="prepend_email_body_with_text",
+            required=False,
+            type=str,
+            help="Prepend the specified text to the email's body.",
+            default=SUMMARY_FILE_HTML,
+        )
         ArgParser.add_email_arguments(parser)
         parser.set_defaults(func=yarn_dev_tools.send_latest_command_data)
 

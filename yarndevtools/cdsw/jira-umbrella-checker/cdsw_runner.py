@@ -3,6 +3,8 @@
 import logging
 from typing import Dict, List
 
+from googleapiwrapper.google_drive import DriveApiFile
+
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
@@ -38,12 +40,14 @@ class CdswRunner(CdswRunnerBase):
             sender = "YARN upstream umbrella checker"
             subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira_id} ({title}), start date: {self.start_date_str}]"
             command_data_filename: str = f"command_data_{self.start_date_str}.zip"
-            self.upload_command_data_to_drive(cmd_type, command_data_filename)
+            drive_api_file: DriveApiFile = self.upload_command_data_to_drive(cmd_type, command_data_filename)
+            link_text = f'<a href="{drive_api_file.link}">Command data file: {command_data_filename}</a>'
             self.send_latest_command_data_in_email(
                 sender=sender,
                 subject=subject,
                 attachment_filename=command_data_filename,
                 email_body_file=SUMMARY_FILE_TXT,
+                prepend_text_to_email_body=link_text,
             )
 
     @staticmethod

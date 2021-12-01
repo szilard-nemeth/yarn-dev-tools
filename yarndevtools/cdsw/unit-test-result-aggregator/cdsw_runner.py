@@ -4,6 +4,7 @@ import logging
 from enum import Enum
 from typing import List
 
+from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
@@ -69,12 +70,14 @@ class CdswRunner(CdswRunnerBase):
         sender = "YARN unit test aggregator"
         subject = f"YARN unit test aggregator report [start date: {self.start_date_str}]"
         command_data_filename: str = f"command_data_{self.start_date_str}.zip"
-        self.upload_command_data_to_drive(cmd_type, command_data_filename)
+        drive_api_file: DriveApiFile = self.upload_command_data_to_drive(cmd_type, command_data_filename)
+        link_text = f'<a href="{drive_api_file.link}">Command data file: {command_data_filename}</a>'
         self.send_latest_command_data_in_email(
             sender=sender,
             subject=subject,
             attachment_filename=command_data_filename,
             email_body_file=REPORT_FILE_SHORT_HTML,
+            prepend_text_to_email_body=link_text,
         )
 
     @staticmethod

@@ -2,6 +2,7 @@
 
 import os
 
+from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
@@ -59,9 +60,13 @@ class CdswRunner(CdswRunnerBase):
         sender = "YARN branch diff reporter"
         subject = f"YARN branch diff report [{algorithm} algorithm, start date: {self.start_date_str}]"
         command_data_filename: str = f"command_data_{algorithm}_{self.start_date_str}.zip"
-        self.upload_command_data_to_drive(cmd_type, command_data_filename)
+        drive_api_file: DriveApiFile = self.upload_command_data_to_drive(cmd_type, command_data_filename)
+        link_text = f'<a href="{drive_api_file.link}">Command data file: {command_data_filename}</a>'
         self.send_latest_command_data_in_email(
-            sender=sender, subject=subject, attachment_filename=command_data_filename
+            sender=sender,
+            subject=subject,
+            attachment_filename=command_data_filename,
+            prepend_text_to_email_body=link_text,
         )
 
     def _run_comparator(

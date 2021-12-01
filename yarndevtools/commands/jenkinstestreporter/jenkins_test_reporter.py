@@ -30,7 +30,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.network_utils import NetworkUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
-from pythoncommons.project_utils import ProjectUtils, PROJECTS_BASEDIR_NAME
+from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.argparser import (
@@ -39,7 +39,7 @@ from yarndevtools.argparser import (
     JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL,
     JenkinsTestReporterCacheType,
 )
-from yarndevtools.common.shared_command_utils import FullEmailConfig
+from yarndevtools.common.shared_command_utils import FullEmailConfig, SECRET_PROJECTS_DIR
 
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, JENKINS_TEST_REPORTER
 
@@ -50,7 +50,6 @@ EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
 CACHED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
 SECONDS_PER_DAY = 86400
 DEFAULT_REQUEST_LIMIT = 999
-SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
 
 
 @auto_str
@@ -431,7 +430,7 @@ class Cache(ABC):
         pass
 
     @abstractmethod
-    def load_report(self, cached_build_key: CachedBuildKey):
+    def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
         pass
 
     @property
@@ -525,7 +524,7 @@ class FileCache(Cache):
         JsonFileUtils.write_data_to_file_as_json(report_file_path, data)
         return report_file_path
 
-    def load_report(self, cached_build_key: CachedBuildKey):
+    def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
         report_file_path = self._generate_file_name_for_report(cached_build_key)
         LOG.info(f"Loading cached test report from file: {report_file_path}")
         return JsonFileUtils.load_data_from_json_file(report_file_path)
@@ -625,7 +624,7 @@ class GoogleDriveCache(Cache):
         drive_path = self._generate_file_name_for_report(cached_build_key)
         self.drive_wrapper.upload_file(saved_report_file_path, drive_path)
 
-    def load_report(self, cached_build_key: CachedBuildKey) -> Any:
+    def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
         cache_hit = self.file_cache.is_build_data_in_cache(cached_build_key)
         if cache_hit:
             return self.file_cache.load_report(cached_build_key)
@@ -743,7 +742,6 @@ class JenkinsTestReporterConfig:
         self.num_builds: int = self._determine_number_of_builds_to_examine(args.num_builds, self.request_limit)
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
         self.tc_filters: List[TestcaseFilter] = [TestcaseFilter(*tcf.split(":")) for tcf in tc_filters_raw]
-        self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
@@ -942,6 +940,8 @@ class JenkinsTestReporter:
                 failed_build.urls.job_console_output_url,
             )
             return JobBuildData(failed_build, None, set(), status=JobBuildDataStatus.CANNOT_FETCH)
+        # TODO If data was loaded from cache and it is still None or len(data) == 0 (e.g. empty or corrupt file)
+        #  script will think that report is empty. This case a file download is required.
         if not data or len(data) == 0:
             return JobBuildData(failed_build, None, [], status=JobBuildDataStatus.NO_JSON_DATA_FOUND)
 
