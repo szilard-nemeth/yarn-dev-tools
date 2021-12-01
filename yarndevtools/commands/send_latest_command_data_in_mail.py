@@ -16,6 +16,7 @@ class SendLatestCommandDataInEmailConfig:
     def __init__(self, args, attachment_file):
         self.email: FullEmailConfig = FullEmailConfig(args, attachment_file)
         self.email_body_file: str = args.email_body_file
+        self.prepend_email_body_with_text: str = args.prepend_email_body_with_text
 
     def __str__(self):
         return f"Email config: {self.email}\n" f"Email body file: {self.email_body_file}\n"
@@ -35,6 +36,10 @@ class SendLatestCommandDataInEmail:
         email_body_file = FileUtils.join_path(os.sep, zip_extract_dest, self.config.email_body_file)
         FileUtils.ensure_file_exists(email_body_file)
         email_body_contents: str = FileUtils.read_file(email_body_file)
+
+        if self.config.prepend_email_body_with_text:
+            LOG.debug("Prepending email body with: %s", self.config.prepend_email_body_with_text)
+            email_body_contents = self.config.prepend_email_body_with_text + email_body_contents
 
         body_mimetype: EmailMimeType = self._determine_body_mimetype_by_attachment(email_body_file)
         email_service = EmailService(self.config.email.email_conf)
