@@ -63,16 +63,17 @@ class CdswRunner(CdswRunnerBase):
             skip_lines_starting_with=self._determine_lines_to_skip(),
         )
 
-        self.run_zipper(CommandType.UNIT_TEST_RESULT_AGGREGATOR, debug=True)
+        cmd_type = CommandType.UNIT_TEST_RESULT_AGGREGATOR
+        self.run_zipper(cmd_type, debug=True)
 
-        date_str = self.current_date_formatted()
         sender = "YARN unit test aggregator"
-        subject = f"YARN unit test aggregator report [start date: {date_str}]"
-        attachment_fnname: str = f"command_data_{date_str}.zip"
+        subject = f"YARN unit test aggregator report [start date: {self.start_date_str}]"
+        command_data_filename: str = f"command_data_{self.start_date_str}.zip"
+        self.upload_command_data_to_drive(cmd_type, command_data_filename)
         self.send_latest_command_data_in_email(
             sender=sender,
             subject=subject,
-            attachment_filename=attachment_fnname,
+            attachment_filename=command_data_filename,
             email_body_file=REPORT_FILE_SHORT_HTML,
         )
 

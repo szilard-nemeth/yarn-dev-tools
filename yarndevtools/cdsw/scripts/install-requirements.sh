@@ -5,6 +5,7 @@ set -x
 pip3 show yarn-dev-tools
 pip3 uninstall -y yarn-dev-tools
 pip3 uninstall -y python-commons
+pip3 uninstall -y google-api-wrapper
 
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <execution mode>"

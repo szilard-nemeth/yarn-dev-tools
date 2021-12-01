@@ -31,17 +31,18 @@ class CdswRunner(CdswRunnerBase):
     def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira_ids: List[str]):
         jira_ids_and_titles = self._fetch_umbrella_titles(umbrella_jira_ids)
         for umbrella_jira_id, title in jira_ids_and_titles.items():
-            date_str = self.current_date_formatted()
+            cmd_type = CommandType.FETCH_JIRA_UMBRELLA_DATA
             self._run_upstream_umbrella_checker(umbrella_jira_id, branches=DEFAULT_BRANCHES)
-            self.run_zipper(CommandType.FETCH_JIRA_UMBRELLA_DATA, debug=True)
+            self.run_zipper(cmd_type, debug=True)
 
             sender = "YARN upstream umbrella checker"
-            subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira_id} ({title}), start date: {date_str}]"
-            attachment_fname: str = f"command_data_{date_str}.zip"
+            subject = f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_jira_id} ({title}), start date: {self.start_date_str}]"
+            command_data_filename: str = f"command_data_{self.start_date_str}.zip"
+            self.upload_command_data_to_drive(cmd_type, command_data_filename)
             self.send_latest_command_data_in_email(
                 sender=sender,
                 subject=subject,
-                attachment_filename=attachment_fname,
+                attachment_filename=command_data_filename,
                 email_body_file=SUMMARY_FILE_TXT,
             )
 

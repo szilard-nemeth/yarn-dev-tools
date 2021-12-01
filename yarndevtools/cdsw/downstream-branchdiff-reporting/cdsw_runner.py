@@ -40,7 +40,6 @@ class CdswRunner(CdswRunnerBase):
         self.run_comparator_and_send_mail(repo_type, algorithm="grouped", run_legacy_script=False)
 
     def run_comparator_and_send_mail(self, repo_type: RepoType, algorithm="simple", run_legacy_script=True):
-        date_str = self.current_date_formatted()
         feature_branch = OsUtils.get_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, "origin/CDH-7.1-maint")
         master_branch = OsUtils.get_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, "origin/cdpd-master")
         authors_to_filter = "rel-eng@cloudera.com"
@@ -54,12 +53,16 @@ class CdswRunner(CdswRunnerBase):
             run_legacy_script=run_legacy_script,
         )
 
-        self.run_zipper(CommandType.BRANCH_COMPARATOR, debug=True)
+        cmd_type = CommandType.BRANCH_COMPARATOR
+        self.run_zipper(cmd_type, debug=True)
 
         sender = "YARN branch diff reporter"
-        subject = f"YARN branch diff report [{algorithm} algorithm, start date: {date_str}]"
-        attachment_fnname: str = f"command_data_{algorithm}_{date_str}.zip"
-        self.send_latest_command_data_in_email(sender=sender, subject=subject, attachment_filename=attachment_fnname)
+        subject = f"YARN branch diff report [{algorithm} algorithm, start date: {self.start_date_str}]"
+        command_data_filename: str = f"command_data_{algorithm}_{self.start_date_str}.zip"
+        self.upload_command_data_to_drive(cmd_type, command_data_filename)
+        self.send_latest_command_data_in_email(
+            sender=sender, subject=subject, attachment_filename=command_data_filename
+        )
 
     def _run_comparator(
         self,

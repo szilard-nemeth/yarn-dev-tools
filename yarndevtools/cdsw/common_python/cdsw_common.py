@@ -10,12 +10,26 @@ from typing import Dict, List
 
 
 # https://stackoverflow.com/a/50255019/1106893
+from googleapiwrapper.common import ServiceType
+from googleapiwrapper.google_auth import GoogleApiAuthorizer
+from googleapiwrapper.google_drive import (
+    DriveApiWrapper,
+    DriveApiWrapperSessionSettings,
+    FileFindMode,
+    DuplicateFileWriteResolutionMode,
+    DriveApiScope,
+)
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
+from pythoncommons.project_utils import (
+    ProjectUtils,
+    ProjectRootDeterminationStrategy,
+    PROJECTS_BASEDIR,
+    PROJECTS_BASEDIR_NAME,
+)
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import (
@@ -29,7 +43,10 @@ from pythoncommons.process import SubprocessCommandRunner
 
 # Constants
 # Move this to EnvVar enum
+from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+
+CDSW_PROJECT = "CDSW"
 
 
 class TestExecMode(Enum):
@@ -220,9 +237,11 @@ class CdswSetup:
 class CdswRunnerBase(ABC):
     def __init__(self):
         self.common_mail_config = CommonMailConfig()
+        self.drive_cdsw_helper = GoogleDriveCdswHelper()
 
     def start_common(self, basedir):
         LOG.info("Starting CDSW runner...")
+        self.start_date_str = self.current_date_formatted()
 
     @abstractmethod
     def start(self, basedir):
@@ -240,8 +259,7 @@ class CdswRunnerBase(ABC):
         cmd = f"{BASHX} {script}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
-    @staticmethod
-    def execute_yarndevtools_script(script_args):
+    def execute_yarndevtools_script(self, script_args):
         cmd = f"{PY3} {CommonFiles.YARN_DEV_TOOLS_SCRIPT} {script_args}"
         SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
 
@@ -257,6 +275,13 @@ class CdswRunnerBase(ABC):
             f"--dest_dir /tmp "
             f"--ignore-filetypes {ignore_filetypes} "
         )
+
+    def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str):
+        output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+        # TODO Copied from: yarndevtools.commands.zip_latest_command_data.Config._get_filename_by_command
+        cmd_data_filename = f"command_data_{cmd_type.real_name}.zip"
+        full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_data_filename)
+        self.drive_cdsw_helper.upload(full_file_path_of_cmd_data, drive_filename)
 
     def send_latest_command_data_in_email(
         self, sender, subject, recipients=None, attachment_filename=None, email_body_file: str = None
@@ -296,3 +321,25 @@ class CommonMailConfig:
             f'--account_user "{self.account_user}" '
             f'--account_password "{self.account_password}" '
         )
+
+
+class GoogleDriveCdswHelper:
+    def __init__(self):
+        self.authorizer = GoogleApiAuthorizer(
+            ServiceType.DRIVE,
+            project_name=CDSW_PROJECT,
+            secret_basedir=SECRET_PROJECTS_DIR,
+            account_email="snemeth@cloudera.com",
+            scopes=[DriveApiScope.DRIVE_PER_FILE_ACCESS.value],
+        )
+        session_settings = DriveApiWrapperSessionSettings(
+            FileFindMode.JUST_UNTRASHED, DuplicateFileWriteResolutionMode.FAIL_FAST, enable_path_cache=True
+        )
+        self.drive_wrapper = DriveApiWrapper(self.authorizer, session_settings=session_settings)
+        self.drive_command_data_basedir = FileUtils.join_path(
+            PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, CDSW_PROJECT, "command-data"
+        )
+
+    def upload(self, local_file_path: str, drive_filename: str):
+        drive_path = FileUtils.join_path(self.drive_command_data_basedir, drive_filename)
+        self.drive_wrapper.upload_file(local_file_path, drive_path)
