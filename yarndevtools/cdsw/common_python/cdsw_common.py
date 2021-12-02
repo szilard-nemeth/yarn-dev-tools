@@ -47,7 +47,7 @@ from pythoncommons.process import SubprocessCommandRunner
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
-CDSW_PROJECT = "CDSW"
+CDSW_PROJECT = "cdsw"
 
 
 class TestExecMode(Enum):

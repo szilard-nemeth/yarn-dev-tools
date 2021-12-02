@@ -32,7 +32,7 @@ from yarndevtools.cdsw.common_python.constants import (
     BranchComparatorEnvVar,
     CDSW_RUNNER_PY,
 )
-from yarndevtools.common.shared_command_utils import RepoType, EnvVar
+from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PROJECTS_DIR
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
 PYTHON3 = "python3"
@@ -69,6 +69,7 @@ class ContainerDirs:
     YARN_DEV_TOOLS_SCRIPTS_BASEDIR = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
     HADOOP_CLOUDERA_BASEDIR = CommonDirs.HADOOP_CLOUDERA_BASEDIR
     HADOOP_UPSTREAM_BASEDIR = CommonDirs.HADOOP_UPSTREAM_BASEDIR
+    CDSW_SECRET_DIR = FileUtils.join_path("/root", ".secret", "projects", "cloudera", CDSW_DIRNAME)
 
 
 class LocalDirs:
@@ -76,6 +77,7 @@ class LocalDirs:
     CDSW_ROOT_DIR = None
     SCRIPTS_DIR = None
     YARNDEVTOOLS_RESULT_DIR = None
+    CDSW_SECRET_DIR = FileUtils.join_path(SECRET_PROJECTS_DIR, CDSW_DIRNAME)
 
 
 class DockerMounts:
