@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Dict, List
 
 from pythoncommons.constants import ExecutionMode
-from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode, DockerMountMode
+from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode, DockerMountMode, DockerMount
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
@@ -74,69 +74,6 @@ class LocalDirs:
     CDSW_SECRET_DIR = FileUtils.join_path(SECRET_PROJECTS_DIR, CDSW_DIRNAME)
 
 
-class DockerMounts:
-    def __init__(self, class_of_test, docker_test_setup, exec_mode: TestExecMode, python_module_mode):
-        self.class_of_test = class_of_test
-        self.docker_test_setup = docker_test_setup
-        self.exec_mode: TestExecMode = exec_mode
-        self.python_module_mode = python_module_mode
-
-    def setup_default_docker_mounts(self):
-        # TODO Perhaps, mount logic can be changed to simple docker copy but keep the condition
-        if self.class_of_test.config.mount_cdsw_dirs_from_local:
-            # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
-            # files are being created to /home/cdsw inside the container.
-            # Mounting it with readonly mode also does not make sense as writing files would be prevented.
-            # So, the only option left is to mount dirs one by one.
-            dirs_to_mount = FileUtils.find_files(
-                LocalDirs.CDSW_ROOT_DIR,
-                find_type=FindResultType.DIRS,
-                single_level=True,
-                full_path_result=True,
-                exclude_dirs=["yarndevtools-results"],
-            )
-            for dir in dirs_to_mount:
-                self.docker_test_setup.mount_dir(
-                    dir,
-                    FileUtils.join_path(ContainerDirs.CDSW_BASEDIR, FileUtils.basename(dir)),
-                    mode=DockerMountMode.READ_ONLY,
-                )
-        else:
-            # Mount scripts dir, initial-cdsw-setup.sh will be executed from there
-            self.docker_test_setup.mount_dir(
-                LocalDirs.SCRIPTS_DIR, ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, mode=DockerMountMode.READ_WRITE
-            )
-        # Mount results dir so all output files will be available on the host
-        self.docker_test_setup.mount_dir(
-            LocalDirs.YARNDEVTOOLS_RESULT_DIR, ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR, mode=DockerMountMode.READ_WRITE
-        )
-        # TODO Remove code that sends mail attachment
-        if self.exec_mode == TestExecMode.CLOUDERA:
-            self._mount_downstream_hadoop_repo()
-            self._mount_upstream_hadoop_repo()
-        elif self.exec_mode == TestExecMode.UPSTREAM:
-            self._mount_upstream_hadoop_repo()
-
-        # Only print mounts in the end
-        self.docker_test_setup.print_mounts()
-
-    def _mount_downstream_hadoop_repo(self):
-        # Mount local Cloudera Hadoop dir so that container won't clone the repo again and again
-        self.docker_test_setup.mount_dir(
-            OsUtils.get_env_value(CdswEnvVar.CLOUDERA_HADOOP_ROOT.value),
-            ContainerDirs.HADOOP_CLOUDERA_BASEDIR,
-            mode=DockerMountMode.READ_WRITE,
-        )
-
-    def _mount_upstream_hadoop_repo(self):
-        # Mount local upstream Hadoop dir so that container won't clone the repo again and again
-        self.docker_test_setup.mount_dir(
-            OsUtils.get_env_value(CdswEnvVar.HADOOP_DEV_DIR.value),
-            ContainerDirs.HADOOP_UPSTREAM_BASEDIR,
-            mode=DockerMountMode.READ_WRITE,
-        )
-
-
 class DockerBasedTestConfig:
     GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
     USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
@@ -172,6 +109,7 @@ class DockerBasedTestConfig:
         self.env_dict = self.setup_env_vars()
         self.setup_local_dirs()
         self.dockerfile = self.determine_dockerfile()
+        self.docker_mounts: List[DockerMount] = self.setup_docker_mounts()
 
         self.validate()
 
@@ -308,6 +246,66 @@ class DockerBasedTestConfig:
         else:
             return FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
 
+    def setup_docker_mounts(self):
+        mounts = []
+        if self.mount_cdsw_dirs_from_local:
+            # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
+            # files are being created to /home/cdsw inside the container.
+            # Mounting it with readonly mode also does not make sense as writing files would be prevented.
+            # So, the only option left is to mount dirs one by one.
+            dirs_to_mount = FileUtils.find_files(
+                LocalDirs.CDSW_ROOT_DIR,
+                find_type=FindResultType.DIRS,
+                single_level=True,
+                full_path_result=True,
+                exclude_dirs=["yarndevtools-results"],
+            )
+            for dir in dirs_to_mount:
+                mounts.append(
+                    DockerMount(
+                        host_dir=dir,
+                        container_dir=FileUtils.join_path(ContainerDirs.CDSW_BASEDIR, FileUtils.basename(dir)),
+                        mode=DockerMountMode.READ_ONLY,
+                    )
+                )
+        else:
+            # Mount scripts dir, initial-cdsw-setup.sh will be executed from there
+            mounts.append(
+                DockerMount(
+                    host_dir=LocalDirs.SCRIPTS_DIR,
+                    container_dir=ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR,
+                    mode=DockerMountMode.READ_WRITE,
+                )
+            )
+
+        # Mount results dir so all output files will be available on the host
+        mounts.append(
+            DockerMount(
+                host_dir=LocalDirs.YARNDEVTOOLS_RESULT_DIR,
+                container_dir=ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR,
+                mode=DockerMountMode.READ_WRITE,
+            )
+        )
+        # Mount local upstream Hadoop dir so that container won't clone the repo again and again
+        upstream_mount = DockerMount(
+            host_dir=OsUtils.get_env_value(CdswEnvVar.HADOOP_DEV_DIR.value),
+            container_dir=ContainerDirs.HADOOP_UPSTREAM_BASEDIR,
+            mode=DockerMountMode.READ_WRITE,
+        )
+        # Mount local Cloudera Hadoop dir so that container won't clone the repo again and again
+        downstream_mount = DockerMount(
+            host_dir=OsUtils.get_env_value(CdswEnvVar.CLOUDERA_HADOOP_ROOT.value),
+            container_dir=ContainerDirs.HADOOP_CLOUDERA_BASEDIR,
+            mode=DockerMountMode.READ_WRITE,
+        )
+        if self.exec_mode == TestExecMode.CLOUDERA:
+            mounts.append(downstream_mount)
+            mounts.append(upstream_mount)
+        elif self.exec_mode == TestExecMode.UPSTREAM:
+            mounts.append(upstream_mount)
+
+        return mounts
+
 
 PROD_CONFIG = DockerBasedTestConfig(
     create_image=True, mount_cdsw_dirs_from_local=False, run_cdsw_initial_setup_script=True, container_sleep_seconds=200
@@ -323,7 +321,6 @@ ACTIVE_CONFIG = DEV_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
 
 class YarnCdswBranchDiffTests(unittest.TestCase):
     docker_test_setup = None
-    docker_mounts = None
     config: DockerBasedTestConfig = ACTIVE_CONFIG
 
     @classmethod
@@ -334,10 +331,12 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         cls.docker_test_setup = DockerTestSetup(
             DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=cls.config.dockerfile, logger=CMD_LOG
         )
-        cls.docker_mounts = DockerMounts(
-            cls, cls.docker_test_setup, cls.config.exec_mode, cls.config.python_module_mode
-        )
-        cls.docker_mounts.setup_default_docker_mounts()
+        cls.setup_default_docker_mounts()
+
+    @classmethod
+    def setup_default_docker_mounts(cls):
+        cls.docker_test_setup.apply_mounts(cls.config.docker_mounts)
+        cls.docker_test_setup.print_mounts()
 
     @classmethod
     def _setup_logging(cls):
@@ -406,12 +405,12 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         def _callback(cmd, cmd_output, docker_setup):
             self.config.python_module_root = cmd_output
 
-        self.docker_mounts.setup_default_docker_mounts()
+        self.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=self.config.container_sleep_seconds)
         self.exec_get_python_module_root(callback=_callback)
         self.exec_initial_cdsw_setup_script()
         if self.config.mount_cdsw_dirs_from_local:
-            # TODO Copy pythoncommons, googleapiwrapper as well, control this with an enum
+            # TODO Copy python-commons, google-api-wrapper as well, control this with an enum
             self.copy_yarndevtools_cdsw_recursively()
 
         # Instead of mounting, copy the file as google-api-wrapper would write token pickle
@@ -427,10 +426,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         exit_code = self.exec_branch_diff_script(env=self.config.env_dict)
         self.assertEqual(exit_code, 0)
         self.save_latest_zip_from_container()
-        # TODO check if zip exists and size is bigger than 0 and extractable
-        # TODO verify files are placed to correct dir in zip
-        # TODO verify if all files are present and they are non-zero sized
-        # TODO verify if HTML output is contained in email's body
 
     def test_streaming_cmd_output(self):
         captured_output = []
@@ -443,7 +438,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
                 pid = docker_setup.exec_cmd_in_container(f"pgrep -f {os.path.basename(cmd)}", stream=False)
                 docker_setup.exec_cmd_in_container(f"kill {pid}", stream=False)
 
-        self.docker_mounts.setup_default_docker_mounts()
+        self.setup_default_docker_mounts()
         self.docker_test_setup.run_container()
         self.docker_test_setup.exec_cmd_in_container(
             f"{ContainerDirs.CDSW_BASEDIR}/common/test.sh", callback=_kill_after_5_lines, fail_on_error=False
