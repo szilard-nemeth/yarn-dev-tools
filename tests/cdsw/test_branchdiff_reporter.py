@@ -171,6 +171,9 @@ class DockerBasedTestConfig:
             self.mount_cdsw_dirs_from_local = False
         self.env_dict = self.setup_env_vars()
         self.setup_local_dirs()
+        self.dockerfile = self.determine_dockerfile()
+
+        self.validate()
 
     @classmethod
     def determine_execution_mode(cls):
@@ -295,6 +298,16 @@ class DockerBasedTestConfig:
         LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
         LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
 
+    def validate(self):
+        if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
+            raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
+
+    def determine_dockerfile(self):
+        if self.github_ci_execution:
+            return FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
+        else:
+            return FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
+
 
 PROD_CONFIG = DockerBasedTestConfig(
     create_image=True, mount_cdsw_dirs_from_local=False, run_cdsw_initial_setup_script=True, container_sleep_seconds=200
@@ -317,15 +330,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     def setUpClass(cls):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
-        if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
-            raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
         cls._setup_logging()
-        if cls.config.github_ci_execution:
-            dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
-        else:
-            dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
         cls.docker_test_setup = DockerTestSetup(
-            DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=dockerfile, logger=CMD_LOG
+            DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=cls.config.dockerfile, logger=CMD_LOG
         )
         cls.docker_mounts = DockerMounts(
             cls, cls.docker_test_setup, cls.config.exec_mode, cls.config.python_module_mode
