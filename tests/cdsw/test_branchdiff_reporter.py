@@ -42,6 +42,7 @@ PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
+# TODO Consolidate mount modes to enum, also MOUNT_MODE_RW is present in docker_wrapper.py
 MOUNT_MODE_RW = "rw"
 MOUNT_MODE_READ_ONLY = "ro"
 BASH = "bash"
@@ -115,6 +116,8 @@ class DockerMounts:
         self.docker_test_setup.mount_dir(
             LocalDirs.YARNDEVTOOLS_RESULT_DIR, ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR, mode=MOUNT_MODE_RW
         )
+        # TODO Turn off Google Drive sync mode on Github execution
+        # TODO Remove code that sends mail attachment
         if self.exec_mode == TestExecMode.CLOUDERA:
             self._mount_downstream_hadoop_repo()
             self._mount_upstream_hadoop_repo()
@@ -147,6 +150,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     exec_mode: TestExecMode = None
     docker_test_setup = None
     docker_mounts = None
+    # TODO Put these to a TestConfig object
+    # TODO Add flag to control if running initial-cdsw-setup.sh is required or not
     CREATE_IMAGE = True
     MOUNT_CDSW_DIRS_FROM_LOCAL = True
 
@@ -324,6 +329,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         local_target_path = FileUtils.join_path(LocalDirs.YARNDEVTOOLS_RESULT_DIR, "latest-command-data-real.zip")
         self.docker_test_setup.docker_cp_from_container(cont_src_path, local_target_path)
 
+    # TODO Write similar method that uploads python dependency code from local machine
     def copy_yarndevtools_cdsw_recursively(self):
         local_dir = LocalDirs.CDSW_ROOT_DIR
         container_target_path = FileUtils.join_path(self.python_module_root, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
@@ -386,6 +392,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             captured_output.append(out)
             if len(captured_output) >= 3:
                 captured_output.clear()
+                # TODO IS this really the exit code or the stdout of pgrep returned?
                 pid = docker_setup.exec_cmd_in_container(f"pgrep -f {os.path.basename(cmd)}", stream=False)
                 docker_setup.exec_cmd_in_container(f"kill {pid}", stream=False)
 
