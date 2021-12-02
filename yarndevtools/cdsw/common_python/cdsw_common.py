@@ -349,7 +349,7 @@ class GoogleDriveCdswHelper:
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, CDSW_PROJECT, "command-data"
         )
 
-    def upload(self, cmd_type: CommandType, local_file_path: str, drive_filename: str):
+    def upload(self, cmd_type: CommandType, local_file_path: str, drive_filename: str) -> DriveApiFile:
         drive_path = FileUtils.join_path(self.drive_command_data_basedir, cmd_type.real_name, drive_filename)
         drive_api_file: DriveApiFile = self.drive_wrapper.upload_file(local_file_path, drive_path)
-        return drive_api_file.link
+        return drive_api_file
