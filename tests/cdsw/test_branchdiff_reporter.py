@@ -256,21 +256,9 @@ class DockerBasedTestConfig:
         LocalDirs.CDSW_ROOT_DIR = self.cdsw_root_dir
         LocalDirs.SCRIPTS_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "scripts")
         LocalDirs.YARNDEVTOOLS_RESULT_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "yarndevtools-results")
-        # TODO
-        self.branchdiff_cdsw_runner_script = self.find_cdsw_runner_script(
-            os.path.join(LocalDirs.CDSW_ROOT_DIR, BRANCH_DIFF_REPORTER_DIR_NAME)
-        )
-        # LOG.info("Local files: %s", ObjUtils.get_static_fields_with_values(LocalFiles))
         LOG.info("Local dirs: %s", ObjUtils.get_static_fields_with_values(LocalDirs))
         LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
         LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
-
-    @staticmethod
-    def find_cdsw_runner_script(parent_dir):
-        results = FileUtils.search_files(parent_dir, CDSW_RUNNER_PY)
-        if not results:
-            raise ValueError(f"Expected to find file: {CDSW_RUNNER_PY}")
-        return results[0]
 
 
 PROD_CONFIG = DockerBasedTestConfig(
@@ -310,10 +298,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         cls.docker_mounts.setup_default_docker_mounts()
 
     @classmethod
-    def tearDownClass(cls) -> None:
-        pass
-
-    @classmethod
     def _setup_logging(cls):
         loggging_setup: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=CommandType.BRANCH_COMPARATOR.real_name,
@@ -324,13 +308,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         )
         CMD_LOG.propagate = False
         CMD_LOG.addHandler(loggging_setup.console_handler)
-
-    @staticmethod
-    def find_cdsw_runner_script(parent_dir):
-        results = FileUtils.search_files(parent_dir, CDSW_RUNNER_PY)
-        if not results:
-            raise ValueError(f"Expected to find file: {CDSW_RUNNER_PY}")
-        return results[0]
 
     @classmethod
     def exec_branch_diff_script(cls, args="", env: Dict[str, str] = None):
@@ -367,7 +344,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         local_target_path = FileUtils.join_path(LocalDirs.YARNDEVTOOLS_RESULT_DIR, "latest-command-data-real.zip")
         self.docker_test_setup.docker_cp_from_container(cont_src_path, local_target_path)
 
-    # TODO Write similar method that uploads python dependency code from local machine
     def copy_yarndevtools_cdsw_recursively(self):
         local_dir = LocalDirs.CDSW_ROOT_DIR
         container_target_path = FileUtils.join_path(
@@ -392,11 +368,10 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.docker_mounts.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=self.config.container_sleep_seconds)
         self.exec_get_python_module_root(callback=_callback)
-        # TODO Run this only at Docker image creation?
         self.exec_initial_cdsw_setup_script()
         if self.config.mount_cdsw_dirs_from_local:
-            self.copy_yarndevtools_cdsw_recursively()
             # TODO Copy pythoncommons, googleapiwrapper as well, control this with an enum
+            self.copy_yarndevtools_cdsw_recursively()
 
         # Instead of mounting, copy the file as google-api-wrapper would write token pickle
         # so it basically requires this to be mounted with 'RW' which we don't want to do to pollute the local FS
