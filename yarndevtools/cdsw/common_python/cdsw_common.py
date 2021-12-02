@@ -179,8 +179,8 @@ class CdswSetup:
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
-        # For CDSW, user python module mode is preferred.
-        # For tests, it depends on how the initial-cdsw-setup.sh script was executed in the container.
+        # For CDSW execution, user python module mode is preferred.
+        # For test execution, it depends on how the initial-cdsw-setup.sh script was executed in the container.
         env_value = OsUtils.get_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
         python_module_mode = PythonModuleMode[env_value.upper()]
 
@@ -192,7 +192,7 @@ class CdswSetup:
             python_site = site.USER_SITE
             LOG.info("Using user python-site basedir: %s", python_site)
         else:
-            raise ValueError("Invalid python module mode: " + python_module_mode)
+            raise ValueError("Invalid python module mode: {}".format(python_module_mode))
         CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, YARNDEVTOOLS_MODULE_NAME)
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
 
@@ -238,7 +238,13 @@ class CdswSetup:
 class CdswRunnerBase(ABC):
     def __init__(self):
         self.common_mail_config = CommonMailConfig()
-        self.drive_cdsw_helper = GoogleDriveCdswHelper()
+        self._setup_google_drive()
+
+    def _setup_google_drive(self):
+        drive_enabled_env_var = OsUtils.get_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, "True")
+        LOG.debug("Value of env var '%s': %s", CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, drive_enabled_env_var)
+        if drive_enabled_env_var is None or bool(drive_enabled_env_var):
+            self.drive_cdsw_helper = GoogleDriveCdswHelper()
 
     def start_common(self, basedir):
         LOG.info("Starting CDSW runner...")

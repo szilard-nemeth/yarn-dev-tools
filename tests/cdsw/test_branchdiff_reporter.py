@@ -4,13 +4,12 @@ import unittest
 from typing import Dict, List
 
 from pythoncommons.constants import ExecutionMode
-from pythoncommons.docker_wrapper import DockerTestSetup
+from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import (
     PROJECTS_BASEDIR_NAME,
     SimpleProjectUtils,
@@ -213,6 +212,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         elif cls.python_module_mode == PythonModuleMode.USER:
             OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
 
+        if GitHubUtils.is_github_ci_execution():
+            OsUtils.set_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION, "False")
+
         tracked_env_updates: Dict[str, str] = OsUtils.get_tracked_updates()
         env_keys = set(tracked_env_updates.keys())
         OsUtils.stop_tracking_updates(clear_updates_dict=True)
@@ -306,6 +308,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             cmd = GLOBAL_SITE_COMMAND
         elif cls.python_module_mode == PythonModuleMode.USER:
             cmd = USER_SITE_COMMAND
+        else:
+            raise ValueError("Unknown Python module mode: {}".format(cls.python_module_mode))
         return cls.docker_test_setup.exec_cmd_in_container(cmd, stdin=False, tty=False, env=env, callback=callback)
 
     def setUp(self):
@@ -316,24 +320,24 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     def save_latest_zip_from_container(self):
         zip_link = FileUtils.join_path(LocalDirs.YARNDEVTOOLS_RESULT_DIR, "latest-command-data-zip")
-        cont_target_path = os.readlink(zip_link)
+        cont_src_path = os.readlink(zip_link)
         local_target_path = FileUtils.join_path(LocalDirs.YARNDEVTOOLS_RESULT_DIR, "latest-command-data-real.zip")
-        command = f"docker cp {self.docker_test_setup.container.id}:{cont_target_path} {local_target_path}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(command)
+        self.docker_test_setup.docker_cp_from_container(cont_src_path, local_target_path)
 
     def copy_yarndevtools_cdsw_recursively(self):
         local_dir = LocalDirs.CDSW_ROOT_DIR
         container_target_path = FileUtils.join_path(self.python_module_root, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
-        container_id = self.docker_test_setup.container.id
-        command = f"docker cp {local_dir}/. {container_id}:{container_target_path}"
-        LOG.info(
-            "Copying local directory '%s' to container directory '%s' (container id: %s). Command was: %s",
-            local_dir,
-            container_target_path,
-            container_id,
-            command,
-        )
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(command)
+        local_dir_docker_cp_arg = self._convert_to_docker_cp_dir_contents_copy_path(local_dir)
+        self.docker_test_setup.docker_cp_to_container(container_target_path, local_dir_docker_cp_arg)
+
+    @staticmethod
+    def _convert_to_docker_cp_dir_contents_copy_path(path):
+        # As per the user guide of docker cp: https://docs.docker.com/engine/reference/commandline/cp/#extended-description
+        # 1. SRC_PATH specifies a directory
+        # 2. DEST_PATH exists and is a directory
+        # 3. SRC_PATH does end with /. (that is: slash followed by dot)
+        # 4. OUTCOME: the content of the source directory is copied into this directory
+        return path + os.sep + "."
 
     @staticmethod
     def create_python_path_env_var(new_dir, fresh=True):
@@ -345,8 +349,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         return CdswEnvVar.PYTHONPATH.value, new_pythonpath
 
     def test_basic_cdsw_runner(self):
-        def _callback(cmd, out, docker_setup):
-            self.python_module_root = out
+        def _callback(cmd, cmd_output, docker_setup):
+            self.python_module_root = cmd_output
 
         self.docker_mounts.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=CONTAINER_SLEEP)
@@ -355,6 +359,17 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.exec_initial_cdsw_setup_script()
         if self.MOUNT_CDSW_DIRS_FROM_LOCAL:
             self.copy_yarndevtools_cdsw_recursively()
+            # TODO Copy pythoncommons, googleapiwrapper as well, control this with an enum
+
+        # Instead of mounting, copy the file as google-api-wrapper would write token pickle
+        # so it basically requires this to be mounted with 'RW' which we don't want to do to pollute the local FS
+        local_dir_docker_cp_arg = self._convert_to_docker_cp_dir_contents_copy_path(LocalDirs.CDSW_SECRET_DIR)
+        self.docker_test_setup.docker_cp_to_container(
+            ContainerDirs.CDSW_SECRET_DIR,
+            local_dir_docker_cp_arg,
+            create_container_path_mode=CreatePathMode.FULL_PATH,
+            double_check_with_ls=True,
+        )
         # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
         exit_code = self.exec_branch_diff_script(env=self.env_dict)
         self.assertEqual(exit_code, 0)
