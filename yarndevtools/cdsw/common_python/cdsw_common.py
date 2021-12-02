@@ -279,9 +279,7 @@ class CdswRunnerBase(ABC):
 
     def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:
         output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        # TODO Copied from: yarndevtools.commands.zip_latest_command_data.Config._get_filename_by_command
-        cmd_data_filename = f"command_data_{cmd_type.real_name}.zip"
-        full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_data_filename)
+        full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_type.command_data_zip_name)
         return self.drive_cdsw_helper.upload(full_file_path_of_cmd_data, drive_filename)
 
     def send_latest_command_data_in_email(
