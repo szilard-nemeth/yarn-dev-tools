@@ -140,7 +140,6 @@ class DockerMounts:
 class DockerBasedTestConfig:
     GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
     USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
-    # TODO Add flag to control if running initial-cdsw-setup.sh is required or not
 
     def __init__(
         self,
@@ -151,7 +150,7 @@ class DockerBasedTestConfig:
     ):
         self.create_image = create_image
         self.mount_cdsw_dirs_from_local = mount_cdsw_dirs_from_local
-        self.run_cdsw_initial_setup_scr = run_cdsw_initial_setup_script
+        self.run_cdsw_initial_setup_script = run_cdsw_initial_setup_script
         self.container_sleep_seconds = container_sleep_seconds
 
         # Only global-site mode can work in Docker containers
@@ -403,7 +402,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.docker_mounts.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=self.config.container_sleep_seconds)
         self.exec_get_python_module_root(callback=_callback)
-        self.exec_initial_cdsw_setup_script()
+        if self.config.run_cdsw_initial_setup_script:
+            self.exec_initial_cdsw_setup_script()
         if self.config.mount_cdsw_dirs_from_local:
             # TODO Copy pythoncommons, googleapiwrapper as well, control this with an enum
             self.copy_yarndevtools_cdsw_recursively()
