@@ -35,9 +35,6 @@ from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PR
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
 
 PYTHON3 = "python3"
-GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
-USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
-
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
@@ -50,7 +47,6 @@ CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
-CONTAINER_SLEEP = 300
 INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"
 
 
@@ -89,7 +85,7 @@ class DockerMounts:
 
     def setup_default_docker_mounts(self):
         # TODO Perhaps, mount logic can be changed to simple docker copy but keep the condition
-        if self.class_of_test.MOUNT_CDSW_DIRS_FROM_LOCAL:
+        if self.class_of_test.config.mount_cdsw_dirs_from_local:
             # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
             # files are being created to /home/cdsw inside the container.
             # Mounting it with readonly mode also does not make sense as writing files would be prevented.
@@ -144,16 +140,91 @@ class DockerMounts:
         )
 
 
+class DockerBasedTestConfig:
+    GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
+    USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
+    # TODO Add flag to control if running initial-cdsw-setup.sh is required or not
+
+    def __init__(
+        self,
+        create_image: bool,
+        mount_cdsw_dirs_from_local: bool,
+        run_cdsw_initial_setup_script: bool,
+        container_sleep_seconds: int,
+    ):
+        self.create_image = create_image
+        self.mount_cdsw_dirs_from_local = mount_cdsw_dirs_from_local
+        self.run_cdsw_initial_setup_scr = run_cdsw_initial_setup_script
+        self.container_sleep_seconds = container_sleep_seconds
+
+        # Only global-site mode can work in Docker containers
+        # With user mode, the following error is coming up:
+        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
+        # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py'
+        # No such file or directory
+        self.python_module_mode = PythonModuleMode.GLOBAL
+
+        # Dynamic properties
+        self.python_module_root = None
+        self.exec_mode: TestExecMode = self.determine_execution_mode()
+        self.python_module_mode_query_cmd = self.determine_python_module_mode_query_command()
+        self.github_ci_execution: bool = GitHubUtils.is_github_ci_execution()
+        self.cdsw_root_dir: str = self.determine_cdsw_root_dir()
+        if self.github_ci_execution:
+            self.mount_cdsw_dirs_from_local = False
+
+    @classmethod
+    def determine_execution_mode(cls):
+        exec_mode_env: str = OsUtils.get_env_value(
+            CdswEnvVar.TEST_EXECUTION_MODE.value, default_value=DEFAULT_TEST_EXECUTION_MODE
+        )
+        return TestExecMode[exec_mode_env.upper()]
+
+    def determine_python_module_mode_query_command(self) -> str:
+        if self.python_module_mode == PythonModuleMode.GLOBAL:
+            return DockerBasedTestConfig.GLOBAL_SITE_COMMAND
+        elif self.python_module_mode == PythonModuleMode.USER:
+            return DockerBasedTestConfig.USER_SITE_COMMAND
+        else:
+            raise ValueError("Unknown Python module mode: {}".format(self.python_module_mode))
+
+    def determine_cdsw_root_dir(self):
+        if self.github_ci_execution:
+            # When GitHub Actions CI runs the tests, it returns two or more paths,
+            # so it's better to define the path by hand.
+            # Example of paths: [
+            # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/yarndevtools/cdsw',
+            # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/build/lib/yarndevtools/cdsw'
+            # ]
+            LOG.debug("Github Actions CI execution, crafting CDSW root dir path manually..")
+            github_actions_workspace: str = GitHubUtils.get_workspace_path()
+            return FileUtils.join_path(github_actions_workspace, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
+
+        LOG.debug("Normal test execution, finding project dir..")
+        return SimpleProjectUtils.get_project_dir(
+            basedir=LocalDirs.REPO_ROOT_DIR,
+            parent_dir="yarndevtools",
+            dir_to_find=CDSW_DIRNAME,
+            find_result_type=FindResultType.DIRS,
+        )
+
+
+PROD_CONFIG = DockerBasedTestConfig(
+    create_image=True, mount_cdsw_dirs_from_local=False, run_cdsw_initial_setup_script=True, container_sleep_seconds=200
+)
+DEV_CONFIG = DockerBasedTestConfig(
+    create_image=False,
+    mount_cdsw_dirs_from_local=True,
+    run_cdsw_initial_setup_script=False,
+    container_sleep_seconds=500,
+)
+ACTIVE_CONFIG = DEV_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
+
+
 class YarnCdswBranchDiffTests(unittest.TestCase):
-    python_module_mode = None
-    python_module_root = None
-    exec_mode: TestExecMode = None
     docker_test_setup = None
     docker_mounts = None
-    # TODO Put these to a TestConfig object
-    # TODO Add flag to control if running initial-cdsw-setup.sh is required or not
-    CREATE_IMAGE = True
-    MOUNT_CDSW_DIRS_FROM_LOCAL = True
+    config: DockerBasedTestConfig = ACTIVE_CONFIG
 
     @classmethod
     def setUpClass(cls):
@@ -163,24 +234,18 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
         cls._setup_logging()
         cls.setup_local_dirs()
-        cls.exec_mode: TestExecMode = cls.determine_execution_mode()
-        # Only global-site mode can work in Docker containers
-        # With user mode, the following error is coming up:
-        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
-        # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py'
-        # No such file or directory
-        cls.python_module_mode = PythonModuleMode.GLOBAL
 
-        if GitHubUtils.is_github_ci_execution():
+        if cls.config.github_ci_execution:
             dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
-            cls.MOUNT_CDSW_DIRS_FROM_LOCAL = False
         else:
             dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
         cls.docker_test_setup = DockerTestSetup(
-            DOCKER_IMAGE, create_image=cls.CREATE_IMAGE, dockerfile=dockerfile, logger=CMD_LOG
+            DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=dockerfile, logger=CMD_LOG
         )
         cls.env_dict: Dict[str, str] = cls.setup_env_vars()
-        cls.docker_mounts = DockerMounts(cls, cls.docker_test_setup, cls.exec_mode, cls.python_module_mode)
+        cls.docker_mounts = DockerMounts(
+            cls, cls.docker_test_setup, cls.config.exec_mode, cls.config.python_module_mode
+        )
         cls.docker_mounts.setup_default_docker_mounts()
 
     @classmethod
@@ -192,10 +257,10 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         OsUtils.track_env_updates()
         OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
         OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
-        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, cls.exec_mode.value)
+        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, cls.config.exec_mode.value)
 
         # !! WARNING: User-specific settings below !!
-        if cls.exec_mode == TestExecMode.CLOUDERA:
+        if cls.config.exec_mode == TestExecMode.CLOUDERA:
             # We need both upstream / downstream repos for Cloudera-mode
             OsUtils.set_env_value(
                 CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
@@ -204,7 +269,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             OsUtils.set_env_value(
                 CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
             )
-        elif cls.exec_mode == TestExecMode.UPSTREAM:
+        elif cls.config.exec_mode == TestExecMode.UPSTREAM:
             OsUtils.set_env_value(
                 CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
             )
@@ -212,12 +277,12 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
             OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
 
-        if cls.python_module_mode == PythonModuleMode.GLOBAL:
+        if cls.config.python_module_mode == PythonModuleMode.GLOBAL:
             OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
-        elif cls.python_module_mode == PythonModuleMode.USER:
+        elif cls.config.python_module_mode == PythonModuleMode.USER:
             OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
 
-        if GitHubUtils.is_github_ci_execution():
+        if cls.config.github_ci_execution:
             OsUtils.set_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION, "False")
 
         tracked_env_updates: Dict[str, str] = OsUtils.get_tracked_updates()
@@ -231,7 +296,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def setup_local_dirs(cls):
-        LocalDirs.CDSW_ROOT_DIR = cls.get_cdsw_root_dir()
+        LocalDirs.CDSW_ROOT_DIR = cls.config.cdsw_root_dir
         LocalDirs.SCRIPTS_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "scripts")
         LocalDirs.YARNDEVTOOLS_RESULT_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "yarndevtools-results")
         # TODO
@@ -242,34 +307,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         LOG.info("Local dirs: %s", ObjUtils.get_static_fields_with_values(LocalDirs))
         LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
         LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
-
-    @classmethod
-    def determine_execution_mode(cls):
-        exec_mode_env: str = OsUtils.get_env_value(
-            CdswEnvVar.TEST_EXECUTION_MODE.value, default_value=DEFAULT_TEST_EXECUTION_MODE
-        )
-        return TestExecMode[exec_mode_env.upper()]
-
-    @classmethod
-    def get_cdsw_root_dir(cls):
-        is_github_ci_execution: bool = GitHubUtils.is_github_ci_execution()
-        if is_github_ci_execution:
-            # When Github Actions CI runs the tests, it returns two or more paths
-            # so it's better to define the path by hand.
-            # Example of paths: [
-            # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/yarndevtools/cdsw',
-            # '/home/runner/work/yarn-dev-tools/yarn-dev-tools/build/lib/yarndevtools/cdsw'
-            # ]
-            LOG.debug("Github Actions CI execution, crafting CDSW root dir path manually..")
-            github_actions_workspace: str = GitHubUtils.get_workspace_path()
-            return FileUtils.join_path(github_actions_workspace, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
-        LOG.debug("Normal test execution, finding project dir..")
-        return SimpleProjectUtils.get_project_dir(
-            basedir=LocalDirs.REPO_ROOT_DIR,
-            parent_dir="yarndevtools",
-            dir_to_find=CDSW_DIRNAME,
-            find_result_type=FindResultType.DIRS,
-        )
 
     @classmethod
     def _setup_logging(cls):
@@ -300,8 +337,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     def exec_initial_cdsw_setup_script(cls, args: List[str] = None, env: Dict[str, str] = None):
         if not args:
             args = []
-        args.append(cls.python_module_mode.value)
-        args.append(cls.exec_mode.value)
+        args.append(cls.config.python_module_mode.value)
+        args.append(cls.config.exec_mode.value)
         args_str = " ".join(args)
         return cls.docker_test_setup.exec_cmd_in_container(
             f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args_str}", stdin=False, tty=False, env=env
@@ -309,13 +346,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def exec_get_python_module_root(cls, env: Dict[str, str] = None, callback=None):
-        if cls.python_module_mode == PythonModuleMode.GLOBAL:
-            cmd = GLOBAL_SITE_COMMAND
-        elif cls.python_module_mode == PythonModuleMode.USER:
-            cmd = USER_SITE_COMMAND
-        else:
-            raise ValueError("Unknown Python module mode: {}".format(cls.python_module_mode))
-        return cls.docker_test_setup.exec_cmd_in_container(cmd, stdin=False, tty=False, env=env, callback=callback)
+        return cls.docker_test_setup.exec_cmd_in_container(
+            cls.config.python_module_mode_query_cmd, stdin=False, tty=False, env=env, callback=callback
+        )
 
     def setUp(self):
         self.docker_test_setup.test_instance = self
@@ -332,7 +365,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     # TODO Write similar method that uploads python dependency code from local machine
     def copy_yarndevtools_cdsw_recursively(self):
         local_dir = LocalDirs.CDSW_ROOT_DIR
-        container_target_path = FileUtils.join_path(self.python_module_root, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME)
+        container_target_path = FileUtils.join_path(
+            self.config.python_module_root, YARNDEVTOOLS_MODULE_NAME, CDSW_DIRNAME
+        )
         local_dir_docker_cp_arg = self._convert_to_docker_cp_dir_contents_copy_path(local_dir)
         self.docker_test_setup.docker_cp_to_container(container_target_path, local_dir_docker_cp_arg)
 
@@ -356,14 +391,14 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     def test_basic_cdsw_runner(self):
         def _callback(cmd, cmd_output, docker_setup):
-            self.python_module_root = cmd_output
+            self.config.python_module_root = cmd_output
 
         self.docker_mounts.setup_default_docker_mounts()
-        self.docker_test_setup.run_container(sleep=CONTAINER_SLEEP)
+        self.docker_test_setup.run_container(sleep=self.config.container_sleep_seconds)
         self.exec_get_python_module_root(callback=_callback)
         # TODO Run this only at Docker image creation?
         self.exec_initial_cdsw_setup_script()
-        if self.MOUNT_CDSW_DIRS_FROM_LOCAL:
+        if self.config.mount_cdsw_dirs_from_local:
             self.copy_yarndevtools_cdsw_recursively()
             # TODO Copy pythoncommons, googleapiwrapper as well, control this with an enum
 
