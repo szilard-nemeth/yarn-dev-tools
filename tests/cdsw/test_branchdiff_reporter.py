@@ -172,6 +172,8 @@ class DockerBasedTestConfig:
         self.cdsw_root_dir: str = self.determine_cdsw_root_dir()
         if self.github_ci_execution:
             self.mount_cdsw_dirs_from_local = False
+        self.env_dict = self.setup_env_vars()
+        self.setup_local_dirs()
 
     @classmethod
     def determine_execution_mode(cls):
@@ -208,6 +210,68 @@ class DockerBasedTestConfig:
             find_result_type=FindResultType.DIRS,
         )
 
+    def setup_env_vars(self) -> Dict[str, str]:
+        # TODO add these to a dictionary instead of decide env vars based on conditionals
+        OsUtils.track_env_updates()
+        OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
+        OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
+        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, self.exec_mode.value)
+
+        # !! WARNING: User-specific settings below !!
+        if self.exec_mode == TestExecMode.CLOUDERA:
+            # We need both upstream / downstream repos for Cloudera-mode
+            OsUtils.set_env_value(
+                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
+                FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"),
+            )
+            OsUtils.set_env_value(
+                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
+            )
+        elif self.exec_mode == TestExecMode.UPSTREAM:
+            OsUtils.set_env_value(
+                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
+            )
+            OsUtils.set_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.UPSTREAM.value)
+            OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
+            OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
+
+        if self.python_module_mode == PythonModuleMode.GLOBAL:
+            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
+        elif self.python_module_mode == PythonModuleMode.USER:
+            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
+
+        if self.github_ci_execution:
+            OsUtils.set_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION, "False")
+
+        tracked_env_updates: Dict[str, str] = OsUtils.get_tracked_updates()
+        env_keys = set(tracked_env_updates.keys())
+        OsUtils.stop_tracking_updates(clear_updates_dict=True)
+        env_keys.update(
+            (CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value, EnvVar.IGNORE_SMTP_AUTH_ERROR.value)
+        )
+        env_dict = {env_name: OsUtils.get_env_value(env_name) for env_name in env_keys}
+        return env_dict
+
+    def setup_local_dirs(self):
+        LocalDirs.CDSW_ROOT_DIR = self.cdsw_root_dir
+        LocalDirs.SCRIPTS_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "scripts")
+        LocalDirs.YARNDEVTOOLS_RESULT_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "yarndevtools-results")
+        # TODO
+        self.branchdiff_cdsw_runner_script = self.find_cdsw_runner_script(
+            os.path.join(LocalDirs.CDSW_ROOT_DIR, BRANCH_DIFF_REPORTER_DIR_NAME)
+        )
+        # LOG.info("Local files: %s", ObjUtils.get_static_fields_with_values(LocalFiles))
+        LOG.info("Local dirs: %s", ObjUtils.get_static_fields_with_values(LocalDirs))
+        LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
+        LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
+
+    @staticmethod
+    def find_cdsw_runner_script(parent_dir):
+        results = FileUtils.search_files(parent_dir, CDSW_RUNNER_PY)
+        if not results:
+            raise ValueError(f"Expected to find file: {CDSW_RUNNER_PY}")
+        return results[0]
+
 
 PROD_CONFIG = DockerBasedTestConfig(
     create_image=True, mount_cdsw_dirs_from_local=False, run_cdsw_initial_setup_script=True, container_sleep_seconds=200
@@ -233,8 +297,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
             raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
         cls._setup_logging()
-        cls.setup_local_dirs()
-
         if cls.config.github_ci_execution:
             dockerfile = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
         else:
@@ -242,7 +304,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         cls.docker_test_setup = DockerTestSetup(
             DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=dockerfile, logger=CMD_LOG
         )
-        cls.env_dict: Dict[str, str] = cls.setup_env_vars()
         cls.docker_mounts = DockerMounts(
             cls, cls.docker_test_setup, cls.config.exec_mode, cls.config.python_module_mode
         )
@@ -251,62 +312,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         pass
-
-    @classmethod
-    def setup_env_vars(cls) -> Dict[str, str]:
-        OsUtils.track_env_updates()
-        OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
-        OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
-        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, cls.config.exec_mode.value)
-
-        # !! WARNING: User-specific settings below !!
-        if cls.config.exec_mode == TestExecMode.CLOUDERA:
-            # We need both upstream / downstream repos for Cloudera-mode
-            OsUtils.set_env_value(
-                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
-                FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"),
-            )
-            OsUtils.set_env_value(
-                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
-            )
-        elif cls.config.exec_mode == TestExecMode.UPSTREAM:
-            OsUtils.set_env_value(
-                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
-            )
-            OsUtils.set_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.UPSTREAM.value)
-            OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
-            OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
-
-        if cls.config.python_module_mode == PythonModuleMode.GLOBAL:
-            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
-        elif cls.config.python_module_mode == PythonModuleMode.USER:
-            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
-
-        if cls.config.github_ci_execution:
-            OsUtils.set_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION, "False")
-
-        tracked_env_updates: Dict[str, str] = OsUtils.get_tracked_updates()
-        env_keys = set(tracked_env_updates.keys())
-        OsUtils.stop_tracking_updates(clear_updates_dict=True)
-        env_keys.update(
-            (CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value, EnvVar.IGNORE_SMTP_AUTH_ERROR.value)
-        )
-        env_dict = {env_name: OsUtils.get_env_value(env_name) for env_name in env_keys}
-        return env_dict
-
-    @classmethod
-    def setup_local_dirs(cls):
-        LocalDirs.CDSW_ROOT_DIR = cls.config.cdsw_root_dir
-        LocalDirs.SCRIPTS_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "scripts")
-        LocalDirs.YARNDEVTOOLS_RESULT_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "yarndevtools-results")
-        # TODO
-        cls.branchdiff_cdsw_runner_script = YarnCdswBranchDiffTests.find_cdsw_runner_script(
-            os.path.join(LocalDirs.CDSW_ROOT_DIR, BRANCH_DIFF_REPORTER_DIR_NAME)
-        )
-        # LOG.info("Local files: %s", ObjUtils.get_static_fields_with_values(LocalFiles))
-        LOG.info("Local dirs: %s", ObjUtils.get_static_fields_with_values(LocalDirs))
-        LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
-        LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
 
     @classmethod
     def _setup_logging(cls):
@@ -380,15 +385,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         # 4. OUTCOME: the content of the source directory is copied into this directory
         return path + os.sep + "."
 
-    @staticmethod
-    def create_python_path_env_var(new_dir, fresh=True):
-        if not fresh:
-            curr_pythonpath = OsUtils.get_env_value(CdswEnvVar.PYTHONPATH.value)
-            new_pythonpath = f"{curr_pythonpath}:{new_dir}"
-        else:
-            new_pythonpath = new_dir
-        return CdswEnvVar.PYTHONPATH.value, new_pythonpath
-
     def test_basic_cdsw_runner(self):
         def _callback(cmd, cmd_output, docker_setup):
             self.config.python_module_root = cmd_output
@@ -411,8 +407,8 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             create_container_path_mode=CreatePathMode.FULL_PATH,
             double_check_with_ls=True,
         )
-        # self.docker_test_setup.inspect_container(self.docker_test_setup.container.id)
-        exit_code = self.exec_branch_diff_script(env=self.env_dict)
+
+        exit_code = self.exec_branch_diff_script(env=self.config.env_dict)
         self.assertEqual(exit_code, 0)
         self.save_latest_zip_from_container()
         # TODO check if zip exists and size is bigger than 0 and extractable
