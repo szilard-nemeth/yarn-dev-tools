@@ -358,12 +358,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         )
 
     @classmethod
-    def exec_initial_cdsw_setup_script(cls, args: List[str] = None, env: Dict[str, str] = None):
-        if not args:
-            args = []
-        args.append(cls.config.python_module_mode.value)
-        args.append(cls.config.exec_mode.value)
-        args_str = " ".join(args)
+    def exec_initial_cdsw_setup_script(cls, args_list: List[str] = None, env: Dict[str, str] = None):
+        if not args_list:
+            args_list = []
+        args_list.extend([cls.config.python_module_mode.value, cls.config.exec_mode.value])
+        args_str = " ".join(args_list)
         return cls.docker_test_setup.exec_cmd_in_container(
             f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args_str}", stdin=False, tty=False, env=env
         )
