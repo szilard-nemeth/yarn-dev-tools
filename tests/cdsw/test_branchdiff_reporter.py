@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Dict, List
 
 from pythoncommons.constants import ExecutionMode
-from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode
+from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode, DockerMountMode
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
@@ -40,9 +40,6 @@ PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
-# TODO Consolidate mount modes to enum, also MOUNT_MODE_RW is present in docker_wrapper.py
-MOUNT_MODE_RW = "rw"
-MOUNT_MODE_READ_ONLY = "ro"
 BASH = "bash"
 CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
@@ -102,16 +99,16 @@ class DockerMounts:
                 self.docker_test_setup.mount_dir(
                     dir,
                     FileUtils.join_path(ContainerDirs.CDSW_BASEDIR, FileUtils.basename(dir)),
-                    mode=MOUNT_MODE_READ_ONLY,
+                    mode=DockerMountMode.READ_ONLY,
                 )
         else:
             # Mount scripts dir, initial-cdsw-setup.sh will be executed from there
             self.docker_test_setup.mount_dir(
-                LocalDirs.SCRIPTS_DIR, ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, mode=MOUNT_MODE_RW
+                LocalDirs.SCRIPTS_DIR, ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, mode=DockerMountMode.READ_WRITE
             )
         # Mount results dir so all output files will be available on the host
         self.docker_test_setup.mount_dir(
-            LocalDirs.YARNDEVTOOLS_RESULT_DIR, ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR, mode=MOUNT_MODE_RW
+            LocalDirs.YARNDEVTOOLS_RESULT_DIR, ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR, mode=DockerMountMode.READ_WRITE
         )
         # TODO Remove code that sends mail attachment
         if self.exec_mode == TestExecMode.CLOUDERA:
@@ -128,7 +125,7 @@ class DockerMounts:
         self.docker_test_setup.mount_dir(
             OsUtils.get_env_value(CdswEnvVar.CLOUDERA_HADOOP_ROOT.value),
             ContainerDirs.HADOOP_CLOUDERA_BASEDIR,
-            mode=MOUNT_MODE_RW,
+            mode=DockerMountMode.READ_WRITE,
         )
 
     def _mount_upstream_hadoop_repo(self):
@@ -136,7 +133,7 @@ class DockerMounts:
         self.docker_test_setup.mount_dir(
             OsUtils.get_env_value(CdswEnvVar.HADOOP_DEV_DIR.value),
             ContainerDirs.HADOOP_UPSTREAM_BASEDIR,
-            mode=MOUNT_MODE_RW,
+            mode=DockerMountMode.READ_WRITE,
         )
 
 
