@@ -4,6 +4,8 @@ import re
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 APACHE = "apache"
+HADOOP = "hadoop"
+CLOUDERA = "cloudera"
 ORIGIN_TRUNK = "origin/trunk"
 ORIGIN_BRANCH_3_3 = "origin/branch-3.3"
 TRUNK = "trunk"

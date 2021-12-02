@@ -1,6 +1,7 @@
 import logging
 import os
 import unittest
+from enum import Enum
 from typing import Dict, List
 
 from pythoncommons.constants import ExecutionMode
@@ -32,7 +33,7 @@ from yarndevtools.cdsw.common_python.constants import (
     CDSW_RUNNER_PY,
 )
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PROJECTS_DIR
-from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, APACHE, HADOOP, CLOUDERA
 
 PYTHON3 = "python3"
 PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
@@ -112,7 +113,6 @@ class DockerMounts:
         self.docker_test_setup.mount_dir(
             LocalDirs.YARNDEVTOOLS_RESULT_DIR, ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR, mode=MOUNT_MODE_RW
         )
-        # TODO Turn off Google Drive sync mode on Github execution
         # TODO Remove code that sends mail attachment
         if self.exec_mode == TestExecMode.CLOUDERA:
             self._mount_downstream_hadoop_repo()
@@ -211,44 +211,82 @@ class DockerBasedTestConfig:
         )
 
     def setup_env_vars(self) -> Dict[str, str]:
-        # TODO add these to a dictionary instead of decide env vars based on conditionals
+        def get_str(key):
+            if isinstance(key, str):
+                return key
+            elif isinstance(key, Enum):
+                return key.value
+            else:
+                raise ValueError("Unknown key type. Should be str or Enum. Type: {}".format(type(key)))
+
+        def make_key(prefix, conf_value):
+            return f"{prefix}_{conf_value}"
+
+        p_common = "common"
+        p_exec_mode = "exec_mode"
+        p_module_mode = "module_mode"
+        p_github_ci_execution = "github_ci_execution"
+        env_vars = {
+            p_common: {
+                get_str(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR): FileUtils.join_path("home", CDSW_DIRNAME),
+                get_str(CdswEnvVar.MAIL_RECIPIENTS): "nsziszy@gmail.com",
+                get_str(CdswEnvVar.TEST_EXECUTION_MODE): self.exec_mode.value,
+            },
+            # !! WARNING: User-specific settings below !!
+            make_key(p_exec_mode, get_str(TestExecMode.CLOUDERA)): {
+                # We need both upstream / downstream repos for Cloudera-mode
+                get_str(CdswEnvVar.CLOUDERA_HADOOP_ROOT): FileUtils.join_path(
+                    CommonDirs.USER_DEV_ROOT, CLOUDERA, HADOOP
+                ),
+                get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirs.USER_DEV_ROOT, APACHE, HADOOP),
+            },
+            make_key(p_exec_mode, get_str(TestExecMode.UPSTREAM)): {
+                get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirs.USER_DEV_ROOT, APACHE, HADOOP),
+                get_str(BranchComparatorEnvVar.REPO_TYPE): RepoType.UPSTREAM.value,
+                get_str(BranchComparatorEnvVar.FEATURE_BRANCH): ORIGIN_BRANCH_3_3,
+                get_str(BranchComparatorEnvVar.MASTER_BRANCH): ORIGIN_TRUNK,
+            },
+            make_key(p_module_mode, get_str(PythonModuleMode.GLOBAL)): {
+                get_str(CdswEnvVar.PYTHON_MODULE_MODE): PythonModuleMode.GLOBAL.value
+            },
+            make_key(p_module_mode, get_str(PythonModuleMode.USER)): {
+                get_str(CdswEnvVar.PYTHON_MODULE_MODE): PythonModuleMode.USER.value
+            },
+            make_key(p_github_ci_execution, str(True)): {
+                get_str(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value): str(False)
+            },
+            make_key(p_github_ci_execution, str(False)): {
+                get_str(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value): str(True)
+            },
+        }
+
         OsUtils.track_env_updates()
-        OsUtils.set_env_value(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR.value, FileUtils.join_path("home", "cdsw"))
-        OsUtils.set_env_value(CdswEnvVar.MAIL_RECIPIENTS.value, "nsziszy@gmail.com")
-        OsUtils.set_env_value(CdswEnvVar.TEST_EXECUTION_MODE.value, self.exec_mode.value)
+        for k, v in env_vars[p_common].items():
+            LOG.debug("Adding common env var. %s=%s", k, v)
+            OsUtils.set_env_value(k, v)
 
-        # !! WARNING: User-specific settings below !!
-        if self.exec_mode == TestExecMode.CLOUDERA:
-            # We need both upstream / downstream repos for Cloudera-mode
-            OsUtils.set_env_value(
-                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value,
-                FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "cloudera", "hadoop"),
-            )
-            OsUtils.set_env_value(
-                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
-            )
-        elif self.exec_mode == TestExecMode.UPSTREAM:
-            OsUtils.set_env_value(
-                CdswEnvVar.HADOOP_DEV_DIR.value, FileUtils.join_path(CommonDirs.USER_DEV_ROOT, "apache", "hadoop")
-            )
-            OsUtils.set_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.UPSTREAM.value)
-            OsUtils.set_env_value(BranchComparatorEnvVar.FEATURE_BRANCH.value, ORIGIN_BRANCH_3_3)
-            OsUtils.set_env_value(BranchComparatorEnvVar.MASTER_BRANCH.value, ORIGIN_TRUNK)
-
-        if self.python_module_mode == PythonModuleMode.GLOBAL:
-            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.GLOBAL.value)
-        elif self.python_module_mode == PythonModuleMode.USER:
-            OsUtils.set_env_value(CdswEnvVar.PYTHON_MODULE_MODE.value, PythonModuleMode.USER.value)
-
-        if self.github_ci_execution:
-            OsUtils.set_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION, "False")
+        prefix_and_value_tuples = [
+            (p_exec_mode, self.exec_mode.value),
+            (p_module_mode, self.python_module_mode.value),
+            (p_github_ci_execution, str(self.github_ci_execution)),
+        ]
+        for prefix, conf_value in prefix_and_value_tuples:
+            dict_key: str = make_key(prefix, conf_value)
+            for k, v in env_vars[dict_key].items():
+                LOG.debug("Adding %s=%s-based env var. %s=%s", prefix, self.exec_mode.value, k, v)
+                OsUtils.set_env_value(k, v)
 
         tracked_env_updates: Dict[str, str] = OsUtils.get_tracked_updates()
-        env_keys = set(tracked_env_updates.keys())
         OsUtils.stop_tracking_updates(clear_updates_dict=True)
+        env_keys = set(tracked_env_updates.keys())
         env_keys.update(
-            (CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value, EnvVar.IGNORE_SMTP_AUTH_ERROR.value)
+            {
+                get_str(CdswEnvVar.MAIL_ACC_USER),
+                get_str(CdswEnvVar.MAIL_ACC_PASSWORD),
+                get_str(EnvVar.IGNORE_SMTP_AUTH_ERROR),
+            }
         )
+
         env_dict = {env_name: OsUtils.get_env_value(env_name) for env_name in env_keys}
         return env_dict
 
