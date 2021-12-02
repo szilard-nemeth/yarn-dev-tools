@@ -59,7 +59,7 @@ class TestBranchComparator(unittest.TestCase):
     def output_dir(self):
         return ProjectUtils.get_test_output_child_dir(BRANCH_COMPARATOR)
 
-    def test_successful_api_response_verify_failed_testcases(self):
+    def test_grouping(self):
         def git_log_return(revision, **kwargs):
             if revision == "1214312515":
                 return [merge_base_commit_line]
