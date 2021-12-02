@@ -296,7 +296,7 @@ class CdswRunnerBase(ABC):
         attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
         email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
         email_body_prepend_param = (
-            f"--prepend_email_body_with_text {prepend_text_to_email_body}" if prepend_text_to_email_body else ""
+            f"--prepend_email_body_with_text '{prepend_text_to_email_body}'" if prepend_text_to_email_body else ""
         )
         self.execute_yarndevtools_script(
             f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.name} "
@@ -305,7 +305,7 @@ class CdswRunnerBase(ABC):
             f'--sender "{sender}" '
             f'--recipients "{recipients}" '
             f"--attachment-filename {attachment_filename_val} "
-            f"{email_body_file_param}"
+            f"{email_body_file_param} "
             f"{email_body_prepend_param}"
         )
 
