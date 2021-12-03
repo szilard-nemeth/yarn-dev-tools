@@ -61,6 +61,7 @@ class ContainerDirs:
     CDSW_BASEDIR = CommonDirs.CDSW_BASEDIR
     YARN_DEV_TOOLS_OUTPUT_DIR = FileUtils.join_path(CDSW_BASEDIR, PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME)
     YARN_DEV_TOOLS_SCRIPTS_BASEDIR = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
+    YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, "experiments")
     HADOOP_CLOUDERA_BASEDIR = CommonDirs.HADOOP_CLOUDERA_BASEDIR
     HADOOP_UPSTREAM_BASEDIR = CommonDirs.HADOOP_UPSTREAM_BASEDIR
     CDSW_SECRET_DIR = FileUtils.join_path("/root", ".secret", "projects", "cloudera", CDSW_DIRNAME)
@@ -77,7 +78,7 @@ class LocalDirs:
 class DockerBasedTestConfig:
     GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
     USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"
-    # TODO Add flag to control if running initial-cdsw-setup.sh is required or not
+    # TODO Use flag: run_cdsw_initial_setup_script
 
     def __init__(
         self,
@@ -413,7 +414,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             # TODO Copy python-commons, google-api-wrapper as well, control this with an enum
             self.copy_yarndevtools_cdsw_recursively()
 
-        # Instead of mounting, copy the file as google-api-wrapper would write token pickle
+        # Instead of mounting, copy the file as google-api-wrapper would write token pickle,
         # so it basically requires this to be mounted with 'RW' which we don't want to do to pollute the local FS
         local_dir_docker_cp_arg = self._convert_to_docker_cp_dir_contents_copy_path(LocalDirs.CDSW_SECRET_DIR)
         self.docker_test_setup.docker_cp_to_container(
@@ -433,18 +434,19 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         def _kill_after_5_lines(cmd, out, docker_setup):
             captured_output.append(out)
             if len(captured_output) >= 3:
-                captured_output.clear()
-                # TODO IS this really the exit code or the stdout of pgrep returned?
-                pid = docker_setup.exec_cmd_in_container(f"pgrep -f {os.path.basename(cmd)}", stream=False)
-                docker_setup.exec_cmd_in_container(f"kill {pid}", stream=False)
+                exit_code, pid = docker_setup.exec_cmd_in_container(f"pgrep -f {os.path.basename(cmd)}", stream=False)
+                docker_setup.exec_cmd_in_container(f"kill {pid}", stream=False, fail_on_error=True)
 
         self.setup_default_docker_mounts()
         self.docker_test_setup.run_container()
         self.docker_test_setup.exec_cmd_in_container(
-            f"{ContainerDirs.CDSW_BASEDIR}/common/test.sh", callback=_kill_after_5_lines, fail_on_error=False
+            f"{ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS}/test.sh",
+            callback=_kill_after_5_lines,
+            fail_on_error=False,
         )
         self.docker_test_setup.exec_cmd_in_container(
-            f"{PYTHON3} {ContainerDirs.CDSW_BASEDIR}/common/test.py", callback=_kill_after_5_lines, fail_on_error=False
+            f"{PYTHON3} {ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS}/test.py",
+            callback=_kill_after_5_lines,
+            fail_on_error=False,
         )
-
-    # TODO write testcase to test ut-results-reporting with fake jenkins: It can return a valid & invalid UT result JSON response
+        self.assertTrue(len(captured_output) >= 3, "captured output is: {}".format(captured_output))
