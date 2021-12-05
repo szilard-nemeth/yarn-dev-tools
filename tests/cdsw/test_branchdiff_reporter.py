@@ -86,11 +86,13 @@ class DockerBasedTestConfig:
         mount_cdsw_dirs_from_local: bool,
         run_cdsw_initial_setup_script: bool,
         container_sleep_seconds: int,
+        install_requirements: bool,
     ):
         self.create_image = create_image
         self.mount_cdsw_dirs_from_local = mount_cdsw_dirs_from_local
         self.run_cdsw_initial_setup_scr = run_cdsw_initial_setup_script
         self.container_sleep_seconds = container_sleep_seconds
+        self.install_requirements = install_requirements
 
         # Only global-site mode can work in Docker containers
         # With user mode, the following error is coming up:
@@ -170,6 +172,7 @@ class DockerBasedTestConfig:
                 get_str(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR): FileUtils.join_path("home", CDSW_DIRNAME),
                 get_str(CdswEnvVar.MAIL_RECIPIENTS): "nsziszy@gmail.com",
                 get_str(CdswEnvVar.TEST_EXECUTION_MODE): self.exec_mode.value,
+                get_str(CdswEnvVar.INSTALL_REQUIREMENTS): self.install_requirements,
             },
             # !! WARNING: User-specific settings below !!
             make_key(p_exec_mode, get_str(TestExecMode.CLOUDERA)): {
@@ -201,6 +204,8 @@ class DockerBasedTestConfig:
 
         OsUtils.track_env_updates()
         for k, v in env_vars[p_common].items():
+            if not isinstance(v, str):
+                v = str(v)
             LOG.debug("Adding common env var. %s=%s", k, v)
             OsUtils.set_env_value(k, v)
 
@@ -237,7 +242,8 @@ class DockerBasedTestConfig:
         LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
         LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
 
-    def validate(self):
+    @staticmethod
+    def validate():
         if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
             raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
 
@@ -309,13 +315,25 @@ class DockerBasedTestConfig:
 
 
 PROD_CONFIG = DockerBasedTestConfig(
-    create_image=True, mount_cdsw_dirs_from_local=False, run_cdsw_initial_setup_script=True, container_sleep_seconds=200
+    create_image=True,
+    mount_cdsw_dirs_from_local=False,
+    run_cdsw_initial_setup_script=True,
+    container_sleep_seconds=200,
+    install_requirements=True,
 )
 DEV_CONFIG = DockerBasedTestConfig(
     create_image=False,
     mount_cdsw_dirs_from_local=True,
     run_cdsw_initial_setup_script=False,
     container_sleep_seconds=500,
+    install_requirements=False,
+)
+QUICK_DEV_CONFIG = DockerBasedTestConfig(
+    create_image=False,
+    mount_cdsw_dirs_from_local=True,
+    run_cdsw_initial_setup_script=False,
+    container_sleep_seconds=500,
+    install_requirements=False,
 )
 ACTIVE_CONFIG = DEV_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
 
