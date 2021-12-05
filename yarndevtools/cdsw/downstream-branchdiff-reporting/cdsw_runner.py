@@ -8,7 +8,7 @@ from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetup, CommonDirs, CdswSetupResult
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME
 import logging
 
 from yarndevtools.common.shared_command_utils import RepoType
@@ -94,4 +94,4 @@ if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename())
+    runner.start(setup_result, CdswRunnerBase.get_filename(BRANCH_DIFF_REPORTER_DIR_NAME))

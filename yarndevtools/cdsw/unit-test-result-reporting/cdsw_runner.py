@@ -11,7 +11,11 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
     CdswSetupResult,
 )
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JenkinsTestReporterEnvVar
+from yarndevtools.cdsw.common_python.constants import (
+    CdswEnvVar,
+    JenkinsTestReporterEnvVar,
+    UNIT_TEST_RESULT_REPORTING_DIR_NAME,
+)
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JenkinsTestReporterMode,
     DEFAULT_REQUEST_LIMIT,
@@ -92,4 +96,4 @@ if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename())
+    runner.start(setup_result, CdswRunnerBase.get_filename(UNIT_TEST_RESULT_REPORTING_DIR_NAME))

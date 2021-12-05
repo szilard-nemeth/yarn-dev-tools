@@ -17,7 +17,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     SKIP_AGGREGATION_DEFAULTS_FILENAME,
     CdswSetupResult,
 )
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME
 from yarndevtools.constants import REPORT_FILE_SHORT_HTML
 
 LOG = logging.getLogger(__name__)
@@ -199,4 +199,4 @@ if __name__ == "__main__":
     ]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename())
+    runner.start(setup_result, CdswRunnerBase.get_filename(UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME))

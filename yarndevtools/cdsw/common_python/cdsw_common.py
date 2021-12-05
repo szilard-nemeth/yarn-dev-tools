@@ -40,6 +40,10 @@ from yarndevtools.cdsw.common_python.constants import (
     PROJECT_NAME,
     INSTALL_REQUIREMENTS_SCRIPT,
     CDSW_RUNNER_PY,
+    BRANCH_DIFF_REPORTER_DIR_NAME,
+    JIRA_UMBRELLA_CHECKER_DIR_NAME,
+    UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
+    UNIT_TEST_RESULT_REPORTING_DIR_NAME,
 )
 
 from pythoncommons.process import SubprocessCommandRunner
@@ -80,10 +84,10 @@ class CommonDirs:
     USER_DEV_ROOT = FileUtils.join_path("/", "Users", "snemeth", "development")
     YARN_DEV_TOOLS_MODULE_ROOT = None
     CDSW_SCRIPT_DIR_NAMES: List[str] = [
-        "downstream-branchdiff-reporting",
-        "jira-umbrella-checker",
-        "unit-test-result-aggregator",
-        "unit-test-result-reporting",
+        BRANCH_DIFF_REPORTER_DIR_NAME,
+        JIRA_UMBRELLA_CHECKER_DIR_NAME,
+        UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
+        UNIT_TEST_RESULT_REPORTING_DIR_NAME,
     ]
 
 
@@ -360,12 +364,22 @@ class CdswRunnerBase(ABC):
         return default_recipients
 
     @staticmethod
-    def get_filename():
+    def get_filename(dir_name: str):
+        # Apparently, there is no chance to get the stackframe that called this method.
+        # The 0th frame holds this method, though.
+        # See file: cdsw_stacktrace_example.txt
+        # Let's put the path together by hand
         stack = inspect.stack()
         LOG.debug("Discovered stack while getting filename: %s", stack)
-        filename = stack[1].filename
-        caller_file_abs_path = os.path.abspath(filename)
-        return caller_file_abs_path
+        file_path = stack[0].filename
+        rindex = file_path.rindex("cdsw" + os.sep)
+        script_abs_path = file_path[:rindex] + f"cdsw{os.sep}{dir_name}{os.sep}cdsw_runner.py"
+        if not os.path.exists(script_abs_path):
+            raise ValueError(
+                "Script should have existed under path: {}. "
+                "Please double-check the code that assembles the path!".format(script_abs_path)
+            )
+        return script_abs_path
 
 
 class CommonMailConfig:

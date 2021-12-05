@@ -1,6 +1,9 @@
 from enum import Enum
 
 BRANCH_DIFF_REPORTER_DIR_NAME = "downstream-branchdiff-reporting"
+JIRA_UMBRELLA_CHECKER_DIR_NAME = "jira-umbrella-checker"
+UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME = "unit-test-result-aggregator"
+UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
 CDSW_RUNNER_PY = "cdsw_runner.py"
