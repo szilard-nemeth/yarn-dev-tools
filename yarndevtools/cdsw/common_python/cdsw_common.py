@@ -150,11 +150,13 @@ class CdswSetup:
         )
 
         CdswSetup.prepare_env_vars(env_var_dict=env_var_dict, mandatory_env_vars=mandatory_env_vars)
+        # TODO Migrate this to CdswEnvVar
         if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
             basedir = OsUtils.get_env_value(ENV_OVERRIDE_SCRIPT_BASEDIR)
         else:
             basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
 
+        # This must happen before other operations as it sets: CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
 
         install_requirements_env = OsUtils.get_env_value(CdswEnvVar.INSTALL_REQUIREMENTS.value, True)
@@ -219,10 +221,6 @@ class CdswSetup:
         # the linked script is not there.
         LOG.info("Copying jobs to place...")
         for cdsw_script_dirname in CommonDirs.CDSW_SCRIPT_DIR_NAMES:
-            # It's safer to delete dirs one by one explictly, without specifying just the parent
-            cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
-            FileUtils.remove_dir(cdsw_job_dir, force=True)
-
             found_files = FileUtils.find_files(
                 CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
                 find_type=FindResultType.FILES,
@@ -237,6 +235,10 @@ class CdswSetup:
                     f"and parent dir '{cdsw_script_dirname}'. "
                     f"Actual results: {found_files}"
                 )
+            # It's safer to delete dirs one by one explicitly, without specifying just the parent
+            cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
+            FileUtils.remove_dir(cdsw_job_dir, force=True)
+
             cdsw_script_path = found_files[0]
             FileUtils.create_new_dir(cdsw_job_dir)
             new_link_path = FileUtils.join_path(cdsw_job_dir, CDSW_RUNNER_PY)
