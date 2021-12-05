@@ -273,7 +273,10 @@ class CdswRunnerBase(ABC):
         self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
 
-        # Restarting python process. sys.executable: /usr/local/bin/python3.8, sys.argv: ['/usr/local/bin/ipython3'], final command: ['python', '/usr/local/bin/ipython3']
+        # CDSW env values:
+        # sys.executable: /usr/local/bin/python3.8,
+        # sys.argv: ['/usr/local/bin/ipython3'],
+        # final command: ['python', '/usr/local/bin/ipython3']
         if setup_result.install_requirements_invoked:
             final_command = [sys.executable] + [self.cdsw_runner_script_path]
             LOG.info(
@@ -359,6 +362,7 @@ class CdswRunnerBase(ABC):
     @staticmethod
     def get_filename():
         stack = inspect.stack()
+        LOG.debug("Discovered stack while getting filename: %s", stack)
         filename = stack[1].filename
         caller_file_abs_path = os.path.abspath(filename)
         return caller_file_abs_path
