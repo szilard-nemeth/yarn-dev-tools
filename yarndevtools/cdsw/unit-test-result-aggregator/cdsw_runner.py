@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+import os
 from enum import Enum
 from typing import List
 
@@ -191,6 +192,10 @@ class CdswRunner(CdswRunnerBase):
             val = '"' + val + '"'
         return f"{switch_name} {val}"
 
+    @staticmethod
+    def get_filename():
+        return os.path.join(os.path.dirname(__file__), os.path.basename(__file__))
+
 
 if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value] + [
@@ -198,4 +203,4 @@ if __name__ == "__main__":
     ]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, __file__)
+    runner.start(setup_result, CdswRunner.get_filename())
