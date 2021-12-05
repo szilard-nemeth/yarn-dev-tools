@@ -268,13 +268,14 @@ class CdswRunnerBase(ABC):
 
     def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         LOG.info("Starting CDSW runner...")
+        LOG.info("Setup result: %s", setup_result)
         self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
 
         if setup_result.install_requirements_invoked:
-            LOG.info("Sys.executable: " + sys.executable)
-            LOG.info("Sys.argv: " + str(sys.argv))
-            os.execv(sys.executable, ["python"] + sys.argv)
+            final_command = ["python"] + sys.argv
+            LOG.info("Restarting python process. sys.executable: %s, sys.argv: %s, final command: %s", final_command)
+            os.execv(sys.executable, final_command)
 
     @abstractmethod
     def start(self, basedir, cdsw_runner_script_path: str):
