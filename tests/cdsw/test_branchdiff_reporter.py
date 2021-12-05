@@ -382,13 +382,17 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         args_list.extend([cls.config.python_module_mode.value, cls.config.exec_mode.value])
         args_str = " ".join(args_list)
         return cls.docker_test_setup.exec_cmd_in_container(
-            f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args_str}", stdin=False, tty=False, env=env
+            f"{BASH} {ContainerFiles.INITIAL_CDSW_SETUP_SCRIPT} {args_str}",
+            stdin=False,
+            tty=False,
+            env=env,
+            stream=True,
         )
 
     @classmethod
     def exec_get_python_module_root(cls, env: Dict[str, str] = None, callback=None):
         return cls.docker_test_setup.exec_cmd_in_container(
-            cls.config.python_module_mode_query_cmd, stdin=False, tty=False, env=env, callback=callback
+            cls.config.python_module_mode_query_cmd, stdin=False, tty=False, env=env, callback=callback, stream=True
         )
 
     def setUp(self):
@@ -460,11 +464,13 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.docker_test_setup.exec_cmd_in_container(
             f"{ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS}/test.sh",
             callback=_kill_after_5_lines,
+            stream=True,
             fail_on_error=False,
         )
         self.docker_test_setup.exec_cmd_in_container(
             f"{PYTHON3} {ContainerDirs.YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS}/test.py",
             callback=_kill_after_5_lines,
+            stream=True,
             fail_on_error=False,
         )
         self.assertTrue(len(captured_output) >= 3, "captured output is: {}".format(captured_output))
