@@ -275,7 +275,12 @@ class CdswRunnerBase(ABC):
 
         if setup_result.install_requirements_invoked:
             final_command = ["python"] + sys.argv
-            LOG.info("Restarting python process. sys.executable: %s, sys.argv: %s, final command: %s", final_command)
+            LOG.info(
+                "Restarting python process. sys.executable: %s, sys.argv: %s, final command: %s",
+                sys.executable,
+                sys.argv,
+                final_command,
+            )
             # TODO
             # os.execv(sys.executable, final_command)
 
