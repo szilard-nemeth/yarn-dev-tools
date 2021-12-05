@@ -2,11 +2,14 @@
 set -x
 
 #echo "Uninstalling package: 'yarn-dev-tools'"
+set +e
 pip3 show yarn-dev-tools
 pip3 uninstall -y yarn-dev-tools
 pip3 uninstall -y python-commons
 pip3 uninstall -y google-api-wrapper
 
+set -e
+echo $@
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <execution mode>"
     echo "Example: $0 cloudera --> Uses execution mode: 'cloudera'"

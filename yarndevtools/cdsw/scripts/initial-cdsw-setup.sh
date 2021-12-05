@@ -3,6 +3,7 @@ set -x
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+echo "Received arguments: $@"
 if [ $# -ne 2 ]; then
     echo "Usage: $0 <python module mode> <execution mode>"
     echo "Example: $0 global cloudera --> Uses 'global' module mode with execution mode: 'cloudera'"
