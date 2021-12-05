@@ -1,4 +1,5 @@
 import dataclasses
+import inspect
 import sys
 from abc import ABC, abstractmethod
 import logging
@@ -347,6 +348,13 @@ class CdswRunnerBase(ABC):
         if recipients_env:
             return recipients_env
         return default_recipients
+
+    @staticmethod
+    def get_filename():
+        stack = inspect.stack()
+        filename = stack[1].filename
+        caller_file_abs_path = os.path.abspath(filename)
+        return caller_file_abs_path
 
 
 class CommonMailConfig:
