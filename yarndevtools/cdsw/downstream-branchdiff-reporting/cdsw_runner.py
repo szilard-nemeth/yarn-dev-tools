@@ -7,7 +7,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.argparser import CommandType
-from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetup, CommonDirs
+from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetup, CommonDirs, CdswSetupResult
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar
 import logging
 
@@ -19,13 +19,13 @@ ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
 
 
 class CdswRunner(CdswRunnerBase):
-    def start(self, basedir):
-        self.start_common(basedir)
+    def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
+        self.start_common(setup_result, cdsw_runner_script_path)
         repo_type_env = OsUtils.get_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.DOWNSTREAM.value)
         repo_type: RepoType = RepoType[repo_type_env.upper()]
 
         if repo_type == RepoType.DOWNSTREAM:
-            self.run_clone_downstream_repos_script(basedir)
+            self.run_clone_downstream_repos_script(setup_result.basedir)
         elif repo_type == RepoType.UPSTREAM:
             # If we are in upstream mode, make sure downstream dir exist
             # Currently, yarndevtools requires both repos to be present when initializing.
@@ -34,7 +34,7 @@ class CdswRunner(CdswRunnerBase):
             FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
             FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
             os.system("git init")
-            self.run_clone_upstream_repos_script(basedir)
+            self.run_clone_upstream_repos_script(setup_result.basedir)
 
         # TODO investigate why legacy script fails!
         self.run_comparator_and_send_mail(repo_type, algorithm="simple", run_legacy_script=False)
@@ -91,9 +91,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
-    basedir = CdswSetup.initial_setup(
-        mandatory_env_vars=[CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
-    )
-
+    mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
+    setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(basedir)
+    runner.start(setup_result, __file__)

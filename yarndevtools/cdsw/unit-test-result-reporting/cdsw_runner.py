@@ -8,6 +8,7 @@ from yarndevtools.argparser import CommandType, JENKINS_BUILDS_EXAMINE_UNLIMITIE
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
+    CdswSetupResult,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JenkinsTestReporterEnvVar
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
@@ -25,9 +26,9 @@ TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS} {TC_FILTER_HA
 
 
 class CdswRunner(CdswRunnerBase):
-    def start(self, basedir):
-        self.start_common(basedir)
-        self.run_clone_downstream_repos_script(basedir)
+    def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
+        self.start_common(setup_result, cdsw_runner_script_path)
+        self.run_clone_downstream_repos_script(setup_result.basedir)
         self.run_test_reporter(mode=JenkinsTestReporterMode.JENKINS_MASTER)
 
     def run_test_reporter(
@@ -87,8 +88,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
-    basedir = CdswSetup.initial_setup(
-        mandatory_env_vars=[CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
-    )
+    mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
+    setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(basedir)
+    runner.start(setup_result, __file__)

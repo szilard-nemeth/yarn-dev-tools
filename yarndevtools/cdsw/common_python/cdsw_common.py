@@ -1,3 +1,4 @@
+import dataclasses
 import sys
 from abc import ABC, abstractmethod
 import logging
@@ -94,6 +95,13 @@ class PythonModuleMode(Enum):
     GLOBAL = "global"
 
 
+@dataclasses.dataclass
+class CdswSetupResult:
+    basedir: str
+    install_requirements_invoked: bool
+    env_vars: Dict[str, str]
+
+
 class CdswSetup:
     @staticmethod
     def fix_pythonpath(additional_dir):
@@ -148,10 +156,19 @@ class CdswSetup:
             basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
 
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
-        CdswSetup._run_install_requirements_script()
+
+        install_requirements_env = OsUtils.get_env_value(CdswEnvVar.INSTALL_REQUIREMENTS.value, True)
+        install_requirements = False
+        if install_requirements_env is None or install_requirements_env == "True":
+            install_requirements = True
+        if install_requirements:
+            CdswSetup._run_install_requirements_script()
+        else:
+            LOG.warning("Skipping installation of python requirements as per config!")
+
         CdswSetup._copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts()
         LOG.info("Using basedir for scripts: " + basedir)
-        return basedir
+        return CdswSetupResult(basedir, install_requirements, env_var_dict)
 
     @staticmethod
     def _run_install_requirements_script(exit_on_nonzero_exitcode=False):
@@ -246,12 +263,13 @@ class CdswRunnerBase(ABC):
         if drive_enabled_env_var is None or bool(drive_enabled_env_var):
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
 
-    def start_common(self, basedir):
+    def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         LOG.info("Starting CDSW runner...")
+        self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
 
     @abstractmethod
-    def start(self, basedir):
+    def start(self, basedir, cdsw_runner_script_path: str):
         pass
 
     @staticmethod

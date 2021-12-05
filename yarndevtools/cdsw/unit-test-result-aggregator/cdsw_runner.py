@@ -14,6 +14,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
     CommonDirs,
     SKIP_AGGREGATION_DEFAULTS_FILENAME,
+    CdswSetupResult,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import REPORT_FILE_SHORT_HTML
@@ -43,8 +44,8 @@ class UnitTestResultAggregatorOptionalEnvVar(Enum):
 
 
 class CdswRunner(CdswRunnerBase):
-    def start(self, basedir):
-        self.start_common(basedir)
+    def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
+        self.start_common(setup_result, cdsw_runner_script_path)
         self.run_test_result_aggregator_and_send_mail()
 
     def run_test_result_aggregator_and_send_mail(self):
@@ -195,6 +196,6 @@ if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value] + [
         e.value for e in UnitTestResultAggregatorEnvVar
     ]
-    basedir = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
+    setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(basedir)
+    runner.start(setup_result, __file__)
