@@ -161,7 +161,7 @@ class CdswSetup:
 
         install_requirements_env = OsUtils.get_env_value(CdswEnvVar.INSTALL_REQUIREMENTS.value, True)
         install_requirements = False
-        if install_requirements_env is None or install_requirements_env == "True":
+        if install_requirements_env is None or install_requirements_env:
             install_requirements = True
         if install_requirements:
             CdswSetup._run_install_requirements_script()
