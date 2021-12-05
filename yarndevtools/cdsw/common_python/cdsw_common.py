@@ -256,19 +256,25 @@ class CdswSetup:
 
 class CdswRunnerBase(ABC):
     def __init__(self):
+        self.cdsw_runner_script_path = None
+        self.start_date_str = None
         self.common_mail_config = CommonMailConfig()
         self._setup_google_drive()
 
     def _setup_google_drive(self):
-        drive_enabled_env_var = OsUtils.get_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, "True")
-        LOG.debug("Value of env var '%s': %s", CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, drive_enabled_env_var)
-        if drive_enabled_env_var is None or bool(drive_enabled_env_var):
+        drive_enabled_env_var = OsUtils.get_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, True)
+        if drive_enabled_env_var is None or drive_enabled_env_var == "True":
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
 
     def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         LOG.info("Starting CDSW runner...")
         self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
+
+        if setup_result.install_requirements_invoked:
+            LOG.info("Sys.executable: " + sys.executable)
+            LOG.info("Sys.argv: " + str(sys.argv))
+            os.execv(sys.executable, ["python"] + sys.argv)
 
     @abstractmethod
     def start(self, basedir, cdsw_runner_script_path: str):
