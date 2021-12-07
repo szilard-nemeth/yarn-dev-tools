@@ -286,15 +286,15 @@ class CdswRunnerBase(ABC):
         # sys.argv: ['/usr/local/bin/ipython3'],
         # final command: ['python', '/usr/local/bin/ipython3']
         if setup_result.install_requirements_invoked:
-            final_command = [sys.executable] + [self.cdsw_runner_script_path]
+            final_command = [sys.executable, self.cdsw_runner_script_path]
             LOG.info(
                 "Restarting python process. sys.executable: %s, sys.argv: %s, final command: %s",
                 sys.executable,
                 sys.argv,
                 final_command,
             )
-            # TODO
-            # os.execv(sys.executable, final_command)
+            OsUtils.set_env_value(CdswEnvVar.INSTALL_REQUIREMENTS.value, False)
+            os.execvp(sys.executable, final_command)
 
     @abstractmethod
     def start(self, basedir, cdsw_runner_script_path: str):
