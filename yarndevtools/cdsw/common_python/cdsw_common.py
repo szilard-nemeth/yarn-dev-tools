@@ -49,7 +49,7 @@ from yarndevtools.cdsw.common_python.constants import (
 from pythoncommons.process import SubprocessCommandRunner
 
 # Constants
-# Move this to EnvVar enum
+# TODO Move this to EnvVar enum
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -164,11 +164,9 @@ class CdswSetup:
         # This must happen before other operations as it sets: CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
 
-        install_requirements_env = OsUtils.get_env_value(CdswEnvVar.INSTALL_REQUIREMENTS.value, True)
         install_requirements = False
-        if install_requirements_env is None or install_requirements_env:
+        if CdswRunnerBase._is_env_var_true(CdswEnvVar.INSTALL_REQUIREMENTS.value, default_val=True):
             install_requirements = True
-        if install_requirements:
             CdswSetup._run_install_requirements_script()
         else:
             LOG.warning("Skipping installation of python requirements as per config!")
@@ -267,9 +265,15 @@ class CdswRunnerBase(ABC):
         self._setup_google_drive()
 
     def _setup_google_drive(self):
-        drive_enabled_env_var = OsUtils.get_env_value(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, True)
-        if drive_enabled_env_var is None or drive_enabled_env_var == "True":
+        if self._is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
+
+    @staticmethod
+    def _is_env_var_true(env_var_name, default_val):
+        env_var_value = OsUtils.get_env_value(env_var_name, default_val)
+        if env_var_value is None:
+            raise ValueError("Env var value should not be None for env var name: '{}'".format(env_var_name))
+        return env_var_value == "True" or env_var_value is True
 
     def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         LOG.info("Starting CDSW runner...")
