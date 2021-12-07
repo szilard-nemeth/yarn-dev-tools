@@ -60,14 +60,13 @@ class CdswRunner(CdswRunnerBase):
         sender = "YARN branch diff reporter"
         subject = f"YARN branch diff report [{algorithm} algorithm, start date: {self.start_date_str}]"
         command_data_filename: str = f"command_data_{algorithm}_{self.start_date_str}.zip"
-        drive_api_file: DriveApiFile = self.upload_command_data_to_drive(cmd_type, command_data_filename)
-        link_text = f'<a href="{drive_api_file.link}">Command data file: {command_data_filename}</a>'
-        self.send_latest_command_data_in_email(
-            sender=sender,
-            subject=subject,
-            attachment_filename=command_data_filename,
-            prepend_text_to_email_body=link_text,
-        )
+
+        kwargs = {"attachment_filename": command_data_filename}
+        if self.is_drive_integration_enabled:
+            drive_api_file: DriveApiFile = self.upload_command_data_to_drive(cmd_type, command_data_filename)
+            link_text = f'<a href="{drive_api_file.link}">Command data file: {command_data_filename}</a>'
+            kwargs["prepend_text_to_email_body"] = link_text
+        self.send_latest_command_data_in_email(sender, subject, **kwargs)
 
     def _run_comparator(
         self,

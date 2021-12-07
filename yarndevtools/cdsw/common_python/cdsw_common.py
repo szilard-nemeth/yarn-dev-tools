@@ -268,6 +268,10 @@ class CdswRunnerBase(ABC):
         if self._is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
 
+    @property
+    def is_drive_integration_enabled(self):
+        return self.drive_cdsw_helper is not None
+
     @staticmethod
     def _is_env_var_true(env_var_name, default_val):
         env_var_value = OsUtils.get_env_value(env_var_name, default_val)
