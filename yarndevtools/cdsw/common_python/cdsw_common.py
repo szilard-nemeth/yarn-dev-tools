@@ -272,6 +272,7 @@ class CdswRunnerBase(ABC):
     def is_drive_integration_enabled(self):
         return self.drive_cdsw_helper is not None
 
+    # TODO Move to pythoncommons
     @staticmethod
     def _is_env_var_true(env_var_name, default_val):
         env_var_value = OsUtils.get_env_value(env_var_name, default_val)
@@ -286,13 +287,16 @@ class CdswRunnerBase(ABC):
         self.start_date_str = self.current_date_formatted()
 
         # CDSW env values:
-        # sys.executable: /usr/local/bin/python3.8,
-        # sys.argv: ['/usr/local/bin/ipython3'],
-        # final command: ['python', '/usr/local/bin/ipython3']
-        if setup_result.install_requirements_invoked:
+        # sys.executable: /usr/local/bin/python3
+        # sys.argv: ['/usr/local/bin/ipython3']
+        # final command: ['/usr/local/bin/python3.8',
+        #           '/home/cdsw/.local/lib/python3.8/site-packages/yarndevtools/cdsw/unit-test-result-reporting/cdsw_runner.py']
+        if setup_result.install_requirements_invoked and CdswRunnerBase._is_env_var_true(
+            CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=True
+        ):
             final_command = [sys.executable, self.cdsw_runner_script_path]
             LOG.info(
-                "Restarting python process. sys.executable: %s, sys.argv: %s, final command: %s",
+                "Restarting Python process. sys.executable: %s, sys.argv: %s, final command: %s",
                 sys.executable,
                 sys.argv,
                 final_command,

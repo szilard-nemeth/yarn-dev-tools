@@ -372,7 +372,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def exec_branch_diff_script(cls, args="", env: Dict[str, str] = None):
         return cls.docker_test_setup.exec_cmd_in_container(
-            f"{PYTHON3} {ContainerFiles.BRANCH_DIFF_SCRIPT} {args}", stdin=False, tty=False, env=env
+            f"{PYTHON3} {ContainerFiles.BRANCH_DIFF_SCRIPT} {args}", stdin=False, tty=False, env=env, stream=True
         )
 
     @classmethod
