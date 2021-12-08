@@ -272,6 +272,7 @@ class BranchComparator:
         elif self.config.repo_type == RepoType.UPSTREAM:
             self.repo = upstream_repo
         self.branches: Branches = Branches(self.config, self.repo, branch_names)
+        self.matching_result = None
 
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()
@@ -279,9 +280,9 @@ class BranchComparator:
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
-        matching_result = self.compare()
+        self.matching_result = self.compare()
         if self.config.run_legacy_script:
-            LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path, matching_result)
+            LegacyScriptRunner.start(self.config, self.branches, self.repo.repo_path, self.matching_result)
 
     def validate_branches(self):
         both_exist = self.branches.validate(BranchType.FEATURE)

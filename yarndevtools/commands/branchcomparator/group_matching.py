@@ -346,7 +346,7 @@ class CommitGrouper:
         # 4. Pay attention to ordering
         # 5. Pay attention to revert commits
         self.branch_data = branch_data
-        self.jira_id_to_commits = jira_id_to_commits
+        self.jira_id_to_commits: JiraIdToCommitMappings = jira_id_to_commits
         self._groups_by_jira_id: Dict[BranchType, List[CommitGroup]] = self._create_groups()
         self._groups_by_msg: Dict[BranchType, List[CommitGroup]] = self._create_groups_by_message()
         self.sanity_check()
@@ -381,7 +381,9 @@ class CommitGrouper:
         groups: Dict[BranchType, List[CommitGroup]] = {}
         for br_type in self.branch_data.keys():
             groups[br_type] = []
-            jira_ids_commits_for_branch = self.jira_id_to_commits.get_by_branch_type(br_type)
+            jira_ids_commits_for_branch: Dict[str, List[CommitData]] = self.jira_id_to_commits.get_by_branch_type(
+                br_type
+            )
             visited_commit_hashes: Set[str] = set()
 
             # In the following scenario, grouped_commits could hold ee50a12d60ca19941f13fd123b9e8a8ea5d41f42 twice.
@@ -400,25 +402,38 @@ class CommitGrouper:
             # --> SOLUTION: Use set collection type for 'grouped_commits'.
             # --> PROBLEM: This drops away the ordering info of commits.
 
+            all_visited_jira_ids: Set[str] = set()
             for jira_id, commits in jira_ids_commits_for_branch.items():
+                if jira_id in all_visited_jira_ids:
+                    continue
+                # Get all related jira ids first
+                visited_jira_ids: Set[str] = set()
+                jira_ids: Set[str] = self._get_all_jira_ids(visited_jira_ids, jira_id, jira_ids_commits_for_branch)
+
+                # Get all commits for all jira ids
                 grouped_commits: Set[CommitData] = set()
-                for commit in commits:
-                    # Optimization: Commit is only visited if all of its jira IDs / other related commits
-                    # are checked and added to groups
-                    if commit.hash in visited_commit_hashes:
-                        continue
-                    grouped_commits.add(commit)
-                    jira_ids = commit.jira_id_data.all_matched_jira_ids
-                    for jid in jira_ids:
-                        # skip current jira id, we are interested in the other ones
-                        if jid == jira_id:
-                            continue
-                        other_commits: List[CommitData] = jira_ids_commits_for_branch[jid]
-                        grouped_commits.update(other_commits)
+                for jid in jira_ids:
+                    grouped_commits.update(jira_ids_commits_for_branch[jid])
+
                 if len(grouped_commits) > 0:
                     groups[br_type].append(CommitGroup(br_type, grouped_commits, CommitMatchType.MATCHED_BY_ID))
                     visited_commit_hashes.update([c.hash for c in grouped_commits])
+
+                all_visited_jira_ids.update(jira_ids)
         return groups
+
+    def _get_all_jira_ids(self, visited: Set[str], jira_id: str, jira_ids_to_commits_dict: Dict[str, List[CommitData]]):
+        all_jira_ids: Set[str] = set()
+        commits: List[CommitData] = jira_ids_to_commits_dict[jira_id]
+        for commit in commits:
+            all_jira_ids.update(commit.jira_id_data.all_matched_jira_ids)
+            visited.add(jira_id)
+
+        # Make a copy of set for iteration, to avoid: RuntimeError: Set changed size during iteration
+        for jira_id in set(all_jira_ids):
+            if jira_id not in visited:
+                all_jira_ids.update(self._get_all_jira_ids(visited, jira_id, jira_ids_to_commits_dict))
+        return all_jira_ids
 
     def _create_groups_by_message(self) -> Dict[BranchType, List[CommitGroup]]:
         groups: Dict[BranchType, List[CommitGroup]] = {}
