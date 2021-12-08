@@ -346,6 +346,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        if GitHubUtils.is_github_ci_execution():
+            # Always use PROD config when Github CI is executed
+            LOG.info("Changing configuration to PROD as Github Actions CI is being executed...")
+            YarnCdswBranchDiffTests.config = PROD_CONFIG
+
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         cls._setup_logging()
