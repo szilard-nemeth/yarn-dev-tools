@@ -316,8 +316,8 @@ class CdswRunnerBase(ABC):
             argv0 = sys.argv[0]
             if "ipython" not in argv0:
                 raise ValueError("Was expecting sys.argv[] to contain 'ipython'! Current value: {}".format(argv0))
-            executable = argv0
-            command_args = [self.cdsw_runner_script_path]
+            executable = sys.executable
+            command_args = [argv0, self.cdsw_runner_script_path]
         else:
             LOG.info("Detected artificial CDSW environment")
             executable = sys.executable
