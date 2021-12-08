@@ -382,6 +382,7 @@ class CdswRunnerBase(ABC):
         attachment_filename=None,
         email_body_file: str = None,
         prepend_text_to_email_body: str = None,
+        send_attachment: bool = True,
     ):
         if not recipients:
             recipients = self.determine_recipients()
@@ -390,6 +391,7 @@ class CdswRunnerBase(ABC):
         email_body_prepend_param = (
             f"--prepend_email_body_with_text '{prepend_text_to_email_body}'" if prepend_text_to_email_body else ""
         )
+        send_attachment_param = "--send-attachment" if send_attachment else ""
         self.execute_yarndevtools_script(
             f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.name} "
             f"{self.common_mail_config.as_arguments()}"
@@ -398,7 +400,8 @@ class CdswRunnerBase(ABC):
             f'--recipients "{recipients}" '
             f"--attachment-filename {attachment_filename_val} "
             f"{email_body_file_param} "
-            f"{email_body_prepend_param}"
+            f"{email_body_prepend_param} "
+            f"{send_attachment_param}"
         )
 
     def determine_recipients(self, default_recipients=MAIL_ADDR_YARN_ENG_BP):

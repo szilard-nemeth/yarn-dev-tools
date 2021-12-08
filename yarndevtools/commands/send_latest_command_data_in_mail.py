@@ -17,9 +17,14 @@ class SendLatestCommandDataInEmailConfig:
         self.email: FullEmailConfig = FullEmailConfig(args, attachment_file)
         self.email_body_file: str = args.email_body_file
         self.prepend_email_body_with_text: str = args.prepend_email_body_with_text
+        self.send_attachment: bool = args.send_attachment
 
     def __str__(self):
-        return f"Email config: {self.email}\n" f"Email body file: {self.email_body_file}\n"
+        return (
+            f"Email config: {self.email}\n"
+            f"Email body file: {self.email_body_file}\n"
+            f"Send attachment: {self.send_attachment}\n"
+        )
 
 
 class SendLatestCommandDataInEmail:
@@ -43,15 +48,21 @@ class SendLatestCommandDataInEmail:
 
         body_mimetype: EmailMimeType = self._determine_body_mimetype_by_attachment(email_body_file)
         email_service = EmailService(self.config.email.email_conf)
+        kwargs = {
+            "body_mimetype": body_mimetype,
+        }
+
+        if self.config.send_attachment:
+            kwargs["attachment_file"] = self.config.email.attachment_file
+            kwargs["override_attachment_filename"] = self.config.email.attachment_filename
+
         try:
             email_service.send_mail(
                 self.config.email.sender,
                 self.config.email.subject,
                 email_body_contents,
                 self.config.email.recipients,
-                self.config.email.attachment_file,
-                body_mimetype=body_mimetype,
-                override_attachment_filename=self.config.email.attachment_filename,
+                **kwargs,
             )
         except SMTPAuthenticationError as smtpe:
             ignore_smpth_auth_env: str = OsUtils.get_env_value(EnvVar.IGNORE_SMTP_AUTH_ERROR.value, "")

@@ -335,6 +335,14 @@ class ArgParser:
             help="Prepend the specified text to the email's body.",
             default=SUMMARY_FILE_HTML,
         )
+
+        parser.add_argument(
+            "-s",
+            "--send-attachment",
+            type=bool,
+            default=True,
+            help="Send command data as email attachment",
+        )
         ArgParser.add_email_arguments(parser)
         parser.set_defaults(func=yarn_dev_tools.send_latest_command_data)
 
