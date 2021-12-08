@@ -3,6 +3,7 @@ set -x
 
 #echo "Uninstalling package: 'yarn-dev-tools'"
 set +e
+pip3 -V
 pip3 show yarn-dev-tools
 pip3 uninstall -y yarn-dev-tools
 pip3 uninstall -y python-commons
