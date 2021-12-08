@@ -286,7 +286,7 @@ class CdswRunnerBase(ABC):
         self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
         if setup_result.install_requirements_invoked and CdswRunnerBase._is_env_var_true(
-            CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=True
+            CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False
         ):
             self.restart_execution()
 
