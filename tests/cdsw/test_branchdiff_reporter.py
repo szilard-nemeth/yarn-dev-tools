@@ -173,6 +173,8 @@ class DockerBasedTestConfig:
                 get_str(CdswEnvVar.MAIL_RECIPIENTS): "nsziszy@gmail.com",
                 get_str(CdswEnvVar.TEST_EXECUTION_MODE): self.exec_mode.value,
                 get_str(CdswEnvVar.INSTALL_REQUIREMENTS): self.install_requirements,
+                # Always disable restarts when running tests
+                get_str(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED): False,
             },
             # !! WARNING: User-specific settings below !!
             make_key(p_exec_mode, get_str(TestExecMode.CLOUDERA)): {
@@ -335,7 +337,7 @@ QUICK_DEV_CONFIG = DockerBasedTestConfig(
     container_sleep_seconds=500,
     install_requirements=False,
 )
-ACTIVE_CONFIG = DEV_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
+ACTIVE_CONFIG = QUICK_DEV_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
 
 
 class YarnCdswBranchDiffTests(unittest.TestCase):
@@ -446,7 +448,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             double_check_with_ls=True,
         )
 
-        exit_code = self.exec_branch_diff_script(env=self.config.env_dict)
+        exit_code, _ = self.exec_branch_diff_script(env=self.config.env_dict)
         self.assertEqual(exit_code, 0)
         self.save_latest_zip_from_container()
 
