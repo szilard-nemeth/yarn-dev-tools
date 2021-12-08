@@ -339,6 +339,8 @@ class ArgParser:
         parser.add_argument(
             "-s",
             "--send-attachment",
+            dest="send_attachment",
+            action="store_true",
             type=bool,
             default=True,
             help="Send command data as email attachment",
