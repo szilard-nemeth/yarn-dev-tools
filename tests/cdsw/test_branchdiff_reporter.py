@@ -463,8 +463,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         def _kill_after_5_lines(cmd, out, docker_setup):
             captured_output.append(out)
             if len(captured_output) >= 3:
-                exit_code, pid = docker_setup.exec_cmd_in_container(f"pgrep -f {os.path.basename(cmd)}", stream=False)
-                docker_setup.exec_cmd_in_container(f"kill {pid}", stream=False, fail_on_error=True)
+                exit_code, pid = docker_setup.exec_cmd_in_container(
+                    f"pgrep -f {os.path.basename(cmd)}", stream=False, fail_on_error=False
+                )
+                if exit_code == 0:
+                    docker_setup.exec_cmd_in_container(f"kill {pid}", stream=False, fail_on_error=True)
 
         self.setup_default_docker_mounts()
         self.docker_test_setup.run_container()
