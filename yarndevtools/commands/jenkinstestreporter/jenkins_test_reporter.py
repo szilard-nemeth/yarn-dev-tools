@@ -59,6 +59,10 @@ class JenkinsTestReporterMode(Enum):
             "CDH-7.1-maint-Hadoop-HDFS-Unit",
             "CDH-7.1-maint-Hadoop-MR-Unit",
             "CDH-7.1-maint-Hadoop-YARN-Unit",
+            "CDH-7.1.7.1000-Hadoop-Common-Unit",
+            "CDH-7.1.7.1000-Hadoop-HDFS-Unit",
+            "CDH-7.1.7.1000-Hadoop-MR-Unit",
+            "CDH-7.1.7.1000-Hadoop-YARN-Unit",
         ],
     )
     MAWO = ("MAWO", "http://build.infra.cloudera.com/", ["Mawo-UT-hadoop-CDPD-7.x", "Mawo-UT-hadoop-CDPD-7.1.x"])
