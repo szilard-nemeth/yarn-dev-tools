@@ -8,7 +8,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingS
 from pythoncommons.project_utils import ProjectRootDeterminationStrategy, ProjectUtils
 
 from tests.test_utilities import TestUtilities
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.unittestresultaggregator.common import TestCaseFilter, MatchExpression, AggregateFilter
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import TestCaseFilters
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME

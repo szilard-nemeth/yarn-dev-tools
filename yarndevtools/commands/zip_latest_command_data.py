@@ -6,7 +6,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.string_utils import StringUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import (
     LATEST_DATA_ZIP_LINK_NAME,
 )

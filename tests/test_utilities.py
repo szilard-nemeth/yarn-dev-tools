@@ -13,8 +13,7 @@ from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
 from pythoncommons.zip_utils import ZipFileUtils
 
-from yarndevtools.argparser import CommandType
-from yarndevtools.common.shared_command_utils import YarnDevToolsTestEnvVar
+from yarndevtools.common.shared_command_utils import YarnDevToolsTestEnvVar, CommandType
 from yarndevtools.constants import (
     HADOOP_REPO_APACHE,
     TRUNK,

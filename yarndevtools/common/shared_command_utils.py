@@ -4,6 +4,8 @@ from os.path import expanduser
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
 
+from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME
+
 SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
 
 
@@ -46,3 +48,39 @@ class FullEmailConfig:
             f"Subject: {self.subject}\n"
             f"Attachment file: {self.attachment_file}\n"
         )
+
+
+class CommandType(Enum):
+    SAVE_PATCH = ("save_patch", False)
+    CREATE_REVIEW_BRANCH = ("create_review_branch", False)
+    BACKPORT_C6 = ("backport_c6", False)
+    UPSTREAM_PR_FETCH = ("upstream_pr_fetch", False)
+    SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", False)
+    DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", False)
+    FETCH_JIRA_UMBRELLA_DATA = ("fetch_jira_umbrella_data", True, "latest-session-upstream-umbrella-fetcher")
+    BRANCH_COMPARATOR = ("branch_comparator", True, "latest-session-branchcomparator")
+    ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
+    SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
+    JENKINS_TEST_REPORTER = ("jenkins_test_reporter", False)
+    UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
+
+    def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
+        self.real_name = value
+        self.session_based = session_based
+
+        if session_link_name:
+            self.session_link_name = session_link_name
+        else:
+            self.session_link_name = f"latest-session-{value}"
+
+        self.log_link_name = f"latest-log-{value}"
+        self.command_data_name = f"latest-command-data-{value}"
+        self.command_data_zip_name: str = f"{LATEST_DATA_ZIP_LINK_NAME}-{value}"
+
+    @staticmethod
+    def from_str(val):
+        val_to_enum = {ct.name: ct for ct in CommandType}
+        if val in val_to_enum:
+            return val_to_enum[val]
+        else:
+            raise NotImplementedError

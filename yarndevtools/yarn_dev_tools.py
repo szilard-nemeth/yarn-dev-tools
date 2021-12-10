@@ -16,7 +16,7 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import Jenk
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import UnitTestResultAggregator
 from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
-from yarndevtools.argparser import ArgParser, CommandType
+from yarndevtools.argparser import ArgParser
 from yarndevtools.commands.backporter import Backporter
 from yarndevtools.commands.format_patch_saver import FormatPatchSaver
 from yarndevtools.commands.patch_saver import PatchSaver
@@ -24,7 +24,7 @@ from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.commands.upstream_jira_patch_differ import UpstreamJiraPatchDiffer
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
-from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar
+from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar, CommandType
 from yarndevtools.constants import (
     ENV_HADOOP_DEV_DIR,
     ENV_CLOUDERA_HADOOP_ROOT,

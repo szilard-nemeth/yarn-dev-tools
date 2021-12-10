@@ -4,7 +4,7 @@ import unittest
 from pythoncommons.constants import ExecutionMode
 
 from tests.test_utilities import TestUtilities
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.patch_saver import PatchSaver
 from yarndevtools.constants import TRUNK
 from yarndevtools.yarn_dev_tools import YarnDevTools

@@ -19,7 +19,6 @@ from pythoncommons.project_utils import (
     ProjectUtilsEnvVar,
 )
 
-from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CommonDirs,
     PythonModuleMode,
@@ -32,7 +31,7 @@ from yarndevtools.cdsw.common_python.constants import (
     BranchComparatorEnvVar,
     CDSW_RUNNER_PY,
 )
-from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PROJECTS_DIR
+from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PROJECTS_DIR, CommandType
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, APACHE, HADOOP, CLOUDERA
 
 PYTHON3 = "python3"

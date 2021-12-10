@@ -4,7 +4,7 @@ import unittest
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
 from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA
 from tests.test_utilities import TestUtilities, Object

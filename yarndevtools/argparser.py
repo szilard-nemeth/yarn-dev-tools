@@ -2,7 +2,6 @@ import argparse
 import logging
 import re
 import sys
-from enum import Enum
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JenkinsTestReporterMode,
@@ -12,8 +11,8 @@ from yarndevtools.commands.unittestresultaggregator.common import SummaryMode, M
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
     DEFAULT_LINE_SEP,
 )
-from yarndevtools.common.shared_command_utils import RepoType
-from yarndevtools.constants import TRUNK, SUMMARY_FILE_HTML, LATEST_DATA_ZIP_LINK_NAME
+from yarndevtools.common.shared_command_utils import RepoType, CommandType
+from yarndevtools.constants import TRUNK, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
 
@@ -25,42 +24,6 @@ else:
     from cdsw_compat import DelegatedArgumentParser as ArgumentParser
 
 # TODO Move all parser static methods to individual commands (maybe abstract base class?)
-
-
-class CommandType(Enum):
-    SAVE_PATCH = ("save_patch", False)
-    CREATE_REVIEW_BRANCH = ("create_review_branch", False)
-    BACKPORT_C6 = ("backport_c6", False)
-    UPSTREAM_PR_FETCH = ("upstream_pr_fetch", False)
-    SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", False)
-    DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", False)
-    FETCH_JIRA_UMBRELLA_DATA = ("fetch_jira_umbrella_data", True, "latest-session-upstream-umbrella-fetcher")
-    BRANCH_COMPARATOR = ("branch_comparator", True, "latest-session-branchcomparator")
-    ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
-    SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
-    JENKINS_TEST_REPORTER = ("jenkins_test_reporter", False)
-    UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
-
-    def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
-        self.real_name = value
-        self.session_based = session_based
-
-        if session_link_name:
-            self.session_link_name = session_link_name
-        else:
-            self.session_link_name = f"latest-session-{value}"
-
-        self.log_link_name = f"latest-log-{value}"
-        self.command_data_name = f"latest-command-data-{value}"
-        self.command_data_zip_name: str = f"{LATEST_DATA_ZIP_LINK_NAME}-{value}"
-
-    @staticmethod
-    def from_str(val):
-        val_to_enum = {ct.name: ct for ct in CommandType}
-        if val in val_to_enum:
-            return val_to_enum[val]
-        else:
-            raise NotImplementedError
 
 
 class ArgParser:

@@ -8,7 +8,7 @@ from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,

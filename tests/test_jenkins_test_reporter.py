@@ -16,7 +16,7 @@ from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from tests.test_utilities import Object, TestUtilities
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter, Email
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 

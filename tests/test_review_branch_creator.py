@@ -3,7 +3,7 @@ import unittest
 
 from pythoncommons.file_utils import FileUtils
 
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.constants import TRUNK, ORIGIN_TRUNK
 from tests.test_utilities import TestUtilities, Object

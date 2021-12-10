@@ -1,7 +1,7 @@
 import logging
 import unittest
 
-from yarndevtools.argparser import CommandType
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
 from yarndevtools.constants import APACHE, TRUNK, HADOOP_REPO_TEMPLATE
 from tests.test_utilities import TestUtilities, Object

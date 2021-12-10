@@ -34,7 +34,6 @@ from pythoncommons.project_utils import (
     PROJECTS_BASEDIR_NAME,
 )
 
-from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     PROJECT_NAME,
@@ -50,7 +49,7 @@ from pythoncommons.process import SubprocessCommandRunner
 
 # Constants
 # TODO Move this to EnvVar enum
-from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
+from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR, CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CDSW_PROJECT = "cdsw"

@@ -32,10 +32,7 @@ from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.argparser import (
-    CommandType,
-)
-from yarndevtools.common.shared_command_utils import FullEmailConfig, SECRET_PROJECTS_DIR
+from yarndevtools.common.shared_command_utils import FullEmailConfig, SECRET_PROJECTS_DIR, CommandType
 
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, JENKINS_TEST_REPORTER
 
