@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 import logging
-import os
 
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.argparser import CommandType, JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL, JenkinsTestReporterCacheType
+from yarndevtools.argparser import CommandType
 from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
@@ -19,6 +18,8 @@ from yarndevtools.cdsw.common_python.constants import (
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JenkinsTestReporterMode,
     DEFAULT_REQUEST_LIMIT,
+    JenkinsTestReporterCacheType,
+    JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL,
 )
 
 LOG = logging.getLogger(__name__)

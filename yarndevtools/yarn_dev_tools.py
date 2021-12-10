@@ -1,11 +1,8 @@
 #!/usr/bin/python
 
-import sys
 import logging
 import os
 import time
-from logging.handlers import TimedRotatingFileHandler
-from typing import Dict
 
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
