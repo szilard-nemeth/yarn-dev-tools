@@ -17,7 +17,14 @@ from pythoncommons.project_utils import ProjectUtils
 
 from tests.test_utilities import Object, TestUtilities
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter, Email
+from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
+    JenkinsTestReporter,
+    Email,
+    JenkinsApiConverter,
+    FailedJenkinsBuild,
+    JobBuildDataStatus,
+    JobBuildDataCounters,
+)
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
 EMAIL_CLASS_NAME = Email.__name__
@@ -58,6 +65,7 @@ class TestCaseStatus(Enum):
     PASSED = 0
     FAILED = 1
     SKIPPED = 2
+    REGRESSION = 3
 
 
 class BuildStatus(Enum):
@@ -96,6 +104,34 @@ class JenkinsTestReport:
     empty: bool = False
     duration: float = None
 
+    @staticmethod
+    def get_arbitrary():
+        spec = JenkinsReportJsonSpec.get_arbitrary()
+        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_dict = json.loads(report_json)
+        return report_dict, spec
+
+    @staticmethod
+    def get_with_regression():
+        spec = JenkinsReportJsonSpec.get_with_regression()
+        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_dict = json.loads(report_json)
+        return report_dict, spec
+
+    @staticmethod
+    def get_all_green():
+        spec = JenkinsReportJsonSpec.get_with_only_passed()
+        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_dict = json.loads(report_json)
+        return report_dict, spec
+
+    @staticmethod
+    def get_empty():
+        spec = JenkinsReportJsonSpec.get_empty()
+        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_dict = json.loads(report_json)
+        return report_dict, spec
+
 
 @dataclass
 class JenkinsBuild:
@@ -116,6 +152,8 @@ class JenkinsReportJsonSpec:
     failed: Dict[str, int]
     passed: Dict[str, int]
     skipped: Dict[str, int]
+    regression: Dict[str, int] = dataclasses.field(default_factory=dict)
+    allow_empty: bool = False
 
     def __post_init__(self):
         self.failed_count = sum(self.failed.values())
@@ -123,7 +161,7 @@ class JenkinsReportJsonSpec:
         self.skipped_count = sum(self.skipped.values())
         self.no_of_all_tcs: int = self.failed_count + self.passed_count + self.skipped_count
 
-        if self.no_of_all_tcs < 5:
+        if not self.allow_empty and self.no_of_all_tcs < 5:
             raise ValueError("Minimum required value of all testcases is 5!")
 
         self.failed_test_classnames = [self._generate_classname() for _ in range(5)]
@@ -154,7 +192,15 @@ class JenkinsReportJsonSpec:
         ]
 
     def get_all_failed_testcases(self):
-        return [k for k, v in self.testcase_statuses.items() if v == TestCaseStatus.FAILED.name.upper()]
+        return [
+            k
+            for k, v in self.testcase_statuses.items()
+            if v in (TestCaseStatus.FAILED.name.upper(), TestCaseStatus.REGRESSION.name.upper())
+        ]
+
+    @property
+    def len_testcases(self):
+        return len(self.testcase_statuses)
 
     @staticmethod
     def _generate_classname(words=3):
@@ -182,6 +228,49 @@ class JenkinsReportJsonSpec:
                 if class_name_fqn not in self.testcases_by_suites:
                     self.testcases_by_suites[class_name_fqn] = []
                 self.testcases_by_suites[class_name_fqn].append((tc_name, status))
+
+    @staticmethod
+    def get_arbitrary():
+        spec = JenkinsReportJsonSpec(
+            failed={
+                PACK_3: 10,
+                PACK_4: 20,
+                TestJenkinsTestReporter._get_package_from_filter(YARN_TC_FILTER): 5,
+                TestJenkinsTestReporter._get_package_from_filter(MAPRED_TC_FILTER): 10,
+            },
+            skipped={PACK_1: 10, PACK_2: 20},
+            passed={PACK_1: 10, PACK_2: 20},
+        )
+        return spec
+
+    @staticmethod
+    def get_with_regression():
+        spec = JenkinsReportJsonSpec(
+            failed={
+                PACK_3: 10,
+                PACK_4: 20,
+                TestJenkinsTestReporter._get_package_from_filter(YARN_TC_FILTER): 5,
+                TestJenkinsTestReporter._get_package_from_filter(MAPRED_TC_FILTER): 10,
+            },
+            passed={},
+            skipped={},
+            regression={PACK_1: 15, PACK_2: 25},
+        )
+        return spec
+
+    @staticmethod
+    def get_with_only_passed():
+        spec = JenkinsReportJsonSpec(
+            failed={},
+            skipped={},
+            passed={PACK_1: 10, PACK_2: 20},
+        )
+        return spec
+
+    @staticmethod
+    def get_empty():
+        spec = JenkinsReportJsonSpec(failed={}, skipped={}, passed={}, allow_empty=True)
+        return spec
 
 
 class JenkinsReportGenerator:
@@ -299,7 +388,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         return ProjectUtils.get_test_output_child_dir(JENKINS_TEST_REPORTER)
 
     @staticmethod
-    def _get_jenkins_report_as_json(spec):
+    def _get_jenkins_report_as_json(spec: JenkinsReportJsonSpec):
         report: JenkinsTestReport = JenkinsReportGenerator.generate(spec)
         report_as_dict = dataclasses.asdict(report)
         report_json = json.dumps(report_as_dict, indent=4)
@@ -467,16 +556,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @patch(SEND_MAIL_PATCH_PATH)
     def test_successful_api_response_verify_multi_filtered(self, mock_send_mail_call):
-        spec = JenkinsReportJsonSpec(
-            failed={
-                PACK_3: 10,
-                PACK_4: 20,
-                self._get_package_from_filter(YARN_TC_FILTER): 5,
-                self._get_package_from_filter(MAPRED_TC_FILTER): 10,
-            },
-            skipped={PACK_1: 10, PACK_2: 20},
-            passed={PACK_1: 10, PACK_2: 20},
-        )
+        spec = JenkinsReportJsonSpec.get_arbitrary()
         failed_yarn_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(YARN_TC_FILTER))
         failed_mr_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(MAPRED_TC_FILTER))
         build_id, builds_json = self._get_default_jenkins_builds_as_json(build_id=200)
@@ -505,3 +585,44 @@ class TestJenkinsTestReporter(unittest.TestCase):
     @staticmethod
     def _get_package_from_filter(filter: str):
         return filter.split(":")[-1]
+
+    def test_parse_job_data_check_failed_testcases(self):
+        report_dict, spec = JenkinsTestReport.get_arbitrary()
+        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
+        self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
+
+    def test_parse_job_data_check_regression_testcases(self):
+        report_dict, spec = JenkinsTestReport.get_with_regression()
+        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
+        self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
+
+    def test_parse_job_data_check_counters(self):
+        report_dict, spec = JenkinsTestReport.get_arbitrary()
+        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+
+        exp_counter = JobBuildDataCounters(failed=45, passed=30, skipped=30)
+        self.assertEqual(exp_counter, job_build_data.counters)
+        self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
+
+    def test_parse_job_data_check_status_counters_all_green_job(self):
+        report_dict, spec = JenkinsTestReport.get_all_green()
+        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        self.assertIsNone(job_build_data.counters)
+        self.assertEqual(JobBuildDataStatus.ALL_GREEN, job_build_data.status)
+
+    def test_parse_job_data_check_status_counters_empty_job(self):
+        report_dict, spec = JenkinsTestReport.get_empty()
+        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        self.assertIsNone(job_build_data.counters)
+        self.assertEqual(JobBuildDataStatus.EMPTY, job_build_data.status)
+
+    @staticmethod
+    def get_arbitrary_build_url():
+        return BUILD_URL_MAWO_7X_TEMPLATE.format(**{BUILD_URL_ID_KEY: 200})

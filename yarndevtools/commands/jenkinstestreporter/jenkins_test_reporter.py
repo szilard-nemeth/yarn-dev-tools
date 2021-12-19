@@ -295,12 +295,12 @@ class JenkinsApiConverter:
         failed_testcases = set()
         found_testcases: int = 0
         for suite in data["suites"]:
-            for case in suite["cases"]:
+            for tc in suite["cases"]:
                 found_testcases += 1
-                status = case["status"]
-                err_details = case["errorDetails"]
+                status = tc["status"]
+                err_details = tc["errorDetails"]
                 if status == "REGRESSION" or status == "FAILED" or (err_details is not None):
-                    failed_testcases.add(f"{case['className']}.{case['name']}")
+                    failed_testcases.add(f"{tc['className']}.{tc['name']}")
         if len(failed_testcases) == 0:
             if found_testcases:
                 LOG.info(
@@ -412,11 +412,11 @@ class JenkinsJobReport:
             LOG.info(f"{self.all_failing_tests[tn]}: {tn}")
 
 
+@dataclass
 class JobBuildDataCounters:
-    def __init__(self, failed, passed, skipped):
-        self.failed = failed
-        self.passed = passed
-        self.skipped = skipped
+    failed: int
+    passed: int
+    skipped: int
 
     def __str__(self):
         return f"Failed: {self.failed}, Passed: {self.passed}, Skipped: {self.skipped}"
