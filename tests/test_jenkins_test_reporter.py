@@ -24,6 +24,7 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     FailedJenkinsBuild,
     JobBuildDataStatus,
     JobBuildDataCounters,
+    JenkinsJobUrls,
 )
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
@@ -31,6 +32,7 @@ EMAIL_CLASS_NAME = Email.__name__
 SEND_MAIL_PATCH_PATH = "yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.{}.send_mail".format(
     EMAIL_CLASS_NAME
 )
+NETWORK_UTILS_PATCH_PATH = "pythoncommons.network_utils.NetworkUtils.fetch_json"
 
 DEFAULT_LATEST_BUILD_NUM = 215
 DEFAULT_NUM_BUILDS = 51
@@ -396,10 +398,15 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @staticmethod
     def _get_default_jenkins_builds_as_json(build_id=200):
-        builds: JenkinsBuilds = JenkinsBuildsGenerator.generate(BUILD_URL_MAWO_7X_TEMPLATE, latest_build_num=build_id)
-        builds_as_dict = dataclasses.asdict(builds)
+        builds_as_dict = TestJenkinsTestReporter._get_default_jenkins_builds_as_dict(build_id)
         builds_json = json.dumps(builds_as_dict, indent=4)
         return build_id, builds_json
+
+    @staticmethod
+    def _get_default_jenkins_builds_as_dict(build_id):
+        builds: JenkinsBuilds = JenkinsBuildsGenerator.generate(BUILD_URL_MAWO_7X_TEMPLATE, latest_build_num=build_id)
+        builds_as_dict = dataclasses.asdict(builds)
+        return builds_as_dict
 
     @staticmethod
     def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, job_name=DEFAULT_JOB_NAME, build_id=200):
@@ -622,6 +629,45 @@ class TestJenkinsTestReporter(unittest.TestCase):
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.EMPTY, job_build_data.status)
+
+    @patch(NETWORK_UTILS_PATCH_PATH)
+    def test_jenkins_api_converter_convert_latest_job(self, mock_fetch_json):
+        builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
+        sorted_builds_desc = sorted(builds_dict["builds"], key=lambda x: x["url"], reverse=True)
+        mock_fetch_json.return_value = builds_dict
+        job_name = "test_job"
+        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(JENKINS_MAIN_URL, job_name)
+        failed_builds, total_no_of_builds = JenkinsApiConverter.convert(job_name, jenkins_urls, days=1)
+        # fetch_builds_url = mock_fetch_json.call_args_list[0]
+        # self.assertEqual("'http://jenkins_base_url/job/test_job/api/json?tree=builds[url,result,timestamp]'", fetch_builds_url)
+        self.assertEqual(1, len(failed_builds))
+
+        exp_latest_build = sorted_builds_desc[0]
+        act_latest_build = failed_builds[0]
+        self.assertEqual(job_name, act_latest_build.job_name)
+        self.assertEqual(int(int(exp_latest_build["timestamp"]) / 1000), int(act_latest_build.timestamp))
+        self.assertEqual(exp_latest_build["url"], act_latest_build.url)
+        self.assertEqual(DEFAULT_NUM_BUILDS, total_no_of_builds)
+
+    @patch(NETWORK_UTILS_PATCH_PATH)
+    def test_jenkins_api_converter_convert_more_jobs(self, mock_fetch_json):
+        builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
+        sorted_builds_desc = sorted(builds_dict["builds"], key=lambda x: x["url"], reverse=True)
+        mock_fetch_json.return_value = builds_dict
+        job_name = "test_job"
+        jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(JENKINS_MAIN_URL, job_name)
+        failed_builds, total_no_of_builds = JenkinsApiConverter.convert(job_name, jenkins_urls, days=16)
+        # fetch_builds_url = mock_fetch_json.call_args_list[0]
+        # self.assertEqual("'http://jenkins_base_url/job/test_job/api/json?tree=builds[url,result,timestamp]'", fetch_builds_url)
+        self.assertEqual(16, len(failed_builds))
+        self.assertEqual(DEFAULT_NUM_BUILDS, total_no_of_builds)
+
+        for i in range(16):
+            exp_build = sorted_builds_desc[i]
+            act_build = failed_builds[i]
+            self.assertEqual(job_name, act_build.job_name)
+            self.assertEqual(int(int(exp_build["timestamp"]) / 1000), int(act_build.timestamp))
+            self.assertEqual(exp_build["url"], act_build.url)
 
     @staticmethod
     def get_arbitrary_build_url():
