@@ -224,9 +224,15 @@ class JenkinsJobInstanceUrls:
     # Example URL: http://build.infra.cloudera.com/job/Mawo-UT-hadoop-CDPD-7.x/191/
     def __init__(self, full_url):
         self.full_url = full_url
-        self.job_console_output_url = full_url + "Console"
-        self.test_report_url = full_url + "testReport"
+        self.job_console_output_url = self._append_to_url(full_url, "Console")
+        self.test_report_url = self._append_to_url(full_url, "testReport")
         self.test_report_api_json_url = self.test_report_url + "/api/json?pretty=true"
+
+    @staticmethod
+    def _append_to_url(full_url, to_append):
+        if not full_url[-1] == "/":
+            full_url += "/"
+        return full_url + to_append
 
 
 class JenkinsApiConverter:

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Dict, Tuple, Set
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import httpretty as httpretty
 from coolname import generate_slug
@@ -25,6 +25,7 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JobBuildDataStatus,
     JobBuildDataCounters,
     JenkinsJobUrls,
+    DownloadProgress,
 )
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
@@ -668,6 +669,18 @@ class TestJenkinsTestReporter(unittest.TestCase):
             self.assertEqual(job_name, act_build.job_name)
             self.assertEqual(int(int(exp_build["timestamp"]) / 1000), int(act_build.timestamp))
             self.assertEqual(exp_build["url"], act_build.url)
+
+    @patch(NETWORK_UTILS_PATCH_PATH)
+    def test_jenkins_api_converter_download_test_report(self, mock_fetch_json):
+        builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
+        failed_build = FailedJenkinsBuild("http://full/url/of/job", 1244525, "test_job")
+        mock_fetch_json.return_value = builds_dict
+
+        act_test_report = JenkinsApiConverter.download_test_report(failed_build, Mock(spec=DownloadProgress))
+        self.assertEqual(builds_dict, act_test_report)
+        self.assertEqual(
+            "http://full/url/of/job/testReport/api/json?pretty=true", mock_fetch_json.call_args_list[0].args[0]
+        )
 
     @staticmethod
     def get_arbitrary_build_url():
