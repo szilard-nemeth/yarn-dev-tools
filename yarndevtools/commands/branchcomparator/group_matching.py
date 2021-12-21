@@ -20,7 +20,7 @@ from yarndevtools.commands.branchcomparator.common import (
 from yarndevtools.commands.branchcomparator.common_representation import (
     RenderedSummaryAbs,
     RenderedTableType,
-    TableWithHeader,
+    BranchComparatorTable,
     OutputManagerAbs,
     SummaryDataAbs,
 )
@@ -619,7 +619,9 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
-                TableWithHeader(table_type.header, header, table_rows, table, table_fmt=table_fmt, colorized=False),
+                BranchComparatorTable(
+                    table_type.header, header, table_rows, table, table_fmt=table_fmt, colorized=False
+                ),
             )
 
     def add_unmatched_groups_tables(self, matching_result: GroupedMatchingResult):
@@ -642,7 +644,7 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,
-                    TableWithHeader(
+                    BranchComparatorTable(
                         header_value,
                         header,
                         source_data,

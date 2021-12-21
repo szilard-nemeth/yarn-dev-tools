@@ -25,7 +25,7 @@ from yarndevtools.commands.branchcomparator.common_representation import (
     SummaryDataAbs,
     RenderedTableType,
     RenderedSummaryAbs,
-    TableWithHeader,
+    BranchComparatorTable,
     HEADER_ROW,
     HEADER_JIRA_ID,
     HEADER_COMMIT_MSG,
@@ -437,7 +437,9 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
-                TableWithHeader(table_type.header, header, source_data, table, table_fmt=table_fmt, colorized=False),
+                BranchComparatorTable(
+                    table_type.header, header, source_data, table, table_fmt=table_fmt, colorized=False
+                ),
             )
 
     def add_all_commits_tables(self):
@@ -476,5 +478,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
-                TableWithHeader(table_type.header, header, all_commits, table, table_fmt=table_fmt, colorized=colorize),
+                BranchComparatorTable(
+                    table_type.header, header, all_commits, table, table_fmt=table_fmt, colorized=colorize
+                ),
             )

@@ -30,7 +30,7 @@ HEADER_NO_OF_LINES = "# of lines"
 HEADER_COMMITTER = "Committer"
 
 
-class TableWithHeader(GenericTableWithHeader):
+class BranchComparatorTable(GenericTableWithHeader):
     def __init__(
         self,
         header_title,
@@ -131,7 +131,7 @@ class RenderedSummaryAbs(ABC):
         self.summary_data = summary_data
         self.matching_result = matching_result
         self.table_order: List[RenderedTableType] = valid_tables
-        self._tables: Dict[RenderedTableType, List[TableWithHeader]] = {}
+        self._tables: Dict[RenderedTableType, List[BranchComparatorTable]] = {}
         self._tables_with_branch: Dict[RenderedTableType, bool] = {
             RenderedTableType.UNIQUE_ON_BRANCH: True,
             RenderedTableType.UNMATCHED_COMMIT_GROUPS: True,
@@ -160,7 +160,7 @@ class RenderedSummaryAbs(ABC):
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
-                TableWithHeader(
+                BranchComparatorTable(
                     table_type.header,
                     header,
                     result_files_data,
@@ -189,7 +189,7 @@ class RenderedSummaryAbs(ABC):
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,
-                    TableWithHeader(
+                    BranchComparatorTable(
                         header_value,
                         header,
                         source_data,
@@ -200,7 +200,7 @@ class RenderedSummaryAbs(ABC):
                     ),
                 )
 
-    def add_table(self, ttype: RenderedTableType, table: TableWithHeader):
+    def add_table(self, ttype: RenderedTableType, table: BranchComparatorTable):
         if table.is_branch_based and ttype not in self._tables_with_branch:
             raise ValueError(
                 f"Unexpected table type for branch-based table: {ttype}. "
@@ -223,7 +223,7 @@ class RenderedSummaryAbs(ABC):
         )
 
     def get_branch_based_tables(self, ttype: RenderedTableType, table_fmt: TabulateTableFormat):
-        tables: List[TableWithHeader] = []
+        tables: List[BranchComparatorTable] = []
         for br_type, br_data in self.summary_data.branch_data.items():
             tables.extend(self.get_tables(ttype, colorized=False, table_fmt=table_fmt, branch=br_data.name))
         return tables
@@ -255,9 +255,9 @@ class RenderedSummaryAbs(ABC):
         def regular_colorized_table(table_type: RenderedTableType, colorized=False):
             return self.get_tables(table_type, table_fmt=TabulateTableFormat.GRID, colorized=colorized, branch=None)
 
-        printable_tables: List[TableWithHeader] = []
-        writable_tables: List[TableWithHeader] = []
-        html_tables: List[TableWithHeader] = []
+        printable_tables: List[BranchComparatorTable] = []
+        writable_tables: List[BranchComparatorTable] = []
+        html_tables: List[BranchComparatorTable] = []
         for rtt in self.table_order:
             if rtt.table_type == TableType.REGULAR:
                 printable_tables.extend(regular_table(rtt))
