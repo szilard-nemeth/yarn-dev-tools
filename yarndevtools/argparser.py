@@ -174,7 +174,7 @@ class ArgParser:
             help="If specified, changes of individual files won't be tracked and written to file.",
         )
         parser.add_argument(
-            "--branches", required=False, type=str, nargs="+", help="Check backports againtst these branches"
+            "--branches", required=False, type=str, nargs="+", help="Check backports against these branches"
         )
         parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)
 
