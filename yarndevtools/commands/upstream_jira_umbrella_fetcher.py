@@ -10,7 +10,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.result_printer import ResultPrinter, TabulateTableFormat
+from pythoncommons.result_printer import ResultPrinter, TabulateTableFormat, TableRenderingConfig
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from pythoncommons.git_constants import (
@@ -72,26 +72,28 @@ class JiraUmbrellaData:
     # TODO Figure out a way to decrease code duplication in this method
     def render_summary_string(self, result_basedir, extended_backport_table=False, backport_remote_filter=ORIGIN):
         # Generate tables first, in order to know the length of the header rows
-        commit_list_table = ResultPrinter.print_table(
-            self.upstream_commit_data_list,
-            lambda commit: (commit.jira_id, commit.message, commit.date),
-            header=["Row", "Jira ID", "Commit message", "Commit date"],
+        render_conf = TableRenderingConfig(
+            row_callback=lambda commit: (commit.jira_id, commit.message, commit.date),
             print_result=False,
             max_width=80,
             max_width_separator=" ",
-            # tabulate_fmts=[TabulateTableFormat.GRID, TabulateTableFormat.HTML]
-            tabulate_fmt=TabulateTableFormat.GRID,
+            tabulate_format=TabulateTableFormat.GRID,
+        )
+        commit_list_table = ResultPrinter.print_table(
+            self.upstream_commit_data_list,
+            header=["Row", "Jira ID", "Commit message", "Commit date"],
+            render_conf=render_conf,
         )
 
         files = FileUtils.find_files(result_basedir, regex=".*", full_path_result=True)
-        file_list_table = ResultPrinter.print_table(
-            files,
-            lambda file: (file,),
-            header=["Row", "File"],
+        render_conf = TableRenderingConfig(
+            row_callback=lambda file: (file,),
             print_result=False,
             max_width=80,
             max_width_separator=os.sep,
+            tabulate_format=TabulateTableFormat.GRID,
         )
+        file_list_table = ResultPrinter.print_table(files, header=["Row", "File"], render_conf=render_conf)
 
         if extended_backport_table:
             backports_list = []
@@ -106,13 +108,17 @@ class JiraUmbrellaData:
                             commit.commit_obj.date,
                         ]
                     )
-            backport_table = ResultPrinter.print_table(
-                backports_list,
-                lambda row: row,
-                header=["Row", "Jira ID", "Hash", "Commit message", "Branches", "Date"],
+            render_conf = TableRenderingConfig(
+                row_callback=lambda row: row,
                 print_result=False,
                 max_width=50,
                 max_width_separator=" ",
+                tabulate_format=TabulateTableFormat.GRID,
+            )
+            backport_table = ResultPrinter.print_table(
+                backports_list,
+                header=["Row", "Jira ID", "Hash", "Commit message", "Branches", "Date"],
+                render_conf=render_conf,
             )
         else:
             if self.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
@@ -126,13 +132,16 @@ class JiraUmbrellaData:
                         if branches:
                             all_branches.extend(branches)
                     backports_list.append([bjira.jira_id, list(set(all_branches))])
-                backport_table = ResultPrinter.print_table(
-                    backports_list,
-                    lambda row: row,
-                    header=["Row", "Jira ID", "Branches"],
+
+                render_conf = TableRenderingConfig(
+                    row_callback=lambda row: row,
                     print_result=False,
                     max_width=50,
                     max_width_separator=" ",
+                    tabulate_format=TabulateTableFormat.GRID,
+                )
+                backport_table = ResultPrinter.print_table(
+                    backports_list, header=["Row", "Jira ID", "Branches"], render_conf=render_conf
                 )
             elif self.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
                 backports_list = []
@@ -153,14 +162,15 @@ class JiraUmbrellaData:
 
                 header = ["Row", "Jira ID"]
                 header.extend(self.downstream_branches)
-                backport_table = ResultPrinter.print_table(
-                    backports_list,
-                    lambda row: row,
-                    header=header,
+
+                render_conf = TableRenderingConfig(
+                    row_callback=lambda row: row,
                     print_result=False,
                     max_width=50,
                     max_width_separator=" ",
+                    tabulate_format=TabulateTableFormat.GRID,
                 )
+                backport_table = ResultPrinter.print_table(backports_list, header=header, render_conf=render_conf)
 
         # Create headers
         commits_header_line = (
