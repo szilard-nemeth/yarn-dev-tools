@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-from enum import Enum
 from typing import List
 
 from googleapiwrapper.google_drive import DriveApiFile
@@ -16,7 +15,12 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     SKIP_AGGREGATION_DEFAULTS_FILENAME,
     CdswSetupResult,
 )
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME
+from yarndevtools.cdsw.common_python.constants import (
+    CdswEnvVar,
+    UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
+    UnitTestResultAggregatorEnvVar,
+    UnitTestResultAggregatorOptionalEnvVar,
+)
 from yarndevtools.constants import REPORT_FILE_SHORT_HTML
 
 LOG = logging.getLogger(__name__)
@@ -25,22 +29,6 @@ CMD_LOG = logging.getLogger(__name__)
 DEFAULT_GMAIL_QUERY = 'subject:"YARN Daily unit test report"'
 DEFAULT_TRUNCATE_SUBJECT = "YARN Daily unit test report: Failed tests with build: "
 DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "Failed testcases (", "FILTER:", "Filter expression: "]
-
-
-class UnitTestResultAggregatorEnvVar(Enum):
-    GSHEET_CLIENT_SECRET = "GSHEET_CLIENT_SECRET"
-    GSHEET_SPREADHSHEET = "GSHEET_SPREADHSHEET"
-    GSHEET_WORKSHEET = "GSHEET_WORKSHEET"
-    REQUEST_LIMIT = "REQUEST_LIMIT"
-    MATCH_EXPRESSION = "MATCH_EXPRESSION"
-
-
-class UnitTestResultAggregatorOptionalEnvVar(Enum):
-    ABBREV_TC_PACKAGE = "ABBREV_TC_PACKAGE"
-    AGGREGATE_FILTERS = "AGGREGATE_FILTERS"
-    SKIP_AGGREGATION_RESOURCE_FILE = "SKIP_AGGREGATION_RESOURCE_FILE"
-    SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY = "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY"
-    GSHEET_COMPARE_WITH_JIRA_TABLE = "GSHEET_COMPARE_WITH_JIRA_TABLE"
 
 
 class CdswRunner(CdswRunnerBase):
