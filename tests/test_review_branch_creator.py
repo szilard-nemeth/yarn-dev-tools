@@ -19,6 +19,7 @@ BASE_BRANCH = TRUNK
 
 
 class TestReviewBranchCreator(unittest.TestCase):
+    utils = None
     repo = None
     log_dir = None
     sandbox_hadoop_repo_path = None

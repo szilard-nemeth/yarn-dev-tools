@@ -1,7 +1,6 @@
 import logging
 import os
 import unittest
-from typing import List
 
 from git import InvalidGitRepositoryError, Repo, GitCommandError, Actor
 from pythoncommons.constants import ExecutionMode

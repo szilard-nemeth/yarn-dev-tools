@@ -28,9 +28,9 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     BRANCH_DIFF_REPORTER_DIR_NAME,
-    BranchComparatorEnvVar,
     CDSW_RUNNER_PY,
 )
+from cdsw_runner import BranchComparatorEnvVar
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PROJECTS_DIR, CommandType
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, APACHE, HADOOP, CLOUDERA
 

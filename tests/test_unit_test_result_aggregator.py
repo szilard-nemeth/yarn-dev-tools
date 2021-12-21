@@ -1,10 +1,9 @@
 import logging
 import os
-import sys
 import unittest
 
 from pythoncommons.constants import ExecutionMode
-from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
+from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectRootDeterminationStrategy, ProjectUtils
 
 from tests.test_utilities import TestUtilities

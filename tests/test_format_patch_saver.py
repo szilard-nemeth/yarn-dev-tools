@@ -18,6 +18,7 @@ LOG = logging.getLogger(__name__)
 
 
 class TestFormatPatchSaver(unittest.TestCase):
+    utils = None
     repo = None
     log_dir = None
     sandbox_hadoop_repo_path = None

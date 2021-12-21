@@ -12,6 +12,8 @@ LOG = logging.getLogger(__name__)
 
 
 class TestUpstreamPRFetcher(unittest.TestCase):
+    repo_wrapper = None
+    utils = None
     repo = None
     log_dir = None
     sandbox_hadoop_repo_path = None

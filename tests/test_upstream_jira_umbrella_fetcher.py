@@ -34,6 +34,7 @@ LOG = logging.getLogger(__name__)
 
 
 class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
+    utils = None
     repo = None
     log_dir = None
     sandbox_hadoop_repo_path = None
