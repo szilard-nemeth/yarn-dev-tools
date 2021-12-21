@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import os
+from enum import Enum
 
 from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetup, CommonDirs, CdswSetupResult
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BRANCH_DIFF_REPORTER_DIR_NAME
 import logging
 
 from yarndevtools.common.shared_command_utils import RepoType, CommandType
@@ -15,6 +16,12 @@ from yarndevtools.common.shared_command_utils import RepoType, CommandType
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
+
+
+class BranchComparatorEnvVar(Enum):
+    FEATURE_BRANCH = "BRANCH_COMP_FEATURE_BRANCH"
+    MASTER_BRANCH = "BRANCH_COMP_MASTER_BRANCH"
+    REPO_TYPE = "BRANCH_COMP_REPO_TYPE"
 
 
 class CdswRunner(CdswRunnerBase):

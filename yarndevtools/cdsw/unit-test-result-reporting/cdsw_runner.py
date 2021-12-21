@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+from enum import Enum
 
 from pythoncommons.os_utils import OsUtils
 
@@ -12,7 +13,6 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 )
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
-    JenkinsTestReporterEnvVar,
     UNIT_TEST_RESULT_REPORTING_DIR_NAME,
 )
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
@@ -29,6 +29,12 @@ TC_FILTER_MR = "MAPREDUCE:org.apache.hadoop.mapreduce"
 TC_FILTER_HDFS = "HDFS:org.apache.hadoop.hdfs"
 TC_FILTER_HADOOP_COMMON = "HADOOP_COMMON:org.apache.hadoop"
 TC_FILTER_ALL = f"{TC_FILTER_MR} {TC_FILTER_YARN} {TC_FILTER_HDFS} {TC_FILTER_HADOOP_COMMON}"
+
+
+class JenkinsTestReporterEnvVar(Enum):
+    BUILD_PROCESSING_LIMIT = "BUILD_PROCESSING_LIMIT"
+    FORCE_SENDING_MAIL = "FORCE_SENDING_MAIL"
+    RESET_JOB_BUILD_DATA = "RESET_JOB_BUILD_DATA"
 
 
 class CdswRunner(CdswRunnerBase):
