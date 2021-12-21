@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+from enum import Enum
 from typing import List
 
 from googleapiwrapper.google_drive import DriveApiFile
@@ -19,6 +20,10 @@ DEFAULT_BRANCHES = "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x"
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
+
+
+class JiraUmbrellaChecker(Enum):
+    UMBRELLA_IDS = "UMBRELLA_IDS"  # TODO use this env var class
 
 
 class CdswRunner(CdswRunnerBase):

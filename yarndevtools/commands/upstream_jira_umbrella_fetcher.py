@@ -37,6 +37,7 @@ class ExecutionMode(Enum):
     MANUAL_BRANCH_MODE = "manual_branch_mode"
 
 
+# @auto_str(exclude_props=["jira_html"]) #TODO make this work
 @auto_str
 class JiraUmbrellaData:
     def __init__(self):
