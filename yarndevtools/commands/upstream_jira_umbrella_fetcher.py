@@ -311,33 +311,36 @@ class UpstreamJiraUmbrellaFetcher:
                 LOG.info("Loaded pickled data from: %s", self.pickled_data_file)
                 self.print_summary()
 
+    def get_file_path_from_basedir(self, file_name):
+        return FileUtils.join_path(self.config.umbrella_result_basedir, file_name)
+
     @property
     def jira_html_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, "jira.html")
+        return self.get_file_path_from_basedir("jira.html")
 
     @property
     def jira_list_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, "jira-list.txt")
+        return self.get_file_path_from_basedir("jira-list.txt")
 
     @property
     def commits_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, "commit-hashes.txt")
+        return self.get_file_path_from_basedir("commit-hashes.txt")
 
     @property
     def changed_files_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, "changed-files.txt")
+        return self.get_file_path_from_basedir("changed-files.txt")
 
     @property
     def summary_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, SUMMARY_FILE_TXT)
+        return self.get_file_path_from_basedir(SUMMARY_FILE_TXT)
 
     @property
     def intermediate_results_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, "intermediate-results.txt")
+        return self.get_file_path_from_basedir("intermediate-results.txt")
 
     @property
     def pickled_data_file(self):
-        return FileUtils.join_path(self.config.umbrella_result_basedir, PICKLED_DATA_FILENAME)
+        return self.get_file_path_from_basedir(PICKLED_DATA_FILENAME)
 
     def do_fetch(self):
         LOG.info("Fetching jira umbrella data...")
