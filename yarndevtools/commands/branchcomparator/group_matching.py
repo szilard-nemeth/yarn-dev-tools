@@ -19,7 +19,7 @@ from yarndevtools.commands.branchcomparator.common import (
 )
 from yarndevtools.commands.branchcomparator.common_representation import (
     RenderedSummaryAbs,
-    RenderedTableType,
+    BranchComparatorTableType,
     BranchComparatorTable,
     OutputManagerAbs,
     SummaryDataAbs,
@@ -589,10 +589,10 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
             summary_data,
             matching_result,
             [
-                RenderedTableType.RESULT_FILES,
-                RenderedTableType.UNIQUE_ON_BRANCH,
-                RenderedTableType.MATCHED_COMMIT_GROUPS,
-                RenderedTableType.UNMATCHED_COMMIT_GROUPS,
+                BranchComparatorTableType.RESULT_FILES,
+                BranchComparatorTableType.UNIQUE_ON_BRANCH,
+                BranchComparatorTableType.MATCHED_COMMIT_GROUPS,
+                BranchComparatorTableType.UNMATCHED_COMMIT_GROUPS,
             ],
         )
 
@@ -603,7 +603,7 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
         self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
 
     def add_matched_groups_tables(self, matching_result: GroupedMatchingResult):
-        table_type = RenderedTableType.MATCHED_COMMIT_GROUPS
+        table_type = BranchComparatorTableType.MATCHED_COMMIT_GROUPS
         table_rows = CommitGroupConverter.convert_matched_groups_to_table_rows(matching_result)
         header = self._get_header()
 
@@ -625,7 +625,7 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
             )
 
     def add_unmatched_groups_tables(self, matching_result: GroupedMatchingResult):
-        table_type = RenderedTableType.UNMATCHED_COMMIT_GROUPS
+        table_type = BranchComparatorTableType.UNMATCHED_COMMIT_GROUPS
         table_rows_by_branch_type = CommitGroupConverter.convert_unmatched_groups_to_table_rows(matching_result)
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)

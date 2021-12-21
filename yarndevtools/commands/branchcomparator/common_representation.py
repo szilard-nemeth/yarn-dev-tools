@@ -55,7 +55,7 @@ class TableType(Enum):
     BRANCH_BASED = "branch_based"
 
 
-class RenderedTableType(Enum):
+class BranchComparatorTableType(Enum):
     # For simple algorithm
     RESULT_FILES = ("result_files", "RESULT FILES", TableType.REGULAR)
     UNIQUE_ON_BRANCH = ("unique_on_branch", "UNIQUE ON BRANCH $$", TableType.BRANCH_BASED)
@@ -127,21 +127,21 @@ class RenderedSummaryAbs(ABC):
     - Colorized: Bool value indicating if the table values are colorized
     """
 
-    def __init__(self, summary_data, matching_result, valid_tables: List[RenderedTableType]):
+    def __init__(self, summary_data, matching_result, valid_tables: List[BranchComparatorTableType]):
         self.summary_data = summary_data
         self.matching_result = matching_result
-        self.table_order: List[RenderedTableType] = valid_tables
-        self._tables: Dict[RenderedTableType, List[BranchComparatorTable]] = {}
-        self._tables_with_branch: Dict[RenderedTableType, bool] = {
-            RenderedTableType.UNIQUE_ON_BRANCH: True,
-            RenderedTableType.UNMATCHED_COMMIT_GROUPS: True,
+        self.table_order: List[BranchComparatorTableType] = valid_tables
+        self._tables: Dict[BranchComparatorTableType, List[BranchComparatorTable]] = {}
+        self._tables_with_branch: Dict[BranchComparatorTableType, bool] = {
+            BranchComparatorTableType.UNIQUE_ON_BRANCH: True,
+            BranchComparatorTableType.UNMATCHED_COMMIT_GROUPS: True,
         }
 
     def add_result_files_table(self):
         result_files_data = sorted(
             FileUtils.find_files(self.summary_data.output_dir, regex=".*", full_path_result=True)
         )
-        table_type = RenderedTableType.RESULT_FILES
+        table_type = BranchComparatorTableType.RESULT_FILES
         header = [HEADER_ROW, HEADER_FILE, HEADER_NO_OF_LINES]
 
         render_conf = TableRenderingConfig(
@@ -172,7 +172,7 @@ class RenderedSummaryAbs(ABC):
             )
 
     def add_unique_commit_tables(self, matching_result):
-        table_type = RenderedTableType.UNIQUE_ON_BRANCH
+        table_type = BranchComparatorTableType.UNIQUE_ON_BRANCH
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)
             header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
@@ -200,7 +200,7 @@ class RenderedSummaryAbs(ABC):
                     ),
                 )
 
-    def add_table(self, ttype: RenderedTableType, table: BranchComparatorTable):
+    def add_table(self, ttype: BranchComparatorTableType, table: BranchComparatorTable):
         if table.is_branch_based and ttype not in self._tables_with_branch:
             raise ValueError(
                 f"Unexpected table type for branch-based table: {ttype}. "
@@ -212,7 +212,7 @@ class RenderedSummaryAbs(ABC):
 
     def get_tables(
         self,
-        ttype: RenderedTableType,
+        ttype: BranchComparatorTableType,
         colorized: bool = False,
         table_fmt: TabulateTableFormat = TabulateTableFormat.GRID,
         branch: str = None,
@@ -222,7 +222,7 @@ class RenderedSummaryAbs(ABC):
             filter(lambda t: t.colorized == colorized and t.table_fmt == table_fmt and t.branch == branch, tables)
         )
 
-    def get_branch_based_tables(self, ttype: RenderedTableType, table_fmt: TabulateTableFormat):
+    def get_branch_based_tables(self, ttype: BranchComparatorTableType, table_fmt: TabulateTableFormat):
         tables: List[BranchComparatorTable] = []
         for br_type, br_data in self.summary_data.branch_data.items():
             tables.extend(self.get_tables(ttype, colorized=False, table_fmt=table_fmt, branch=br_data.name))
@@ -240,19 +240,19 @@ class RenderedSummaryAbs(ABC):
     def generate_summary_msgs(self):
         self.summary_str = self.generate_summary_string()
 
-        def regular_table(table_type: RenderedTableType):
+        def regular_table(table_type: BranchComparatorTableType):
             return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.GRID, branch=None)
 
-        def branch_table(table_type: RenderedTableType):
+        def branch_table(table_type: BranchComparatorTableType):
             return self.get_branch_based_tables(table_type, table_fmt=TabulateTableFormat.GRID)
 
-        def html_table(table_type: RenderedTableType):
+        def html_table(table_type: BranchComparatorTableType):
             return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.HTML, branch=None)
 
-        def html_branch_table(table_type: RenderedTableType):
+        def html_branch_table(table_type: BranchComparatorTableType):
             return self.get_branch_based_tables(table_type, table_fmt=TabulateTableFormat.HTML)
 
-        def regular_colorized_table(table_type: RenderedTableType, colorized=False):
+        def regular_colorized_table(table_type: BranchComparatorTableType, colorized=False):
             return self.get_tables(table_type, table_fmt=TabulateTableFormat.GRID, colorized=colorized, branch=None)
 
         printable_tables: List[BranchComparatorTable] = []

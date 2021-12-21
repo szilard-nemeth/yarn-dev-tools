@@ -23,7 +23,7 @@ from yarndevtools.commands.branchcomparator.common import (
 )
 from yarndevtools.commands.branchcomparator.common_representation import (
     SummaryDataAbs,
-    RenderedTableType,
+    BranchComparatorTableType,
     RenderedSummaryAbs,
     BranchComparatorTable,
     HEADER_ROW,
@@ -407,10 +407,10 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
             summary_data,
             matching_result,
             [
-                RenderedTableType.RESULT_FILES,
-                RenderedTableType.UNIQUE_ON_BRANCH,
-                RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE,
-                RenderedTableType.ALL_COMMITS_MERGED,
+                BranchComparatorTableType.RESULT_FILES,
+                BranchComparatorTableType.UNIQUE_ON_BRANCH,
+                BranchComparatorTableType.COMMON_COMMITS_SINCE_DIVERGENCE,
+                BranchComparatorTableType.ALL_COMMITS_MERGED,
             ],
         )
 
@@ -421,7 +421,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
 
     def add_matched_commits_table(self):
-        table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
+        table_type = BranchComparatorTableType.COMMON_COMMITS_SINCE_DIVERGENCE
         header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
         source_data = self.summary_data.common_commits_after_merge_base()
 
@@ -461,7 +461,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         self._add_all_comits_table(header, all_commits, colorize_conf=None)
 
     def _add_all_comits_table(self, header, all_commits, colorize_conf: ColorizeConfig = None):
-        table_type = RenderedTableType.ALL_COMMITS_MERGED
+        table_type = BranchComparatorTableType.ALL_COMMITS_MERGED
         colorize = True if colorize_conf else False
 
         render_conf = TableRenderingConfig(
