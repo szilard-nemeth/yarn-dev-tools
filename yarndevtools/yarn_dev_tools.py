@@ -22,7 +22,7 @@ from yarndevtools.commands.format_patch_saver import FormatPatchSaver
 from yarndevtools.commands.patch_saver import PatchSaver
 from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.commands.upstream_jira_patch_differ import UpstreamJiraPatchDiffer
-from yarndevtools.commands.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
+from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
 from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar, CommandType
 from yarndevtools.constants import (
