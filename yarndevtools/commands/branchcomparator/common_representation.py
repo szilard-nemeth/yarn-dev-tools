@@ -11,6 +11,7 @@ from pythoncommons.result_printer import (
     ResultPrinter,
     DEFAULT_TABLE_FORMATS,
     GenericTableWithHeader,
+    TableRenderingConfig,
 )
 from pythoncommons.string_utils import StringUtils
 
@@ -142,14 +143,18 @@ class RenderedSummaryAbs(ABC):
         )
         table_type = RenderedTableType.RESULT_FILES
         header = [HEADER_ROW, HEADER_FILE, HEADER_NO_OF_LINES]
-        gen_tables = ResultPrinter.print_tables(
-            result_files_data,
-            lambda file: (file, len(FileUtils.read_file(file).splitlines())),
-            header=header,
+
+        render_conf = TableRenderingConfig(
+            row_callback=lambda file: (file, len(FileUtils.read_file(file).splitlines())),
             print_result=False,
             max_width=200,
             max_width_separator=os.sep,
-            tabulate_fmts=DEFAULT_TABLE_FORMATS,
+            tabulate_formats=DEFAULT_TABLE_FORMATS,
+        )
+        gen_tables = ResultPrinter.print_tables(
+            result_files_data,
+            header=header,
+            render_conf=render_conf,
         )
 
         for table_fmt, table in gen_tables.items():
@@ -172,15 +177,15 @@ class RenderedSummaryAbs(ABC):
             header_value = table_type.header.replace("$$", br_data.name)
             header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
             source_data = matching_result.unique_commits[br_type]
-            gen_tables = ResultPrinter.print_tables(
-                source_data,
-                lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
-                header=header,
+
+            render_conf = TableRenderingConfig(
+                row_callback=lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
                 print_result=False,
                 max_width=80,
                 max_width_separator=" ",
-                tabulate_fmts=DEFAULT_TABLE_FORMATS,
+                tabulate_formats=DEFAULT_TABLE_FORMATS,
             )
+            gen_tables = ResultPrinter.print_tables(source_data, header=header, render_conf=render_conf)
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,

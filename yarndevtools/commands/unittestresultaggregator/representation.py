@@ -453,14 +453,16 @@ class TableRenderer:
                     f"First row of data table: {data[0]}"
                 )
 
-        rendered_tables: Dict[TabulateTableFormat, str] = ResultPrinter.print_tables(
-            data,
-            lambda row: row,
-            header=header,
+        render_conf = TableRenderingConfig(
+            row_callback=lambda row: row,
             print_result=False,
             max_width=200,
             max_width_separator=" ",
-            tabulate_fmts=formats,
+            add_row_numbers=False,
+            tabulate_formats=formats,
+        )
+        rendered_tables: Dict[TabulateTableFormat, str] = ResultPrinter.print_tables(
+            data, header=header, render_conf=render_conf
         )
         result_dict: Dict[TabulateTableFormat, GenericTableWithHeader] = {}
         for table_fmt, rendered_table in rendered_tables.items():

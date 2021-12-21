@@ -12,6 +12,7 @@ from pythoncommons.result_printer import (
     Color,
     ColorDescriptor,
     EvaluationMethod,
+    TableRenderingConfig,
 )
 from pythoncommons.string_utils import StringUtils
 
@@ -423,15 +424,16 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         table_type = RenderedTableType.COMMON_COMMITS_SINCE_DIVERGENCE
         header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
         source_data = self.summary_data.common_commits_after_merge_base()
-        gen_tables = ResultPrinter.print_tables(
-            source_data,
-            lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
-            header=header,
+
+        render_conf = TableRenderingConfig(
+            row_callback=lambda commit: (commit.jira_id, commit.message, commit.date, commit.committer),
             print_result=False,
             max_width=80,
             max_width_separator=" ",
-            tabulate_fmts=DEFAULT_TABLE_FORMATS,
+            add_row_numbers=False,
+            tabulate_formats=DEFAULT_TABLE_FORMATS,
         )
+        gen_tables = ResultPrinter.print_tables(source_data, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
@@ -459,16 +461,18 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
     def _add_all_comits_table(self, header, all_commits, colorize_conf: ColorizeConfig = None):
         table_type = RenderedTableType.ALL_COMMITS_MERGED
         colorize = True if colorize_conf else False
-        gen_tables = ResultPrinter.print_tables(
-            all_commits,
-            lambda row: row,
-            header=header,
+
+        render_conf = TableRenderingConfig(
+            row_callback=lambda row: row,
             print_result=False,
             max_width=100,
             max_width_separator=" ",
+            add_row_numbers=False,
+            tabulate_formats=DEFAULT_TABLE_FORMATS,
             bool_conversion_config=BoolConversionConfig(),
             colorize_config=colorize_conf,
         )
+        gen_tables = ResultPrinter.print_tables(all_commits, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,

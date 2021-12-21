@@ -6,7 +6,7 @@ from typing import Dict, List, Set, Tuple, FrozenSet
 
 from pythoncommons.collection_utils import CollectionUtils
 from pythoncommons.object_utils import ListUtils
-from pythoncommons.result_printer import ResultPrinter, DEFAULT_TABLE_FORMATS
+from pythoncommons.result_printer import ResultPrinter, DEFAULT_TABLE_FORMATS, TableRenderingConfig
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.branchcomparator.common import (
@@ -606,16 +606,16 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
         table_type = RenderedTableType.MATCHED_COMMIT_GROUPS
         table_rows = CommitGroupConverter.convert_matched_groups_to_table_rows(matching_result)
         header = self._get_header()
-        gen_tables = ResultPrinter.print_tables(
-            table_rows,
-            lambda row: row,
-            header=header,
+
+        render_conf = TableRenderingConfig(
+            row_callback=lambda row: row,
             print_result=False,
             max_width=80,
             max_width_separator=" ",
-            tabulate_fmts=DEFAULT_TABLE_FORMATS,
             add_row_numbers=False,
+            tabulate_formats=DEFAULT_TABLE_FORMATS,
         )
+        gen_tables = ResultPrinter.print_tables(table_rows, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
@@ -629,16 +629,16 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
             header_value = table_type.header.replace("$$", br_data.name)
             header = self._get_header()
             source_data = table_rows_by_branch_type[br_type]
-            gen_tables = ResultPrinter.print_tables(
-                source_data,
-                lambda row: row,
-                header=header,
+
+            render_conf = TableRenderingConfig(
+                row_callback=lambda row: row,
                 print_result=False,
                 max_width=80,
                 max_width_separator=" ",
-                tabulate_fmts=DEFAULT_TABLE_FORMATS,
                 add_row_numbers=False,
+                tabulate_formats=DEFAULT_TABLE_FORMATS,
             )
+            gen_tables = ResultPrinter.print_tables(source_data, header=header, render_conf=render_conf)
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,
