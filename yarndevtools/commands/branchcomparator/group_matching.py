@@ -29,6 +29,14 @@ from yarndevtools.commands_common import CommitData
 LOG = logging.getLogger(__name__)
 
 
+class Header(Enum):
+    GROUP_ID = "Group #"
+    BRANCH_TYPE = "Branch type"
+    COMMIT_MATCH_TYPE = "Commit match type"
+    COMMITS = "Commits in group"
+    REVERT_INFO = "Revert info"
+
+
 class GroupedCommitMatcherUtils:
     @staticmethod
     def get_commits_without_jira_id(branch_data: Dict[BranchType, BranchData], br_type: BranchType):
@@ -578,12 +586,6 @@ class GroupedOutputManager(OutputManagerAbs):
 
 
 class GroupedRenderedSummary(RenderedSummaryAbs):
-    HEADER_GROUP_ID = "Group #"
-    HEADER_BRANCH_TYPE = "Branch type"
-    HEADER_COMMIT_MATCH_TYPE = "Commit match type"
-    HEADER_COMMITS = "Commits in group"
-    HEADER_REVERT_INFO = "Revert info"
-
     def __init__(self, summary_data, matching_result):
         super().__init__(
             summary_data,
@@ -605,7 +607,7 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
     def add_matched_groups_tables(self, matching_result: GroupedMatchingResult):
         table_type = BranchComparatorTableType.MATCHED_COMMIT_GROUPS
         table_rows = CommitGroupConverter.convert_matched_groups_to_table_rows(matching_result)
-        header = self._get_header()
+        header = self._get_header_row()
 
         render_conf = TableRenderingConfig(
             row_callback=lambda row: row,
@@ -629,7 +631,7 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
         table_rows_by_branch_type = CommitGroupConverter.convert_unmatched_groups_to_table_rows(matching_result)
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)
-            header = self._get_header()
+            header = self._get_header_row()
             source_data = table_rows_by_branch_type[br_type]
 
             render_conf = TableRenderingConfig(
@@ -656,13 +658,13 @@ class GroupedRenderedSummary(RenderedSummaryAbs):
                 )
 
     @staticmethod
-    def _get_header():
+    def _get_header_row():
         return [
-            GroupedRenderedSummary.HEADER_GROUP_ID,
-            GroupedRenderedSummary.HEADER_BRANCH_TYPE,
-            GroupedRenderedSummary.HEADER_COMMIT_MATCH_TYPE,
-            GroupedRenderedSummary.HEADER_COMMITS,
-            GroupedRenderedSummary.HEADER_REVERT_INFO,
+            Header.GROUP_ID.value,
+            Header.BRANCH_TYPE.value,
+            Header.COMMIT_MATCH_TYPE.value,
+            Header.COMMITS.value,
+            Header.REVERT_INFO.value,
         ]
 
 

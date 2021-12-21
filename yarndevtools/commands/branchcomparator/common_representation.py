@@ -21,13 +21,15 @@ from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
 LOG = LoggerFactory.get_logger(__name__)
 
-HEADER_COMMIT_DATE = "Commit date"
-HEADER_COMMIT_MSG = "Commit message"
-HEADER_JIRA_ID = "Jira ID"
-HEADER_ROW = "Row"
-HEADER_FILE = "File"
-HEADER_NO_OF_LINES = "# of lines"
-HEADER_COMMITTER = "Committer"
+
+class BranchComparatorHeader(Enum):
+    COMMIT_DATE = "Commit date"
+    COMMIT_MSG = "Commit message"
+    JIRA_ID = "Jira ID"
+    ROW = "Row"
+    FILE = "File"
+    NO_OF_LINES = "# of lines"
+    COMMITTER = "Committer"
 
 
 class BranchComparatorTable(GenericTableWithHeader):
@@ -146,7 +148,8 @@ class RenderedSummaryAbs(ABC):
             FileUtils.find_files(self.summary_data.output_dir, regex=".*", full_path_result=True)
         )
         table_type = BranchComparatorTableType.RESULT_FILES
-        header = [HEADER_ROW, HEADER_FILE, HEADER_NO_OF_LINES]
+        h = BranchComparatorHeader
+        header = [h.ROW.value, h.FILE.value, h.NO_OF_LINES.value]
 
         render_conf = TableRenderingConfig(
             row_callback=lambda file: (file, len(FileUtils.read_file(file).splitlines())),
@@ -179,7 +182,8 @@ class RenderedSummaryAbs(ABC):
         table_type = BranchComparatorTableType.UNIQUE_ON_BRANCH
         for br_type, br_data in self.summary_data.branch_data.items():
             header_value = table_type.header.replace("$$", br_data.name)
-            header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
+            h = BranchComparatorHeader
+            header = [h.ROW.value, h.JIRA_ID.value, h.COMMIT_MSG.value, h.COMMIT_DATE.value, h.COMMITTER.value]
             source_data = matching_result.unique_commits[br_type]
 
             render_conf = TableRenderingConfig(

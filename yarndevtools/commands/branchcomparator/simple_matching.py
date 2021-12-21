@@ -26,12 +26,8 @@ from yarndevtools.commands.branchcomparator.common_representation import (
     BranchComparatorTableType,
     RenderedSummaryAbs,
     BranchComparatorTable,
-    HEADER_ROW,
-    HEADER_JIRA_ID,
-    HEADER_COMMIT_MSG,
-    HEADER_COMMIT_DATE,
-    HEADER_COMMITTER,
     OutputManagerAbs,
+    BranchComparatorHeader,
 )
 from yarndevtools.commands_common import CommitData
 
@@ -422,7 +418,8 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
 
     def add_matched_commits_table(self):
         table_type = BranchComparatorTableType.COMMON_COMMITS_SINCE_DIVERGENCE
-        header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
+        h = BranchComparatorHeader
+        header = [h.ROW.value, h.JIRA_ID.value, h.COMMIT_MSG.value, h.COMMIT_DATE.value, h.COMMITTER.value]
         source_data = self.summary_data.common_commits_after_merge_base()
 
         render_conf = TableRenderingConfig(
@@ -444,8 +441,8 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
 
     def add_all_commits_tables(self):
         all_commits: List[List] = self.summary_data.all_commits_presence_matrix
-
-        header = [HEADER_ROW, HEADER_JIRA_ID, HEADER_COMMIT_MSG, HEADER_COMMIT_DATE, HEADER_COMMITTER]
+        h = BranchComparatorHeader
+        header = [h.ROW.value, h.JIRA_ID.value, h.COMMIT_MSG.value, h.COMMIT_DATE.value, h.COMMITTER.value]
         header.extend(self.summary_data.get_branch_names())
 
         # Adding 1 because row id will be added as first column
