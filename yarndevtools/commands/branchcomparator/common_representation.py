@@ -49,7 +49,7 @@ class BranchComparatorTable(GenericTableWithHeader):
         return self.branch is not None
 
 
-class TableType(Enum):
+class BranchComparatorTableStyle(Enum):
     REGULAR = "regular"
     REGULAR_WITH_COLORS = "regular_colorized"
     BRANCH_BASED = "branch_based"
@@ -57,21 +57,25 @@ class TableType(Enum):
 
 class BranchComparatorTableType(Enum):
     # For simple algorithm
-    RESULT_FILES = ("result_files", "RESULT FILES", TableType.REGULAR)
-    UNIQUE_ON_BRANCH = ("unique_on_branch", "UNIQUE ON BRANCH $$", TableType.BRANCH_BASED)
+    RESULT_FILES = ("result_files", "RESULT FILES", BranchComparatorTableStyle.REGULAR)
+    UNIQUE_ON_BRANCH = ("unique_on_branch", "UNIQUE ON BRANCH $$", BranchComparatorTableStyle.BRANCH_BASED)
     COMMON_COMMITS_SINCE_DIVERGENCE = (
         "common_commits_since_divergence",
         "COMMON COMMITS SINCE BRANCHES DIVERGED",
-        TableType.REGULAR,
+        BranchComparatorTableStyle.REGULAR,
     )
-    ALL_COMMITS_MERGED = ("all_commits_merged", "ALL COMMITS (MERGED LIST)", TableType.REGULAR_WITH_COLORS)
+    ALL_COMMITS_MERGED = (
+        "all_commits_merged",
+        "ALL COMMITS (MERGED LIST)",
+        BranchComparatorTableStyle.REGULAR_WITH_COLORS,
+    )
 
     # For grouped algorithm
-    MATCHED_COMMIT_GROUPS = ("matched_commit_groups", "MATCHED COMMIT GROUPS", TableType.REGULAR)
+    MATCHED_COMMIT_GROUPS = ("matched_commit_groups", "MATCHED COMMIT GROUPS", BranchComparatorTableStyle.REGULAR)
     UNMATCHED_COMMIT_GROUPS = (
         "unmatched_commit_groups",
         "UNMATCHED COMMIT GROUPS ON BRANCH $$",
-        TableType.BRANCH_BASED,
+        BranchComparatorTableStyle.BRANCH_BASED,
     )
 
     def __init__(self, key, header_value, table_type):
@@ -259,15 +263,15 @@ class RenderedSummaryAbs(ABC):
         writable_tables: List[BranchComparatorTable] = []
         html_tables: List[BranchComparatorTable] = []
         for rtt in self.table_order:
-            if rtt.table_type == TableType.REGULAR:
+            if rtt.table_type == BranchComparatorTableStyle.REGULAR:
                 printable_tables.extend(regular_table(rtt))
                 writable_tables.extend(regular_table(rtt))
                 html_tables.extend(html_table(rtt))
-            elif rtt.table_type == TableType.REGULAR_WITH_COLORS:
+            elif rtt.table_type == BranchComparatorTableStyle.REGULAR_WITH_COLORS:
                 printable_tables.extend(regular_colorized_table(rtt, colorized=True))
                 writable_tables.extend(regular_colorized_table(rtt, colorized=False))
                 html_tables.extend(html_table(rtt))
-            elif rtt.table_type == TableType.BRANCH_BASED:
+            elif rtt.table_type == BranchComparatorTableStyle.BRANCH_BASED:
                 printable_tables.extend(branch_table(rtt))
                 writable_tables.extend(branch_table(rtt))
                 html_tables.extend(html_branch_table(rtt))
