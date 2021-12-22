@@ -15,7 +15,7 @@ class JiraUmbrellaData:
         self.matched_upstream_commit_list: List[str] or None = None
         self.matched_upstream_commit_hashes: List[str] or None = None
         self.list_of_changed_files: List[str] or None = None
-        self.upstream_commitdata_list = None
+        self.matched_upstream_commitdata_list = None
         self.execution_mode: ExecutionMode or None = None
         self.backported_jiras: Dict[str, BackportedJira] = {}
 

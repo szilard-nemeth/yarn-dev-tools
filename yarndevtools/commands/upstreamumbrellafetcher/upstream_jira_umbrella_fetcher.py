@@ -281,7 +281,7 @@ class UpstreamJiraUmbrellaFetcher:
         return modified_log_lines
 
     def find_downstream_commits_auto_mode(self):
-        jira_ids = [commit_obj.jira_id for commit_obj in self.data.upstream_commitdata_list]
+        jira_ids = [commit_obj.jira_id for commit_obj in self.data.matched_upstream_commitdata_list]
         for idx, jira_id in enumerate(jira_ids):
             progress = f"[{idx + 1} / {len(jira_ids)}] "
             LOG.info("%s Checking if %s is backported to downstream repo", progress, jira_id)
@@ -349,7 +349,7 @@ class UpstreamJiraUmbrellaFetcher:
                         self.data.backported_jiras[jira_id].commits.append(backported_commit)
 
         # Make sure that missing backports are added as CommitData objects
-        for commit_data in self.data.upstream_commitdata_list:
+        for commit_data in self.data.matched_upstream_commitdata_list:
             jira_id = commit_data.jira_id
             if jira_id not in self.data.backported_jiras:
                 LOG.debug("%s is not backported to any of the provided branches", jira_id)
@@ -373,12 +373,12 @@ class UpstreamJiraUmbrellaFetcher:
         <hash> <YARN-id> <commit date>
         :return:
         """
-        self.data.upstream_commitdata_list = [
+        self.data.matched_upstream_commitdata_list = [
             CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE)
             for commit_str in self.data.matched_upstream_commit_list
         ]
         self.data.matched_upstream_commit_hashes = [
-            commit_obj.hash for commit_obj in self.data.upstream_commitdata_list
+            commit_obj.hash for commit_obj in self.data.matched_upstream_commitdata_list
         ]
 
     # TODO Migrate this to OutputManager
