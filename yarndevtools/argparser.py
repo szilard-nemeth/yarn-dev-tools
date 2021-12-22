@@ -174,6 +174,12 @@ class ArgParser:
             help="If specified, changes of individual files won't be tracked and written to file.",
         )
         parser.add_argument(
+            "--add-common-upstream-branches",
+            dest="add_common_upstream_branches",
+            action="store_true",
+            help="If specified, add common upstream branches to result table.",
+        )
+        parser.add_argument(
             "--branches", required=False, type=str, nargs="+", help="Check backports against these branches"
         )
         parser.set_defaults(func=yarn_dev_tools.fetch_jira_umbrella_data)

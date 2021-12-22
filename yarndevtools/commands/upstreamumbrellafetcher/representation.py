@@ -123,7 +123,7 @@ class UmbrellaFetcherRenderedSummary:
             header = [h.ROW.value, h.JIRA_ID.value]
         else:
             raise ValueError("Unexpected configuration!")
-        header.extend(self.config.downstream_branches)
+        header.extend(self.config.all_branches_to_consider)
 
         # Adding 1 because row id will be added as first column
         row_len = len(self.table_data[0]) + 1
@@ -270,6 +270,7 @@ class UmbrellaFetcherSummaryData:
         res += f"Config: {str(self.config)}\n"
         res += "\n\n=====Stats=====\n"
         res += f"Number of jiras: {self.umbrella_data.no_of_jiras}\n"
-        res += f"Number of commits: {self.umbrella_data.no_of_commits}\n"
         res += f"Number of files changed: {self.umbrella_data.no_of_files}\n"
+        for commits_by_branch in self.umbrella_data.upstream_commits_by_branch.values():
+            res += f"Number of commits on branch {commits_by_branch.branch}: {commits_by_branch.no_of_commits}\n"
         return res
