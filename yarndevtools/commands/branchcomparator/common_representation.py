@@ -17,6 +17,7 @@ from pythoncommons.string_utils import StringUtils
 
 from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase, CommonUtils
 from yarndevtools.commands_common import CommitData
+from yarndevtools.common.shared_command_utils import HtmlHelper
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
 
 LOG = LoggerFactory.get_logger(__name__)
@@ -281,39 +282,10 @@ class RenderedSummaryAbs(ABC):
                 html_tables.extend(html_branch_table(rtt))
 
         return (
-            self._generate_summary_str(printable_tables),
-            self._generate_summary_str(writable_tables),
-            self.generate_summary_html(html_tables),
+            HtmlHelper.generate_summary_str(printable_tables, self.summary_str),
+            HtmlHelper.generate_summary_str(writable_tables, self.summary_str),
+            HtmlHelper.generate_summary_html(html_tables, self.summary_str),
         )
-
-    def _generate_summary_str(self, tables):
-        printable_summary_str: str = self.summary_str
-        for table in tables:
-            printable_summary_str += str(table)
-            printable_summary_str += "\n\n"
-        return printable_summary_str
-
-    def generate_summary_html(self, html_tables) -> str:
-        table_tuples = [(h.header, h.table) for h in html_tables]
-
-        html_sep = HtmlGenerator.generate_separator(tag="hr", breaks=2)
-        return (
-            HtmlGenerator()
-            .append_paragraphs(self.summary_str.splitlines())
-            .begin_html_tag()
-            .add_basic_table_style()
-            .append_html_tables(
-                table_tuples, separator=html_sep, header_type="h1", additional_separator_at_beginning=True
-            )
-            .render()
-        )
-
-    def _add_summary_as_html_paragraphs(self, soup):
-        lines = self.summary_str.splitlines()
-        for line in lines:
-            p = soup.new_tag("p")
-            p.append(line)
-            soup.append(p)
 
 
 class OutputManagerAbs(ABC):

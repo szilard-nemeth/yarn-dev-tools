@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import List
+from typing import List, Any
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
@@ -10,7 +10,6 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.result_printer import ResultPrinter, TabulateTableFormat, TableRenderingConfig
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from pythoncommons.git_constants import (
@@ -20,208 +19,20 @@ from pythoncommons.git_constants import (
     ORIGIN,
 )
 
+from yarndevtools.commands.upstreamumbrellafetcher.common import JiraUmbrellaData, ExecutionMode
+from yarndevtools.commands.upstreamumbrellafetcher.representation import (
+    UmbrellaFetcherOutputManager,
+    UmbrellaFetcherRenderedSummary,
+    UmbrellaFetcherSummaryData,
+)
 from yarndevtools.commands_common import CommitData, GitLogLineFormat
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SUMMARY_FILE_TXT,
 )
 
-from enum import Enum
-
 LOG = logging.getLogger(__name__)
 PICKLED_DATA_FILENAME = "pickled_umbrella_data.obj"
-
-
-class ExecutionMode(Enum):
-    AUTO_BRANCH_MODE = "auto_branch_mode"
-    MANUAL_BRANCH_MODE = "manual_branch_mode"
-
-
-# @auto_str(exclude_props=["jira_html"]) #TODO make this work
-@auto_str
-class JiraUmbrellaData:
-    def __init__(self):
-        self.subjira_ids = []
-        self.jira_ids_and_titles = {}
-        self.jira_html = None
-        self.piped_jira_ids = None
-        self.matched_upstream_commit_list = None
-        self.matched_upstream_commit_hashes = None
-        self.list_of_changed_files = None
-        self.upstream_commit_data_list = None
-        self.execution_mode = None
-        self.downstream_branches = None
-        self.backported_jiras = dict()
-
-    @property
-    def no_of_matched_commits(self):
-        return len(self.matched_upstream_commit_list)
-
-    @property
-    def no_of_jiras(self):
-        return len(self.subjira_ids)
-
-    @property
-    def no_of_commits(self):
-        return len(self.matched_upstream_commit_hashes)
-
-    @property
-    def no_of_files(self):
-        return len(self.list_of_changed_files)
-
-    # TODO Separate this representation code from data logic
-    # TODO Figure out a way to decrease code duplication in this method
-    def render_summary_string(self, result_basedir, extended_backport_table=False, backport_remote_filter=ORIGIN):
-        # Generate tables first, in order to know the length of the header rows
-        render_conf = TableRenderingConfig(
-            row_callback=lambda commit: (commit.jira_id, commit.message, commit.date),
-            print_result=False,
-            max_width=80,
-            max_width_separator=" ",
-            tabulate_format=TabulateTableFormat.GRID,
-        )
-        commit_list_table = ResultPrinter.print_table(
-            self.upstream_commit_data_list,
-            header=["Row", "Jira ID", "Commit message", "Commit date"],
-            render_conf=render_conf,
-        )
-
-        files = FileUtils.find_files(result_basedir, regex=".*", full_path_result=True)
-        render_conf = TableRenderingConfig(
-            row_callback=lambda file: (file,),
-            print_result=False,
-            max_width=80,
-            max_width_separator=os.sep,
-            tabulate_format=TabulateTableFormat.GRID,
-        )
-        file_list_table = ResultPrinter.print_table(files, header=["Row", "File"], render_conf=render_conf)
-
-        if extended_backport_table:
-            backports_list = []
-            for bjira in self.backported_jiras.values():
-                for commit in bjira.commits:
-                    backports_list.append(
-                        [
-                            bjira.jira_id,
-                            commit.commit_obj.hash[:SHORT_SHA_LENGTH],
-                            commit.commit_obj.message,
-                            self.filter_branches(backport_remote_filter, commit.branches),
-                            commit.commit_obj.date,
-                        ]
-                    )
-            render_conf = TableRenderingConfig(
-                row_callback=lambda row: row,
-                print_result=False,
-                max_width=50,
-                max_width_separator=" ",
-                tabulate_format=TabulateTableFormat.GRID,
-            )
-            backport_table = ResultPrinter.print_table(
-                backports_list,
-                header=["Row", "Jira ID", "Hash", "Commit message", "Branches", "Date"],
-                render_conf=render_conf,
-            )
-        else:
-            if self.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
-                backports_list = []
-                for bjira in self.backported_jiras.values():
-                    all_branches = []
-                    for commit in bjira.commits:
-                        if commit.commit_obj.reverted:
-                            continue
-                        branches = self.filter_branches(backport_remote_filter, commit.branches)
-                        if branches:
-                            all_branches.extend(branches)
-                    backports_list.append([bjira.jira_id, list(set(all_branches))])
-
-                render_conf = TableRenderingConfig(
-                    row_callback=lambda row: row,
-                    print_result=False,
-                    max_width=50,
-                    max_width_separator=" ",
-                    tabulate_format=TabulateTableFormat.GRID,
-                )
-                backport_table = ResultPrinter.print_table(
-                    backports_list, header=["Row", "Jira ID", "Branches"], render_conf=render_conf
-                )
-            elif self.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
-                backports_list = []
-                for bjira in self.backported_jiras.values():
-                    all_branches = set([br for c in bjira.commits for br in c.branches])
-                    for commit in bjira.commits:
-                        if commit.commit_obj.reverted:
-                            continue
-                    backport_present_list = []
-                    for branch in self.downstream_branches:
-                        backport_present_list.append(branch in all_branches)
-                    curr_row = [bjira.jira_id]
-                    curr_row.extend(backport_present_list)
-                    # TODO Temporarily disabled colorize in order to send the mail effortlessly with summary body.
-                    #   This method requires redesign, nevertheless.
-                    # curr_row = ResultPrinter.colorize_row(curr_row, convert_bools=True)
-                    backports_list.append(curr_row)
-
-                header = ["Row", "Jira ID"]
-                header.extend(self.downstream_branches)
-
-                render_conf = TableRenderingConfig(
-                    row_callback=lambda row: row,
-                    print_result=False,
-                    max_width=50,
-                    max_width_separator=" ",
-                    tabulate_format=TabulateTableFormat.GRID,
-                )
-                backport_table = ResultPrinter.print_table(backports_list, header=header, render_conf=render_conf)
-
-        # Create headers
-        commits_header_line = (
-            StringUtils.generate_header_line(
-                "COMMITS", char="═", length=len(StringUtils.get_first_line_of_multiline_str(commit_list_table))
-            )
-            + "\n"
-        )
-
-        result_files_header_line = (
-            StringUtils.generate_header_line(
-                "RESULT FILES", char="═", length=len(StringUtils.get_first_line_of_multiline_str(file_list_table))
-            )
-            + "\n"
-        )
-
-        backport_header_line = (
-            StringUtils.generate_header_line(
-                "BACKPORTED JIRAS", char="═", length=len(StringUtils.get_first_line_of_multiline_str(backport_table))
-            )
-            + "\n"
-        )
-
-        # Generate summary string
-        summary_str = (
-            StringUtils.generate_header_line(
-                "SUMMARY", char="═", length=len(StringUtils.get_first_line_of_multiline_str(commit_list_table))
-            )
-            + "\n"
-        )
-        summary_str += f"Number of jiras: {self.no_of_jiras}\n"
-        summary_str += f"Number of commits: {self.no_of_commits}\n"
-        summary_str += f"Number of files changed: {self.no_of_files}\n"
-        summary_str += commits_header_line
-        summary_str += commit_list_table
-        summary_str += "\n\n"
-        summary_str += result_files_header_line
-        summary_str += file_list_table
-        summary_str += "\n\n"
-        summary_str += backport_header_line
-        summary_str += backport_table
-        return summary_str
-
-    @staticmethod
-    def filter_branches(backport_remote_filter, branches):
-        if backport_remote_filter and any(backport_remote_filter in br for br in branches):
-            res_branches = list(filter(lambda br: backport_remote_filter in br, branches))
-        else:
-            res_branches = branches
-        return res_branches
 
 
 @auto_str
@@ -260,6 +71,7 @@ class UpstreamJiraUmbrellaFetcherConfig:
         self.full_cmd: str or None = None
         self._validate(downstream_repo)
         self.umbrella_result_basedir = FileUtils.join_path(self.output_dir, self.jira_id)
+        self.extended_backport_table = False
 
     def _validate(self, downstream_repo: GitWrapper):
         if self.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
@@ -271,7 +83,7 @@ class UpstreamJiraUmbrellaFetcherConfig:
                 if not downstream_repo.is_branch_exist(branch):
                     raise ValueError(
                         "Cannot find branch called '{}' in downstream repository {}. "
-                        "Please verify the provided branch names!"
+                        "Please verify the provided branch names!".format(branch, self.downstream_repo_path)
                     )
 
     def __str__(self):
@@ -304,6 +116,7 @@ class UpstreamJiraUmbrellaFetcher:
 
         # These fields will be assigned when data is fetched
         self.data: JiraUmbrellaData or None = None
+        self.output_manager = UmbrellaFetcherOutputManager(self.config)
 
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()
@@ -325,6 +138,7 @@ class UpstreamJiraUmbrellaFetcher:
     def get_file_path_from_basedir(self, file_name):
         return FileUtils.join_path(self.config.umbrella_result_basedir, file_name)
 
+    # TODO Move these outputfile properties to OutputManager
     @property
     def jira_html_file(self):
         return self.get_file_path_from_basedir("jira.html")
@@ -369,8 +183,6 @@ class UpstreamJiraUmbrellaFetcher:
             self.data.list_of_changed_files = []
         else:
             self.save_changed_files_to_file()
-        # TODO Only render summary once, store and print later (print_summary)
-        self.write_summary_file()
 
         self.write_all_changes_files()
         self.pickle_umbrella_data()
@@ -420,7 +232,7 @@ class UpstreamJiraUmbrellaFetcher:
         LOG.info("Number of matched commits: %s", self.data.no_of_matched_commits)
         LOG.debug("Matched commits: \n%s", StringUtils.list_to_multiline_string(self.data.matched_upstream_commit_list))
 
-        # Commits in reverse order (oldest first)
+        # Commits in reverse order (the oldest first)
         self.data.matched_upstream_commit_list.reverse()
         self.convert_to_commit_data_objects_upstream()
         FileUtils.save_to_file(
@@ -441,7 +253,7 @@ class UpstreamJiraUmbrellaFetcher:
         LOG.debug("Trying to find commits by jira titles from git log: %s", not_found_jira_titles)
 
         # If the not_found_jira_titles are all unresolved jiras,
-        # egrep would fail so we don't want to fail the whole script here,
+        # egrep would fail, so we don't want to fail the whole script here,
         # so disabling fail_on_error / fail_on_empty_output
         cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
             git_log_result, self.intermediate_results_file, "|".join(not_found_jira_titles)
@@ -576,6 +388,7 @@ class UpstreamJiraUmbrellaFetcher:
             commit_obj.hash for commit_obj in self.data.upstream_commit_data_list
         ]
 
+    # TODO Migrate this to OutputManager
     def save_changed_files_to_file(self):
         list_of_changed_files = []
         for c_hash in self.data.matched_upstream_commit_hashes:
@@ -590,9 +403,7 @@ class UpstreamJiraUmbrellaFetcher:
             self.changed_files_file, StringUtils.list_to_multiline_string(self.data.list_of_changed_files)
         )
 
-    def write_summary_file(self):
-        FileUtils.save_to_file(self.summary_file, self.data.render_summary_string(self.config.umbrella_result_basedir))
-
+    # TODO Migrate this to OutputManager
     def write_all_changes_files(self):
         """
         Iterate over changed files, print all matching changes to the particular file
@@ -632,10 +443,72 @@ class UpstreamJiraUmbrellaFetcher:
                 FileUtils.save_to_file(target_file, "")
                 sys.exit(1)
 
+    # TODO Migrate this to OutputManager
     def print_summary(self):
-        LOG.info(self.data.render_summary_string(self.config.umbrella_result_basedir))
+        table_data = self.prepare_table_data()
+        summary_data: UmbrellaFetcherSummaryData = UmbrellaFetcherSummaryData(self.config, self.data)
+        self.rendered_summary = UmbrellaFetcherRenderedSummary(summary_data, table_data, self.config)
+        self.output_manager.print_and_save_summary(self.rendered_summary)
 
     def pickle_umbrella_data(self):
         LOG.debug("Final umbrella data object: %s", self.data)
         LOG.info("Dumping %s object to file %s", JiraUmbrellaData.__name__, self.pickled_data_file)
         PickleUtils.dump(self.data, self.pickled_data_file)
+
+    # TODO Migrate this to class that is responsible for creating data for table
+    def prepare_table_data(self, backport_remote_filter=ORIGIN):
+        backports_list: List[Any] = []
+        # TODO Make extended_backport_table mode non-mutually exclusive of auto/manual branch mode, let user combine these
+        # TODO Make sure to add branch presence info dynamically in all cases!!!
+        if self.config.extended_backport_table:
+            backports_list = []
+            for bjira in self.data.backported_jiras.values():
+                for commit in bjira.commits:
+                    backports_list.append(
+                        [
+                            bjira.jira_id,
+                            commit.commit_obj.hash[:SHORT_SHA_LENGTH],
+                            commit.commit_obj.message,
+                            self.filter_branches(backport_remote_filter, commit.branches),
+                            commit.commit_obj.date,
+                        ]
+                    )
+        else:
+            if self.config.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
+                for bjira in self.data.backported_jiras.values():
+                    all_branches = self._get_all_branches_for_auto_mode(backport_remote_filter, bjira)
+                    backports_list.append([bjira.jira_id, list(set(all_branches))])
+            elif self.config.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
+                for bjira in self.data.backported_jiras.values():
+                    all_branches = set([br for c in bjira.commits for br in c.branches])
+                    for commit in bjira.commits:
+                        if commit.commit_obj.reverted:
+                            continue
+                    backport_present_list = []
+                    for branch in self.config.downstream_branches:
+                        backport_present_list.append(branch in all_branches)
+                    # TODO Temporarily disabled colorize in order to send the mail effortlessly with summary body.
+                    #   This method requires redesign, nevertheless.
+                    # curr_row = ResultPrinter.colorize_row(curr_row, convert_bools=True)
+                    curr_row = [bjira.jira_id]
+                    curr_row.extend(backport_present_list)
+                    backports_list.append(curr_row)
+        return backports_list
+
+    def _get_all_branches_for_auto_mode(self, backport_remote_filter, bjira):
+        all_branches = []
+        for commit in bjira.commits:
+            if commit.commit_obj.reverted:
+                continue
+            branches = self.filter_branches(backport_remote_filter, commit.branches)
+            if branches:
+                all_branches.extend(branches)
+        return all_branches
+
+    @staticmethod
+    def filter_branches(backport_remote_filter, branches):
+        if backport_remote_filter and any(backport_remote_filter in br for br in branches):
+            res_branches = list(filter(lambda br: backport_remote_filter in br, branches))
+        else:
+            res_branches = branches
+        return res_branches

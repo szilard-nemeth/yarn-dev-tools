@@ -3,6 +3,7 @@ from os.path import expanduser
 
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.html_utils import HtmlGenerator
 
 from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME
 
@@ -84,3 +85,37 @@ class CommandType(Enum):
             return val_to_enum[val]
         else:
             raise NotImplementedError
+
+
+class HtmlHelper:
+    @staticmethod
+    def generate_summary_str(tables, summary_str: str):
+        printable_summary_str: str = summary_str
+        for table in tables:
+            printable_summary_str += str(table)
+            printable_summary_str += "\n\n"
+        return printable_summary_str
+
+    @staticmethod
+    def generate_summary_html(html_tables, summary_str: str) -> str:
+        table_tuples = [(h.header, h.table) for h in html_tables]
+
+        html_sep = HtmlGenerator.generate_separator(tag="hr", breaks=2)
+        return (
+            HtmlGenerator()
+            .append_paragraphs(summary_str.splitlines())
+            .begin_html_tag()
+            .add_basic_table_style()
+            .append_html_tables(
+                table_tuples, separator=html_sep, header_type="h1", additional_separator_at_beginning=True
+            )
+            .render()
+        )
+
+    @staticmethod
+    def _add_summary_as_html_paragraphs(soup, summary_str):
+        lines = summary_str.splitlines()
+        for line in lines:
+            p = soup.new_tag("p")
+            p.append(line)
+            soup.append(p)

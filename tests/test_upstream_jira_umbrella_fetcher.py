@@ -9,24 +9,35 @@ from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetche
 from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA
 from tests.test_utilities import TestUtilities, Object
 
-# Umbrella: OrgQueue for easy CapacityScheduler queue configuration management
-
 FILE_JIRA_HTML = "jira.html"
-FILE_SUMMARY = "summary.txt"
+FILE_SUMMARY_TXT = "summary.txt"
+FILE_SUMMARY_HTML = "summary.html"
 FILE_JIRA_LIST = "jira-list.txt"
 FILE_INTERMEDIATE_RESULTS = "intermediate-results.txt"
 FILE_COMMIT_HASHES = "commit-hashes.txt"
 FILE_CHANGED_FILES = "changed-files.txt"
 ALL_OUTPUT_FILES = [
     FILE_JIRA_HTML,
-    FILE_SUMMARY,
     FILE_JIRA_LIST,
+    FILE_SUMMARY_TXT,
+    FILE_SUMMARY_HTML,
     FILE_INTERMEDIATE_RESULTS,
     FILE_COMMIT_HASHES,
     FILE_CHANGED_FILES,
 ]
+IGNORE_CHANGES_MODE_OUTPUT_FILES = [
+    FILE_JIRA_HTML,
+    FILE_JIRA_LIST,
+    FILE_SUMMARY_TXT,
+    FILE_SUMMARY_HTML,
+    FILE_INTERMEDIATE_RESULTS,
+    FILE_COMMIT_HASHES,
+]
+IGNORE_CHANGES_MODE_MODIFIED_FILE_LIST = [FILE_SUMMARY_TXT, FILE_SUMMARY_HTML]
+
 
 UPSTREAM_JIRA_ID = "YARN-5734"
+AQC_PHASE1_UPSTREAM_JIRA_ID = "YARN-10889"
 UPSTREAM_JIRA_WITH_0_SUBJIRAS = "YARN-9629"
 UPSTREAM_JIRA_NOT_EXISTING = "YARN-1111111"
 UPSTREAM_JIRA_DOES_NOT_HAVE_COMMIT = "YARN-3525"
@@ -49,7 +60,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         cls.saved_patches_dir = cls.utils.saved_patches_dir
         cls.base_branch = TRUNK
 
-        # Invoke this to setup main output directory and avoid test failures while initing config
+        # Invoke this to set up main output directory and avoid test failures while initing config
         ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
 
     @classmethod
@@ -60,10 +71,13 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         self.utils.cleanup_and_checkout_test_branch(pull=False)
         self.assertEqual(test_branch, str(self.repo.head.ref))
 
-    def setup_args(self, jira=UPSTREAM_JIRA_ID, force_mode=False):
+    def setup_args(self, jira_id, force_mode=False, ignore_changes=False, branches=None):
         args = Object()
-        args.jira_id = jira
+        args.jira_id = jira_id
         args.force_mode = force_mode
+        args.ignore_changes = ignore_changes
+        if branches:
+            args.branches = branches
         return args
 
     def test_fetch_on_branch_other_than_trunk_fails(self):
@@ -73,14 +87,18 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         # self.repo.head.ref would raise: TypeError: HEAD is a detached symbolic reference as it points to
         self.assertNotEqual(self.repo_wrapper.get_hash_of_commit(self.base_branch), self.repo.head.commit.hexsha)
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(), self.repo_wrapper, self.repo_wrapper, self.utils.jira_umbrella_data_dir, self.base_branch
+            self.setup_args(UPSTREAM_JIRA_ID),
+            self.repo_wrapper,
+            self.repo_wrapper,
+            self.utils.jira_umbrella_data_dir,
+            self.base_branch,
         )
         self.assertRaises(ValueError, umbrella_fetcher.run)
 
     def test_fetch_with_upstream_jira_that_is_not_an_umbrella_works(self):
         self.utils.checkout_trunk()
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(jira=UPSTREAM_JIRA_WITH_0_SUBJIRAS),
+            self.setup_args(jira_id=UPSTREAM_JIRA_WITH_0_SUBJIRAS),
             self.repo_wrapper,
             self.repo_wrapper,
             self.utils.jira_umbrella_data_dir,
@@ -94,7 +112,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     def test_fetch_with_upstream_jira_not_existing(self):
         self.utils.checkout_trunk()
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(jira=UPSTREAM_JIRA_NOT_EXISTING),
+            self.setup_args(jira_id=UPSTREAM_JIRA_NOT_EXISTING),
             self.repo_wrapper,
             self.repo_wrapper,
             self.utils.jira_umbrella_data_dir,
@@ -105,7 +123,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     def test_fetch_with_upstream_jira_that_does_not_have_commit(self):
         self.utils.checkout_trunk()
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(jira=UPSTREAM_JIRA_DOES_NOT_HAVE_COMMIT),
+            self.setup_args(jira_id=UPSTREAM_JIRA_DOES_NOT_HAVE_COMMIT),
             self.repo_wrapper,
             self.repo_wrapper,
             self.utils.jira_umbrella_data_dir,
@@ -116,7 +134,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     def test_fetch_with_upstream_umbrella_cached_mode(self):
         self.utils.checkout_trunk()
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(force_mode=False),
+            self.setup_args(force_mode=False, jira_id=UPSTREAM_JIRA_ID),
             self.repo_wrapper,
             self.repo_wrapper,
             self.utils.jira_umbrella_data_dir,
@@ -131,15 +149,15 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         output_dir = FileUtils.join_path(self.utils.jira_umbrella_data_dir, UPSTREAM_JIRA_ID)
         original_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
 
-        self._verify_files_and_mod_dates(output_dir)
+        self._verify_files_and_mod_dates(output_dir, files=ALL_OUTPUT_FILES)
 
         # Since we are using non-force mode (cached mode), we expect the files untouched
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
         self.assertDictEqual(original_mod_dates, new_mod_dates)
 
-    def _verify_files_and_mod_dates(self, output_dir):
+    def _verify_files_and_mod_dates(self, output_dir, files):
         # Verify files and mod dates
-        for out_file in ALL_OUTPUT_FILES:
+        for out_file in files:
             self.utils.assert_file_not_empty(FileUtils.join_path(output_dir, out_file))
 
     def test_fetch_with_upstream_umbrella_force_mode(self):
@@ -147,7 +165,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         output_dir = FileUtils.join_path(self.utils.jira_umbrella_data_dir, UPSTREAM_JIRA_ID)
         original_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            self.setup_args(force_mode=True),
+            self.setup_args(force_mode=True, jira_id=UPSTREAM_JIRA_ID),
             self.repo_wrapper,
             self.repo_wrapper,
             self.utils.jira_umbrella_data_dir,
@@ -155,10 +173,33 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         )
         umbrella_fetcher.run()
 
-        self._verify_files_and_mod_dates(output_dir)
+        self._verify_files_and_mod_dates(output_dir, files=ALL_OUTPUT_FILES)
 
         # Since we are using force-mode (non cached mode), we expect all files have a newer mod date
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
+        for file, mod_date in new_mod_dates.items():
+            self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
+
+    def test_fetch_with_upstream_umbrella_ignore_changes_manual_mode(self):
+        self.utils.checkout_trunk()
+        output_dir = FileUtils.join_path(self.utils.jira_umbrella_data_dir, AQC_PHASE1_UPSTREAM_JIRA_ID)
+        original_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
+        umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
+            self.setup_args(
+                force_mode=False,
+                ignore_changes=True,
+                branches=["origin/trunk", "origin/branch-3.3", "origin/branch-3.2"],
+                jira_id=AQC_PHASE1_UPSTREAM_JIRA_ID,
+            ),
+            self.repo_wrapper,
+            self.repo_wrapper,
+            self.utils.jira_umbrella_data_dir,
+            self.base_branch,
+        )
+        umbrella_fetcher.run()
+
+        self._verify_files_and_mod_dates(output_dir, files=IGNORE_CHANGES_MODE_OUTPUT_FILES)
+        new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *IGNORE_CHANGES_MODE_MODIFIED_FILE_LIST)
         for file, mod_date in new_mod_dates.items():
             self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
 
