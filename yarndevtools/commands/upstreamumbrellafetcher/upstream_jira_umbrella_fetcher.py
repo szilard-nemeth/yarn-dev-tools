@@ -228,7 +228,9 @@ class UpstreamJiraUmbrellaFetcher:
             upsream_branches: List[str] = [ORIGIN_TRUNK]
 
         for upstream_branch in upsream_branches:
-            git_log_result = self.upstream_repo.log(upstream_branch, oneline_with_date=True)
+            git_log_result = self.upstream_repo.log(
+                self.ensure_remote_specified(upstream_branch), oneline_with_date=True
+            )
             cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
                 git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
             )
@@ -355,7 +357,7 @@ class UpstreamJiraUmbrellaFetcher:
 
     def find_downstream_commits_manual_mode(self):
         for branch in self.config.downstream_branches:
-            git_log_result = self.downstream_repo.log(branch, oneline_with_date=True)
+            git_log_result = self.downstream_repo.log(self.ensure_remote_specified(branch), oneline_with_date=True)
             # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
             cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
                 git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
@@ -559,3 +561,9 @@ class UpstreamJiraUmbrellaFetcher:
                     branches.add(branch)
                     break
         return list(branches)
+
+    @staticmethod
+    def ensure_remote_specified(branch):
+        if ORIGIN not in branch:
+            return f"{ORIGIN}/{branch}"
+        return branch
