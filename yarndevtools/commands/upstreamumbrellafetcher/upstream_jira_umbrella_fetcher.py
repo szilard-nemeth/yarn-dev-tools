@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import List, Any
+from typing import List, Any, Collection
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
@@ -450,16 +450,16 @@ class UpstreamJiraUmbrellaFetcher:
 
     # TODO Migrate this to class that is responsible for creating data for table
     def prepare_table_data(self, backport_remote_filter=ORIGIN):
-        backports_list: List[Any] = []
+        all_commits_backport_data: List[Any] = []
         # TODO Make extended_backport_table mode non-mutually exclusive of auto/manual branch mode, let user combine these
         # TODO Make sure to add branch presence info dynamically in all cases!!!
         if self.config.extended_backport_table:
-            backports_list = []
-            for bjira in self.data.backported_jiras.values():
-                for commit in bjira.commits:
-                    backports_list.append(
+            all_commits_backport_data = []
+            for backported_jira in self.data.backported_jiras.values():
+                for commit in backported_jira.commits:
+                    all_commits_backport_data.append(
                         [
-                            bjira.jira_id,
+                            backported_jira.jira_id,
                             commit.commit_obj.hash[:SHORT_SHA_LENGTH],
                             commit.commit_obj.message,
                             self.filter_branches(backport_remote_filter, commit.branches),
@@ -468,29 +468,42 @@ class UpstreamJiraUmbrellaFetcher:
                     )
         else:
             if self.config.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
-                for bjira in self.data.backported_jiras.values():
-                    all_branches = self._get_all_branches_for_auto_mode(backport_remote_filter, bjira)
-                    backports_list.append([bjira.jira_id, list(set(all_branches))])
+                for commit_data in self.data.matched_upstream_commitdata_list:
+                    jira_id = commit_data.jira_id
+                    if jira_id in self.data.backported_jiras:
+                        for backported_jira in self.data.backported_jiras.values():
+                            all_branches: Collection[str] = self._get_all_branches_for_auto_mode(
+                                backport_remote_filter, backported_jira
+                            )
+                            curr_row = [backported_jira.jira_id, list(set(all_branches))]
+                            all_commits_backport_data.append(curr_row)
+                    else:
+                        curr_row = [jira_id, []]
+                        all_commits_backport_data.append(curr_row)
             elif self.config.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
-                for bjira in self.data.backported_jiras.values():
-                    all_branches = set([br for c in bjira.commits for br in c.branches])
-                    for commit in bjira.commits:
-                        if commit.commit_obj.reverted:
-                            continue
-                    backport_present_list = []
-                    for branch in self.config.downstream_branches:
-                        backport_present_list.append(branch in all_branches)
-                    # TODO Temporarily disabled colorize in order to send the mail effortlessly with summary body.
-                    #   This method requires redesign, nevertheless.
-                    # curr_row = ResultPrinter.colorize_row(curr_row, convert_bools=True)
-                    curr_row = [bjira.jira_id]
-                    curr_row.extend(backport_present_list)
-                    backports_list.append(curr_row)
-        return backports_list
+                not_found_on_any_branches = [False for _ in self.config.downstream_branches]
 
-    def _get_all_branches_for_auto_mode(self, backport_remote_filter, bjira):
+                for commit_data in self.data.matched_upstream_commitdata_list:
+                    jira_id = commit_data.jira_id
+                    curr_row = [jira_id]
+                    if jira_id in self.data.backported_jiras:
+                        backported_jira = self.data.backported_jiras[jira_id]
+                        all_branches = set([br for c in backported_jira.commits for br in c.branches])
+                        for commit in backported_jira.commits:
+                            if commit.commit_obj.reverted:
+                                continue
+                            # TODO no-op loop
+                        backport_presence_list = [branch in all_branches for branch in self.config.downstream_branches]
+                        curr_row.extend(backport_presence_list)
+                        all_commits_backport_data.append(curr_row)
+                    else:
+                        curr_row.extend(not_found_on_any_branches)
+                        all_commits_backport_data.append(curr_row)
+        return all_commits_backport_data
+
+    def _get_all_branches_for_auto_mode(self, backport_remote_filter, backported_jira):
         all_branches = []
-        for commit in bjira.commits:
+        for commit in backported_jira.commits:
             if commit.commit_obj.reverted:
                 continue
             branches = self.filter_branches(backport_remote_filter, commit.branches)

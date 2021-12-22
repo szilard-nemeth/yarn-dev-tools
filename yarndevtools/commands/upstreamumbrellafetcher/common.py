@@ -3,6 +3,8 @@ from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str
 
+from yarndevtools.commands_common import CommitData
+
 
 @auto_str
 class JiraUmbrellaData:
@@ -15,9 +17,9 @@ class JiraUmbrellaData:
         self.matched_upstream_commit_list: List[str] or None = None
         self.matched_upstream_commit_hashes: List[str] or None = None
         self.list_of_changed_files: List[str] or None = None
-        self.matched_upstream_commitdata_list = None
+        self.matched_upstream_commitdata_list: List[CommitData] or None = None
         self.execution_mode: ExecutionMode or None = None
-        self.backported_jiras: Dict[str, BackportedJira] = {}
+        self.backported_jiras: Dict[str, BackportedJira] = {}  # Key: Jira ID
 
     @property
     def no_of_matched_commits(self):
