@@ -462,7 +462,7 @@ class TableRenderer:
             tabulate_formats=formats,
         )
         rendered_tables: Dict[TabulateTableFormat, str] = ResultPrinter.print_tables(
-            data, header=header, render_conf=render_conf
+            data=data, header=header, render_conf=render_conf
         )
         result_dict: Dict[TabulateTableFormat, GenericTableWithHeader] = {}
         for table_fmt, rendered_table in rendered_tables.items():

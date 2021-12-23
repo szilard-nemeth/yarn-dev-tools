@@ -430,7 +430,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
             add_row_numbers=False,
             tabulate_formats=DEFAULT_TABLE_FORMATS,
         )
-        gen_tables = ResultPrinter.print_tables(source_data, header=header, render_conf=render_conf)
+        gen_tables = ResultPrinter.print_tables(data=source_data, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,
@@ -471,7 +471,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
             bool_conversion_config=BoolConversionConfig(),
             colorize_config=colorize_conf,
         )
-        gen_tables = ResultPrinter.print_tables(all_commits, header=header, render_conf=render_conf)
+        gen_tables = ResultPrinter.print_tables(data=all_commits, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
             self.add_table(
                 table_type,

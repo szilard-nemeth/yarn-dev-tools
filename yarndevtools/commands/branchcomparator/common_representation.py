@@ -160,7 +160,7 @@ class RenderedSummaryAbs(ABC):
             tabulate_formats=DEFAULT_TABLE_FORMATS,
         )
         gen_tables = ResultPrinter.print_tables(
-            result_files_data,
+            data=result_files_data,
             header=header,
             render_conf=render_conf,
         )
@@ -194,7 +194,7 @@ class RenderedSummaryAbs(ABC):
                 max_width_separator=" ",
                 tabulate_formats=DEFAULT_TABLE_FORMATS,
             )
-            gen_tables = ResultPrinter.print_tables(source_data, header=header, render_conf=render_conf)
+            gen_tables = ResultPrinter.print_tables(data=source_data, header=header, render_conf=render_conf)
             for table_fmt, table in gen_tables.items():
                 self.add_table(
                     table_type,

@@ -149,7 +149,7 @@ class UmbrellaFetcherRenderedSummary:
             bool_conversion_config=BoolConversionConfig(),
         )
         gen_tables = ResultPrinter.print_tables(
-            self.table_data,
+            data=self.table_data,
             header=header,
             render_conf=render_conf,
         )
@@ -182,7 +182,7 @@ class UmbrellaFetcherRenderedSummary:
             max_width_separator=os.sep,
             tabulate_formats=DEFAULT_TABLE_FORMATS,
         )
-        gen_tables = ResultPrinter.print_tables(result_files_data, header=header, render_conf=render_conf)
+        gen_tables = ResultPrinter.print_tables(data=result_files_data, header=header, render_conf=render_conf)
 
         for table_fmt, table in gen_tables.items():
             self._add_single_table(
