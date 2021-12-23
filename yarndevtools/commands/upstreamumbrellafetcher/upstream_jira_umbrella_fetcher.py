@@ -1,11 +1,12 @@
 import logging
 import os
 import sys
-from typing import List, Any, Collection
+from typing import List, Any, Collection, Set
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.jira_utils import JiraUtils
+from pythoncommons.object_utils import ListUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
@@ -541,9 +542,15 @@ class UpstreamJiraUmbrellaFetcher:
     def get_jira_ids_from_all_upstream_branches(self):
         all_jira_ids = set()
         for commits_per_branch in self.data.upstream_commits_by_branch.values():
-            all_jira_ids.update(
-                [commit_obj.jira_id for commit_obj in commits_per_branch.matched_upstream_commitdata_list]
-            )
+            new_jira_ids = [commit_obj.jira_id for commit_obj in commits_per_branch.matched_upstream_commitdata_list]
+
+            duplicate_jira_ids: Set[str] = ListUtils.get_duplicates(new_jira_ids)
+            if duplicate_jira_ids:
+                LOG.error(
+                    "Detected duplicate Jira IDs: %s\n" "Ideally, this should not happen for Jiras under an umbrella!",
+                    duplicate_jira_ids,
+                )
+            all_jira_ids.update(new_jira_ids)
         return all_jira_ids
 
     def get_commit_hashes_from_all_upstream_branches(self):
