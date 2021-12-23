@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict
@@ -5,6 +6,8 @@ from typing import List, Dict
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.commands_common import CommitData, GitLogLineFormat, MatchJiraIdFromBeginningParseStrategy
+
+LOG = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,7 +26,7 @@ class UpstreamCommitsPerBranch:
         <hash> <YARN-id> <commit date>
         :return:
         """
-        self.matched_upstream_commitdata_list = [
+        commitdata_list = [
             CommitData.from_git_log_str(
                 commit_str,
                 format=GitLogLineFormat.ONELINE_WITH_DATE,
@@ -31,6 +34,19 @@ class UpstreamCommitsPerBranch:
             )
             for commit_str in self.matched_upstream_commit_list
         ]
+        LOG.debug("Found %d CommitData objects", len(commitdata_list))
+
+        filtered_commitdata_list = []
+        for commit_data in commitdata_list:  # type: CommitData
+            if commit_data.jira_id:
+                filtered_commitdata_list.append(commit_data)
+            else:
+                LOG.warning("Dropped CommitData because Jira ID was null for it: %s", commit_data)
+        self.matched_upstream_commitdata_list = filtered_commitdata_list
+        LOG.debug(
+            "Found %d CommitData objects that passed the filter criteria", len(self.matched_upstream_commitdata_list)
+        )
+
         self.matched_upstream_commit_hashes = [commit_obj.hash for commit_obj in self.matched_upstream_commitdata_list]
 
     @property
