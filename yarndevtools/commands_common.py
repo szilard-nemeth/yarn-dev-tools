@@ -77,6 +77,10 @@ class JiraIdParseStrategy(ABC):
     def parse(self, git_log_line: str, config, parser) -> JiraIdData:
         pass
 
+    @abstractmethod
+    def allow_unknown_jira_id(self) -> bool:
+        pass
+
 
 class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
     def parse(self, git_log_line: str, config, parser) -> JiraIdData:
@@ -86,6 +90,36 @@ class MatchFirstJiraIdParseStrategy(JiraIdParseStrategy):
             jira_id_dict = JiraIdData.create_jira_id_dict([True], [match_value])
             return JiraIdData(match_value, jira_id_dict)
         return JiraIdData(None, {})
+
+    def allow_unknown_jira_id(self) -> bool:
+        return False
+
+
+class MatchJiraIdFromBeginningParseStrategy(JiraIdParseStrategy):
+    def parse(self, git_log_line: str, config, parser) -> JiraIdData:
+        # Do a little trick here
+        # Example log line:
+        # 843f66f4dc012dff402bfebc183d46673cd47419 Clean up checkstyle warnings from YARN-11024/10907/10929. Contributed by Benjamin Teke 2021-12-14T22:00:46+01:00
+        # Cut the commit hash and check if position of match is starting from 0th index of the string
+        mod_git_log_line = " ".join(git_log_line.split()[1:])
+        match = config.pattern.search(mod_git_log_line)
+        if match:
+            if not match.span()[0] == 0:
+                LOG.warning(
+                    "Cannot find Jira ID at the beginning of the commit message. "
+                    "Git log line: %s\n match span: %s, match details: %s",
+                    git_log_line,
+                    match.span(),
+                    match,
+                )
+                return JiraIdData(None, {})
+            match_value = match.group(1)
+            jira_id_dict = JiraIdData.create_jira_id_dict([True], [match_value])
+            return JiraIdData(match_value, jira_id_dict)
+        return JiraIdData(None, {})
+
+    def allow_unknown_jira_id(self) -> bool:
+        return True
 
 
 class MatchAllJiraIdStrategy(JiraIdParseStrategy):
@@ -141,6 +175,9 @@ class MatchAllJiraIdStrategy(JiraIdParseStrategy):
         if self.type_preference == JiraIdTypePreference.DOWNSTREAM:
             pass
             # TODO Implement downstream
+
+    def allow_unknown_jira_id(self) -> bool:
+        return False
 
     def _get_upstream_jira_id_truth_list(self, jira_ids):
         return [jid.startswith(self.UPSTREAM_JIRA_PROJECTS_TUP) for jid in jira_ids]
@@ -272,11 +309,11 @@ class GitLogParser:
         return commit_data
 
     def _determine_jira_ids(self, git_log_str, parse_config: GitLogParseConfig) -> JiraIdData:
+        allow_errors = parse_config.jira_id_parse_strategy.allow_unknown_jira_id()
         jira_id_data = parse_config.jira_id_parse_strategy.parse(git_log_str, parse_config, self)
-        if not jira_id_data.has_matched_jira_id and not parse_config.allow_unmatched_jira_id:
+        if not jira_id_data.has_matched_jira_id and not parse_config.allow_unmatched_jira_id and not allow_errors:
             raise ValueError(
-                f"Cannot find YARN jira id in git log string: {git_log_str}. "
-                f"Pattern was: {CommitData.JIRA_ID_PATTERN.pattern}"
+                f"Cannot find Jira ID in git log string: {git_log_str}. " f"Pattern was: {parse_config.pattern}"
             )
         return jira_id_data
 

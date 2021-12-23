@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.commands_common import CommitData, GitLogLineFormat
+from yarndevtools.commands_common import CommitData, GitLogLineFormat, MatchJiraIdFromBeginningParseStrategy
 
 
 @dataclass
@@ -24,7 +24,11 @@ class UpstreamCommitsPerBranch:
         :return:
         """
         self.matched_upstream_commitdata_list = [
-            CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE)
+            CommitData.from_git_log_str(
+                commit_str,
+                format=GitLogLineFormat.ONELINE_WITH_DATE,
+                jira_id_parse_strategy=MatchJiraIdFromBeginningParseStrategy(),
+            )
             for commit_str in self.matched_upstream_commit_list
         ]
         self.matched_upstream_commit_hashes = [commit_obj.hash for commit_obj in self.matched_upstream_commitdata_list]
