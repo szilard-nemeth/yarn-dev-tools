@@ -235,7 +235,8 @@ class CdswSetup:
                 raise ValueError(
                     f"Expected to find 1 file with name {CDSW_RUNNER_PY} "
                     f"and parent dir '{cdsw_script_dirname}'. "
-                    f"Actual results: {found_files}"
+                    f"Actual results: {found_files}. "
+                    f"Find basedir: {CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT}"
                 )
             # It's safer to delete dirs one by one explicitly, without specifying just the parent
             cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
