@@ -34,6 +34,7 @@ from yarndevtools.commands.upstreamumbrellafetcher.representation import (
     UmbrellaFetcherSummaryData,
 )
 from yarndevtools.commands_common import CommitData, GitLogLineFormat
+from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SUMMARY_FILE_TXT,
@@ -200,7 +201,7 @@ class UpstreamJiraUmbrellaFetcher:
         if self.config.execution_mode == ExecutionMode.AUTO_BRANCH_MODE:
             self.find_downstream_commits_auto_mode()
         elif self.config.execution_mode == ExecutionMode.MANUAL_BRANCH_MODE:
-            self.find_downstream_commits_manual_mode()
+            self.data.backported_jiras = self.find_downstream_commits_manual_mode()
         self.data.execution_mode = self.config.execution_mode
 
         if self.config.ignore_changes:
@@ -383,11 +384,20 @@ class UpstreamJiraUmbrellaFetcher:
                 LOG.info("%s Finished checking downstream backport for jira: %s", progress, jira_id)
 
     def find_downstream_commits_manual_mode(self):
-        for branch in self.config.downstream_branches:
-            git_log_result = self.downstream_repo.log(self.ensure_remote_specified(branch), oneline_with_date=True)
+        branches = self.config.downstream_branches
+        grep_intermediate_results_file = self.intermediate_results_file
+        piped_jira_ids = self.data.piped_jira_ids
+        downstream_repo = self.downstream_repo
+        jira_ids = self.get_jira_ids_from_all_upstream_branches()
+        backported_jiras = {}
+
+        for branch in branches:
+            git_log_result = downstream_repo.log(
+                SharedCommandUtils.ensure_remote_specified(branch), oneline_with_date=True
+            )
             # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
             cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
-                git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
+                git_log_result, grep_intermediate_results_file, piped_jira_ids
             )
             if not output or len(output) == 0:
                 return
@@ -409,16 +419,17 @@ class UpstreamJiraUmbrellaFetcher:
 
                 for backported_commit in backported_commits:
                     jira_id = backported_commit.commit_obj.jira_id
-                    if jira_id not in self.data.backported_jiras:
-                        self.data.backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
+                    if jira_id not in backported_jiras:
+                        backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
                     else:
-                        self.data.backported_jiras[jira_id].commits.append(backported_commit)
+                        backported_jiras[jira_id].commits.append(backported_commit)
 
         # Make sure that missing backports are added as BackportedJira objects
-        for jira_id in self.get_jira_ids_from_all_upstream_branches():
-            if jira_id not in self.data.backported_jiras:
+        for jira_id in jira_ids:
+            if jira_id not in backported_jiras:
                 LOG.debug("%s is not backported to any of the provided branches", jira_id)
-                self.data.backported_jiras[jira_id] = BackportedJira(jira_id, [])
+                backported_jiras[jira_id] = BackportedJira(jira_id, [])
+        return backported_jiras
 
     @staticmethod
     def _run_egrep(git_log_result: List[str], file: str, grep_for: str):
@@ -608,12 +619,6 @@ class UpstreamJiraUmbrellaFetcher:
                     branches.add(branch)
                     break
         return list(branches)
-
-    @staticmethod
-    def ensure_remote_specified(branch):
-        if ORIGIN not in branch:
-            return f"{ORIGIN}/{branch}"
-        return branch
 
     def cross_check_subjira_statuses_with_commits(self):
         jira_wrapper = JiraWrapper(JIRA_URL, DEFAULT_BRANCH, self.patches_basedir)

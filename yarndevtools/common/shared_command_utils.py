@@ -3,6 +3,7 @@ from os.path import expanduser
 
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.git_constants import ORIGIN
 from pythoncommons.html_utils import HtmlGenerator
 
 from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME
@@ -25,6 +26,14 @@ class YarnDevToolsEnvVar(Enum):
 class RepoType(Enum):
     DOWNSTREAM = "downstream"
     UPSTREAM = "upstream"
+
+
+class SharedCommandUtils:
+    @staticmethod
+    def ensure_remote_specified(branch):
+        if ORIGIN not in branch:
+            return f"{ORIGIN}/{branch}"
+        return branch
 
 
 class FullEmailConfig:
@@ -64,6 +73,11 @@ class CommandType(Enum):
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
     JENKINS_TEST_REPORTER = ("jenkins_test_reporter", False)
     UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
+    REVIEW_SHEET_BACKPORT_UPDATER = (
+        "review_sheet_backport_updater",
+        True,
+        "latest-session-review-sheet-backport-updater",
+    )
 
     def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
         self.real_name = value
