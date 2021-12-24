@@ -12,7 +12,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetupResult,
 )
 from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JIRA_UMBRELLA_CHECKER_DIR_NAME
-from yarndevtools.constants import SUMMARY_FILE_TXT
+from yarndevtools.constants import SUMMARY_FILE_HTML
 from pythoncommons.jira_utils import JiraUtils
 
 DEFAULT_BRANCHES = "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x"
@@ -43,7 +43,7 @@ class CdswRunner(CdswRunnerBase):
             command_data_filename: str = f"command_data_{self.start_date_str}.zip"
             kwargs = {
                 "attachment_filename": command_data_filename,
-                "email_body_file": SUMMARY_FILE_TXT,
+                "email_body_file": SUMMARY_FILE_HTML,
                 "send_attachment": True,
             }
             if self.is_drive_integration_enabled:
