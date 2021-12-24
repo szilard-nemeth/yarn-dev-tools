@@ -6,7 +6,7 @@ from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA
+from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA, ORIGIN_TRUNK, ORIGIN_BRANCH_3_3, ORIGIN_BRANCH_3_2
 from tests.test_utilities import TestUtilities, Object
 
 FILE_JIRA_HTML = "jira.html"
@@ -14,7 +14,7 @@ FILE_SUMMARY_TXT = "summary.txt"
 FILE_SUMMARY_HTML = "summary.html"
 FILE_JIRA_LIST = "jira-list.txt"
 FILE_INTERMEDIATE_RESULTS = "intermediate-results.txt"
-FILE_COMMIT_HASHES = "commit-hashes.txt"
+FILE_COMMIT_HASHES_TEMPLATE = "commit-hashes_$BRANCH.txt"
 FILE_CHANGED_FILES = "changed-files.txt"
 ALL_OUTPUT_FILES = [
     FILE_JIRA_HTML,
@@ -22,7 +22,6 @@ ALL_OUTPUT_FILES = [
     FILE_SUMMARY_TXT,
     FILE_SUMMARY_HTML,
     FILE_INTERMEDIATE_RESULTS,
-    FILE_COMMIT_HASHES,
     FILE_CHANGED_FILES,
 ]
 IGNORE_CHANGES_MODE_OUTPUT_FILES = [
@@ -31,7 +30,6 @@ IGNORE_CHANGES_MODE_OUTPUT_FILES = [
     FILE_SUMMARY_TXT,
     FILE_SUMMARY_HTML,
     FILE_INTERMEDIATE_RESULTS,
-    FILE_COMMIT_HASHES,
 ]
 IGNORE_CHANGES_MODE_MODIFIED_FILE_LIST = [FILE_SUMMARY_TXT, FILE_SUMMARY_HTML]
 
@@ -62,6 +60,10 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
 
         # Invoke this to set up main output directory and avoid test failures while initing config
         ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
+
+        commit_hashes_file = TestUpstreamJiraUmbrellaFetcher.get_commit_hashes_filename_of_branch(ORIGIN_TRUNK)
+        ALL_OUTPUT_FILES.append(commit_hashes_file)
+        IGNORE_CHANGES_MODE_OUTPUT_FILES.append(commit_hashes_file)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -184,11 +186,12 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         self.utils.checkout_trunk()
         output_dir = FileUtils.join_path(self.utils.jira_umbrella_data_dir, AQC_PHASE1_UPSTREAM_JIRA_ID)
         original_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
+        branches = [ORIGIN_TRUNK, ORIGIN_BRANCH_3_3, ORIGIN_BRANCH_3_2]
         umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
             self.setup_args(
-                force_mode=False,
+                force_mode=True,
                 ignore_changes=True,
-                branches=["origin/trunk", "origin/branch-3.3", "origin/branch-3.2"],
+                branches=branches,
                 jira_id=AQC_PHASE1_UPSTREAM_JIRA_ID,
             ),
             self.repo_wrapper,
@@ -198,10 +201,20 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         )
         umbrella_fetcher.run()
 
-        self._verify_files_and_mod_dates(output_dir, files=IGNORE_CHANGES_MODE_OUTPUT_FILES)
+        files_to_check = IGNORE_CHANGES_MODE_OUTPUT_FILES + [self.get_commit_hashes_filename_of_branch(ORIGIN_TRUNK)]
+        self._verify_files_and_mod_dates(output_dir, files=files_to_check)
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *IGNORE_CHANGES_MODE_MODIFIED_FILE_LIST)
         for file, mod_date in new_mod_dates.items():
             self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
+
+    @classmethod
+    def get_commit_hashes_filename_of_branch(cls, branch):
+        branch = cls.convert_branch_name(branch)
+        return FILE_COMMIT_HASHES_TEMPLATE.replace("$BRANCH", branch)
+
+    @staticmethod
+    def convert_branch_name(b):
+        return b.replace("/", "_").replace(".", "_")
 
 
 if __name__ == "__main__":

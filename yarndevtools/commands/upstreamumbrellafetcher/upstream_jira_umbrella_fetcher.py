@@ -154,6 +154,10 @@ class UpstreamJiraUmbrellaFetcher:
         return self.get_file_path_from_basedir("jira-list.txt")
 
     def commits_file(self, upstream_branch):
+        if os.sep in upstream_branch:
+            upstream_branch = upstream_branch.replace(os.sep, "_")
+        if "." in upstream_branch:
+            upstream_branch = upstream_branch.replace(".", "_")
         return self.get_file_path_from_basedir(f"commit-hashes_{upstream_branch}.txt")
 
     @property
@@ -556,7 +560,7 @@ class UpstreamJiraUmbrellaFetcher:
     def get_commit_hashes_from_all_upstream_branches(self):
         all_hashes = set()
         for commits_per_branch in self.data.upstream_commits_by_branch.values():
-            all_hashes.update([commit_obj.c_hash for commit_obj in commits_per_branch.matched_upstream_commitdata_list])
+            all_hashes.update([commit_obj.hash for commit_obj in commits_per_branch.matched_upstream_commitdata_list])
         return all_hashes
 
     def get_upstream_branches_for_jira(self, jira_id):

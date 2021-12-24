@@ -125,8 +125,7 @@ class UmbrellaFetcherRenderedSummary:
             raise ValueError("Unexpected configuration!")
         header.extend(self.config.all_branches_to_consider)
 
-        # Adding 1 because row id will be added as first column
-        row_len = len(self.table_data[0]) + 1
+        row_len = len(self.table_data[0])
         color_conf = ColorizeConfig(
             [
                 ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, (0, row_len), (0, row_len)),
