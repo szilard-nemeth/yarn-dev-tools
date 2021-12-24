@@ -13,7 +13,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.string_utils import StringUtils, auto_str
+from pythoncommons.string_utils import StringUtils
 
 from pythoncommons.git_constants import (
     HEAD,
@@ -34,7 +34,7 @@ from yarndevtools.commands.upstreamumbrellafetcher.representation import (
     UmbrellaFetcherSummaryData,
 )
 from yarndevtools.commands_common import CommitData, GitLogLineFormat
-from yarndevtools.common.shared_command_utils import SharedCommandUtils
+from yarndevtools.common.shared_command_utils import SharedCommandUtils, BackportedCommit
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SUMMARY_FILE_TXT,
@@ -53,13 +53,6 @@ class JiraData:
     subjira_statuses: Dict[str, JiraStatus]
     resolved_jiras: Set[str]
     not_committed_jiras: Set[str]
-
-
-@auto_str
-class BackportedCommit:
-    def __init__(self, commit_obj, branches):
-        self.commit_obj = commit_obj
-        self.branches = branches
 
 
 class UpstreamJiraUmbrellaFetcherConfig:
@@ -250,9 +243,9 @@ class UpstreamJiraUmbrellaFetcher:
         upsream_branches = self._get_branches()
         for upstream_branch in upsream_branches:
             git_log_result = self.upstream_repo.log(
-                self.ensure_remote_specified(upstream_branch), oneline_with_date=True
+                SharedCommandUtils.ensure_remote_specified(upstream_branch), oneline_with_date=True
             )
-            cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
+            cmd, output = SharedCommandUtils._run_egrep(
                 git_log_result, self.intermediate_results_file, self.data.piped_jira_ids
             )
             if not output:
@@ -315,7 +308,7 @@ class UpstreamJiraUmbrellaFetcher:
         # If the not_found_jira_titles are all unresolved jiras,
         # egrep would fail, so we don't want to fail the whole script here,
         # so disabling fail_on_error / fail_on_empty_output
-        cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
+        cmd, output = SharedCommandUtils._run_egrep(
             git_log_result, self.intermediate_results_file, "|".join(not_found_jira_titles)
         )
         if not output:
@@ -386,23 +379,10 @@ class UpstreamJiraUmbrellaFetcher:
     def find_downstream_commits_manual_mode(self):
         branches = self.config.downstream_branches
         grep_intermediate_results_file = self.intermediate_results_file
-        piped_jira_ids = self.data.piped_jira_ids
         downstream_repo = self.downstream_repo
         jira_ids = self.get_jira_ids_from_all_upstream_branches()
-        return self.find_commits_on_branches(
-            branches, grep_intermediate_results_file, piped_jira_ids, downstream_repo, jira_ids
-        )
-
-    @staticmethod
-    def _run_egrep(git_log_result: List[str], file: str, grep_for: str):
-        return CommandRunner.egrep_with_cli(
-            git_log_result,
-            file,
-            grep_for,
-            escape_single_quotes=False,
-            escape_double_quotes=True,
-            fail_on_empty_output=False,
-            fail_on_error=False,
+        return SharedCommandUtils.find_commits_on_branches(
+            branches, grep_intermediate_results_file, downstream_repo, jira_ids
         )
 
     # TODO Migrate this to OutputManager
@@ -595,47 +575,3 @@ class UpstreamJiraUmbrellaFetcher:
 
         not_committed_jiras = set(jiras_ids_resolved).difference(jira_ids_of_commits)
         return JiraData(subjira_statuses, jiras_ids_resolved, not_committed_jiras)
-
-    def find_commits_on_branches(
-        self, branches, grep_intermediate_results_file, piped_jira_ids, downstream_repo, jira_ids
-    ):
-        backported_jiras = {}
-        for branch in branches:
-            git_log_result = downstream_repo.log(
-                SharedCommandUtils.ensure_remote_specified(branch), oneline_with_date=True
-            )
-            # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-            cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
-                git_log_result, grep_intermediate_results_file, piped_jira_ids
-            )
-            if not output or len(output) == 0:
-                return
-
-            matched_downstream_commit_list = output.split("\n")
-            if matched_downstream_commit_list:
-                backported_commits = [
-                    BackportedCommit(
-                        CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE), [branch]
-                    )
-                    for commit_str in matched_downstream_commit_list
-                ]
-                LOG.info(
-                    "Identified %d backported commits on branch %s:\n%s",
-                    len(backported_commits),
-                    branch,
-                    "\n".join([f"{bc.commit_obj.as_oneline_string()}" for bc in backported_commits]),
-                )
-
-                for backported_commit in backported_commits:
-                    jira_id = backported_commit.commit_obj.jira_id
-                    if jira_id not in backported_jiras:
-                        backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
-                    else:
-                        backported_jiras[jira_id].commits.append(backported_commit)
-
-        # Make sure that missing backports are added as BackportedJira objects
-        for jira_id in jira_ids:
-            if jira_id not in backported_jiras:
-                LOG.debug("%s is not backported to any of the provided branches", jira_id)
-                backported_jiras[jira_id] = BackportedJira(jira_id, [])
-        return backported_jiras

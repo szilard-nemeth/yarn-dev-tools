@@ -1,13 +1,22 @@
+import logging
 from enum import Enum
 from os.path import expanduser
+from typing import List
 
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_constants import ORIGIN
 from pythoncommons.html_utils import HtmlGenerator
+from pythoncommons.object_utils import ListUtils
+from pythoncommons.process import CommandRunner
+from pythoncommons.string_utils import auto_str
 
-from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME
+from yarndevtools.commands.upstreamumbrellafetcher.common import BackportedJira
+from yarndevtools.commands_common import CommitData, GitLogLineFormat
 
+from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME, ANY_JIRA_ID_PATTERN
+
+LOG = logging.getLogger(__name__)
 SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
 
 
@@ -34,6 +43,70 @@ class SharedCommandUtils:
         if ORIGIN not in branch:
             return f"{ORIGIN}/{branch}"
         return branch
+
+    @staticmethod
+    def find_commits_on_branches(branches, grep_intermediate_results_file, downstream_repo, jira_ids):
+        backported_jiras = {}
+        for branch in branches:
+            git_log_result = downstream_repo.log(
+                SharedCommandUtils.ensure_remote_specified(branch), oneline_with_date=True
+            )
+            if len(jira_ids) > 100:
+                for jira_ids_chunk in ListUtils.split_to_chunks(jira_ids, 100):
+                    piped_jira_ids = "|".join(jira_ids_chunk)
+                    # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
+                    cmd, output = SharedCommandUtils._run_egrep(
+                        git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=True
+                    )
+                    if not output or len(output) == 0:
+                        continue
+                    SharedCommandUtils._process_output(backported_jiras, branch, output)
+
+        # Make sure that missing backports are added as BackportedJira objects
+        for jira_id in jira_ids:
+            if jira_id not in backported_jiras:
+                LOG.debug("%s is not backported to any of the provided branches", jira_id)
+                backported_jiras[jira_id] = BackportedJira(jira_id, [])
+        return backported_jiras
+
+    @staticmethod
+    def _process_output(backported_jiras, branch, output):
+        matched_downstream_commit_list = output.split("\n")
+        if matched_downstream_commit_list:
+            backported_commits = [
+                BackportedCommit(
+                    CommitData.from_git_log_str(
+                        commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE, pattern=ANY_JIRA_ID_PATTERN
+                    ),
+                    [branch],
+                )
+                for commit_str in matched_downstream_commit_list
+            ]
+            LOG.info(
+                "Identified %d backported commits on branch %s:\n%s",
+                len(backported_commits),
+                branch,
+                "\n".join([f"{bc.commit_obj.as_oneline_string()}" for bc in backported_commits]),
+            )
+
+            for backported_commit in backported_commits:
+                jira_id = backported_commit.commit_obj.jira_id
+                if jira_id not in backported_jiras:
+                    backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
+                else:
+                    backported_jiras[jira_id].commits.append(backported_commit)
+
+    @staticmethod
+    def _run_egrep(git_log_result: List[str], file: str, grep_for: str, fail_on_error=False):
+        return CommandRunner.egrep_with_cli(
+            git_log_result,
+            file,
+            grep_for,
+            escape_single_quotes=False,
+            escape_double_quotes=True,
+            fail_on_empty_output=False,
+            fail_on_error=fail_on_error,
+        )
 
 
 class FullEmailConfig:
@@ -133,3 +206,10 @@ class HtmlHelper:
             p = soup.new_tag("p")
             p.append(line)
             soup.append(p)
+
+
+@auto_str
+class BackportedCommit:
+    def __init__(self, commit_obj, branches):
+        self.commit_obj = commit_obj
+        self.branches = branches
