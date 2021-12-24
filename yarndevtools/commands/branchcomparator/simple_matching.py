@@ -445,8 +445,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         header = [h.ROW.value, h.JIRA_ID.value, h.COMMIT_MSG.value, h.COMMIT_DATE.value, h.COMMITTER.value]
         header.extend(self.summary_data.get_branch_names())
 
-        # Adding 1 because row id will be added as first column
-        row_len = len(all_commits[0]) + 1
+        row_len = len(all_commits[0]) - 1
         color_conf = ColorizeConfig(
             [
                 ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, (0, row_len), (0, row_len)),

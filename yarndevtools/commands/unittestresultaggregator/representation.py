@@ -281,7 +281,7 @@ class SummaryGenerator:
         #  Aggregation filter #1 = CDPD-7.x
         #  Aggregation filter #2 = CDPD-7.1.x
 
-        # Note: Step numbers are in parenthesis
+        # Note: Step numbers are in parentheses
         # Failed testcases_ALL --> Global all (1)
         # Failed testcases_YARN_ALL (1)
         # Failed testcases_MR_ALL (1)
