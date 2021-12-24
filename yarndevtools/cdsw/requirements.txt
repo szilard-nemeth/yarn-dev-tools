@@ -3,3 +3,4 @@ git+https://github.com/szilard-nemeth/google-api-wrapper.git
 git+https://github.infra.cloudera.com/snemeth/yarn-dev-tools-mirror
 humanize
 docker
+jira
