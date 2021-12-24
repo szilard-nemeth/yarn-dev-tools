@@ -677,6 +677,8 @@ class TestJenkinsTestReporter(unittest.TestCase):
         mock_fetch_json.return_value = builds_dict
 
         act_test_report = JenkinsApiConverter.download_test_report(failed_build, Mock(spec=DownloadProgress))
+
+        LOG.debug("Call args list: %s", mock_fetch_json.call_args_list)
         self.assertEqual(builds_dict, act_test_report)
         self.assertEqual(
             "http://full/url/of/job/testReport/api/json?pretty=true", mock_fetch_json.call_args_list[0].args[0]
