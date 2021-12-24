@@ -389,47 +389,9 @@ class UpstreamJiraUmbrellaFetcher:
         piped_jira_ids = self.data.piped_jira_ids
         downstream_repo = self.downstream_repo
         jira_ids = self.get_jira_ids_from_all_upstream_branches()
-        backported_jiras = {}
-
-        for branch in branches:
-            git_log_result = downstream_repo.log(
-                SharedCommandUtils.ensure_remote_specified(branch), oneline_with_date=True
-            )
-            # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-            cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
-                git_log_result, grep_intermediate_results_file, piped_jira_ids
-            )
-            if not output or len(output) == 0:
-                return
-
-            matched_downstream_commit_list = output.split("\n")
-            if matched_downstream_commit_list:
-                backported_commits = [
-                    BackportedCommit(
-                        CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE), [branch]
-                    )
-                    for commit_str in matched_downstream_commit_list
-                ]
-                LOG.info(
-                    "Identified %d backported commits on branch %s:\n%s",
-                    len(backported_commits),
-                    branch,
-                    "\n".join([f"{bc.commit_obj.as_oneline_string()}" for bc in backported_commits]),
-                )
-
-                for backported_commit in backported_commits:
-                    jira_id = backported_commit.commit_obj.jira_id
-                    if jira_id not in backported_jiras:
-                        backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
-                    else:
-                        backported_jiras[jira_id].commits.append(backported_commit)
-
-        # Make sure that missing backports are added as BackportedJira objects
-        for jira_id in jira_ids:
-            if jira_id not in backported_jiras:
-                LOG.debug("%s is not backported to any of the provided branches", jira_id)
-                backported_jiras[jira_id] = BackportedJira(jira_id, [])
-        return backported_jiras
+        return self.find_commits_on_branches(
+            branches, grep_intermediate_results_file, piped_jira_ids, downstream_repo, jira_ids
+        )
 
     @staticmethod
     def _run_egrep(git_log_result: List[str], file: str, grep_for: str):
@@ -633,3 +595,47 @@ class UpstreamJiraUmbrellaFetcher:
 
         not_committed_jiras = set(jiras_ids_resolved).difference(jira_ids_of_commits)
         return JiraData(subjira_statuses, jiras_ids_resolved, not_committed_jiras)
+
+    def find_commits_on_branches(
+        self, branches, grep_intermediate_results_file, piped_jira_ids, downstream_repo, jira_ids
+    ):
+        backported_jiras = {}
+        for branch in branches:
+            git_log_result = downstream_repo.log(
+                SharedCommandUtils.ensure_remote_specified(branch), oneline_with_date=True
+            )
+            # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
+            cmd, output = UpstreamJiraUmbrellaFetcher._run_egrep(
+                git_log_result, grep_intermediate_results_file, piped_jira_ids
+            )
+            if not output or len(output) == 0:
+                return
+
+            matched_downstream_commit_list = output.split("\n")
+            if matched_downstream_commit_list:
+                backported_commits = [
+                    BackportedCommit(
+                        CommitData.from_git_log_str(commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE), [branch]
+                    )
+                    for commit_str in matched_downstream_commit_list
+                ]
+                LOG.info(
+                    "Identified %d backported commits on branch %s:\n%s",
+                    len(backported_commits),
+                    branch,
+                    "\n".join([f"{bc.commit_obj.as_oneline_string()}" for bc in backported_commits]),
+                )
+
+                for backported_commit in backported_commits:
+                    jira_id = backported_commit.commit_obj.jira_id
+                    if jira_id not in backported_jiras:
+                        backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
+                    else:
+                        backported_jiras[jira_id].commits.append(backported_commit)
+
+        # Make sure that missing backports are added as BackportedJira objects
+        for jira_id in jira_ids:
+            if jira_id not in backported_jiras:
+                LOG.debug("%s is not backported to any of the provided branches", jira_id)
+                backported_jiras[jira_id] = BackportedJira(jira_id, [])
+        return backported_jiras
