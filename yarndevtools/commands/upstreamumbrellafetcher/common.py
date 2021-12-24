@@ -70,6 +70,7 @@ class JiraUmbrellaData:
         self.execution_mode: ExecutionMode or None = None
         self.backported_jiras: Dict[str, BackportedJira] = {}  # Key: Jira ID
         self.upstream_commits_by_branch: Dict[str, UpstreamCommitsPerBranch] = {}  # Key: branch name
+        self.jira_data = None
 
     @property
     def no_of_jiras(self):

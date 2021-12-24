@@ -29,6 +29,8 @@ LOG = LoggerFactory.get_logger(__name__)
 class UmbrellaFetcherUpstreamCommitsHeader(Enum):
     ROW = "Row"
     JIRA_ID = "Jira ID"
+    JIRA_RESOLUTION = "Jira resolution"
+    JIRA_STATUS_CATEGORY = "Jira statusCategory"
     COMMIT_HASH = "Commit hash"
     COMMIT_MSG = "Commit message"
     COMMIT_DATE = "Commit date"
@@ -120,7 +122,7 @@ class UmbrellaFetcherRenderedSummary:
         if self.config.extended_backport_table:
             header = [h.ROW.value, h.JIRA_ID.value, h.COMMIT_HASH.value, h.COMMIT_MSG.value, h.COMMIT_DATE.value]
         elif self.config.execution_mode in (ExecutionMode.AUTO_BRANCH_MODE, ExecutionMode.MANUAL_BRANCH_MODE):
-            header = [h.ROW.value, h.JIRA_ID.value]
+            header = [h.ROW.value, h.JIRA_ID.value, h.JIRA_RESOLUTION.value, h.JIRA_STATUS_CATEGORY.value]
         else:
             raise ValueError("Unexpected configuration!")
         header.extend(self.config.all_branches_to_consider)

@@ -1,11 +1,13 @@
 import logging
 import os
 import sys
-from typing import List, Any, Collection, Set
+from dataclasses import dataclass
+from typing import List, Any, Collection, Set, Dict
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.jira_utils import JiraUtils
+from pythoncommons.jira_wrapper import JiraWrapper, JiraStatus
 from pythoncommons.object_utils import ListUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.pickle_utils import PickleUtils
@@ -35,11 +37,21 @@ from yarndevtools.commands_common import CommitData, GitLogLineFormat
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SUMMARY_FILE_TXT,
+    TRUNK,
 )
 
 LOG = logging.getLogger(__name__)
 PICKLED_DATA_FILENAME = "pickled_umbrella_data.obj"
 COMMON_UPSTREAM_BRANCHES = ["trunk", "branch-3.3", "branch-3.2", "branch-3.1"]
+JIRA_URL = "https://issues.apache.org/jira"
+DEFAULT_BRANCH = "trunk"
+
+
+@dataclass
+class JiraData:
+    subjira_statuses: Dict[str, JiraStatus]
+    resolved_jiras: Set[str]
+    not_committed_jiras: Set[str]
 
 
 @auto_str
@@ -121,7 +133,7 @@ class UpstreamJiraUmbrellaFetcher:
         )
 
         # These fields will be assigned when data is fetched
-        self.data: JiraUmbrellaData or None = None
+        self.data: JiraUmbrellaData
         self.output_manager = UmbrellaFetcherOutputManager(self.config)
 
     def run(self):
@@ -176,6 +188,10 @@ class UpstreamJiraUmbrellaFetcher:
     def pickled_data_file(self):
         return self.get_file_path_from_basedir(PICKLED_DATA_FILENAME)
 
+    @property
+    def patches_basedir(self):
+        return self.get_file_path_from_basedir("patches")
+
     def do_fetch(self):
         LOG.info("Fetching jira umbrella data...")
         self.data = JiraUmbrellaData()
@@ -192,6 +208,9 @@ class UpstreamJiraUmbrellaFetcher:
         else:
             self.save_changed_files_to_file()
 
+        self.data.jira_data = self.cross_check_subjira_statuses_with_commits()
+        # TODO Write self.subjira_statuses to file
+        # TODO Write self.subjira_statuses to table
         self.write_all_changes_files()
         self.pickle_umbrella_data()
         self.print_summary()
@@ -227,11 +246,7 @@ class UpstreamJiraUmbrellaFetcher:
 
     def find_upstream_commits_and_save_to_file(self):
         # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-        if self.config.common_upstream_branches:
-            upsream_branches: List[str] = self.config.common_upstream_branches
-        else:
-            upsream_branches: List[str] = [ORIGIN_TRUNK]
-
+        upsream_branches = self._get_branches()
         for upstream_branch in upsream_branches:
             git_log_result = self.upstream_repo.log(
                 self.ensure_remote_specified(upstream_branch), oneline_with_date=True
@@ -275,6 +290,13 @@ class UpstreamJiraUmbrellaFetcher:
                 StringUtils.list_to_multiline_string(upstream_commits_by_branch.matched_upstream_commit_hashes),
             )
             self.data.upstream_commits_by_branch[upstream_branch] = upstream_commits_by_branch
+
+    def _get_branches(self):
+        if self.config.common_upstream_branches:
+            upsream_branches: List[str] = self.config.common_upstream_branches
+        else:
+            upsream_branches: List[str] = [ORIGIN_TRUNK]
+        return upsream_branches
 
     def _find_missing_upstream_commits_by_message(self, git_log_result, normal_commit_lines):
         # Example line:
@@ -519,7 +541,16 @@ class UpstreamJiraUmbrellaFetcher:
                     else:
                         all_branches = all_upstream_branches_for_jira
                     branch_presence_list = [br in all_branches for br in self.config.all_branches_to_consider]
-                    row = [jira_id] + branch_presence_list
+
+                    jira_status: JiraStatus = self.data.jira_data.subjira_statuses[jira_id]
+                    row = [jira_id, jira_status.resolution, jira_status.status_category] + branch_presence_list
+                    all_commits_backport_data.append(row)
+
+                for jira_id in self.data.jira_data.not_committed_jiras:
+                    jira_status = self.data.jira_data.subjira_statuses[jira_id]
+                    row = [jira_id, jira_status.resolution, jira_status.status_category] + len(
+                        self.config.all_branches_to_consider
+                    ) * [False]
                     all_commits_backport_data.append(row)
         return all_commits_backport_data
 
@@ -544,8 +575,13 @@ class UpstreamJiraUmbrellaFetcher:
         return res_branches
 
     def get_jira_ids_from_all_upstream_branches(self):
+        branches = self.data.upstream_commits_by_branch.keys()
+        return self._get_jira_ids_from_branches(branches)
+
+    def _get_jira_ids_from_branches(self, branches):
         all_jira_ids = set()
-        for commits_per_branch in self.data.upstream_commits_by_branch.values():
+        for branch in branches:
+            commits_per_branch = self.data.upstream_commits_by_branch[branch]
             new_jira_ids = [commit_obj.jira_id for commit_obj in commits_per_branch.matched_upstream_commitdata_list]
 
             duplicate_jira_ids: Set[str] = ListUtils.get_duplicates(new_jira_ids)
@@ -578,3 +614,17 @@ class UpstreamJiraUmbrellaFetcher:
         if ORIGIN not in branch:
             return f"{ORIGIN}/{branch}"
         return branch
+
+    def cross_check_subjira_statuses_with_commits(self):
+        jira_wrapper = JiraWrapper(JIRA_URL, DEFAULT_BRANCH, self.patches_basedir)
+        subjira_statuses: Dict[str, JiraStatus] = jira_wrapper.get_subjira_statuses_of_umbrella(self.config.jira_id)
+
+        # diff_jira_ids1 = set(self.data.subjira_ids).difference(subjira_statuses.keys())
+        # diff_jira_ids2 = set(subjira_statuses.keys()).difference(self.data.subjira_ids)
+        jira_ids_of_commits = set(self._get_jira_ids_from_branches([TRUNK]))
+
+        jiras_resolved = dict(filter(lambda x: x[1].status_category == "Done", subjira_statuses.items()))
+        jiras_ids_resolved = set(jiras_resolved.keys())
+
+        not_committed_jiras = set(jiras_ids_resolved).difference(jira_ids_of_commits)
+        return JiraData(subjira_statuses, jiras_ids_resolved, not_committed_jiras)
