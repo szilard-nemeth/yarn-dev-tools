@@ -54,7 +54,7 @@ class UnitTestResultAggregatorConfig:
         self.account_email: str = args.account_email
         self.testcase_filters = TestCaseFilters(
             TestCaseFilters.convert_raw_match_expressions_to_objs(getattr(args, "match_expression", None)),
-            getattr(args, "aggregate_filters", []),
+            self._get_attribute(args, "aggregate_filters", default=[]),
         )
         self.skip_lines_starting_with: List[str] = getattr(args, "skip_lines_starting_with", [])
         self.email_content_line_sep = getattr(args, "email_content_line_separator", DEFAULT_LINE_SEP)
@@ -76,6 +76,13 @@ class UnitTestResultAggregatorConfig:
             )
             for worksheet_name in worksheet_names:
                 self.gsheet_options.add_worksheet(worksheet_name)
+
+    @staticmethod
+    def _get_attribute(args, attr_name, default=None):
+        val = getattr(args, attr_name)
+        if not val:
+            return default
+        return val
 
     def _validate_args(self, parser, args):
         if args.gsheet and (

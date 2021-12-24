@@ -569,6 +569,7 @@ class ArgParser:
         parser.add_argument(
             "--aggregate-filters",
             dest="aggregate_filters",
+            required=True,
             type=str,
             nargs="+",
             help="Execute some post filters on the email results. "
@@ -636,5 +637,7 @@ class ArgParser:
     @staticmethod
     def matches_match_expression_pattern(value):
         if not re.match(MATCH_EXPRESSION_PATTERN, value):
-            raise argparse.ArgumentTypeError(f"Must be in the form of <alias>::<pattern>. Provided value: {value}")
+            raise argparse.ArgumentTypeError(
+                f"Must conform to this format: <alias>::<pattern>. Provided value: {value}"
+            )
         return value

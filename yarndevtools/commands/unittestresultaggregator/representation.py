@@ -13,6 +13,7 @@ from pythoncommons.result_printer import (
     GenericTableWithHeader,
     ResultPrinter,
     DEFAULT_TABLE_FORMATS,
+    TableRenderingConfig,
 )
 from pythoncommons.string_utils import StringUtils, auto_str
 
@@ -66,19 +67,29 @@ class OutputFormatRules:
     truncate_subject_with: str or None
 
 
+# TODO Get rid of this later?
 @auto_str
-class TableRenderingConfig:
+class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
     def __init__(
         self,
-        data_type: TableDataType,
-        testcase_filters: List[TestCaseFilter] or None,
-        header: List[str],
-        table_types: List[TableOutputFormat],
-        out_fmt: OutputFormatRules or None,
-        table_formats: List[TabulateTableFormat] = DEFAULT_TABLE_FORMATS,
+        data_type: TableDataType = None,
+        testcase_filters: List[TestCaseFilter] or None = None,
+        header: List[str] = None,
+        table_types: List[TableOutputFormat] = None,
+        out_fmt: OutputFormatRules or None = None,
+        row_callback=None,
+        tabulate_formats: List[TabulateTableFormat] = DEFAULT_TABLE_FORMATS,
         simple_mode=False,
+        max_width=200,
+        max_width_separator=" ",
+        add_row_numbers=False,
+        print_result=False,
     ):
-        self.table_formats = table_formats
+        super().__init__(row_callback, tabulate_formats=tabulate_formats)
+        self.print_result = print_result
+        self.add_row_numbers = add_row_numbers
+        self.max_width_separator = max_width_separator
+        self.max_width = max_width
         self.testcase_filters = [] if not testcase_filters else testcase_filters
         self.header = header
         self.data_type = data_type
@@ -229,30 +240,30 @@ class SummaryGenerator:
         return table_renderer
 
     @classmethod
-    def short_render_confs(cls, config, truncate) -> List[TableRenderingConfig]:
+    def short_render_confs(cls, config, truncate) -> List[UnitTestResultAggregatorTableRenderingConfig]:
         return [
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.BUILD_COMPARISON,
                 header=["Testcase", "Still failing", "Fixed", "New failure"],
                 testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
             ),
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.UNKNOWN_FAILURES,
                 testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_basic,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
             ),
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.REOCCURRED_FAILURES,
                 testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_basic,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
             ),
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.TESTCASES_TO_JIRAS,
                 testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_full,
@@ -262,7 +273,7 @@ class SummaryGenerator:
         ]
 
     @classmethod
-    def detailed_render_confs(cls, config, truncate) -> List[TableRenderingConfig]:
+    def detailed_render_confs(cls, config, truncate) -> List[UnitTestResultAggregatorTableRenderingConfig]:
         # Render tables in 2 steps
         # EXAMPLE SCENARIO / CONFIG:
         #  match_expression #1 = 'YARN::org.apache.hadoop.yarn', pattern='.*org\\.apache\\.hadoop\\.yarn.*')
@@ -281,7 +292,7 @@ class SummaryGenerator:
         return [
             # Render tables for all match expressions + ALL values
             # --> 3 tables in case of 2 match expressions
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.MATCHED_LINES,
                 testcase_filters=config.testcase_filters.get_non_aggregate_filters(),
                 header=cls.matched_testcases_all_header,
@@ -290,14 +301,14 @@ class SummaryGenerator:
             ),
             # Render tables for all match expressions AND all aggregation filters
             # --> 4 tables in case of 2 match expressions and 2 aggregate filters
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.MATCHED_LINES_AGGREGATED,
                 testcase_filters=config.testcase_filters.get_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_full,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
             ),
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 simple_mode=True,
                 header=["Subject", "Thread ID"],
                 data_type=TableDataType.MAIL_SUBJECTS,
@@ -305,7 +316,7 @@ class SummaryGenerator:
                 testcase_filters=None,
                 out_fmt=None,
             ),
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 simple_mode=True,
                 header=["Subject"],
                 data_type=TableDataType.UNIQUE_MAIL_SUBJECTS,
@@ -313,7 +324,7 @@ class SummaryGenerator:
                 testcase_filters=None,
                 out_fmt=None,
             ),
-            TableRenderingConfig(
+            UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.LATEST_FAILURES,
                 header=["Testcase", "Failure date", "Subject"],
                 testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
@@ -363,7 +374,9 @@ class SummaryGenerator:
                 f"Should have found exactly one table per type."
             )
 
-    def generate_summary(self, render_confs: List[TableRenderingConfig], table_output_format: TableOutputFormat) -> str:
+    def generate_summary(
+        self, render_confs: List[UnitTestResultAggregatorTableRenderingConfig], table_output_format: TableOutputFormat
+    ) -> str:
         tables: List[GenericTableWithHeader] = []
         for conf in render_confs:
             for tcf in conf.testcase_filters:
@@ -411,7 +424,7 @@ class TableRenderer:
 
     def render_by_config(
         self,
-        conf: TableRenderingConfig,
+        conf: UnitTestResultAggregatorTableRenderingConfig,
         data_callable: Callable[[TestCaseFilter or None, OutputFormatRules], List[List[str]]],
     ):
         if conf.simple_mode:
@@ -419,7 +432,7 @@ class TableRenderer:
                 header=conf.header,
                 data=data_callable(None, conf.out_fmt),
                 dtype=conf.data_type,
-                formats=conf.table_formats,
+                formats=conf.tabulate_formats,
             )
         for tcf in conf.testcase_filters:
             key = get_key_by_testcase_filter(tcf)
@@ -427,7 +440,7 @@ class TableRenderer:
                 header=conf.header,
                 data=data_callable(tcf, conf.out_fmt),
                 dtype=conf.data_type,
-                formats=conf.table_formats,
+                formats=conf.tabulate_formats,
                 append_to_header_title=f"_{key}",
                 table_alias=key,
             )
@@ -453,7 +466,7 @@ class TableRenderer:
                     f"First row of data table: {data[0]}"
                 )
 
-        render_conf = TableRenderingConfig(
+        render_conf = UnitTestResultAggregatorTableRenderingConfig(
             row_callback=lambda row: row,
             print_result=False,
             max_width=200,
