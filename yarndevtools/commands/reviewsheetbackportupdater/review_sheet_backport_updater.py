@@ -36,7 +36,12 @@ class ReviewSheetBackportUpdaterConfig:
             )
 
         self.gsheet_options = GSheetOptions(
-            args.gsheet_client_secret, args.gsheet_spreadsheet, worksheet=self.worksheet
+            args.gsheet_client_secret,
+            args.gsheet_spreadsheet,
+            worksheet=self.worksheet,
+            jira_column=args.gsheet_jira_column,
+            update_date_column=args.gsheet_update_date_column,
+            status_column=args.gsheet_status_info_column,
         )
 
     def __str__(self):
@@ -52,6 +57,7 @@ class ReviewSheetBackportUpdater:
         self.config = ReviewSheetBackportUpdaterConfig(parser, args, output_dir)
         self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
         self.downstream_repo = downstream_repo
+        self.downstream_repo.fetch(all=True)
 
     def run(self):
         LOG.info(f"Starting Review sheet backport updater. Config: \n{str(self.config)}")
@@ -62,7 +68,8 @@ class ReviewSheetBackportUpdater:
             self.config.downstream_branches, self.intermediate_results_file, self.downstream_repo, jira_ids
         )
 
-    def _sanitize_jira_ids(self, jira_ids):
+    @staticmethod
+    def _sanitize_jira_ids(jira_ids):
         sanitized_jira_ids = []
         for jira_id in jira_ids:
             if " " in jira_id or "\n" in jira_id:
@@ -72,7 +79,7 @@ class ReviewSheetBackportUpdater:
         return sanitized_jira_ids
 
     def _load_data_from_sheet(self):
-        raw_data_from_gsheet = self.gsheet_wrapper.read_data(self.config.worksheet, "A1:W1000")
+        jira_data_from_sheet = self.gsheet_wrapper.fetch_jira_data()
         LOG.info(f"Successfully loaded data from worksheet: {self.config.worksheet}")
 
         # header: List[str] = raw_data_from_gsheet[0]
@@ -106,10 +113,8 @@ class ReviewSheetBackportUpdater:
         #         f"Current header: {header}"
         #     )
 
-        raw_data_from_gsheet = raw_data_from_gsheet[1:]
         jira_ids = []
-        for row in raw_data_from_gsheet:
-            jira_id = row[0]
+        for jira_id in jira_data_from_sheet:
             matches = ANY_JIRA_ID_PATTERN.findall(jira_id)
             if matches:
                 jira_ids.append(jira_id)

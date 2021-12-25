@@ -56,7 +56,7 @@ class SharedCommandUtils:
                     piped_jira_ids = "|".join(jira_ids_chunk)
                     # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
                     cmd, output = SharedCommandUtils._run_egrep(
-                        git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=True
+                        git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=False
                     )
                     if not output or len(output) == 0:
                         continue
