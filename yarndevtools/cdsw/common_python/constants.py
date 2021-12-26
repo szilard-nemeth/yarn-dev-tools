@@ -3,6 +3,7 @@ from enum import Enum
 BRANCH_DIFF_REPORTER_DIR_NAME = "downstream-branchdiff-reporting"
 JIRA_UMBRELLA_CHECKER_DIR_NAME = "jira-umbrella-checker"
 UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME = "unit-test-result-aggregator"
+REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME = "review-sheet-backport-updater"
 UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
@@ -32,6 +33,16 @@ class BranchComparatorEnvVar(Enum):
 
 class JiraUmbrellaCheckerEnvVar(Enum):
     UMBRELLA_IDS = "UMBRELLA_IDS"  # TODO use this env var class
+
+
+class ReviewSheetBackportUpdaterEnvVar(Enum):
+    GSHEET_CLIENT_SECRET = "GSHEET_CLIENT_SECRET"
+    GSHEET_SPREADHSHEET = "GSHEET_SPREADHSHEET"
+    GSHEET_WORKSHEET = "GSHEET_WORKSHEET"
+    GSHEET_JIRA_COLUMN = "GSHEET_JIRA_COLUMN"
+    GSHEET_UPDATE_DATE_COLUMN = "GSHEET_UPDATE_DATE_COLUMN"
+    GSHEET_STATUS_INFO_COLUMN = "GSHEET_STATUS_INFO_COLUMN"
+    BRANCHES = "BRANCHES"
 
 
 class UnitTestResultAggregatorEnvVar(Enum):

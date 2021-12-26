@@ -43,6 +43,7 @@ from yarndevtools.cdsw.common_python.constants import (
     JIRA_UMBRELLA_CHECKER_DIR_NAME,
     UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
     UNIT_TEST_RESULT_REPORTING_DIR_NAME,
+    REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
 )
 
 from pythoncommons.process import SubprocessCommandRunner
@@ -87,6 +88,7 @@ class CommonDirs:
         JIRA_UMBRELLA_CHECKER_DIR_NAME,
         UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
         UNIT_TEST_RESULT_REPORTING_DIR_NAME,
+        REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
     ]
 
 
