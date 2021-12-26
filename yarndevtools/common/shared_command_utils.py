@@ -1,7 +1,7 @@
 import logging
 from enum import Enum
 from os.path import expanduser
-from typing import List
+from typing import List, Dict
 
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
@@ -9,10 +9,16 @@ from pythoncommons.git_constants import ORIGIN
 from pythoncommons.html_utils import HtmlGenerator
 from pythoncommons.object_utils import ListUtils
 from pythoncommons.process import CommandRunner
-from pythoncommons.string_utils import auto_str
 
-from yarndevtools.commands.upstreamumbrellafetcher.common import BackportedJira
-from yarndevtools.commands_common import CommitData, GitLogLineFormat
+from yarndevtools.commands_common import (
+    CommitData,
+    GitLogLineFormat,
+    BackportedJira,
+    BackportedCommit,
+    MatchAllJiraIdStrategy,
+    JiraIdTypePreference,
+    JiraIdChoosePreference,
+)
 
 from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME, ANY_JIRA_ID_PATTERN
 
@@ -45,8 +51,10 @@ class SharedCommandUtils:
         return branch
 
     @staticmethod
-    def find_commits_on_branches(branches, grep_intermediate_results_file, downstream_repo, jira_ids):
-        backported_jiras = {}
+    def find_commits_on_branches(
+        branches, grep_intermediate_results_file, downstream_repo, jira_ids
+    ) -> Dict[str, BackportedJira]:
+        backported_jiras: Dict[str, BackportedJira] = {}
         for branch in branches:
             git_log_result = downstream_repo.log(
                 SharedCommandUtils.ensure_remote_specified(branch), oneline_with_date=True
@@ -62,6 +70,7 @@ class SharedCommandUtils:
                         continue
                     SharedCommandUtils._process_output(backported_jiras, branch, output)
 
+        LOG.info("Found %d backported commits out of %d", len(backported_jiras), len(jira_ids))
         # Make sure that missing backports are added as BackportedJira objects
         for jira_id in jira_ids:
             if jira_id not in backported_jiras:
@@ -76,7 +85,14 @@ class SharedCommandUtils:
             backported_commits = [
                 BackportedCommit(
                     CommitData.from_git_log_str(
-                        commit_str, format=GitLogLineFormat.ONELINE_WITH_DATE, pattern=ANY_JIRA_ID_PATTERN
+                        commit_str,
+                        format=GitLogLineFormat.ONELINE_WITH_DATE,
+                        jira_id_parse_strategy=MatchAllJiraIdStrategy(
+                            type_preference=JiraIdTypePreference.UPSTREAM,
+                            choose_preference=JiraIdChoosePreference.FIRST,
+                            fallback_type=JiraIdTypePreference.DOWNSTREAM,
+                        ),
+                        pattern=ANY_JIRA_ID_PATTERN,
                     ),
                     [branch],
                 )
@@ -206,10 +222,3 @@ class HtmlHelper:
             p = soup.new_tag("p")
             p.append(line)
             soup.append(p)
-
-
-@auto_str
-class BackportedCommit:
-    def __init__(self, commit_obj, branches):
-        self.commit_obj = commit_obj
-        self.branches = branches

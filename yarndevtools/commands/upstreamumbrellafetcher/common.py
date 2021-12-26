@@ -5,7 +5,12 @@ from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.commands_common import CommitData, GitLogLineFormat, MatchJiraIdFromBeginningParseStrategy
+from yarndevtools.commands_common import (
+    CommitData,
+    GitLogLineFormat,
+    MatchJiraIdFromBeginningParseStrategy,
+    BackportedJira,
+)
 
 LOG = logging.getLogger(__name__)
 
@@ -84,10 +89,3 @@ class JiraUmbrellaData:
 class ExecutionMode(Enum):
     AUTO_BRANCH_MODE = "auto_branch_mode"
     MANUAL_BRANCH_MODE = "manual_branch_mode"
-
-
-@auto_str
-class BackportedJira:
-    def __init__(self, jira_id, commits):
-        self.jira_id = jira_id
-        self.commits = commits

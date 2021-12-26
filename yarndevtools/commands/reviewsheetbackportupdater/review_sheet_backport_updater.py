@@ -1,11 +1,13 @@
+import datetime
 import logging
-from typing import List
+from typing import List, Dict
 
-from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions
+from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.commands_common import BackportedJira
 from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN
 
@@ -63,10 +65,10 @@ class ReviewSheetBackportUpdater:
         LOG.info(f"Starting Review sheet backport updater. Config: \n{str(self.config)}")
         jira_ids = self._load_data_from_sheet()
         jira_ids = self._sanitize_jira_ids(jira_ids)
-        # TODO Handle data
-        SharedCommandUtils.find_commits_on_branches(
+        backported_jiras: Dict[str, BackportedJira] = SharedCommandUtils.find_commits_on_branches(
             self.config.downstream_branches, self.intermediate_results_file, self.downstream_repo, jira_ids
         )
+        self._process_results(backported_jiras)
 
     @staticmethod
     def _sanitize_jira_ids(jira_ids):
@@ -83,7 +85,6 @@ class ReviewSheetBackportUpdater:
         LOG.info(f"Successfully loaded data from worksheet: {self.config.worksheet}")
 
         # header: List[str] = raw_data_from_gsheet[0]
-        # expected_header = ["JIRA", "Description", "Prio", "Depends on", "Status", "Currently waiting on", "Patch Owner", "First line Reviewer", "Committer Reviewer", "Target", "Motivation", "Component", "Notes", "Last Updated", "Reviewsync", "Trunk", "branch-3.2", "branch-3.1", "Backported"]
         # expected_header = [
         #     "JIRA",
         #     "Description",
@@ -126,3 +127,27 @@ class ReviewSheetBackportUpdater:
 
     def get_file_path_from_basedir(self, file_name):
         return FileUtils.join_path(self.config.output_dir, file_name)
+
+    def _process_results(self, backported_jiras: Dict[str, BackportedJira]):
+        # update_date_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        status_per_jira = self._get_status_for_jira_ids(backported_jiras)
+        cell_updates = [GenericCellUpdate(jira_id, {"status": status}) for jira_id, status in status_per_jira.items()]
+        self.gsheet_wrapper.update_issues_with_results(cell_updates)
+
+    @staticmethod
+    def _get_status_for_jira_ids(backported_jiras: Dict[str, BackportedJira]):
+        # TODO Handle revert commits
+        result = {}
+        for jira_id, backported_jira in backported_jiras.items():
+            if not backported_jira.commits:
+                result[jira_id] = "NOT BACKPORTED TO ANY BRANCHES"
+            else:
+                branches = set()
+                for c in backported_jira.commits:
+                    for br in c.branches:
+                        branches.add(br)
+                if branches:
+                    result[jira_id] = "BACKPORTED TO: {}".format(branches)
+                else:
+                    result[jira_id] = "NOT BACKPORTED TO ANY BRANCHES"
+        return result

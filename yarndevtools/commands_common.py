@@ -9,6 +9,7 @@ from pythoncommons.git_constants import (
     REVERT,
 )
 from pythoncommons.string_utils import auto_str
+
 from yarndevtools.constants import (
     YARN_JIRA_ID_PATTERN,
 )
@@ -421,3 +422,17 @@ class CommitData:
             result_str += f"{self.committer} "
         result_str += f"{self.hash} {self.message}"
         return result_str
+
+
+@auto_str
+class BackportedJira:
+    def __init__(self, jira_id, commits):
+        self.jira_id: str = jira_id
+        self.commits: List[BackportedCommit] = commits
+
+
+@auto_str
+class BackportedCommit:
+    def __init__(self, commit_obj, branches):
+        self.commit_obj = commit_obj
+        self.branches = branches
