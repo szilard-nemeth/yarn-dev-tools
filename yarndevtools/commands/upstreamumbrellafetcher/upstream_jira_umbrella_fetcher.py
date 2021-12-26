@@ -25,7 +25,6 @@ from pythoncommons.git_constants import (
 from yarndevtools.commands.upstreamumbrellafetcher.common import (
     JiraUmbrellaData,
     ExecutionMode,
-    BackportedJira,
     UpstreamCommitsPerBranch,
 )
 from yarndevtools.commands.upstreamumbrellafetcher.representation import (
@@ -33,8 +32,8 @@ from yarndevtools.commands.upstreamumbrellafetcher.representation import (
     UmbrellaFetcherRenderedSummary,
     UmbrellaFetcherSummaryData,
 )
-from yarndevtools.commands_common import CommitData, GitLogLineFormat
-from yarndevtools.common.shared_command_utils import SharedCommandUtils, BackportedCommit
+from yarndevtools.commands_common import CommitData, GitLogLineFormat, BackportedJira, BackportedCommit
+from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SUMMARY_FILE_TXT,
@@ -568,7 +567,7 @@ class UpstreamJiraUmbrellaFetcher:
 
         # diff_jira_ids1 = set(self.data.subjira_ids).difference(subjira_statuses.keys())
         # diff_jira_ids2 = set(subjira_statuses.keys()).difference(self.data.subjira_ids)
-        jira_ids_of_commits = set(self._get_jira_ids_from_branches([TRUNK]))
+        jira_ids_of_commits = set(self._get_jira_ids_from_branches([ORIGIN_TRUNK]))
 
         jiras_resolved = dict(filter(lambda x: x[1].status_category == "Done", subjira_statuses.items()))
         jiras_ids_resolved = set(jiras_resolved.keys())
