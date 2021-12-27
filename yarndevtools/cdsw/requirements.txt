@@ -4,4 +4,3 @@ git+https://github.infra.cloudera.com/snemeth/yarn-dev-tools-mirror
 humanize
 docker
 jira
-requests~=2.26.0
