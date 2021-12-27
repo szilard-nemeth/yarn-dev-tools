@@ -4,8 +4,7 @@ import os
 
 from pythoncommons.git_utils import GitUtils
 
-from yarndevtools.commands.reviewsync.jira_patch import HadoopJiraPatch
-from yarndevtools.commands.reviewsync.patch_apply import PatchStatus, PatchApply
+from yarndevtools.commands.reviewsync.reviewsync import HadoopJiraPatch, PatchApply, PatchStatus
 
 HADOOP_UPSTREAM_REPO_URL = "https://github.com/apache/hadoop.git"
 BRANCH_PREFIX = "reviewsync"

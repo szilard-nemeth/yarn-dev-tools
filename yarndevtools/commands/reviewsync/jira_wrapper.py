@@ -5,8 +5,7 @@ import logging
 
 from pythoncommons.jira_wrapper import JiraWrapper
 
-from yarndevtools.commands.reviewsync.jira_patch import HadoopJiraPatch
-from yarndevtools.commands.reviewsync.patch_apply import PatchApplicability
+from yarndevtools.commands.reviewsync.reviewsync import HadoopJiraPatch, PatchApplicability
 
 LOG = logging.getLogger(__name__)
 
