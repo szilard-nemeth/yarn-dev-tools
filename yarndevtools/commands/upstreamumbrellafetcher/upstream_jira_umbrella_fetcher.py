@@ -566,8 +566,9 @@ class UpstreamJiraUmbrellaFetcher:
         # diff_jira_ids1 = set(self.data.subjira_ids).difference(subjira_statuses.keys())
         # diff_jira_ids2 = set(subjira_statuses.keys()).difference(self.data.subjira_ids)
         jira_ids_of_commits = set(self._get_jira_ids_from_branches([ORIGIN_TRUNK]))
-
-        jiras_resolved = dict(filter(lambda x: x[1].status_category == "Done", subjira_statuses.items()))
+        jiras_resolved = {
+            jira_id: jira_status for jira_id, jira_status in subjira_statuses.items() if jira_status == "Done"
+        }
         jiras_ids_resolved = set(jiras_resolved.keys())
 
         not_committed_jiras = set(jiras_ids_resolved).difference(jira_ids_of_commits)
