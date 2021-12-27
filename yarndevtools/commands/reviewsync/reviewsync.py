@@ -7,6 +7,7 @@ from typing import Dict, List
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
+from pythoncommons.github_utils import GitHubUtils, GithubPRMergeStatus
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.result_printer import BasicResultPrinter
@@ -159,9 +160,11 @@ class ReviewSync:
             LOG.info("Issue %s is committed on branches: %s", issue_id, committed_on_branches)
             patches = self.download_latest_patches(issue_id, committed_on_branches)
             if len(patches) == 0:
+                gh_pr_status = GitHubUtils.is_pull_request_of_jira_mergeable(issue_id)
+                jira_patch_status = JiraPatchStatus.translate_from_github_pr_merge_status(gh_pr_status)
                 results[issue_id] = []
                 for branch in self.branches:
-                    results[issue_id].append(PatchApply(None, branch, JiraPatchStatus.CANNOT_FIND_PATCH))
+                    results[issue_id].append(PatchApply(None, branch, jira_patch_status))
                 LOG.warning("No patch found for Jira issue %s!", issue_id)
                 continue
 

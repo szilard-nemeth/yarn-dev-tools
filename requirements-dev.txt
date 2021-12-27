@@ -10,6 +10,7 @@ bs4~=0.0.1
 coolname
 httpretty
 jira
+requests~=2.26.0
 
 # Python 2
 pathlib
