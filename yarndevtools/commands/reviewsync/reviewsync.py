@@ -2,7 +2,9 @@
 
 import logging
 from collections import OrderedDict
-from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions
+from typing import Dict, List
+
+from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.os_utils import OsUtils
@@ -223,9 +225,18 @@ class ReviewSync:
         data, headers = self.convert_data_for_result_printer(results)
         BasicResultPrinter.print_table(data, headers)
 
-    def update_gsheet(self, results):
+    def update_gsheet(self, results: Dict[str, List[PatchApply]]):
         update_date_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        status_per_jira = self._get_status_for_jira_ids(results)
+        cell_updates = [
+            GenericCellUpdate(jira_id, {"status": status, "update_date": update_date_str})
+            for jira_id, status in status_per_jira.items()
+        ]
+        self.gsheet_wrapper.update_issues_with_results(cell_updates)
 
+    @staticmethod
+    def _get_status_for_jira_ids(results: Dict[str, List[PatchApply]]) -> Dict[str, str]:
+        status_per_jira: Dict[str, str] = {}
         for issue_id, patch_applies in results.items():
             if len(patch_applies) > 0:
                 patch = patch_applies[0].patch
@@ -234,7 +245,8 @@ class ReviewSync:
                 else:
                     # We only have the PatchApply object here, not the Patch
                     overall_status = PatchOverallStatus(patch_applies[0].result)
-                self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status.status)
+                status_per_jira[issue_id] = overall_status.status
+        return status_per_jira
 
     @staticmethod
     def convert_data_for_result_printer(results):
