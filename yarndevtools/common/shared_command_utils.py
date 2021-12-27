@@ -167,6 +167,11 @@ class CommandType(Enum):
         True,
         "latest-session-review-sheet-backport-updater",
     )
+    REVIEWSYNC = (
+        "reviewsync",
+        True,
+        "latest-session-reviewsync",
+    )
 
     def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
         self.real_name = value

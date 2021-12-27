@@ -14,6 +14,7 @@ from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationSt
 from yarndevtools.commands.branchcomparator.branch_comparator import BranchComparator
 from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
 from yarndevtools.commands.reviewsheetbackportupdater.review_sheet_backport_updater import ReviewSheetBackportUpdater
+from yarndevtools.commands.reviewsync.reviewsync import ReviewSync
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import UnitTestResultAggregator
 from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
@@ -44,6 +45,7 @@ from yarndevtools.constants import (
     UNIT_TEST_RESULT_AGGREGATOR,
     YARNDEVTOOLS_MODULE_NAME,
     REVIEW_SHEET_BACKPORT_UPDATER,
+    REVIEWSYNC,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -100,6 +102,10 @@ class YarnDevTools:
     @property
     def review_sheet_backport_updater_output_dir(self):
         return ProjectUtils.get_output_child_dir(REVIEW_SHEET_BACKPORT_UPDATER)
+
+    @property
+    def reviewsync_output_dir(self):
+        return ProjectUtils.get_output_child_dir(REVIEWSYNC)
 
     def ensure_required_env_vars_are_present(self):
         upstream_hadoop_dir = OsUtils.get_env_value(ENV_HADOOP_DEV_DIR, None)
@@ -232,6 +238,15 @@ class YarnDevTools:
             self.project_out_root,
         )
         backport_updater.run()
+
+    def reviewsync(self, args, parser=None):
+        reviewsync = ReviewSync(args, parser, self.reviewsync_output_dir, self.upstream_repo)
+        FileUtils.create_symlink_path_dir(
+            CommandType.REVIEW_SHEET_BACKPORT_UPDATER.session_link_name,
+            reviewsync.config.session_dir,
+            self.project_out_root,
+        )
+        reviewsync.run()
 
 
 if __name__ == "__main__":

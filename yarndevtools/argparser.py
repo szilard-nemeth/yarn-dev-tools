@@ -55,6 +55,7 @@ class ArgParser:
         ArgParser.add_send_latest_command_data(subparsers, yarn_dev_tools)
         ArgParser.add_jenkins_test_reporter(subparsers, yarn_dev_tools)
         ArgParser.add_review_sheet_backport_updater(subparsers, yarn_dev_tools)
+        ArgParser.add_reviewsync(subparsers, yarn_dev_tools)
 
         # Normal arguments
         parser.add_argument(
@@ -642,6 +643,94 @@ class ArgParser:
         )
 
         parser.set_defaults(func=yarn_dev_tools.review_sheet_backport_updater)
+
+    @staticmethod
+    def add_reviewsync(subparsers, yarn_dev_tools):
+        parser = subparsers.add_parser(
+            CommandType.REVIEWSYNC.name,
+            help="This script retrieves patches for specified jiras and generates input file for conflict checker script"
+            "Example: "
+            "--gsheet "
+            "--gsheet-client-secret /Users/snemeth/.secret/dummy.json "
+            "--gsheet-spreadsheet 'YARN/MR Reviews' "
+            "--gsheet-worksheet 'Incoming'",
+        )
+
+        parser.add_argument(
+            "-b",
+            "--branches",
+            nargs="+",
+            type=str,
+            help="List of branches to apply patches that are targeted to trunk (default is trunk only)",
+            required=False,
+        )
+        parser.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            dest="verbose",
+            default=None,
+            required=False,
+            help="More verbose log",
+        )
+
+        exclusive_group = parser.add_mutually_exclusive_group()
+        exclusive_group.add_argument(
+            "-i", "--issues", nargs="+", type=str, help="List of Jira issues to check", required=False
+        )
+        exclusive_group.add_argument(
+            "-g",
+            "--gsheet",
+            action="store_true",
+            dest="gsheet_enable",
+            default=False,
+            required=False,
+            help="Enable reading values from Google Sheet API. " "Additional gsheet arguments need to be specified!",
+        )
+
+        # Arguments for Google sheet integration
+        gsheet_group = parser.add_argument_group("google-sheet", "Arguments for Google sheet integration")
+
+        gsheet_group.add_argument(
+            "--gsheet-client-secret",
+            dest="gsheet_client_secret",
+            required=False,
+            help="Client credentials for accessing Google Sheet API",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-spreadsheet", dest="gsheet_spreadsheet", required=False, help="Name of the GSheet spreadsheet"
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-worksheet",
+            dest="gsheet_worksheet",
+            required=False,
+            help="Name of the worksheet in the GSheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-jira-column",
+            dest="gsheet_jira_column",
+            required=False,
+            help="Name of the column that contains jira issue IDs in the GSheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-update-date-column",
+            dest="gsheet_update_date_column",
+            required=False,
+            help="Name of the column where this script will store last updated date in the GSheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-status-info-column",
+            dest="gsheet_status_info_column",
+            required=False,
+            help="Name of the column where this script will store patch status info in the GSheet spreadsheet",
+        )
+
+        parser.set_defaults(func=yarn_dev_tools.reviewsync)
 
     @staticmethod
     def add_email_arguments(parser, add_subject=True, add_attachment_filename=True):

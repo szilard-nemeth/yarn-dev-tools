@@ -148,3 +148,4 @@ Unit test result aggregator | jobs/unit-test-result-aggregator/cdsw_runner.py   
 Unit test result reporting | jobs/unit-test-result-reporting/cdsw_runner.py      |
 Downstream branchdiff reporting | jobs/downstream-branchdiff-reporting/cdsw_runner.py |
 Review sheet backport updater | jobs/review-sheet-backport-updater/cdsw_runner.py   |
+Reviewsync | jobs/reviewsync/cdsw_runner.py                      |
