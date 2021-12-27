@@ -8,9 +8,8 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.jira_wrapper import JiraWrapper, JiraStatus
-from pythoncommons.object_utils import ListUtils
+from pythoncommons.object_utils import ListUtils, PickleUtils
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.process import CommandRunner
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import StringUtils
@@ -37,7 +36,6 @@ from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SUMMARY_FILE_TXT,
-    TRUNK,
 )
 
 LOG = logging.getLogger(__name__)

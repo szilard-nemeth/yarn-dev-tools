@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Dict, List
 
 from git import Commit
-from pythoncommons.collection_utils import CollectionUtils
+from pythoncommons.object_utils import CollectionUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.file_utils import FileUtils

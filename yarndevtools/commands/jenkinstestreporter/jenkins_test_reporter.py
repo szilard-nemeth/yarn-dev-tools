@@ -27,8 +27,8 @@ from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils, JsonFileUtils, FindResultType
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.network_utils import NetworkUtils
+from pythoncommons.object_utils import PickleUtils
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.pickle_utils import PickleUtils
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 from pythoncommons.string_utils import auto_str
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Set, Tuple, FrozenSet
 
-from pythoncommons.collection_utils import CollectionUtils
+from pythoncommons.object_utils import CollectionUtils
 from pythoncommons.object_utils import ListUtils
 from pythoncommons.result_printer import ResultPrinter, DEFAULT_TABLE_FORMATS, TableRenderingConfig
 from pythoncommons.string_utils import StringUtils, auto_str
