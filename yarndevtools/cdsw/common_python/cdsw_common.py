@@ -166,7 +166,7 @@ class CdswSetup:
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
 
         install_requirements = False
-        if CdswRunnerBase._is_env_var_true(CdswEnvVar.INSTALL_REQUIREMENTS.value, default_val=True):
+        if OsUtils.is_env_var_true(CdswEnvVar.INSTALL_REQUIREMENTS.value, default_val=True):
             install_requirements = True
             CdswSetup._run_install_requirements_script()
         else:
@@ -267,7 +267,7 @@ class CdswRunnerBase(ABC):
         self._setup_google_drive()
 
     def _setup_google_drive(self):
-        if self._is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
+        if OsUtils.is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
         else:
             self.drive_cdsw_helper = None
@@ -277,19 +277,13 @@ class CdswRunnerBase(ABC):
         return self.drive_cdsw_helper is not None
 
     # TODO Move to pythoncommons
-    @staticmethod
-    def _is_env_var_true(env_var_name, default_val):
-        env_var_value = OsUtils.get_env_value(env_var_name, default_val)
-        if env_var_value is None:
-            raise ValueError("Env var value should not be None for env var name: '{}'".format(env_var_name))
-        return env_var_value == "True" or env_var_value is True
 
     def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         LOG.info("Starting CDSW runner...")
         LOG.info("Setup result: %s", setup_result)
         self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
-        if setup_result.install_requirements_invoked and CdswRunnerBase._is_env_var_true(
+        if setup_result.install_requirements_invoked and OsUtils.is_env_var_true(
             CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False
         ):
             self.restart_execution()

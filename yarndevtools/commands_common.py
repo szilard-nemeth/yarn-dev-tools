@@ -226,7 +226,6 @@ class GitLogParserState:
     commit_states: List[CommitParserState] = field(default_factory=list)
 
 
-# TODO this class and CommitData are good candidates to move to python-commons
 class GitLogParser:
     def __init__(self, config: GitLogParseConfig):
         self.config = config
