@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict
 
+from pythoncommons.git_wrapper import GitLogLineFormat
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.commands_common import (
     CommitData,
-    GitLogLineFormat,
     MatchJiraIdFromBeginningParseStrategy,
     BackportedJira,
 )

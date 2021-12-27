@@ -8,6 +8,7 @@ from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
     REVERT,
 )
+from pythoncommons.git_wrapper import GitLogLineFormat
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.constants import (
@@ -17,13 +18,6 @@ from yarndevtools.constants import (
 LOG = logging.getLogger(__name__)
 
 # TODO THIS class is mostly about branchcomparator, move all related stuff to there
-# TODO This could be moved to pythoncommons to store the actual log format strings
-
-
-class GitLogLineFormat(Enum):
-    ONELINE_WITH_DATE = 0
-    ONELINE_WITH_DATE_AND_AUTHOR = 1
-    ONELINE_WITH_DATE_AUTHOR_COMMITTER = 2
 
 
 class JiraIdTypePreference(Enum):

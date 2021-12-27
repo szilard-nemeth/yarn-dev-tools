@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List, Any, Collection, Set, Dict
 
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.git_wrapper import GitWrapper
+from pythoncommons.git_wrapper import GitWrapper, GitLogLineFormat
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.jira_wrapper import JiraWrapper, JiraStatus
 from pythoncommons.object_utils import ListUtils, PickleUtils
@@ -31,7 +31,7 @@ from yarndevtools.commands.upstreamumbrellafetcher.representation import (
     UmbrellaFetcherRenderedSummary,
     UmbrellaFetcherSummaryData,
 )
-from yarndevtools.commands_common import CommitData, GitLogLineFormat, BackportedJira, BackportedCommit
+from yarndevtools.commands_common import CommitData, BackportedJira, BackportedCommit
 from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import (
     ORIGIN_TRUNK,

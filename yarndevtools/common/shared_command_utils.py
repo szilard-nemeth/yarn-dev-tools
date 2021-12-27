@@ -6,13 +6,13 @@ from typing import List, Dict
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_constants import ORIGIN
+from pythoncommons.git_wrapper import GitLogLineFormat
 from pythoncommons.html_utils import HtmlGenerator
 from pythoncommons.object_utils import ListUtils
 from pythoncommons.process import CommandRunner
 
 from yarndevtools.commands_common import (
     CommitData,
-    GitLogLineFormat,
     BackportedJira,
     BackportedCommit,
     MatchAllJiraIdStrategy,
