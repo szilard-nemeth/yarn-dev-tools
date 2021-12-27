@@ -3,9 +3,7 @@ from typing import Dict, List
 import re
 import logging
 
-from pythoncommons.jira_wrapper import JiraWrapper
-
-from yarndevtools.commands.reviewsync.reviewsync import HadoopJiraPatch, PatchApplicability
+from pythoncommons.jira_wrapper import JiraWrapper, PatchApplicability, AdvancedJiraPatch
 
 LOG = logging.getLogger(__name__)
 
@@ -188,7 +186,9 @@ class HadoopJiraWrapper(JiraWrapper):
                 applicability = PatchApplicability(True)
             else:
                 applicability = PatchApplicability(False, "Patch already committed on {}".format(self.default_branch))
-            return HadoopJiraPatch(parsed_issue_id, owner, parsed_version, self.default_branch, filename, applicability)
+            return AdvancedJiraPatch(
+                parsed_issue_id, owner, parsed_version, self.default_branch, filename, applicability
+            )
         else:
             raise ValueError("Filename {} does not match for trunk branch pattern, ".format(filename))
 
@@ -231,7 +231,7 @@ class HadoopJiraWrapper(JiraWrapper):
                 applicability = PatchApplicability(True)
             else:
                 applicability = PatchApplicability(False, "Patch already committed on {}".format(parsed_branch))
-            return HadoopJiraPatch(parsed_issue_id, owner, parsed_version, parsed_branch, filename, applicability)
+            return AdvancedJiraPatch(parsed_issue_id, owner, parsed_version, parsed_branch, filename, applicability)
         else:
             LOG.error("[%s] Filename %s does not match for any patch file name regex pattern!", issue_id, filename)
             return None
