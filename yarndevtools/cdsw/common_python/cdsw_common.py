@@ -276,8 +276,6 @@ class CdswRunnerBase(ABC):
     def is_drive_integration_enabled(self):
         return self.drive_cdsw_helper is not None
 
-    # TODO Move to pythoncommons
-
     def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         LOG.info("Starting CDSW runner...")
         LOG.info("Setup result: %s", setup_result)

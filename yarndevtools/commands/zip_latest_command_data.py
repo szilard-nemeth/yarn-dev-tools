@@ -84,62 +84,12 @@ class ZipLatestCommandData:
             f"Ignore file types: {self.config.ignore_filetypes}\n "
         )
 
-        input_files: List[str] = self.config.input_files
-        sum_len_all_files: int = 0
-        all_ignores_files: int = 0
-        if self.config.ignore_filetypes:
-            input_files = []
-            # TODO move this whole thing to pythoncommons
-            for input_file in self.config.input_files:
-                if FileUtils.is_dir(input_file):
-                    all_files = FileUtils.find_files(input_file, regex=".*", full_path_result=True)
-                    sum_len_all_files += len(all_files)
-                    files_to_ignore = set()
-                    for ext in self.config.ignore_filetypes:
-                        new_files_to_ignore = FileUtils.find_files(input_file, extension=ext, full_path_result=True)
-                        all_ignores_files += len(new_files_to_ignore)
-                        LOG.debug(
-                            f"Found {len(new_files_to_ignore)} files to ignore in directory '{input_file}': "
-                            f"{StringUtils.list_to_multiline_string(files_to_ignore)}"
-                        )
-                        files_to_ignore.update(new_files_to_ignore)
-
-                    files_to_keep = list(set(all_files).difference(files_to_ignore))
-                    tmp_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
-                    tmp_dir_path = tmp_dir.name
-                    FileUtils.copy_files_to_dir(files_to_keep, tmp_dir_path, cut_path=input_file)
-                    input_files.append(tmp_dir_path)
-                else:
-                    input_files.append(input_file)
-                    sum_len_all_files += 1
-
-        temp_dir_dest: bool = True if not self.config.output_dir or self.config.output_dir.startswith("/tmp") else False
-        if self.config.output_dir:
-            dest_filepath = FileUtils.join_path(self.config.output_dir, self.config.dest_filename)
-            zip_file: BufferedWriter = ZipFileUtils.create_zip_file(input_files, dest_filepath, compress=True)
-        else:
-            zip_file: BufferedWriter = ZipFileUtils.create_zip_as_tmp_file(
-                input_files, self.config.dest_filename, compress=True
-            )
-
-        zip_file_name = zip_file.name
-        no_of_files_in_zip: int = ZipFileUtils.get_number_of_files_in_zip(zip_file_name)
-        if self.config.ignore_filetypes and (sum_len_all_files - all_ignores_files) != no_of_files_in_zip:
-            raise ValueError(
-                f"Unexpected number of files in zip. "
-                f"All files: {sum_len_all_files}, "
-                f"all ignored files: {all_ignores_files}, "
-                f"number of files in zip: {no_of_files_in_zip}, "
-                f"zip file: {zip_file_name}"
-            )
-
-        LOG.info(
-            f"Finished writing command data to zip file: {zip_file_name}, "
-            f"size: {FileUtils.get_file_size(zip_file_name)}"
+        zip_file_name, temp_dir_dest = ZipFileUtils.create_zip_file_advanced(
+            self.config.input_files, self.config.dest_filename, self.config.ignore_filetypes, self.config.output_dir
         )
         FileUtils.create_symlink_path_dir(LATEST_DATA_ZIP_LINK_NAME, zip_file_name, self.config.project_out_root)
 
-        # Create a latest link for the command as well
+        # Create the latest link for the command as well
         FileUtils.create_symlink_path_dir(
             self.cmd_type.command_data_zip_name, zip_file_name, self.config.project_out_root
         )
