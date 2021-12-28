@@ -185,6 +185,10 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         for file, mod_date in new_mod_dates.items():
             LOG.info("Checking mod date of file: %s", file)
             self.assertTrue(file in original_mod_dates, "Unknown old mod date for file: {}".format(file))
+            self.assertTrue(
+                original_mod_dates[file] is not None,
+                "Unknown old mod date for file, mod date is None of: {}".format(file),
+            )
             self.assertTrue(isinstance(mod_date, float), "New mod date is unknown for file: {}".format(file))
             self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
 
