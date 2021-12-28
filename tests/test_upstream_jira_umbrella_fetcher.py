@@ -179,7 +179,12 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
 
         # Since we are using force-mode (non cached mode), we expect all files have a newer mod date
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *ALL_OUTPUT_FILES)
+        self._assert_mod_dates(original_mod_dates, new_mod_dates)
+
+    def _assert_mod_dates(self, original_mod_dates, new_mod_dates):
         for file, mod_date in new_mod_dates.items():
+            LOG.info("Checking mod date of file: %s", file)
+            self.assertTrue(file in original_mod_dates, "Unknown mod date for file: {}".format(file))
             self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
 
     def test_fetch_with_upstream_umbrella_ignore_changes_manual_mode(self):
@@ -204,8 +209,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         files_to_check = IGNORE_CHANGES_MODE_OUTPUT_FILES + [self.get_commit_hashes_filename_of_branch(ORIGIN_TRUNK)]
         self._verify_files_and_mod_dates(output_dir, files=files_to_check)
         new_mod_dates = FileUtils.get_mod_dates_of_files(output_dir, *IGNORE_CHANGES_MODE_MODIFIED_FILE_LIST)
-        for file, mod_date in new_mod_dates.items():
-            self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
+        self._assert_mod_dates(original_mod_dates, new_mod_dates)
 
     @classmethod
     def get_commit_hashes_filename_of_branch(cls, branch):
