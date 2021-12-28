@@ -184,7 +184,8 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     def _assert_mod_dates(self, original_mod_dates, new_mod_dates):
         for file, mod_date in new_mod_dates.items():
             LOG.info("Checking mod date of file: %s", file)
-            self.assertTrue(file in original_mod_dates, "Unknown mod date for file: {}".format(file))
+            self.assertTrue(file in original_mod_dates, "Unknown old mod date for file: {}".format(file))
+            self.assertTrue(isinstance(mod_date, float), "New mod date is unknown for file: {}".format(file))
             self.assertTrue(mod_date > original_mod_dates[file], f"File has not been modified: {file}")
 
     def test_fetch_with_upstream_umbrella_ignore_changes_manual_mode(self):
