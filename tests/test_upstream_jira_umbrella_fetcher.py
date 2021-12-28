@@ -188,6 +188,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
             LOG.info("Checking mod date of file: %s", file)
             if self.github_ci_execution and (file not in original_mod_dates or original_mod_dates[file] is None):
                 LOG.warning("Skip checking of mod date of file as original file was not found: %s", file)
+                continue
 
             self.assertTrue(file in original_mod_dates, "Unknown old mod date for file: {}".format(file))
             self.assertTrue(
