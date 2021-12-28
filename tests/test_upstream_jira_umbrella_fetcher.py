@@ -2,6 +2,7 @@ import logging
 import unittest
 
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.common.shared_command_utils import CommandType
@@ -64,6 +65,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         commit_hashes_file = TestUpstreamJiraUmbrellaFetcher.get_commit_hashes_filename_of_branch(ORIGIN_TRUNK)
         ALL_OUTPUT_FILES.append(commit_hashes_file)
         IGNORE_CHANGES_MODE_OUTPUT_FILES.append(commit_hashes_file)
+        cls.github_ci_execution: bool = GitHubUtils.is_github_ci_execution()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -184,6 +186,9 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     def _assert_mod_dates(self, original_mod_dates, new_mod_dates):
         for file, mod_date in new_mod_dates.items():
             LOG.info("Checking mod date of file: %s", file)
+            if self.github_ci_execution and (file not in original_mod_dates or original_mod_dates[file] is None):
+                LOG.warning("Skip checking of mod date of file as original file was not found: %s", file)
+
             self.assertTrue(file in original_mod_dates, "Unknown old mod date for file: {}".format(file))
             self.assertTrue(
                 original_mod_dates[file] is not None,
