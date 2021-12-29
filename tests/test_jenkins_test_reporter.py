@@ -377,6 +377,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.smtp_server = "smtp.gmail.com"
         args.recipients = ["test@recipient.com"]
         args.sender = "Jenkins test reporter"
+        args.subject = "Test email subject"
         args.force_send_email = force_sending_mail
         args.jenkins_url = jenkins_url
         args.job_names = job_names
