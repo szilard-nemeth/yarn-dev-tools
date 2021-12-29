@@ -732,6 +732,7 @@ class ArgParser:
 
         parser.set_defaults(func=yarn_dev_tools.reviewsync)
 
+    # TODO Use dash notation instead of underscore
     @staticmethod
     def add_email_arguments(parser, add_subject=True, add_attachment_filename=True):
         parser.add_argument("--smtp_server", required=True, type=str, help="SMPT server")

@@ -8,7 +8,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_constants import ORIGIN
 from pythoncommons.git_wrapper import GitLogLineFormat
 from pythoncommons.html_utils import HtmlGenerator
-from pythoncommons.object_utils import ListUtils
+from pythoncommons.object_utils import ListUtils, ObjUtils
 from pythoncommons.process import CommandRunner
 
 from yarndevtools.commands_common import (
@@ -127,6 +127,22 @@ class SharedCommandUtils:
 
 class FullEmailConfig:
     def __init__(self, args, attachment_file: str = None):
+        ObjUtils.ensure_all_attrs_present(
+            args,
+            [
+                ("account_user", "Email account user"),
+                ("account_password", "Email account password"),
+                ("smtp_server", "Email SMTP server"),
+                ("smtp_port", "Email SMTP port"),
+                ("sender", "Email sender"),
+                ("recipients", "Email recipients"),
+                ("subject", "Email subject"),
+            ],
+        )
+        if not isinstance(args.recipients, list):
+            raise ValueError("Email recipients should be a List[str]!")
+
+        self.attachment_file = None
         if attachment_file:
             FileUtils.ensure_file_exists_and_readable(attachment_file)
             self.attachment_file = attachment_file
@@ -135,7 +151,7 @@ class FullEmailConfig:
         self.sender: str = args.sender
         self.recipients = args.recipients
         self.subject: str = args.subject if "subject" in args else None
-        self.attachment_filename: str = args.attachment_filename if "attachment_filename" in args else None
+        self.attachment_filename: str = args.attachment_filename if hasattr(args, "attachment_filename") else None
 
     def __str__(self):
         return (

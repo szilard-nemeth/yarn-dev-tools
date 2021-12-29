@@ -7,3 +7,4 @@ __pycache__
 **/token.pickle
 tests/logs
 tests/cdsw/logs/
+/tests/common/logs/
