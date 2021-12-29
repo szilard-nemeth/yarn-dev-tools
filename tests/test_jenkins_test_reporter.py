@@ -1,8 +1,10 @@
 import dataclasses
 import json
 import logging
+import os
 import random
 import re
+import tempfile
 import unittest
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,6 +28,8 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JobBuildDataCounters,
     JenkinsJobUrls,
     DownloadProgress,
+    CacheConfig,
+    JenkinsTestReporterCacheType,
 )
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
@@ -594,21 +598,21 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def _get_package_from_filter(filter: str):
         return filter.split(":")[-1]
 
-    def test_parse_job_data_check_failed_testcases(self):
+    def test_jenkins_api_converter_parse_job_data_check_failed_testcases(self):
         report_dict, spec = JenkinsTestReport.get_arbitrary()
         failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
-    def test_parse_job_data_check_regression_testcases(self):
+    def test_jenkins_api_converter_parse_job_data_check_regression_testcases(self):
         report_dict, spec = JenkinsTestReport.get_with_regression()
         failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
-    def test_parse_job_data_check_counters(self):
+    def test_jenkins_api_converter_parse_job_data_check_counters(self):
         report_dict, spec = JenkinsTestReport.get_arbitrary()
         failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
@@ -617,14 +621,14 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self.assertEqual(exp_counter, job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
-    def test_parse_job_data_check_status_counters_all_green_job(self):
+    def test_jenkins_api_converter_parse_job_data_check_status_counters_all_green_job(self):
         report_dict, spec = JenkinsTestReport.get_all_green()
         failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.ALL_GREEN, job_build_data.status)
 
-    def test_parse_job_data_check_status_counters_empty_job(self):
+    def test_jenkins_api_converter_parse_job_data_check_status_counters_empty_job(self):
         report_dict, spec = JenkinsTestReport.get_empty()
         failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
@@ -671,7 +675,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             self.assertEqual(exp_build["url"], act_build.url)
 
     @patch(NETWORK_UTILS_PATCH_PATH)
-    def test_jenkins_api_converter_download_test_report(self, mock_fetch_json):
+    def test_jenkins_api_converter_download_test_report(self, mock_fetch_json: Mock):
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
         failed_build = FailedJenkinsBuild("http://full/url/of/job", 1244525, "test_job")
         mock_fetch_json.return_value = builds_dict
@@ -683,6 +687,37 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self.assertEqual(
             "http://full/url/of/job/testReport/api/json?pretty=true", mock_fetch_json.call_args_list[0].args[0]
         )
+
+    def test_cache_config_without_any_setting(self):
+        args = Object()
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_config = CacheConfig(args, tmp_dir)
+            self.assertFalse(cache_config.enabled)
+            self.assertTrue(os.path.isdir(cache_config.reports_dir))
+            self.assertEqual(cache_config.reports_dir, os.path.join(tmp_dir, "reports"))
+
+            self.assertTrue(os.path.isdir(cache_config.cached_data_dir))
+            self.assertEqual(cache_config.cached_data_dir, os.path.join(tmp_dir, "cached_data"))
+
+            self.assertFalse(cache_config.download_uncached_job_data)
+            self.assertEqual(cache_config.cache_type, JenkinsTestReporterCacheType.FILE)
+
+    def test_cache_config_with_settings(self):
+        args = Object()
+        args.disable_file_cache = False
+        args.download_uncached_job_data = True
+        args.cache_type = "google_drive"
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cache_config = CacheConfig(args, tmp_dir)
+            self.assertTrue(cache_config.enabled)
+            self.assertTrue(os.path.isdir(cache_config.reports_dir))
+            self.assertEqual(cache_config.reports_dir, os.path.join(tmp_dir, "reports"))
+
+            self.assertTrue(os.path.isdir(cache_config.cached_data_dir))
+            self.assertEqual(cache_config.cached_data_dir, os.path.join(tmp_dir, "cached_data"))
+
+            self.assertTrue(cache_config.download_uncached_job_data)
+            self.assertEqual(cache_config.cache_type, JenkinsTestReporterCacheType.GOOGLE_DRIVE)
 
     @staticmethod
     def get_arbitrary_build_url():

@@ -674,7 +674,7 @@ class GoogleDriveCache(Cache):
 
 class CacheConfig:
     def __init__(self, args, output_dir):
-        self.enabled: bool = not args.disable_file_cache
+        self.enabled: bool = not args.disable_file_cache if hasattr(args, "disable_file_cache") else False
         self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
         self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, CACHED_DATA_DIRNAME))
         self.download_uncached_job_data: bool = (
