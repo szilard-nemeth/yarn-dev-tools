@@ -48,7 +48,6 @@ class Object(object):
 
 class TestUtilities:
     repo = None
-    sandbox_repo_path = None
     base_branch = TRUNK
 
     def __init__(self, test_instance, test_branch):

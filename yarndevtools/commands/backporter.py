@@ -16,9 +16,6 @@ class Backporter:
     ----------
     args : object
         Command line arguments passed to this command.
-    downtream_jira_id : str
-        Jira ID of the downstream jira.
-        Specified with args.
     downstream_branch : str
         Downstream branch to create in the downstream repo for this backport.
         Specified with args.

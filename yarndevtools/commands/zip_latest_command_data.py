@@ -1,9 +1,6 @@
 import logging
-import tempfile
-from io import BufferedWriter
 from typing import List
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.string_utils import StringUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
 from yarndevtools.common.shared_command_utils import CommandType

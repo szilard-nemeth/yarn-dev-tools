@@ -67,7 +67,6 @@ class CdswRunner(CdswRunnerBase):
 
     def _run_backport_updater(
         self,
-        exec_mode,
         gsheet_client_secret,
         gsheet_spreadsheet,
         gsheet_worksheet,
@@ -84,7 +83,6 @@ class CdswRunner(CdswRunnerBase):
         self.execute_yarndevtools_script(
             f"{debug} "
             f"{CommandType.REVIEW_SHEET_BACKPORT_UPDATER.name} "
-            f"--{exec_mode} "
             f"--gsheet-client-secret {gsheet_client_secret} "
             f"--gsheet-spreadsheet {gsheet_spreadsheet} "
             f"--gsheet-worksheet {gsheet_worksheet} "

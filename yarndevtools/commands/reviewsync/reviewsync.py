@@ -7,7 +7,7 @@ from typing import Dict, List
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
-from pythoncommons.github_utils import GitHubUtils, GithubPRMergeStatus
+from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.result_printer import BasicResultPrinter

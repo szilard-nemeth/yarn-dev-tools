@@ -1,6 +1,5 @@
-import datetime
 import logging
-from typing import List, Dict
+from typing import Dict
 
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils

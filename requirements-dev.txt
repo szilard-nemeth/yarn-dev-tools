@@ -12,4 +12,3 @@ jira
 
 # Python 2
 pathlib
-beautifulsoup4~=4.9.3

@@ -4,7 +4,6 @@ from enum import Enum
 from typing import List, Dict, Any
 
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.html_utils import HtmlGenerator
 from pythoncommons.logging_utils import LoggerFactory
 from pythoncommons.result_printer import (
     TabulateTableFormat,

@@ -92,7 +92,7 @@ class CdswRunner(CdswRunnerBase):
             skip_aggregation_res_file_auto_discovery,
         )
 
-        found_with_auto_discovery: str = None
+        found_with_auto_discovery: str or None = None
         if skip_aggregation_res_file_auto_discovery:
             results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, SKIP_AGGREGATION_DEFAULTS_FILENAME)
             if not results:
