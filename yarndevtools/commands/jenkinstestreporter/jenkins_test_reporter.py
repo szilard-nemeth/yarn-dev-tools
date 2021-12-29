@@ -696,7 +696,7 @@ class EmailConfig:
         self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
         skip_email = args.skip_email if hasattr(args, "skip_email") else False
         self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
-        self.send_mail: bool = not skip_email or not self.force_send_email
+        self.send_mail: bool = not skip_email or self.force_send_email
         self.reset_email_sent_state: List[str] = (
             args.reset_sent_state_for_jobs if hasattr(args, "reset_sent_state_for_jobs") else []
         )

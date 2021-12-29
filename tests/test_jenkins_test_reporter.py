@@ -30,6 +30,7 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     DownloadProgress,
     CacheConfig,
     JenkinsTestReporterCacheType,
+    EmailConfig,
 )
 from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
 
@@ -719,6 +720,69 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
             self.assertTrue(cache_config.download_uncached_job_data)
             self.assertEqual(cache_config.cache_type, JenkinsTestReporterCacheType.GOOGLE_DRIVE)
+
+    def test_email_config_with_default_settings(self):
+        args = self._create_args_for_full_email_config()
+        config = EmailConfig(args)
+        self.assertFalse(config.force_send_email)
+        self.assertTrue(config.send_mail)
+        self.assertEqual([], config.reset_email_sent_state)
+
+    def test_email_config_with_skip_email_and_without_force_sending_email(self):
+        args = self._create_args_for_full_email_config()
+        args.skip_email = True
+        args.force_send_email = False
+        config = EmailConfig(args)
+        self.assertFalse(config.force_send_email)
+        self.assertFalse(config.send_mail)
+        self.assertEqual([], config.reset_email_sent_state)
+
+    def test_email_config_with_skip_email_and_with_force_sending_email(self):
+        args = self._create_args_for_full_email_config()
+        args.skip_email = True
+        args.force_send_email = True
+        config = EmailConfig(args)
+        self.assertTrue(config.force_send_email)
+        self.assertTrue(config.send_mail)
+        self.assertEqual([], config.reset_email_sent_state)
+
+    def test_email_config_validate_job_names_to_reset_state_for_unknown_job(self):
+        args = self._create_args_for_full_email_config()
+        args.skip_email = True
+        args.force_send_email = True
+        args.reset_sent_state_for_jobs = "job3"
+        config = EmailConfig(args)
+        with self.assertRaises(ValueError):
+            config.validate(["job1", "job2"])
+
+    def test_email_config_validate_job_names_to_reset_state_for_known_job(self):
+        args = self._create_args_for_full_email_config()
+        args.skip_email = True
+        args.force_send_email = True
+        args.reset_sent_state_for_jobs = ["job1", "job2"]
+        config = EmailConfig(args)
+        config.validate(["job1", "job2"])
+
+    def test_email_config_validate_job_names_to_reset_state_for_some_unknown_job(self):
+        args = self._create_args_for_full_email_config()
+        args.skip_email = True
+        args.force_send_email = True
+        args.reset_sent_state_for_jobs = ["job1", "job2", "job999"]
+        config = EmailConfig(args)
+        with self.assertRaises(ValueError):
+            config.validate(["job1", "job2"])
+
+    def _create_args_for_full_email_config(self):
+        args = Object()
+        args.account_user = "someUser"
+        args.account_password = "somePassword"
+        args.smtp_server = "smtpServer"
+        args.smtp_port = "smtpPort"
+        args.sender = "sender"
+        args.subject = "subject"
+        args.recipients = ["recipient1", "recipient2"]
+        args.attachment_filename = "attachmentFilename"
+        return args
 
     @staticmethod
     def get_arbitrary_build_url():
