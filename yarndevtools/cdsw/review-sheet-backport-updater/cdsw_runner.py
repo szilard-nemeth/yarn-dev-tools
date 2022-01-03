@@ -47,7 +47,7 @@ class CdswRunner(CdswRunnerBase):
         self.run_zipper(cmd_type, debug=True)
 
         sender = "YARN review sheet backport updater"
-        subject = f"YARN revuew sheet backport updater report [start date: {self.start_date_str}]"
+        subject = f"YARN review sheet backport updater report [start date: {self.start_date_str}]"
         command_data_filename: str = f"command_data_{self.start_date_str}.zip"
         kwargs = {
             "attachment_filename": command_data_filename,
