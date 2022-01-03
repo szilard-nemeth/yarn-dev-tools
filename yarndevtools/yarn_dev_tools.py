@@ -66,6 +66,7 @@ class YarnDevTools:
         self.init_repos()
 
     def setup_dirs(self, execution_mode: ExecutionMode = ExecutionMode.PRODUCTION):
+        strategy = None
         if execution_mode == ExecutionMode.PRODUCTION:
             strategy = ProjectRootDeterminationStrategy.SYS_PATH
         elif execution_mode == ExecutionMode.TEST:
@@ -74,7 +75,7 @@ class YarnDevTools:
             env_value = OsUtils.get_env_value(YarnDevToolsEnvVar.PROJECT_DETERMINATION_STRATEGY.value)
             LOG.info("Found specified project root determination strategy from env var: %s", env_value)
             strategy = ProjectRootDeterminationStrategy[env_value.upper()]
-        else:
+        if not strategy:
             raise ValueError("Unknown project root determination strategy!")
         LOG.info("Project root determination strategy is: %s", strategy)
         ProjectUtils.project_root_determine_strategy = strategy
