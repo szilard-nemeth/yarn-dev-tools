@@ -40,7 +40,7 @@ class CdswRunner(CdswRunnerBase):
         self._run_aggregator(
             exec_mode="gsheet",
             gsheet_client_secret=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_CLIENT_SECRET.value),
-            gsheet_spreadsheet=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_SPREADHSHEET.value),
+            gsheet_spreadsheet=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_SPREADSHEET.value),
             gsheet_worksheet=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.GSHEET_WORKSHEET.value),
             account_email=OsUtils.get_env_value(CdswEnvVar.MAIL_ACC_USER.value),
             request_limit=OsUtils.get_env_value(UnitTestResultAggregatorEnvVar.REQUEST_LIMIT.value),

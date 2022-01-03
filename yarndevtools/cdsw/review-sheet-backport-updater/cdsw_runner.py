@@ -30,7 +30,7 @@ class CdswRunner(CdswRunnerBase):
     def run_backport_updater_and_send_mail(self):
         self._run_backport_updater(
             gsheet_client_secret=OsUtils.get_env_value(ReviewSheetBackportUpdaterEnvVar.GSHEET_CLIENT_SECRET.value),
-            gsheet_spreadsheet=OsUtils.get_env_value(ReviewSheetBackportUpdaterEnvVar.GSHEET_SPREADHSHEET.value),
+            gsheet_spreadsheet=OsUtils.get_env_value(ReviewSheetBackportUpdaterEnvVar.GSHEET_SPREADSHEET.value),
             gsheet_worksheet=OsUtils.get_env_value(ReviewSheetBackportUpdaterEnvVar.GSHEET_WORKSHEET.value),
             gsheet_jira_column=OsUtils.get_env_value(ReviewSheetBackportUpdaterEnvVar.GSHEET_JIRA_COLUMN.value),
             gsheet_update_date_column=OsUtils.get_env_value(
