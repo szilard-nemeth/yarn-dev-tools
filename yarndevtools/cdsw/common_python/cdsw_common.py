@@ -1,15 +1,12 @@
 import dataclasses
 import inspect
-import sys
-from abc import ABC, abstractmethod
 import logging
 import os
 import site
+import sys
+from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Dict, List
-
-# MAKE SURE THIS PRECEDES IMPORT TO pythoncommons
-
 
 # https://stackoverflow.com/a/50255019/1106893
 from googleapiwrapper.common import ServiceType
@@ -24,9 +21,10 @@ from googleapiwrapper.google_drive import (
 )
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
-from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.os_utils import OsUtils
+from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import (
     ProjectUtils,
     ProjectRootDeterminationStrategy,
@@ -37,8 +35,6 @@ from pythoncommons.project_utils import (
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     PROJECT_NAME,
-    INSTALL_REQUIREMENTS_SCRIPT,
-    CDSW_RUNNER_PY,
     BRANCH_DIFF_REPORTER_DIR_NAME,
     JIRA_UMBRELLA_CHECKER_DIR_NAME,
     UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
@@ -46,13 +42,13 @@ from yarndevtools.cdsw.common_python.constants import (
     REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
 )
 
-from pythoncommons.process import SubprocessCommandRunner
-
 # Constants
 # TODO Move this to EnvVar enum
 from yarndevtools.cdsw.common_python.restarter import Restarter
 from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR, CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+
+# MAKE SURE THIS PRECEDES IMPORT TO pythoncommons
 
 CDSW_PROJECT = "cdsw"
 
@@ -105,18 +101,12 @@ class PythonModuleMode(Enum):
 @dataclasses.dataclass
 class CdswSetupResult:
     basedir: str
-    install_requirements_invoked: bool
     env_vars: Dict[str, str]
 
 
 class CdswSetup:
     @staticmethod
-    def _get_pythonpath():
-        return OsUtils.get_env_value(CdswEnvVar.PYTHONPATH.value)
-
-    @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
-        print("***TESTPRINT")
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
         ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
         # TODO sanity_check_number_of_handlers should be set to True
@@ -153,41 +143,8 @@ class CdswSetup:
 
         # This must happen before other operations as it sets: CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
-
-        install_requirements = False
-        if OsUtils.is_env_var_true(CdswEnvVar.INSTALL_REQUIREMENTS.value, default_val=True):
-            install_requirements = True
-            CdswSetup._run_install_requirements_script()
-        else:
-            LOG.warning("Skipping installation of python requirements as per config!")
-
-        CdswSetup._copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts()
         LOG.info("Using basedir for scripts: " + basedir)
-        return CdswSetupResult(basedir, install_requirements, env_var_dict)
-
-    @staticmethod
-    def _run_install_requirements_script(exit_on_nonzero_exitcode=False):
-        """
-        Do not exit on non-zero exit code as pip can fail to remove residual package files on NFS.
-        See: https://github.com/pypa/pip/issues/6327
-        :param exit_on_nonzero_exitcode:
-        :return:
-        """
-        results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, INSTALL_REQUIREMENTS_SCRIPT)
-        if not results:
-            raise ValueError(
-                "Expected to find file: {} from basedir: {}".format(
-                    INSTALL_REQUIREMENTS_SCRIPT, CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
-                )
-            )
-        script = results[0]
-        exec_mode: str = OsUtils.get_env_value(
-            CdswEnvVar.TEST_EXECUTION_MODE.value, default_value=DEFAULT_TEST_EXECUTION_MODE
-        )
-        cmd = f"{BASHX} {script} {exec_mode}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(
-            cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
-        )
+        return CdswSetupResult(basedir, env_var_dict)
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
@@ -207,36 +164,6 @@ class CdswSetup:
             raise ValueError("Invalid python module mode: {}".format(python_module_mode))
         CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, YARNDEVTOOLS_MODULE_NAME)
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
-
-    @staticmethod
-    def _copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts():
-        # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
-        # the linked script is not there.
-        LOG.info("Copying jobs to place...")
-        for cdsw_script_dirname in CommonDirs.CDSW_SCRIPT_DIR_NAMES:
-            found_files = FileUtils.find_files(
-                CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
-                find_type=FindResultType.FILES,
-                regex=CDSW_RUNNER_PY,
-                parent_dir=cdsw_script_dirname,
-                single_level=False,
-                full_path_result=True,
-            )
-            if len(found_files) != 1:
-                raise ValueError(
-                    f"Expected to find 1 file with name {CDSW_RUNNER_PY} "
-                    f"and parent dir '{cdsw_script_dirname}'. "
-                    f"Actual results: {found_files}. "
-                    f"Find basedir: {CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT}"
-                )
-            # It's safer to delete dirs one by one explicitly, without specifying just the parent
-            cdsw_job_dir = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, cdsw_script_dirname)
-            FileUtils.remove_dir(cdsw_job_dir, force=True)
-
-            cdsw_script_path = found_files[0]
-            FileUtils.create_new_dir(cdsw_job_dir)
-            new_link_path = FileUtils.join_path(cdsw_job_dir, CDSW_RUNNER_PY)
-            FileUtils.copy_file(cdsw_script_path, new_link_path)
 
     @staticmethod
     def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
@@ -270,9 +197,7 @@ class CdswRunnerBase(ABC):
         LOG.info("Setup result: %s", setup_result)
         self.cdsw_runner_script_path = cdsw_runner_script_path
         self.start_date_str = self.current_date_formatted()
-        if setup_result.install_requirements_invoked and OsUtils.is_env_var_true(
-            CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False
-        ):
+        if OsUtils.is_env_var_true(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False):
             Restarter.restart_execution(self.cdsw_runner_script_path)
 
     @abstractmethod
