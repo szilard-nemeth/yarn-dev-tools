@@ -110,18 +110,6 @@ class CdswSetupResult:
 
 class CdswSetup:
     @staticmethod
-    def fix_pythonpath(additional_dir):
-        pypath = CdswEnvVar.PYTHONPATH.value
-        if pypath in os.environ:
-            LOG.debug(f"Old {pypath}: {CdswSetup._get_pythonpath()}")
-            OsUtils.set_env_value(pypath, f"{CdswSetup._get_pythonpath()}:{additional_dir}")
-            LOG.debug(f"New {pypath}: {CdswSetup._get_pythonpath()}")
-        else:
-            LOG.debug(f"Old {pypath}: not set")
-            OsUtils.set_env_value(pypath, additional_dir)
-            LOG.debug(f"New {pypath}: {CdswSetup._get_pythonpath}")
-
-    @staticmethod
     def _get_pythonpath():
         return OsUtils.get_env_value(CdswEnvVar.PYTHONPATH.value)
 
