@@ -90,8 +90,6 @@ class CdswRunner(CdswRunnerBase):
             f"--gsheet-update-date-column {gsheet_update_date_column} "
             f"--gsheet-status-info-column {gsheet_status_info_column} "
             f"--branches {branches} "
-            f"--account-email {account_email} "
-            f"--summary-mode {summary_mode} "
         )
 
     @staticmethod
@@ -104,6 +102,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
+    # TODO Add more vars to mandatory env vars
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value] + [
         e.value for e in ReviewSheetBackportUpdaterEnvVar
     ]
