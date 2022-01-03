@@ -8,3 +8,6 @@ __pycache__
 tests/logs
 tests/cdsw/logs/
 /tests/common/logs/
+/build/
+/junit/
+/.pytest_cache/
