@@ -41,6 +41,7 @@ echo "Downloading clone repository scripts..."
 SCRIPTS_DIR="/home/cdsw/downloaded_scripts"
 mkdir $SCRIPTS_DIR
 
+
 #No errors allowed after this point!
 set -e
 
@@ -52,6 +53,11 @@ chmod +x $SCRIPTS_DIR/clone_downstream_repos.sh
 chmod +x $SCRIPTS_DIR/clone_upstream_repos.sh
 chmod +x $SCRIPTS_DIR/install-requirements.sh
 chmod +x $SCRIPTS_DIR/start_job.py
+
+mkdir $SCRIPTS_DIR/libreloader
+touch $SCRIPTS_DIR/libreloader/__init__.py
+curl -o $SCRIPTS_DIR/libreloader/reload_dependencies.py https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/libreloader/reload_dependencies.py
+chmod +x $SCRIPTS_DIR/libreloader/reload_dependencies.py
 
 # Always run clone_upstream_repos.sh
 echo "Cloning upstream repos..."
