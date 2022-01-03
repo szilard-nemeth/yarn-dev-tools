@@ -1,6 +1,6 @@
 from enum import Enum
 
-# TODO Move these to enums?
+# TODO Move these to enum: CommandType
 BRANCH_DIFF_REPORTER_DIR_NAME = "downstream-branchdiff-reporting"
 JIRA_UMBRELLA_CHECKER_DIR_NAME = "jira-umbrella-checker"
 UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME = "unit-test-result-aggregator"
@@ -13,6 +13,7 @@ CDSW_RUNNER_PY = "cdsw_runner.py"
 
 
 # TODO Add default value of all env vars to enum
+# TODO Move all EnvVar classes to commands?
 class CdswEnvVar(Enum):
     MAIL_ACC_PASSWORD = "MAIL_ACC_PASSWORD"
     MAIL_ACC_USER = "MAIL_ACC_USER"

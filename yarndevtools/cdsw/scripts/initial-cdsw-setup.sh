@@ -38,7 +38,7 @@ echo "Python module mode: $PYTHON_MODULE_MODE"
 echo "Execution mode: $EXEC_MODE"
 
 echo "Downloading clone repository scripts..."
-SCRIPTS_DIR="/home/cdsw/downloaded_scripts"
+SCRIPTS_DIR="/home/cdsw/scripts"
 mkdir $SCRIPTS_DIR
 
 
