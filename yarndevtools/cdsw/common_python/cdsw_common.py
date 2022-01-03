@@ -40,6 +40,7 @@ from yarndevtools.cdsw.common_python.constants import (
     UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
     UNIT_TEST_RESULT_REPORTING_DIR_NAME,
     REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
+    REVIEWSYNC_DIR_NAME,
 )
 
 # Constants
@@ -80,12 +81,14 @@ class CommonDirs:
     HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
     USER_DEV_ROOT = FileUtils.join_path("/", "Users", "snemeth", "development")
     YARN_DEV_TOOLS_MODULE_ROOT = None
+    # TODO seems unused
     CDSW_SCRIPT_DIR_NAMES: List[str] = [
         BRANCH_DIFF_REPORTER_DIR_NAME,
         JIRA_UMBRELLA_CHECKER_DIR_NAME,
         UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
         UNIT_TEST_RESULT_REPORTING_DIR_NAME,
         REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
+        REVIEWSYNC_DIR_NAME,
     ]
 
 
