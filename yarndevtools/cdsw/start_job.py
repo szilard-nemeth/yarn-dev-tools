@@ -2,8 +2,7 @@
 import os
 import sys
 
-import libreloader.reload_dependencies  # DO NOT REMOVE !!
-
+# THESE FUNCTION DEFINITIONS AND CALL TO fix_pythonpast MUST PRECEDE THE IMPORT OF libreloader: from libreloader import reload_dependencies
 PYTHONPATH_ENV_VAR = "PYTHONPATH"
 
 
@@ -25,15 +24,24 @@ def fix_pythonpath(additional_dir):
         print(f"Old {pypath}: not set")
         set_env_value(pypath, additional_dir)
         print(f"New {pypath}: {get_pythonpath()}")
+    sys.path.append(additional_dir)
+    print("Fixed sys.path: " + str(sys.path))
+    print("Fixed PYTHONPATH: " + str(os.environ["PYTHONPATH"]))
 
+
+scripts_dir = os.path.join("/home", "cdsw", "scripts")
+fix_pythonpath(scripts_dir)
+
+# NOW IT'S SAFE TO IMPORT LIBRELOADER
+# IGNORE FLAKE8: E402 module level import not at top of file
+from libreloader import reload_dependencies  # DO NOT REMOVE !! # noqa: E402
 
 print(f"Name of the script      : {sys.argv[0]=}")
 print(f"Arguments of the script : {sys.argv[1:]=}")
 if len(sys.argv) != 2:
     raise ValueError("Should only have one argument, the name of the job!")
 
-downloaded_scripts_dir = os.path.join(os.path.expanduser("~"), "cdsw", "downloaded_scripts")
-fix_pythonpath(downloaded_scripts_dir)
+reload_dependencies.Reloader.start()
 job_name = sys.argv[1]
-script_path = os.path.join(os.path.expanduser("~"), "cdsw", "jobs", job_name, "cdsw_runner.py")
+script_path = os.path.join("/home", "cdsw", "jobs", job_name, "cdsw_runner.py")
 exec(open(script_path).read())

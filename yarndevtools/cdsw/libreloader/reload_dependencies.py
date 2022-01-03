@@ -8,9 +8,9 @@ import sys
 from typing import List
 
 LOG = logging.getLogger(__name__)
-CDSW_BASEDIR = os.path.join("home", "cdsw")
+CDSW_BASEDIR = os.path.join("/home", "cdsw")
 YARN_DEV_TOOLS_JOBS_BASEDIR = os.path.join(CDSW_BASEDIR, "jobs")  # Same as CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR
-INSTALL_REQUIREMENTS_SCRIPT = os.path.join(CDSW_BASEDIR, "downloaded_scripts", "install-requirements.sh")
+INSTALL_REQUIREMENTS_SCRIPT = os.path.join(CDSW_BASEDIR, "scripts", "install-requirements.sh")
 
 MODULE_MODE_GLOBAL = "global"
 MODULE_MODE_USER = "user"
@@ -34,7 +34,7 @@ CDSW_SCRIPT_DIR_NAMES = [
     JIRA_UMBRELLA_CHECKER_DIR_NAME,
     UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
     REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
-    REVIEWSYNC_DIR_NAME,
+    # REVIEWSYNC_DIR_NAME, # TODO Add back later
     UNIT_TEST_RESULT_REPORTING_DIR_NAME,
 ]
 
@@ -46,6 +46,7 @@ class Reloader:
 
     @classmethod
     def start(cls):
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         cls._check_mandatory_scripts()
         python_site = cls._setup_python_module_root()
         cls.YARN_DEV_TOOLS_MODULE_ROOT = os.path.join(python_site, YARNDEVTOOLS_MODULE_NAME)
