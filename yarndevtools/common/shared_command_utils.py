@@ -126,18 +126,23 @@ class SharedCommandUtils:
 
 
 class FullEmailConfig:
-    def __init__(self, args, attachment_file: str = None):
+    def __init__(self, args, attachment_file: str = None, allow_empty_subject=False):
+        mandatory_attrs = [
+            ("account_user", "Email account user"),
+            ("account_password", "Email account password"),
+            ("smtp_server", "Email SMTP server"),
+            ("smtp_port", "Email SMTP port"),
+            ("sender", "Email sender"),
+            ("recipients", "Email recipients"),
+        ]
+        all_attrs = []
+        all_attrs.extend(mandatory_attrs)
+        if not allow_empty_subject:
+            all_attrs.append(("subject", "Email subject"))
+
         ObjUtils.ensure_all_attrs_present(
             args,
-            [
-                ("account_user", "Email account user"),
-                ("account_password", "Email account password"),
-                ("smtp_server", "Email SMTP server"),
-                ("smtp_port", "Email SMTP port"),
-                ("sender", "Email sender"),
-                ("recipients", "Email recipients"),
-                ("subject", "Email subject"),
-            ],
+            all_attrs,
         )
         if not isinstance(args.recipients, list):
             raise ValueError("Email recipients should be a List[str]!")

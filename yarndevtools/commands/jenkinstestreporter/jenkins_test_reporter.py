@@ -693,7 +693,7 @@ class CacheConfig:
 
 class EmailConfig:
     def __init__(self, args):
-        self.full_email_conf: FullEmailConfig = FullEmailConfig(args)
+        self.full_email_conf: FullEmailConfig = FullEmailConfig(args, allow_empty_subject=True)
         skip_email = args.skip_email if hasattr(args, "skip_email") else False
         self.force_send_email = args.force_send_email if hasattr(args, "force_send_email") else False
         self.send_mail: bool = not skip_email or self.force_send_email
