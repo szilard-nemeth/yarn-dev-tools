@@ -46,8 +46,8 @@ set -e
 
 curl -o $SCRIPTS_DIR/clone_downstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_downstream_repos.sh
 curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_upstream_repos.sh
-curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/install-requirements.sh
-curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/start_job.py
+curl -o $SCRIPTS_DIR/install-requirements.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/install-requirements.sh
+curl -o $SCRIPTS_DIR/start_job.py https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/start_job.py
 chmod +x $SCRIPTS_DIR/clone_downstream_repos.sh
 chmod +x $SCRIPTS_DIR/clone_upstream_repos.sh
 chmod +x $SCRIPTS_DIR/install-requirements.sh
