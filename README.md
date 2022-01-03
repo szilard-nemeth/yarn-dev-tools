@@ -141,11 +141,11 @@ Note: The individual CDSW jobs should make sure for themselves to clone the repo
 
 5. All you have to do in CDSW is to set up the projects and their starter scripts like this:
 
-| Project                         | Starter script location|
-|---------------------------------|------------------------|  
-| Jira umbrella checker reporting | jobs/jira-umbrella-checker/cdsw_runner.py|
-| Unit test result aggregator     | jobs/unit-test-result-aggregator/cdsw_runner.py|
-| Unit test result reporting      | jobs/unit-test-result-reporting/cdsw_runner.py|
-| Downstream branchdiff reporting | jobs/downstream-branchdiff-reporting/cdsw_runner.py|
-| Review sheet backport updater   | jobs/review-sheet-backport-updater/cdsw_runner.py|
-| Reviewsync                      | jobs/reviewsync/cdsw_runner.py|
+| Project                         | Starter script location          | Parameter to script             |
+|---------------------------------|----------------------------------|---------------------------------|
+| Jira umbrella checker reporting | downloaded_scripts/start_job.py  | jira-umbrella-checker           |
+| Unit test result aggregator     | downloaded_scripts/start_job.py  | unit-test-result-aggregator     |
+| Unit test result reporting      | downloaded_scripts/start_job.py  | unit-test-result-reporting      |
+| Downstream branchdiff reporting | downloaded_scripts/start_job.py  | downstream-branchdiff-reporting |
+| Review sheet backport updater   | downloaded_scripts/start_job.py  | review-sheet-backport-updater   |
+| Reviewsync                      | downloaded_scripts/start_job.py  | reviewsync                      |
