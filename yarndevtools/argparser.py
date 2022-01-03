@@ -482,7 +482,7 @@ class ArgParser:
             "--account-email",
             required=True,
             type=str,
-            help="Email address of Gmail account that will be used to Gmail API authentication and fetchin data.",
+            help="Email address of Gmail account that will be used to Gmail API authentication and fetching data.",
         )
 
         parser.add_argument(
