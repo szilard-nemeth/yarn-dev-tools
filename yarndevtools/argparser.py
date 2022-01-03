@@ -56,6 +56,7 @@ class ArgParser:
         ArgParser.add_jenkins_test_reporter(subparsers, yarn_dev_tools)
         ArgParser.add_review_sheet_backport_updater(subparsers, yarn_dev_tools)
         ArgParser.add_reviewsync(subparsers, yarn_dev_tools)
+        ArgParser.add_test_result_aggregator(subparsers, yarn_dev_tools)
 
         # Normal arguments
         parser.add_argument(
