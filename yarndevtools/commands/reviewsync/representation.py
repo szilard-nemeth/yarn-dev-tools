@@ -172,11 +172,13 @@ class ReviewsyncRenderedSummary:
             h.OVERALL_RESULT.value,
         ]
 
+        # TODO Fix color conf
         row_len = len(self.table_data[0])
+        scan_range = (0, row_len)
         color_conf = ColorizeConfig(
             [
-                ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, (0, row_len), (0, row_len)),
-                ColorDescriptor(bool, False, Color.RED, MatchType.ANY, (0, row_len), (0, row_len)),
+                ColorDescriptor(bool, True, Color.GREEN, MatchType.ALL, scan_range, (0, row_len)),
+                ColorDescriptor(bool, False, Color.RED, MatchType.ANY, scan_range, (0, row_len)),
             ],
             eval_method=EvaluationMethod.ALL,
         )
@@ -281,7 +283,7 @@ class ReviewsyncSummaryData:
         self.reviewsync_data = reviewsync_data
 
     def __str__(self):
-        # TODO
+        # TODO fix
         res = ""
         # res += f"Output dir: {self.output_dir}\n"
         # res += f"Config: {str(self.config)}\n"
