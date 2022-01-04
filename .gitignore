@@ -11,3 +11,4 @@ tests/cdsw/logs/
 /build/
 /junit/
 /.pytest_cache/
+/yarn_dev_tools.egg-info/
