@@ -1,6 +1,5 @@
 from enum import Enum
 
-UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME = "unit-test-result-aggregator"
 REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME = "review-sheet-backport-updater"
 REVIEWSYNC_DIR_NAME = "reviewsync"
 UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
