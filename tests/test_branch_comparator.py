@@ -10,8 +10,8 @@ from tests.test_utilities import Object, TestUtilities
 from yarndevtools.commands.branchcomparator.branch_comparator import Branches, CommitMatchingAlgorithm, BranchComparator
 from yarndevtools.commands.branchcomparator.common import BranchType
 from yarndevtools.commands.branchcomparator.group_matching import GroupedMatchingResult
-from yarndevtools.common.shared_command_utils import RepoType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, BRANCH_COMPARATOR
+from yarndevtools.common.shared_command_utils import RepoType, CommandType
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 BRANCHES_CLASS_NAME = Branches.__name__
 REPO_PATCH = "yarndevtools.commands.branchcomparator.branch_comparator.{}.send_mail".format(BRANCHES_CLASS_NAME)
@@ -27,7 +27,7 @@ class TestBranchComparator(unittest.TestCase):
     def setUpClass(cls):
         # Invoke this to setup main output directory and avoid test failures while initing config
         cls.project_out_root = ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        ProjectUtils.get_test_output_child_dir(BRANCH_COMPARATOR)
+        ProjectUtils.get_test_output_child_dir(CommandType.BRANCH_COMPARATOR.output_dir_name)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -59,7 +59,7 @@ class TestBranchComparator(unittest.TestCase):
 
     @property
     def output_dir(self):
-        return ProjectUtils.get_test_output_child_dir(BRANCH_COMPARATOR)
+        return ProjectUtils.get_test_output_child_dir(CommandType.BRANCH_COMPARATOR.output_dir_name)
 
     @staticmethod
     def _create_mock_merge_base(downstream_repo, merge_base_hash):

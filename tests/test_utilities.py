@@ -16,7 +16,6 @@ from yarndevtools.common.shared_command_utils import YarnDevToolsTestEnvVar, Com
 from yarndevtools.constants import (
     HADOOP_REPO_APACHE,
     TRUNK,
-    JIRA_UMBRELLA_DATA,
     ORIGIN_TRUNK,
     YARNDEVTOOLS_MODULE_NAME,
     ENV_HADOOP_DEV_DIR,
@@ -69,7 +68,7 @@ class TestUtilities:
 
     @property
     def jira_umbrella_data_dir(self):
-        return ProjectUtils.get_test_output_child_dir(JIRA_UMBRELLA_DATA)
+        return ProjectUtils.get_test_output_child_dir(CommandType.FETCH_JIRA_UMBRELLA_DATA.output_dir_name)
 
     def set_env_vars(self, upstream_repo, downstream_repo):
         OsUtils.set_env_value(ENV_HADOOP_DEV_DIR, upstream_repo)

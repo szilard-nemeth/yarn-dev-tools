@@ -37,15 +37,7 @@ from yarndevtools.constants import (
     GERRIT_REVIEWER_LIST,
     HADOOP_REPO_TEMPLATE,
     LATEST_DATA_ZIP_LINK_NAME,
-    YARN_TASKS,
-    JIRA_UMBRELLA_DATA,
-    JIRA_PATCH_DIFFER,
-    BRANCH_COMPARATOR,
-    JENKINS_TEST_REPORTER,
-    UNIT_TEST_RESULT_AGGREGATOR,
     YARNDEVTOOLS_MODULE_NAME,
-    REVIEW_SHEET_BACKPORT_UPDATER,
-    REVIEWSYNC,
 )
 from pythoncommons.git_wrapper import GitWrapper
 
@@ -61,7 +53,6 @@ class YarnDevTools:
         self.downstream_repo = None
         self.upstream_repo = None
         self.project_out_root = None
-        self.yarn_patch_dir = None
         self.setup_dirs(execution_mode=execution_mode)
         self.init_repos()
 
@@ -80,35 +71,6 @@ class YarnDevTools:
         LOG.info("Project root determination strategy is: %s", strategy)
         ProjectUtils.project_root_determine_strategy = strategy
         self.project_out_root = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        self.yarn_patch_dir = ProjectUtils.get_output_child_dir(YARN_TASKS)
-
-    @property
-    def jira_umbrella_data_dir(self):
-        return ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
-
-    @property
-    def jira_patch_differ_dir(self):
-        return ProjectUtils.get_output_child_dir(JIRA_PATCH_DIFFER)
-
-    @property
-    def branch_comparator_output_dir(self):
-        return ProjectUtils.get_output_child_dir(BRANCH_COMPARATOR)
-
-    @property
-    def jenkins_test_reporter_output_dir(self):
-        return ProjectUtils.get_output_child_dir(JENKINS_TEST_REPORTER)
-
-    @property
-    def unit_test_result_aggregator_output_dir(self):
-        return ProjectUtils.get_output_child_dir(UNIT_TEST_RESULT_AGGREGATOR)
-
-    @property
-    def review_sheet_backport_updater_output_dir(self):
-        return ProjectUtils.get_output_child_dir(REVIEW_SHEET_BACKPORT_UPDATER)
-
-    @property
-    def reviewsync_output_dir(self):
-        return ProjectUtils.get_output_child_dir(REVIEWSYNC)
 
     def ensure_required_env_vars_are_present(self):
         upstream_hadoop_dir = OsUtils.get_env_value(ENV_HADOOP_DEV_DIR, None)
@@ -130,7 +92,8 @@ class YarnDevTools:
         self.upstream_repo = GitWrapper(self.env[LOADED_ENV_UPSTREAM_DIR])
 
     def save_patch(self, args, parser=None):
-        patch_saver = PatchSaver(args, self.upstream_repo, self.yarn_patch_dir, DEFAULT_BASE_BRANCH)
+        output_patch_dir = ProjectUtils.get_output_child_dir(CommandType.SAVE_PATCH.output_dir_name)
+        patch_saver = PatchSaver(args, self.upstream_repo, output_patch_dir, DEFAULT_BASE_BRANCH)
         return patch_saver.run()
 
     def create_review_branch(self, args, parser=None):
@@ -186,12 +149,14 @@ class YarnDevTools:
         :param args:
         :return:
         """
-        patch_differ = UpstreamJiraPatchDiffer(args, self.upstream_repo, self.jira_patch_differ_dir)
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.DIFF_PATCHES_OF_JIRA.output_dir_name)
+        patch_differ = UpstreamJiraPatchDiffer(args, self.upstream_repo, output_dir)
         patch_differ.run()
 
     def fetch_jira_umbrella_data(self, args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.FETCH_JIRA_UMBRELLA_DATA.output_dir_name)
         jira_umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            args, self.upstream_repo, self.downstream_repo, self.jira_umbrella_data_dir, DEFAULT_BASE_BRANCH
+            args, self.upstream_repo, self.downstream_repo, output_dir, DEFAULT_BASE_BRANCH
         )
         FileUtils.create_symlink_path_dir(
             CommandType.FETCH_JIRA_UMBRELLA_DATA.session_link_name,
@@ -201,9 +166,8 @@ class YarnDevTools:
         jira_umbrella_fetcher.run()
 
     def branch_comparator(self, args, parser=None):
-        branch_comparator = BranchComparator(
-            args, self.downstream_repo, self.upstream_repo, self.branch_comparator_output_dir
-        )
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.BRANCH_COMPARATOR.output_dir_name)
+        branch_comparator = BranchComparator(args, self.downstream_repo, self.upstream_repo, output_dir)
         FileUtils.create_symlink_path_dir(
             CommandType.BRANCH_COMPARATOR.session_link_name, branch_comparator.config.output_dir, self.project_out_root
         )
@@ -219,11 +183,13 @@ class YarnDevTools:
         send_latest_cmd_data.run()
 
     def fetch_send_jenkins_test_report(self, args, parser=None):
-        jenkins_test_reporter = JenkinsTestReporter(args, self.jenkins_test_reporter_output_dir)
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.JENKINS_TEST_REPORTER.output_dir_name)
+        jenkins_test_reporter = JenkinsTestReporter(args, output_dir)
         jenkins_test_reporter.run()
 
     def unit_test_result_aggregator(self, args, parser=None):
-        ut_results_aggregator = UnitTestResultAggregator(args, parser, self.unit_test_result_aggregator_output_dir)
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name)
+        ut_results_aggregator = UnitTestResultAggregator(args, parser, output_dir)
         FileUtils.create_symlink_path_dir(
             CommandType.UNIT_TEST_RESULT_AGGREGATOR.session_link_name,
             ut_results_aggregator.config.session_dir,
@@ -232,9 +198,8 @@ class YarnDevTools:
         ut_results_aggregator.run()
 
     def review_sheet_backport_updater(self, args, parser=None):
-        backport_updater = ReviewSheetBackportUpdater(
-            args, parser, self.review_sheet_backport_updater_output_dir, self.downstream_repo
-        )
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.REVIEW_SHEET_BACKPORT_UPDATER.output_dir_name)
+        backport_updater = ReviewSheetBackportUpdater(args, parser, output_dir, self.downstream_repo)
         FileUtils.create_symlink_path_dir(
             CommandType.REVIEW_SHEET_BACKPORT_UPDATER.session_link_name,
             backport_updater.config.session_dir,
@@ -243,7 +208,8 @@ class YarnDevTools:
         backport_updater.run()
 
     def reviewsync(self, args, parser=None):
-        reviewsync = ReviewSync(args, parser, self.reviewsync_output_dir, self.upstream_repo)
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.REVIEWSYNC.output_dir_name)
+        reviewsync = ReviewSync(args, parser, output_dir, self.upstream_repo)
         FileUtils.create_symlink_path_dir(
             CommandType.REVIEW_SHEET_BACKPORT_UPDATER.session_link_name,
             reviewsync.config.session_dir,
