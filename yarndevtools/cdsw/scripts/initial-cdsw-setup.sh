@@ -42,9 +42,8 @@ SCRIPTS_DIR="/home/cdsw/scripts"
 mkdir $SCRIPTS_DIR
 
 
-#No errors allowed after this point!
+#No errors allowed in curl / chmod
 set -e
-
 curl -o $SCRIPTS_DIR/clone_downstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_downstream_repos.sh
 curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_upstream_repos.sh
 curl -o $SCRIPTS_DIR/install-requirements.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/install-requirements.sh
@@ -54,10 +53,15 @@ chmod +x $SCRIPTS_DIR/clone_upstream_repos.sh
 chmod +x $SCRIPTS_DIR/install-requirements.sh
 chmod +x $SCRIPTS_DIR/start_job.py
 
+set +e
 mkdir $SCRIPTS_DIR/libreloader
+set -e
 touch $SCRIPTS_DIR/libreloader/__init__.py
 curl -o $SCRIPTS_DIR/libreloader/reload_dependencies.py https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/libreloader/reload_dependencies.py
 chmod +x $SCRIPTS_DIR/libreloader/reload_dependencies.py
+
+set -e
+#No errors allowed after this point!
 
 # Always run clone_upstream_repos.sh
 echo "Cloning upstream repos..."
