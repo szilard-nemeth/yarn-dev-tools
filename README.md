@@ -137,9 +137,9 @@ Note: The individual CDSW jobs should make sure for themselves to clone the repo
 
 | Project                                                                | Starter script location         | Arguments for script          |
 |------------------------------------------------------------------------|---------------------------------|-------------------------------|
-| Jira umbrella data fetcher (Formerly: Jira umbrella checker reporting) | scripts/start_job.py            | jira-umbrella-checker         |
+| Jira umbrella data fetcher (Formerly: Jira umbrella checker reporting) | scripts/start_job.py            | jira-umbrella-data-fetcher    |
 | Unit test result aggregator                                            | scripts/start_job.py            | unit-test-result-aggregator   |
-| Unit test result reporting                                             | scripts/start_job.py            | unit-test-result-reporting    |
+| Unit test result fetcher (Formerly: Unit test result reporting)        | scripts/start_job.py            | unit-test-result-fetcher      |
 | Branch comparator (Formerly: Downstream branchdiff reporting)          | scripts/start_job.py            | branch-comparator             |
 | Review sheet backport updater                                          | scripts/start_job.py | review-sheet-backport-updater |
 | Reviewsync                                                             | scripts/start_job.py | reviewsync                    |

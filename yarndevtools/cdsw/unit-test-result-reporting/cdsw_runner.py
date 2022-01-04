@@ -12,13 +12,12 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 )
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
-    UNIT_TEST_RESULT_REPORTING_DIR_NAME,
     JenkinsTestReporterEnvVar,
 )
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
-    JenkinsTestReporterMode,
+from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
+    UnitTestResultFetcherMode,
     DEFAULT_REQUEST_LIMIT,
-    JenkinsTestReporterCacheType,
+    UnitTestResultFetcherCacheType,
     JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL,
 )
 
@@ -35,11 +34,11 @@ class CdswRunner(CdswRunnerBase):
     def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         self.start_common(setup_result, cdsw_runner_script_path)
         self.run_clone_downstream_repos_script(setup_result.basedir)
-        self.run_test_reporter(mode=JenkinsTestReporterMode.JENKINS_MASTER)
+        self.run_test_reporter(mode=UnitTestResultFetcherMode.JENKINS_MASTER)
 
     def run_test_reporter(
         self,
-        mode: JenkinsTestReporterMode,
+        mode: UnitTestResultFetcherMode,
         recipients=None,
         testcase_filter: str = TC_FILTER_ALL,
         num_builds: str = JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL,
@@ -62,13 +61,15 @@ class CdswRunner(CdswRunnerBase):
         omit_job_summary_param = "--omit-job-summary" if omit_job_summary else ""
         download_uncached_job_data_param = "--download-uncached-job-data" if download_uncached_job_data else ""
         cache_type_param = (
-            f"--cache-type {JenkinsTestReporterCacheType.GOOGLE_DRIVE.value.lower()}" if use_google_drive_cache else ""
+            f"--cache-type {UnitTestResultFetcherCacheType.GOOGLE_DRIVE.value.lower()}"
+            if use_google_drive_cache
+            else ""
         )
 
         force_sending_mail: int = OsUtils.get_env_value(JenkinsTestReporterEnvVar.FORCE_SENDING_MAIL.value, False)
         force_sending_mail_param = "--force-sending-email" if force_sending_mail else ""
 
-        all_jobs_by_name: str = " ".join(JenkinsTestReporterMode.JENKINS_MASTER.job_names)
+        all_jobs_by_name: str = " ".join(UnitTestResultFetcherMode.JENKINS_MASTER.job_names)
         reset_build_data_env: bool = OsUtils.get_env_value(JenkinsTestReporterEnvVar.RESET_JOB_BUILD_DATA.value, False)
         reset_build_data_param = (
             f"--reset-job-build-data-for-jobs {all_jobs_by_name}"
@@ -77,7 +78,7 @@ class CdswRunner(CdswRunnerBase):
         )
 
         self.execute_yarndevtools_script(
-            f"--debug {CommandType.JENKINS_TEST_REPORTER.name} "
+            f"--debug {CommandType.UNIT_TEST_RESULT_FETCHER.name} "
             f"--mode {mode.mode_name} "
             f"{self.common_mail_config.as_arguments()}"
             f'--sender "{sender}" '
@@ -98,4 +99,4 @@ if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename(UNIT_TEST_RESULT_REPORTING_DIR_NAME))
+    runner.start(setup_result, CdswRunnerBase.get_filename(CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name))

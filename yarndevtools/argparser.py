@@ -3,9 +3,9 @@ import logging
 import re
 import sys
 from yarndevtools.commands.branchcomparator.branch_comparator import CommitMatchingAlgorithm
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
-    JenkinsTestReporterMode,
-    JenkinsTestReporterCacheType,
+from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
+    UnitTestResultFetcherMode,
+    UnitTestResultFetcherCacheType,
 )
 from yarndevtools.commands.unittestresultaggregator.common import SummaryMode, MATCH_EXPRESSION_PATTERN
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
@@ -53,7 +53,7 @@ class ArgParser:
         ArgParser.add_branch_comparator(subparsers, yarn_dev_tools)
         ArgParser.add_zip_latest_command_data(subparsers, yarn_dev_tools)
         ArgParser.add_send_latest_command_data(subparsers, yarn_dev_tools)
-        ArgParser.add_jenkins_test_reporter(subparsers, yarn_dev_tools)
+        ArgParser.add_unit_test_result_fetcher(subparsers, yarn_dev_tools)
         ArgParser.add_review_sheet_backport_updater(subparsers, yarn_dev_tools)
         ArgParser.add_reviewsync(subparsers, yarn_dev_tools)
         ArgParser.add_test_result_aggregator(subparsers, yarn_dev_tools)
@@ -290,9 +290,9 @@ class ArgParser:
         parser.set_defaults(func=yarn_dev_tools.send_latest_command_data)
 
     @staticmethod
-    def add_jenkins_test_reporter(subparsers, yarn_dev_tools):
+    def add_unit_test_result_fetcher(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.JENKINS_TEST_REPORTER.name,
+            CommandType.UNIT_TEST_RESULT_FETCHER.name,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
             "Example: "
             "--mode jenkins_master "
@@ -379,7 +379,7 @@ class ArgParser:
             "--mode",
             type=str,
             dest="jenkins_mode",
-            choices=[m.mode_name.lower() for m in JenkinsTestReporterMode],
+            choices=[m.mode_name.lower() for m in UnitTestResultFetcherMode],
             help="Jenkins mode. Used to pre-configure --jenkins-url and --job-names. "
             "Will take precendence over URL and job names, if they are also specified!",
         )
@@ -451,7 +451,7 @@ class ArgParser:
             "--cache-type",
             type=str,
             dest="cache_type",
-            choices=[ct.name.lower() for ct in JenkinsTestReporterCacheType],
+            choices=[ct.name.lower() for ct in UnitTestResultFetcherCacheType],
             help="The type of the cache. Either file or google_drive",
         )
 

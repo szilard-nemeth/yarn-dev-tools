@@ -3,9 +3,9 @@ FROM python:3.8
 
 WORKDIR /home/repos/snemeth/yarn-dev-tools/yarndevtools/cdsw
 COPY requirements-github.txt .
-RUN mkdir unit-test-result-reporting
+RUN mkdir unit-test-result-fetcher
 RUN mkdir branch-comparator
-COPY unit-test-result-reporting unit-test-result-reporting/
+COPY unit-test-result-fetcher unit-test-result-fetcher/
 COPY branch-comparator branch-comparator/
 RUN pip install -r requirements-github.txt
 RUN apt-get update && apt-get install -y --no-install-recommends \

@@ -17,7 +17,7 @@ class Restarter:
          1. sys.executable: /usr/local/bin/python3
          2. sys.argv: ['/usr/local/bin/ipython3']
          3. final command: ['/usr/local/bin/python3',
-                   '/home/cdsw/.local/lib/python3.8/site-packages/yarndevtools/cdsw/unit-test-result-reporting/cdsw_runner.py']
+                   '/home/cdsw/.local/lib/python3.8/site-packages/yarndevtools/cdsw/unit-test-result-fetcher/cdsw_runner.py']
 
          Variable values under normal run (e.g. from test_branchdiff_reporter.py):
          1. sys.executable: /usr/local/bin/python3

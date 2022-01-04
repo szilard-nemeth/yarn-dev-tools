@@ -35,7 +35,6 @@ from pythoncommons.project_utils import (
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     PROJECT_NAME,
-    UNIT_TEST_RESULT_REPORTING_DIR_NAME,
 )
 
 # Constants
@@ -81,7 +80,7 @@ class CommonDirs:
         CommandType.BRANCH_COMPARATOR.output_dir_name,
         CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name,
         CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name,
-        UNIT_TEST_RESULT_REPORTING_DIR_NAME,
+        CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name,
         CommandType.REVIEW_SHEET_BACKPORT_UPDATER.output_dir_name,
         CommandType.REVIEWSYNC.output_dir_name,
     ]
