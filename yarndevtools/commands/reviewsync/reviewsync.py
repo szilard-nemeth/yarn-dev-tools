@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
 import logging
-from collections import OrderedDict
-from typing import Dict, List
+from typing import Dict
 
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
@@ -10,12 +9,13 @@ from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.result_printer import BasicResultPrinter
 from pythoncommons.jira_wrapper import JiraFetchMode, PatchOverallStatus, PatchApply, JiraPatchStatus
 import datetime
 import time
 
+from yarndevtools.commands.reviewsync.common import ReviewsyncData
 from yarndevtools.commands.reviewsync.jira_wrapper import HadoopJiraWrapper
+from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputManager
 
 DEFAULT_BRANCH = "trunk"
 JIRA_URL = "https://issues.apache.org/jira"
@@ -93,15 +93,17 @@ class ReviewSync:
         self.issue_fetch_mode = args.fetch_mode
         if self.issue_fetch_mode == JiraFetchMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(args.gsheet_options)
+        self.data = ReviewsyncData()
 
     def run(self):
         start_time = time.time()
-        results = self.sync()
-        if results:
-            self.print_results_table(results)
+        self.sync()
+        if self.data.patch_applies_for_issues:
+            output_manager = ReviewSyncOutputManager(self.config)
+            output_manager.print_summary(self.data)
             if self.issue_fetch_mode == JiraFetchMode.GSHEET:
                 LOG.info("Updating GSheet with results...")
-                self.update_gsheet(results)
+                self.update_gsheet()
         end_time = time.time()
         LOG.info("Execution of script took %d seconds", end_time - start_time)
 
@@ -132,12 +134,12 @@ class ReviewSync:
         return branches
 
     def sync(self):
-        issues = self.get_or_fetch_issues()
-        if not issues or len(issues) == 0:
+        self.data.issues = self.get_or_fetch_issues()
+        if not self.data.issues or len(self.data.issues) == 0:
             LOG.info("No Jira issues found using fetch mode: %s", self.issue_fetch_mode)
             return
 
-        LOG.info("Jira issues will be review-synced: %s", issues)
+        LOG.info("Jira issues will be review-synced: %s", self.data.issues)
         LOG.info("Branches specified: %s", self.branches)
 
         self.upstream_repo.fetch(all=True)
@@ -147,8 +149,7 @@ class ReviewSync:
         # value: list of PatchApply objects
         # For non-applicable patches (e.g. jira is already Resolved, patch object is None)
 
-        results = OrderedDict()
-        for issue_id in issues:
+        for issue_id in self.data.issues:
             if not issue_id:
                 LOG.warning("Found issue with empty issue ID! One reason could be an empty row of a Google sheet!")
                 continue
@@ -156,42 +157,42 @@ class ReviewSync:
                 LOG.warning("Found issue with suspicious issue ID: %s", issue_id)
                 continue
 
-            committed_on_branches = self.get_remote_branches_committed_for_issue(issue_id)
-            LOG.info("Issue %s is committed on branches: %s", issue_id, committed_on_branches)
-            patches = self.download_latest_patches(issue_id, committed_on_branches)
-            if len(patches) == 0:
+            self.data.commit_branches_for_issues[issue_id] = self.get_remote_branches_committed_for_issue(issue_id)
+            LOG.info("Issue %s is committed on branches: %s", issue_id, self.data.commit_branches_for_issues[issue_id])
+            self.data.patches_for_issues[issue_id] = self.download_latest_patches(
+                issue_id, self.data.commit_branches_for_issues[issue_id]
+            )
+            if len(self.data.patches_for_issues[issue_id]) == 0:
                 gh_pr_status = GitHubUtils.is_pull_request_of_jira_mergeable(issue_id)
                 jira_patch_status = JiraPatchStatus.translate_from_github_pr_merge_status(gh_pr_status)
-                results[issue_id] = []
+                self.data.patch_applies_for_issues[issue_id] = []
                 for branch in self.branches:
-                    results[issue_id].append(PatchApply(None, branch, jira_patch_status))
+                    self.data.patch_applies_for_issues[issue_id].append(PatchApply(None, branch, jira_patch_status))
                 LOG.warning("No patch found for Jira issue %s!", issue_id)
                 continue
 
-            for patch in patches:
+            for patch in self.data.patches_for_issues[issue_id]:
                 patch_applies = self.upstream_repo.apply_patch_advanced(patch, branch_prefix=BRANCH_PREFIX)
-                if patch.issue_id not in results:
-                    results[patch.issue_id] = []
-                results[patch.issue_id] += patch_applies
+                if patch.issue_id not in self.data.patch_applies_for_issues:
+                    self.data.patch_applies_for_issues[patch.issue_id] = []
+                self.data.patch_applies_for_issues[patch.issue_id] += patch_applies
 
-        self.set_overall_status_for_results(results)
-        LOG.info("List of Patch applies: %s", str(results))
-        return results
+        self.set_overall_status_for_results()
+        LOG.info("List of Patch applies: %s", str(self.data.patch_applies_for_issues))
 
-    @classmethod
-    def set_overall_status_for_results(cls, results):
-        for issue_id, patch_applies in results.items():
+    def set_overall_status_for_results(self):
+        for issue_id, patch_applies in self.data.patch_applies_for_issues.items():
             statuses = set(map(lambda pa: pa.result, patch_applies))
             if len(statuses) == 1 and next(iter(statuses)) == JiraPatchStatus.PATCH_ALREADY_COMMITTED:
-                cls._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus("ALL COMMITTED"))
+                self._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus("ALL COMMITTED"))
                 continue
 
             statuses = []
             for patch_apply in patch_applies:
-                status = cls._translate_patch_apply_status_to_str(patch_apply)
+                status = self._translate_patch_apply_status_to_str(patch_apply)
                 statuses.append(status)
 
-            cls._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus(", ".join(statuses)))
+            self._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus(", ".join(statuses)))
 
     @classmethod
     def _translate_patch_apply_status_to_str(cls, patch_apply):
@@ -224,23 +225,18 @@ class ReviewSync:
 
         return patches
 
-    def print_results_table(self, results):
-        data, headers = self.convert_data_for_result_printer(results)
-        BasicResultPrinter.print_table(data, headers)
-
-    def update_gsheet(self, results: Dict[str, List[PatchApply]]):
+    def update_gsheet(self):
         update_date_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        status_per_jira = self._get_status_for_jira_ids(results)
+        status_per_jira = self._get_status_for_jira_ids()
         cell_updates = [
             GenericCellUpdate(jira_id, {"status": status, "update_date": update_date_str})
             for jira_id, status in status_per_jira.items()
         ]
         self.gsheet_wrapper.update_issues_with_results(cell_updates)
 
-    @staticmethod
-    def _get_status_for_jira_ids(results: Dict[str, List[PatchApply]]) -> Dict[str, str]:
+    def _get_status_for_jira_ids(self) -> Dict[str, str]:
         status_per_jira: Dict[str, str] = {}
-        for issue_id, patch_applies in results.items():
+        for issue_id, patch_applies in self.data.patch_applies_for_issues.items():
             if len(patch_applies) > 0:
                 patch = patch_applies[0].patch
                 if patch:
@@ -250,53 +246,6 @@ class ReviewSync:
                     overall_status = PatchOverallStatus(patch_applies[0].result)
                 status_per_jira[issue_id] = overall_status.status
         return status_per_jira
-
-    @staticmethod
-    def convert_data_for_result_printer(results):
-        data = []
-        headers = [
-            "Row",
-            "Issue",
-            "Patch apply",
-            "Owner",
-            "Patch file",
-            "Branch",
-            "Explicit",
-            "Result",
-            "Number of conflicted files",
-            "Overall result",
-        ]
-        row = 0
-        for issue_id, patch_applies in results.items():
-            for idx, patch_apply in enumerate(patch_applies):
-                row += 1
-                patch = patch_apply.patch
-                explicit = "Yes" if patch_apply.explicit else "No"
-                conflicts = "N/A" if patch_apply.conflicts == 0 else str(patch_apply.conflicts)
-                if patch:
-                    owner = patch.owner_display_name
-                    filename = patch.filename
-                    status = patch.overall_status.status
-                else:
-                    owner = "N/A"
-                    filename = "N/A"
-                    status = "N/A"
-                data.append(
-                    [
-                        row,
-                        issue_id,
-                        idx + 1,
-                        owner,
-                        filename,
-                        patch_apply.branch,
-                        explicit,
-                        patch_apply.result,
-                        conflicts,
-                        status,
-                    ]
-                )
-
-        return data, headers
 
     def get_remote_branches_committed_for_issue(self, issue_id):
         commit_hashes = self.upstream_repo.get_commit_hashes(issue_id)
