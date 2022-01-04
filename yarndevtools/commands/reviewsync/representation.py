@@ -82,8 +82,7 @@ class ReviewSyncOutputManager:
         self.config = config
 
     def print_summary(self, data: ReviewsyncData):
-        table_data_preparator = TableDataPreparator()
-        table_data = table_data_preparator.prepare(data)
+        table_data = TableDataPreparator.prepare(data)
         summary_data: ReviewsyncSummaryData = ReviewsyncSummaryData(self.config, data)
         self.rendered_summary = ReviewsyncRenderedSummary(summary_data, table_data, self.config)
         self.print_and_save_summary(self.rendered_summary)
@@ -91,17 +90,18 @@ class ReviewSyncOutputManager:
     def print_and_save_summary(self, rendered_summary):
         LOG.info(rendered_summary.printable_summary_str)
 
-        filename = FileUtils.join_path(self.config.umbrella_result_basedir, SUMMARY_FILE_TXT)
+        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_TXT)
         LOG.info(f"Saving summary to text file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary.writable_summary_str)
 
-        filename = FileUtils.join_path(self.config.umbrella_result_basedir, SUMMARY_FILE_HTML)
+        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_HTML)
         LOG.info(f"Saving summary to html file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary.html_summary)
 
 
 class TableDataPreparator:
-    def prepare(self, data):
+    @staticmethod
+    def prepare(data):
         rows: List[Any] = []
         row_number = 0
         for issue_id, patch_applies in data.patch_applies_for_issues.items():
