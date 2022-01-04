@@ -77,6 +77,7 @@ class CdswRunner(CdswRunnerBase):
         LOG.info(f"Locals: {locals()}")
         self.execute_yarndevtools_script(
             f"{debug} "
+            f"--gsheet "
             f"{CommandType.REVIEWSYNC.name} "
             f"--gsheet-client-secret {gsheet_client_secret} "
             f"--gsheet-spreadsheet {gsheet_spreadsheet} "
