@@ -14,6 +14,7 @@ with open(path.join(this_directory, "version.py")) as f:
 
 with open("LICENSE") as f:
     license = f.read()
+
 setup(
     name="yarn-dev-tools",
     version=version,
@@ -26,15 +27,7 @@ setup(
     packages=find_packages(exclude=["tests"]),
     package_data={"yarndevtools": ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]},
     tests_require=["pytest"],
-    # https://stackoverflow.com/a/53706140/1106893
-    install_requires=[
-        "gitpython",
-        "humanize",
-        "python-commons @ git+ssh://git@github.com/szilard-nemeth/python-commons@master",
-        "google-api-wrapper @ git+ssh://git@github.com/szilard-nemeth/google-api-wrapper@master",
-        "bs4",
-        "jira",
-    ],
+    install_requires=[],
     extras_require={"myst": ["myst-parser~=0.8; python_version >= '3.6'"], "toml": ["toml"]},
     license=license,
     classifiers=[
