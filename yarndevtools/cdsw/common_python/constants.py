@@ -1,6 +1,5 @@
 from enum import Enum
 
-REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME = "review-sheet-backport-updater"
 REVIEWSYNC_DIR_NAME = "reviewsync"
 UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
 PROJECT_NAME = "cdsw"
