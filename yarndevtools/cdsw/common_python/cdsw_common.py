@@ -35,7 +35,6 @@ from pythoncommons.project_utils import (
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     PROJECT_NAME,
-    UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
     UNIT_TEST_RESULT_REPORTING_DIR_NAME,
     REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
     REVIEWSYNC_DIR_NAME,
@@ -83,7 +82,7 @@ class CommonDirs:
     CDSW_SCRIPT_DIR_NAMES: List[str] = [
         CommandType.BRANCH_COMPARATOR.output_dir_name,
         CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name,
-        UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
+        CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name,
         UNIT_TEST_RESULT_REPORTING_DIR_NAME,
         REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
         REVIEWSYNC_DIR_NAME,

@@ -17,7 +17,6 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 )
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
-    UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
     UnitTestResultAggregatorEnvVar,
     UnitTestResultAggregatorOptionalEnvVar,
 )
@@ -193,4 +192,4 @@ if __name__ == "__main__":
     ]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename(UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME))
+    runner.start(setup_result, CdswRunnerBase.get_filename(CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name))
