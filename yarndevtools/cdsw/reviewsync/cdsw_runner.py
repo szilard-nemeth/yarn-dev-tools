@@ -13,7 +13,6 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     ReviewSyncEnvVar,
-    REVIEWSYNC_DIR_NAME,
 )
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import REPORT_FILE_SHORT_HTML
@@ -104,4 +103,4 @@ if __name__ == "__main__":
     ]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename(REVIEWSYNC_DIR_NAME))
+    runner.start(setup_result, CdswRunnerBase.get_filename(CommandType.REVIEWSYNC.output_dir_name))
