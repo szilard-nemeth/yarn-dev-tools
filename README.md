@@ -74,14 +74,8 @@ pip3 install .
 ```
 
 After this, you are ready to set up some aliases. In my system, I have these: 
-```
-yarn-backport='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py backport_c6'
-yarn-create-review-branch='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py create_review_branch'
-yarn-diff-patches='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py diff_patches_of_jira'
-yarn-get-umbrella-data='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py fetch_jira_umbrella_data'
-yarn-save-patch='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py save_patch'
-yarn-upstream-commit-pr='export <HADOOP_DEV_DIR>; export <CLOUDERA_HADOOP_ROOT>; <SYSTEM_PYTHON_EXECUTABLE> <VENV>//lib/python3.8/site-packages/yarndevtools//yarn_dev_tools.py upstream_pr_fetch'
-```
+https://github.com/szilard-nemeth/linux-env/blob/badf82f11f08d77cafbdbb19a1e2da83f392b1e4/workplace-specific/cloudera/scripts/yarn/yarn-dev-tools.sh#L73-L101
+
 where: 
 - SYSTEM_PYTHON_EXECUTABLE should be set to "/usr/local/bin/python3": 
 ```
