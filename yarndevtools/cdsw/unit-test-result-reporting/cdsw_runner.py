@@ -94,6 +94,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
+    # TODO Check if mandatory env vars are fine
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()

@@ -102,7 +102,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
-    # TODO Add more vars to mandatory env vars
+    # TODO Check if mandatory env vars are fine (Add more vars to mandatory env vars)
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value] + [
         e.value for e in ReviewSheetBackportUpdaterEnvVar
     ]

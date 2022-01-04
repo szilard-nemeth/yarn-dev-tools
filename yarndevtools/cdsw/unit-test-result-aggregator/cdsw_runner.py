@@ -187,6 +187,7 @@ class CdswRunner(CdswRunnerBase):
 
 
 if __name__ == "__main__":
+    # TODO Check if mandatory env vars are fine
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value] + [
         e.value for e in UnitTestResultAggregatorEnvVar
     ]
