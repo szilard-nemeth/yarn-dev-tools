@@ -172,10 +172,10 @@ class FullEmailConfig:
 
 class CommandType(Enum):
     SAVE_PATCH = ("save_patch", "yarn-tasks", False)
-    CREATE_REVIEW_BRANCH = ("create_review_branch", False)
-    BACKPORT_C6 = ("backport_c6", False)
-    UPSTREAM_PR_FETCH = ("upstream_pr_fetch", False)
-    SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", False)
+    CREATE_REVIEW_BRANCH = ("create_review_branch", "create-review-branch", False)
+    BACKPORT_C6 = ("backport_c6", "backport-c6", False)
+    UPSTREAM_PR_FETCH = ("upstream_pr_fetch", "upstream-pr-fetch", False)
+    SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", "save-diff-as-patches", False)
     DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", "jira-patch-differ", False)
     JIRA_UMBRELLA_DATA_FETCHER = (
         "jira_umbrella_data_fetcher",
@@ -184,8 +184,8 @@ class CommandType(Enum):
         "latest-session-jira-umbrella-data-fetcher",
     )
     BRANCH_COMPARATOR = ("branch_comparator", "branch-comparator", True, "latest-session-branchcomparator")
-    ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
-    SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
+    ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", "zip-latest-command-data", False)
+    SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", "send-latest-command-data", False)
     UNIT_TEST_RESULT_FETCHER = ("unit_test_result_fetcher", "unit-test-result-fetcher", False)
     UNIT_TEST_RESULT_AGGREGATOR = (
         "unit_test_result_aggregator",
