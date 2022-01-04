@@ -21,8 +21,8 @@ class Restarter:
 
          Variable values under normal run (e.g. from test_branchdiff_reporter.py):
          1. sys.executable: /usr/local/bin/python3
-         2. sys.argv: ['/home/cdsw/jobs/downstream-branchdiff-reporting/cdsw_runner.py']
-         3. final command: ['/usr/local/bin/python3', '/usr/local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py']
+         2. sys.argv: ['/home/cdsw/jobs/branch-comparator/cdsw_runner.py']
+         3. final command: ['/usr/local/bin/python3', '/usr/local/lib/python3.8/site-packages/yarndevtools/cdsw/branch-comparator/cdsw_runner.py']
         :return:
         """
 

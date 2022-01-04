@@ -35,7 +35,6 @@ from pythoncommons.project_utils import (
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
     PROJECT_NAME,
-    BRANCH_DIFF_REPORTER_DIR_NAME,
     JIRA_UMBRELLA_CHECKER_DIR_NAME,
     UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
     UNIT_TEST_RESULT_REPORTING_DIR_NAME,
@@ -83,7 +82,7 @@ class CommonDirs:
     YARN_DEV_TOOLS_MODULE_ROOT = None
     # TODO seems unused
     CDSW_SCRIPT_DIR_NAMES: List[str] = [
-        BRANCH_DIFF_REPORTER_DIR_NAME,
+        CommandType.BRANCH_COMPARATOR.output_dir_name,
         JIRA_UMBRELLA_CHECKER_DIR_NAME,
         UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
         UNIT_TEST_RESULT_REPORTING_DIR_NAME,

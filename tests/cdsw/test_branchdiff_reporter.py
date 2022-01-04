@@ -27,7 +27,6 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 )
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
-    BRANCH_DIFF_REPORTER_DIR_NAME,
     CDSW_RUNNER_PY,
     BranchComparatorEnvVar,
 )
@@ -49,7 +48,7 @@ INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"
 
 class ContainerFiles:
     BRANCH_DIFF_SCRIPT = FileUtils.join_path(
-        CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, BRANCH_DIFF_REPORTER_DIR_NAME, CDSW_RUNNER_PY
+        CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, CommandType.BRANCH_COMPARATOR.output_dir_name, CDSW_RUNNER_PY
     )
     INITIAL_CDSW_SETUP_SCRIPT = FileUtils.join_path(
         CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, INITIAL_CDSW_SETUP_SCRIPT
@@ -95,8 +94,8 @@ class DockerBasedTestConfig:
 
         # Only global-site mode can work in Docker containers
         # With user mode, the following error is coming up:
-        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
-        # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/downstream-branchdiff-reporting/cdsw_runner.py'
+        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/branch-comparator/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
+        # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/branch-comparator/cdsw_runner.py'
         # No such file or directory
         self.python_module_mode = PythonModuleMode.GLOBAL
 
