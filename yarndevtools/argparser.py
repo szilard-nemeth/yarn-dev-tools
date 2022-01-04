@@ -159,7 +159,7 @@ class ArgParser:
     @staticmethod
     def add_fetch_jira_umbrella_data(subparsers, yarn_dev_tools):
         parser = subparsers.add_parser(
-            CommandType.FETCH_JIRA_UMBRELLA_DATA.name,
+            CommandType.JIRA_UMBRELLA_DATA_FETCHER.name,
             help="Fetches jira umbrella data for a provided Jira ID." "Example: fetch_jira_umbrella_data YARN-5734",
         )
         parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")

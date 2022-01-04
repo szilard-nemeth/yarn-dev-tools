@@ -154,12 +154,12 @@ class YarnDevTools:
         patch_differ.run()
 
     def fetch_jira_umbrella_data(self, args, parser=None):
-        output_dir = ProjectUtils.get_output_child_dir(CommandType.FETCH_JIRA_UMBRELLA_DATA.output_dir_name)
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name)
         jira_umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
             args, self.upstream_repo, self.downstream_repo, output_dir, DEFAULT_BASE_BRANCH
         )
         FileUtils.create_symlink_path_dir(
-            CommandType.FETCH_JIRA_UMBRELLA_DATA.session_link_name,
+            CommandType.JIRA_UMBRELLA_DATA_FETCHER.session_link_name,
             jira_umbrella_fetcher.config.umbrella_result_basedir,
             self.project_out_root,
         )
