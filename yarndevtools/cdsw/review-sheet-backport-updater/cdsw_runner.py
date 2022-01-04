@@ -12,7 +12,6 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
 )
 from yarndevtools.cdsw.common_python.constants import (
     CdswEnvVar,
-    REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
     ReviewSheetBackportUpdaterEnvVar,
 )
 from yarndevtools.common.shared_command_utils import CommandType
@@ -108,4 +107,4 @@ if __name__ == "__main__":
     ]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename(REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME))
+    runner.start(setup_result, CdswRunnerBase.get_filename(CommandType.REVIEW_SHEET_BACKPORT_UPDATER.output_dir_name))
