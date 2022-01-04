@@ -22,10 +22,10 @@ ANY_JIRA_ID_PATTERN = re.compile(r"([A-Z]+-\d+)")
 # Symlink names
 LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
 
+# TODO Migrate these summary / report filenames to a new enum
 # File names
 SUMMARY_FILE_TXT = "summary.txt"
 SUMMARY_FILE_HTML = "summary.html"
-
 REPORT_FILE_SHORT_TXT = "report-short.txt"
 REPORT_FILE_DETAILED_TXT = "report-detailed.txt"
 REPORT_FILE_SHORT_HTML = "report-short.html"
@@ -43,13 +43,3 @@ YARN_PATCH_FILENAME_REGEX = ".*(YARN-[0-9]+).*\\.patch"
 PATCH_FILE_REGEX = "\\.\\d.*\\.patch$"
 PATCH_EXTENSION = ".patch"
 FIRST_PATCH_NUMBER = "001"
-
-# TODO Move all CommandType-based property to Enum itself
-YARN_TASKS = "yarn-tasks"
-JIRA_UMBRELLA_DATA = "jira-umbrella-data"
-JIRA_PATCH_DIFFER = "jira-patch-differ"
-BRANCH_COMPARATOR = "branch-comparator"
-JENKINS_TEST_REPORTER = "jenkins-test-reporter"
-UNIT_TEST_RESULT_AGGREGATOR = "unit-test-result-aggregator"
-REVIEW_SHEET_BACKPORT_UPDATER = "review-sheet-backport-updater"
-REVIEWSYNC = "reviewsync"

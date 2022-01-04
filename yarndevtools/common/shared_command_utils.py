@@ -171,32 +171,45 @@ class FullEmailConfig:
 
 
 class CommandType(Enum):
-    SAVE_PATCH = ("save_patch", False)
+    SAVE_PATCH = ("save_patch", "yarn-tasks", False)
     CREATE_REVIEW_BRANCH = ("create_review_branch", False)
     BACKPORT_C6 = ("backport_c6", False)
     UPSTREAM_PR_FETCH = ("upstream_pr_fetch", False)
     SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", False)
-    DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", False)
-    FETCH_JIRA_UMBRELLA_DATA = ("fetch_jira_umbrella_data", True, "latest-session-upstream-umbrella-fetcher")
-    BRANCH_COMPARATOR = ("branch_comparator", True, "latest-session-branchcomparator")
+    DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", "jira-patch-differ", False)
+    FETCH_JIRA_UMBRELLA_DATA = (
+        "fetch_jira_umbrella_data",
+        "jira-umbrella-data",
+        True,
+        "latest-session-upstream-umbrella-fetcher",
+    )
+    BRANCH_COMPARATOR = ("branch_comparator", "branch-comparator", True, "latest-session-branchcomparator")
     ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
-    JENKINS_TEST_REPORTER = ("jenkins_test_reporter", False)
-    UNIT_TEST_RESULT_AGGREGATOR = ("unit_test_result_aggregator", True, "latest-session-unit-test-result-aggregator")
+    JENKINS_TEST_REPORTER = ("jenkins_test_reporter", "jenkins-test-reporter", False)
+    UNIT_TEST_RESULT_AGGREGATOR = (
+        "unit_test_result_aggregator",
+        "unit-test-result-aggregator",
+        True,
+        "latest-session-unit-test-result-aggregator",
+    )
     REVIEW_SHEET_BACKPORT_UPDATER = (
         "review_sheet_backport_updater",
+        "review-sheet-backport-updater",
         True,
         "latest-session-review-sheet-backport-updater",
     )
     REVIEWSYNC = (
         "reviewsync",
+        "reviewsync",
         True,
         "latest-session-reviewsync",
     )
 
-    def __init__(self, value, session_based: bool = False, session_link_name: str = ""):
+    def __init__(self, value, output_dir_name, session_based: bool, session_link_name: str = ""):
         self.real_name = value
         self.session_based = session_based
+        self.output_dir_name = output_dir_name
 
         if session_link_name:
             self.session_link_name = session_link_name

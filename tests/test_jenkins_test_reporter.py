@@ -32,7 +32,7 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JenkinsTestReporterCacheType,
     EmailConfig,
 )
-from yarndevtools.constants import JENKINS_TEST_REPORTER, YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 EMAIL_CLASS_NAME = Email.__name__
 SEND_MAIL_PATCH_PATH = "yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.{}.send_mail".format(
@@ -341,7 +341,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def setUpClass(cls):
         # Invoke this to setup main output directory and avoid test failures while initing config
         cls.project_out_root = ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        ProjectUtils.get_test_output_child_dir(JENKINS_TEST_REPORTER)
+        ProjectUtils.get_test_output_child_dir(CommandType.JENKINS_TEST_REPORTER.output_dir_name)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -394,7 +394,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @property
     def output_dir(self):
-        return ProjectUtils.get_test_output_child_dir(JENKINS_TEST_REPORTER)
+        return ProjectUtils.get_test_output_child_dir(CommandType.JENKINS_TEST_REPORTER.output_dir_name)
 
     @staticmethod
     def _get_jenkins_report_as_json(spec: JenkinsReportJsonSpec):

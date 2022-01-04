@@ -7,7 +7,7 @@ from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevtools.constants import TRUNK, JIRA_UMBRELLA_DATA, ORIGIN_TRUNK, ORIGIN_BRANCH_3_3, ORIGIN_BRANCH_3_2
+from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, ORIGIN_BRANCH_3_3, ORIGIN_BRANCH_3_2
 from tests.test_utilities import TestUtilities, Object
 
 FILE_JIRA_HTML = "jira.html"
@@ -60,7 +60,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         cls.base_branch = TRUNK
 
         # Invoke this to set up main output directory and avoid test failures while initing config
-        ProjectUtils.get_output_child_dir(JIRA_UMBRELLA_DATA)
+        ProjectUtils.get_output_child_dir(CommandType.FETCH_JIRA_UMBRELLA_DATA.output_dir_name)
 
         commit_hashes_file = TestUpstreamJiraUmbrellaFetcher.get_commit_hashes_filename_of_branch(ORIGIN_TRUNK)
         ALL_OUTPUT_FILES.append(commit_hashes_file)

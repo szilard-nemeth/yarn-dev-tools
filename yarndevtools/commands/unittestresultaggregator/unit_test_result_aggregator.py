@@ -33,8 +33,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     BuildComparisonResult,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
-from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR
-from yarndevtools.constants import UNIT_TEST_RESULT_AGGREGATOR
+from yarndevtools.common.shared_command_utils import SECRET_PROJECTS_DIR, CommandType
 
 VALID_OPERATION_MODES = [OperationMode.PRINT, OperationMode.GSHEET]
 
@@ -730,7 +729,7 @@ class UnitTestResultAggregator:
             self.gsheet_wrapper = None
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
-            project_name=f"{UNIT_TEST_RESULT_AGGREGATOR}",
+            project_name=f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name}",
             secret_basedir=SECRET_PROJECTS_DIR,
             account_email=self.config.account_email,
         )

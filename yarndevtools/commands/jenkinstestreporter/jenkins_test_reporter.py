@@ -34,7 +34,7 @@ from pythoncommons.string_utils import auto_str
 
 from yarndevtools.common.shared_command_utils import FullEmailConfig, SECRET_PROJECTS_DIR, CommandType
 
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, JENKINS_TEST_REPORTER
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CACHED_DATA_DIRNAME = "cached_data"
 
@@ -567,7 +567,7 @@ class FileCache(Cache):
 
 
 class GoogleDriveCache(Cache):
-    DRIVE_FINAL_CACHE_DIR = JENKINS_TEST_REPORTER + "_" + CACHED_DATA_DIRNAME
+    DRIVE_FINAL_CACHE_DIR = CommandType.JENKINS_TEST_REPORTER.output_dir_name + "_" + CACHED_DATA_DIRNAME
     # TODO implement throttling: Too many requests to Google Drive?
 
     def __init__(self, config):
@@ -575,7 +575,7 @@ class GoogleDriveCache(Cache):
         self.file_cache: FileCache = FileCache(config)
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.DRIVE,
-            project_name=JENKINS_TEST_REPORTER,
+            project_name=CommandType.JENKINS_TEST_REPORTER.output_dir_name,
             secret_basedir=SECRET_PROJECTS_DIR,
             account_email="snemeth@cloudera.com",
             scopes=[DriveApiScope.DRIVE_PER_FILE_ACCESS.value],
