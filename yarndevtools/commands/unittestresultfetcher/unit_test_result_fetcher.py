@@ -46,7 +46,7 @@ DEFAULT_REQUEST_LIMIT = 999
 JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL = "jenkins_examine_unlimited_builds"
 
 
-class JenkinsTestReporterMode(Enum):
+class UnitTestResultFetcherMode(Enum):
     JENKINS_MASTER = (
         "jenkins_master",
         "https://master-02.jenkins.cloudera.com/",
@@ -73,7 +73,7 @@ class JenkinsTestReporterMode(Enum):
         self.job_names = job_names
 
 
-class JenkinsTestReporterCacheType(Enum):
+class UnitTestResultFetcherCacheType(Enum):
     FILE = "FILE"
     GOOGLE_DRIVE = "GOOGLE_DRIVE"
 
@@ -567,7 +567,7 @@ class FileCache(Cache):
 
 
 class GoogleDriveCache(Cache):
-    DRIVE_FINAL_CACHE_DIR = CommandType.JENKINS_TEST_REPORTER.output_dir_name + "_" + CACHED_DATA_DIRNAME
+    DRIVE_FINAL_CACHE_DIR = CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name + "_" + CACHED_DATA_DIRNAME
     # TODO implement throttling: Too many requests to Google Drive?
 
     def __init__(self, config):
@@ -575,7 +575,7 @@ class GoogleDriveCache(Cache):
         self.file_cache: FileCache = FileCache(config)
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.DRIVE,
-            project_name=CommandType.JENKINS_TEST_REPORTER.output_dir_name,
+            project_name=CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name,
             secret_basedir=SECRET_PROJECTS_DIR,
             account_email="snemeth@cloudera.com",
             scopes=[DriveApiScope.DRIVE_PER_FILE_ACCESS.value],
@@ -680,10 +680,10 @@ class CacheConfig:
         self.download_uncached_job_data: bool = (
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
-        self.cache_type: JenkinsTestReporterCacheType = (
-            JenkinsTestReporterCacheType(args.cache_type.upper())
+        self.cache_type: UnitTestResultFetcherCacheType = (
+            UnitTestResultFetcherCacheType(args.cache_type.upper())
             if hasattr(args, "cache_type") and args.cache_type
-            else JenkinsTestReporterCacheType.FILE
+            else UnitTestResultFetcherCacheType.FILE
         )
 
     @property
@@ -758,14 +758,14 @@ class Email:
                 )
 
 
-class JenkinsTestReporterConfig:
+class UnitTestResultFetcherConfig:
     def __init__(self, output_dir: str, args):
         self.args = args
         self.cache: CacheConfig = CacheConfig(args, output_dir)
         self.email: EmailConfig = EmailConfig(args)
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
-        self.jenkins_mode: JenkinsTestReporterMode = (
-            JenkinsTestReporterMode[args.jenkins_mode.upper()]
+        self.jenkins_mode: UnitTestResultFetcherMode = (
+            UnitTestResultFetcherMode[args.jenkins_mode.upper()]
             if hasattr(args, "jenkins_mode") and args.jenkins_mode
             else None
         )
@@ -832,9 +832,9 @@ class JenkinsTestReporterConfig:
 
 
 # TODO Separate all download functionality: Progress of downloads, code that fetches API, etc.
-class JenkinsTestReporter:
+class UnitTestResultFetcher:
     def __init__(self, args, output_dir):
-        self.config = JenkinsTestReporterConfig(output_dir, args)
+        self.config = UnitTestResultFetcherConfig(output_dir, args)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
@@ -849,18 +849,18 @@ class JenkinsTestReporter:
         return CachedBuildKey(job_name, failed_build.build_number)
 
     @staticmethod
-    def _create_cache(config: JenkinsTestReporterConfig):
-        if config.cache.cache_type == JenkinsTestReporterCacheType.FILE:
+    def _create_cache(config: UnitTestResultFetcherConfig):
+        if config.cache.cache_type == UnitTestResultFetcherCacheType.FILE:
             LOG.info("Using file cache.")
             return FileCache(config.cache)
-        elif config.cache.cache_type == JenkinsTestReporterCacheType.GOOGLE_DRIVE:
+        elif config.cache.cache_type == UnitTestResultFetcherCacheType.GOOGLE_DRIVE:
             LOG.info("Using Google Drive cache.")
             return GoogleDriveCache(config.cache)
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. Details: %s", str(self.config))
         SimpleLoggingSetup.init_logger(
-            project_name=CommandType.JENKINS_TEST_REPORTER.value,
+            project_name=CommandType.UNIT_TEST_RESULT_FETCHER.value,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
             console_debug=self.config.args.debug,

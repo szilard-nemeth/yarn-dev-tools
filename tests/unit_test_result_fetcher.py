@@ -19,8 +19,8 @@ from pythoncommons.project_utils import ProjectUtils
 
 from tests.test_utilities import Object, TestUtilities
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
-    JenkinsTestReporter,
+from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
+    UnitTestResultFetcher,
     Email,
     JenkinsApiConverter,
     FailedJenkinsBuild,
@@ -29,7 +29,7 @@ from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import (
     JenkinsJobUrls,
     DownloadProgress,
     CacheConfig,
-    JenkinsTestReporterCacheType,
+    UnitTestResultFetcherCacheType,
     EmailConfig,
 )
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
@@ -341,7 +341,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def setUpClass(cls):
         # Invoke this to setup main output directory and avoid test failures while initing config
         cls.project_out_root = ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        ProjectUtils.get_test_output_child_dir(CommandType.JENKINS_TEST_REPORTER.output_dir_name)
+        ProjectUtils.get_test_output_child_dir(CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name)
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -388,13 +388,13 @@ class TestJenkinsTestReporter(unittest.TestCase):
         args.disable_file_cache = True
         args.debug = True
         args.verbose = True
-        args.command = CommandType.JENKINS_TEST_REPORTER.real_name
+        args.command = CommandType.UNIT_TEST_RESULT_FETCHER.real_name
         args.force_mode = force_mode
         return args
 
     @property
     def output_dir(self):
-        return ProjectUtils.get_test_output_child_dir(CommandType.JENKINS_TEST_REPORTER.output_dir_name)
+        return ProjectUtils.get_test_output_child_dir(CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name)
 
     @staticmethod
     def _get_jenkins_report_as_json(spec: JenkinsReportJsonSpec):
@@ -466,7 +466,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             raise ValueError("Unexpected URL: " + url)
 
     def _assert_all_failed_testcases(
-        self, reporter: JenkinsTestReporter, spec, expected_failed_count=-1, job_name=DEFAULT_JOB_NAME
+        self, reporter: UnitTestResultFetcher, spec, expected_failed_count=-1, job_name=DEFAULT_JOB_NAME
     ):
         all_failed_tests_in_jenkins_report: Set[str] = set(spec.get_all_failed_testcases())
         failed_tests: Set[str] = set(reporter.get_failed_tests(job_name))
@@ -476,7 +476,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     def _assert_num_filtered_testcases_single_build(
         self,
-        reporter: JenkinsTestReporter,
+        reporter: UnitTestResultFetcher,
         filters: List[str] = None,
         expected_num_build_data=-1,
         expected_failed_testcases_dict: Dict[str, List[str]] = None,
@@ -529,7 +529,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
+        reporter = UnitTestResultFetcher(self.generate_args(), self.output_dir)
         reporter.run()
         job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
@@ -555,7 +555,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(), self.output_dir)
+        reporter = UnitTestResultFetcher(self.generate_args(), self.output_dir)
         reporter.run()
         job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
@@ -578,7 +578,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
         self._mock_jenkins_build_api(builds_json)
         self._mock_jenkins_report_api(report_json, build_id=200)
 
-        reporter = JenkinsTestReporter(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
+        reporter = UnitTestResultFetcher(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
         reporter.run()
         job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
@@ -702,7 +702,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             self.assertEqual(cache_config.cached_data_dir, os.path.join(tmp_dir, "cached_data"))
 
             self.assertFalse(cache_config.download_uncached_job_data)
-            self.assertEqual(cache_config.cache_type, JenkinsTestReporterCacheType.FILE)
+            self.assertEqual(cache_config.cache_type, UnitTestResultFetcherCacheType.FILE)
 
     def test_cache_config_with_settings(self):
         args = Object()
@@ -719,7 +719,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
             self.assertEqual(cache_config.cached_data_dir, os.path.join(tmp_dir, "cached_data"))
 
             self.assertTrue(cache_config.download_uncached_job_data)
-            self.assertEqual(cache_config.cache_type, JenkinsTestReporterCacheType.GOOGLE_DRIVE)
+            self.assertEqual(cache_config.cache_type, UnitTestResultFetcherCacheType.GOOGLE_DRIVE)
 
     def test_email_config_with_default_settings(self):
         args = self._create_args_for_full_email_config()

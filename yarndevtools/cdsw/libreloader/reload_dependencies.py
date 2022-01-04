@@ -27,7 +27,7 @@ JIRA_UMBRELLA_DATA_FETCHER_DIR_NAME = "jira-umbrella-data-fetcher"
 UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME = "unit-test-result-aggregator"
 REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME = "review-sheet-backport-updater"
 REVIEWSYNC_DIR_NAME = "reviewsync"
-UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
+UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-fetcher"
 # Same as CommonDirs.CDSW_SCRIPT_DIR_NAMES
 CDSW_SCRIPT_DIR_NAMES = [
     BRANCH_COMPARATOR_DIR_NAME,

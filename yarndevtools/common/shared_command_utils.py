@@ -186,7 +186,7 @@ class CommandType(Enum):
     BRANCH_COMPARATOR = ("branch_comparator", "branch-comparator", True, "latest-session-branchcomparator")
     ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", False)
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", False)
-    JENKINS_TEST_REPORTER = ("jenkins_test_reporter", "jenkins-test-reporter", False)
+    UNIT_TEST_RESULT_FETCHER = ("unit_test_result_fetcher", "unit-test-result-fetcher", False)
     UNIT_TEST_RESULT_AGGREGATOR = (
         "unit_test_result_aggregator",
         "unit-test-result-aggregator",

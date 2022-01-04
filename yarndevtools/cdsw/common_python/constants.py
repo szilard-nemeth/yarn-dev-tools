@@ -1,6 +1,5 @@
 from enum import Enum
 
-UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
 CDSW_RUNNER_PY = "cdsw_runner.py"

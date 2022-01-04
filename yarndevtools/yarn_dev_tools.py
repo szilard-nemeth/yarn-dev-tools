@@ -12,7 +12,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from yarndevtools.commands.branchcomparator.branch_comparator import BranchComparator
-from yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter import JenkinsTestReporter
+from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import UnitTestResultFetcher
 from yarndevtools.commands.reviewsheetbackportupdater.review_sheet_backport_updater import ReviewSheetBackportUpdater
 from yarndevtools.commands.reviewsync.reviewsync import ReviewSync
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
@@ -183,8 +183,8 @@ class YarnDevTools:
         send_latest_cmd_data.run()
 
     def fetch_send_jenkins_test_report(self, args, parser=None):
-        output_dir = ProjectUtils.get_output_child_dir(CommandType.JENKINS_TEST_REPORTER.output_dir_name)
-        jenkins_test_reporter = JenkinsTestReporter(args, output_dir)
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name)
+        jenkins_test_reporter = UnitTestResultFetcher(args, output_dir)
         jenkins_test_reporter.run()
 
     def unit_test_result_aggregator(self, args, parser=None):
