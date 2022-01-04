@@ -52,7 +52,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, None)
-        cls.utils.setUpClass(CommandType.FETCH_JIRA_UMBRELLA_DATA)
+        cls.utils.setUpClass(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper
@@ -60,7 +60,7 @@ class TestUpstreamJiraUmbrellaFetcher(unittest.TestCase):
         cls.base_branch = TRUNK
 
         # Invoke this to set up main output directory and avoid test failures while initing config
-        ProjectUtils.get_output_child_dir(CommandType.FETCH_JIRA_UMBRELLA_DATA.output_dir_name)
+        ProjectUtils.get_output_child_dir(CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name)
 
         commit_hashes_file = TestUpstreamJiraUmbrellaFetcher.get_commit_hashes_filename_of_branch(ORIGIN_TRUNK)
         ALL_OUTPUT_FILES.append(commit_hashes_file)

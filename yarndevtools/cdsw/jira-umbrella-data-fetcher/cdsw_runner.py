@@ -11,7 +11,7 @@ from yarndevtools.cdsw.common_python.cdsw_common import (
     CdswSetup,
     CdswSetupResult,
 )
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, JIRA_UMBRELLA_CHECKER_DIR_NAME
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.constants import SUMMARY_FILE_HTML
 from pythoncommons.jira_utils import JiraUtils
 
@@ -34,7 +34,7 @@ class CdswRunner(CdswRunnerBase):
     def run_upstream_umbrella_checker_and_send_mail(self, umbrella_jira_ids: List[str]):
         jira_ids_and_titles = self._fetch_umbrella_titles(umbrella_jira_ids)
         for umbrella_jira_id, title in jira_ids_and_titles.items():
-            cmd_type = CommandType.FETCH_JIRA_UMBRELLA_DATA
+            cmd_type = CommandType.JIRA_UMBRELLA_DATA_FETCHER
             self._run_upstream_umbrella_checker(umbrella_jira_id, branches=DEFAULT_BRANCHES)
             self.run_zipper(cmd_type, debug=True)
 
@@ -77,7 +77,7 @@ class CdswRunner(CdswRunnerBase):
         exec_mode = "--force" if force else ""
         ignore_changes = "--ignore-changes" if ignore_changes else ""
         self.execute_yarndevtools_script(
-            f"--debug {CommandType.FETCH_JIRA_UMBRELLA_DATA.name} "
+            f"--debug {CommandType.JIRA_UMBRELLA_DATA_FETCHER.name} "
             f"{umbrella_jira} "
             f"{exec_mode} "
             f"--branches {branches} "
@@ -90,4 +90,4 @@ if __name__ == "__main__":
     mandatory_env_vars = [CdswEnvVar.MAIL_ACC_USER.value, CdswEnvVar.MAIL_ACC_PASSWORD.value]
     setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=mandatory_env_vars)
     runner = CdswRunner()
-    runner.start(setup_result, CdswRunnerBase.get_filename(JIRA_UMBRELLA_CHECKER_DIR_NAME))
+    runner.start(setup_result, CdswRunnerBase.get_filename(CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name))
