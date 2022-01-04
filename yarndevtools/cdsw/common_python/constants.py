@@ -1,6 +1,5 @@
 from enum import Enum
 
-REVIEWSYNC_DIR_NAME = "reviewsync"
 UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-reporting"
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
