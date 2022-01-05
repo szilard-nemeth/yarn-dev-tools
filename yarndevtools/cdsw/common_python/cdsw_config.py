@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field, fields
-from typing import List
+from typing import List, Dict
 
 from dataclasses_json import dataclass_json, LetterCase, config
 from pythoncommons.file_utils import JsonFileUtils
@@ -27,6 +27,8 @@ class CdswJobConfig:
     job_name: str
     command_type: CommandType = field(metadata=config(encoder=CommandType, decoder=CommandType.from_str, mm_field=None))
     mandatory_env_vars: List[str] = field(default_factory=list)
+    optional_env_vars: List[str] = field(default_factory=list)
+    map_env_vars_to_yarn_dev_tools_argument: Dict[str, str] = field(default_factory=dict)
 
 
 @auto_str
@@ -59,13 +61,24 @@ class CdswJobConfigReader:
         enum_type = self.command_to_env_var_class[self.config.command_type]
         self.valid_env_vars = [e.value for e in enum_type]
         self._validate_mandatory_env_var_names()
+        self._validate_optional_env_var_names()
         self._ensure_if_mandatory_env_vars_are_set()
+        self._ensure_that_mapped_env_vars_are_mandatory()
+
+    def _validate_optional_env_var_names(self):
+        for env_var_name in self.config.optional_env_vars:
+            if env_var_name not in self.valid_env_vars:
+                raise ValueError(
+                    "Invalid optional env var specified as '{}'. Valid env vars for Command '{}' are: {}".format(
+                        env_var_name, self.config.command_type, self.valid_env_vars
+                    )
+                )
 
     def _validate_mandatory_env_var_names(self):
         for env_var_name in self.config.mandatory_env_vars:
             if env_var_name not in self.valid_env_vars:
                 raise ValueError(
-                    "Invalid env var specified as '{}'. Valid env vars for Command '{}' are: {}".format(
+                    "Invalid mandatory env var specified as '{}'. Valid env vars for Command '{}' are: {}".format(
                         env_var_name, self.config.command_type, self.valid_env_vars
                     )
                 )
@@ -78,6 +91,17 @@ class CdswJobConfigReader:
 
         if not_found_vars:
             raise ValueError("The following env vars are mandatory but they are not set: {}".format(not_found_vars))
+
+    def _ensure_that_mapped_env_vars_are_mandatory(self):
+        not_found_vars = []
+        for env_var in self.config.map_env_vars_to_yarn_dev_tools_argument.values():
+            if env_var not in os.environ:
+                not_found_vars.append(env_var)
+        if not_found_vars:
+            raise ValueError(
+                "The following env vars are optional and they are mapped to YARN dev tools arguments, "
+                "so they became mandatory but they are not set: {}".format(not_found_vars)
+            )
 
     def __repr__(self):
         return self.__str__()
