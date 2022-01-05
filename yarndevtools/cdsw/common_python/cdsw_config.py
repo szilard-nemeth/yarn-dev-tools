@@ -15,6 +15,7 @@ from yarndevtools.cdsw.common_python.constants import (
     UnitTestResultFetcherEnvVar,
     ReviewSheetBackportUpdaterEnvVar,
     ReviewSyncEnvVar,
+    CdswEnvVar,
 )
 from yarndevtools.common.shared_command_utils import CommandType
 
@@ -59,7 +60,7 @@ class CdswJobConfigReader:
 
     def _validate(self):
         enum_type = self.command_to_env_var_class[self.config.command_type]
-        self.valid_env_vars = [e.value for e in enum_type]
+        self.valid_env_vars = [e.value for e in enum_type] + [e.value for e in CdswEnvVar]
         self._validate_mandatory_env_var_names()
         self._validate_optional_env_var_names()
         self._ensure_if_mandatory_env_vars_are_set()

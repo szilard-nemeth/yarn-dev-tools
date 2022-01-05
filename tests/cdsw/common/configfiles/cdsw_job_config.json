@@ -1,7 +1,7 @@
 {
   "jobName": "Reviewsync",
   "commandType": "REVIEWSYNC",
-  "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET"],
+  "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
   "optionalEnvVars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
   "mapEnvVarsToYarnDevToolsArgument": {
     "--gsheet-client-secret": "GSHEET_CLIENT_SECRET",
