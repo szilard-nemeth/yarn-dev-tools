@@ -15,7 +15,7 @@ from yarndevtools.cdsw.common_python.constants import (
     ReviewSyncEnvVar,
 )
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import REPORT_FILE_SHORT_HTML
+from yarndevtools.constants import REPORT_FILE_SHORT_HTML, SUMMARY_FILE_HTML
 
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class CdswRunner(CdswRunnerBase):
         command_data_filename: str = f"command_data_{self.start_date_str}.zip"
         kwargs = {
             "attachment_filename": command_data_filename,
-            "email_body_file": REPORT_FILE_SHORT_HTML,
+            "email_body_file": SUMMARY_FILE_HTML,
             "send_attachment": True,
         }
         if self.is_drive_integration_enabled:
