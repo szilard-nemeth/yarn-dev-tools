@@ -30,10 +30,13 @@ class CdswJobConfig:
     mandatory_env_vars: List[str] = field(default_factory=list)
     optional_env_vars: List[str] = field(default_factory=list)
     map_env_vars_to_yarn_dev_tools_argument: Dict[str, str] = field(default_factory=dict)
+    yarn_dev_tools_arguments: List[str] = field(default_factory=list)
 
 
 @auto_str
 class CdswJobConfigReader:
+    ARG_PLACEHOLDER = "$$"
+
     command_to_env_var_class = {
         CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaCheckerEnvVar,
         CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
@@ -65,6 +68,7 @@ class CdswJobConfigReader:
         self._validate_optional_env_var_names()
         self._ensure_if_mandatory_env_vars_are_set()
         self._ensure_that_mapped_env_vars_are_mandatory()
+        self._check_yarn_dev_tools_arguments()
 
     def _validate_optional_env_var_names(self):
         for env_var_name in self.config.optional_env_vars:
@@ -102,6 +106,40 @@ class CdswJobConfigReader:
             raise ValueError(
                 "The following env vars are optional and they are mapped to YARN dev tools arguments, "
                 "so they became mandatory but they are not set: {}".format(not_found_vars)
+            )
+
+    def _check_yarn_dev_tools_arguments(self):
+        if not self.config.yarn_dev_tools_arguments:
+            raise ValueError("Empty YARN dev tools arguments!")
+
+        mapped_vars = self.config.map_env_vars_to_yarn_dev_tools_argument.keys()
+
+        not_found_var_mappings = []
+        args_mapped_but_without_placeholders = []
+        for arg in self.config.yarn_dev_tools_arguments:
+            if self.ARG_PLACEHOLDER in arg:
+                split = arg.split(" ")
+                if len(split) != 2:
+                    raise ValueError(
+                        "Expected a mapped argument in format: "
+                        "<yarndevtools argument name><SPACE><PLACEHOLDER>. "
+                        "For example, '--gsheet-client-secret $$'"
+                    )
+                arg_name = split[0]
+                if arg_name not in mapped_vars:
+                    not_found_var_mappings.append(arg_name)
+            else:
+                # Argument without placeholder
+                if arg in mapped_vars:
+                    args_mapped_but_without_placeholders.append(arg)
+        if not_found_var_mappings:
+            raise ValueError("The following yarndevtools arguments are unmapped: {}".format(not_found_var_mappings))
+
+        if args_mapped_but_without_placeholders:
+            raise ValueError(
+                "The following yarndevtools arguments are not having placeholders but they are mapped: {}".format(
+                    args_mapped_but_without_placeholders
+                )
             )
 
     def __repr__(self):

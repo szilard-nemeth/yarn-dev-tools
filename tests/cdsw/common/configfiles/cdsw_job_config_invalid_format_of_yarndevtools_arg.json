@@ -8,12 +8,6 @@
     "--gsheet-spreadsheet": "GSHEET_SPREADSHEET",
     "--gsheet-jira-column": "GSHEET_JIRA_COLUMN"
   },
-  "yarnDevToolsArguments": [
-    "--debug",
-    "REVIEWSYNC",
-    "--gsheet",
-    "--gsheet-client-secret $$",
-    "--gsheet-spreadsheet $$",
-    "--gsheet-jira-column $$"
-  ]
+  "yarnDevToolsArguments": ["--argument  $$"]
+
 }
