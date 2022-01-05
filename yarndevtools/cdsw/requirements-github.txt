@@ -5,3 +5,4 @@ humanize
 docker
 jira
 pytest
+dataclasses-json

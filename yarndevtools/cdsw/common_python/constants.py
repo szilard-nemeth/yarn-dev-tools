@@ -59,6 +59,10 @@ class UnitTestResultAggregatorEnvVar(Enum):
     MATCH_EXPRESSION = "MATCH_EXPRESSION"
 
 
+class UnitTestResultFetcherEnvVar(Enum):
+    pass
+
+
 class UnitTestResultAggregatorOptionalEnvVar(Enum):
     ABBREV_TC_PACKAGE = "ABBREV_TC_PACKAGE"
     AGGREGATE_FILTERS = "AGGREGATE_FILTERS"
