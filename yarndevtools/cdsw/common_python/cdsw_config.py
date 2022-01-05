@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field, fields
+from typing import List
 
 from dataclasses_json import dataclass_json, LetterCase, config
 from pythoncommons.file_utils import JsonFileUtils
@@ -24,8 +25,8 @@ LOG = logging.getLogger(__name__)
 @dataclass
 class CdswJobConfig:
     job_name: str
-    # command_type: CommandType
     command_type: CommandType = field(metadata=config(encoder=CommandType, decoder=CommandType.from_str, mm_field=None))
+    mandatory_env_vars: List[str] = field(default_factory=list)
 
 
 @auto_str
@@ -55,8 +56,18 @@ class CdswJobConfigReader:
         return job_config
 
     def _validate(self):
-        # TODO
-        pass
+        self._validate_mandatory_env_vars()
+
+    def _validate_mandatory_env_vars(self):
+        enum_type = self.command_to_env_var_class[self.config.command_type]
+        valid_env_vars = [e.value for e in enum_type]
+        for env_var_name in self.config.mandatory_env_vars:
+            if env_var_name not in valid_env_vars:
+                raise ValueError(
+                    "Invalid env var specified as '{}'. Valid env vars for Command '{}' are: {}".format(
+                        env_var_name, self.config.command_type, valid_env_vars
+                    )
+                )
 
     def __repr__(self):
         return self.__str__()

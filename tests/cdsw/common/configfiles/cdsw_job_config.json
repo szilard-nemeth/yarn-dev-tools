@@ -1,4 +1,6 @@
 {
   "jobName": "Reviewsync",
-  "commandType": "REVIEWSYNC"
+  "commandType": "REVIEWSYNC",
+  "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET"]
+
 }
