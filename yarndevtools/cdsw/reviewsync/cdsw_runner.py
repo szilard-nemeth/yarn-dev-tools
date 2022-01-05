@@ -88,14 +88,6 @@ class CdswRunner(CdswRunnerBase):
             f"--branches {branches} "
         )
 
-    @staticmethod
-    def _get_cli_switch_value(switch_name, val, quote=False):
-        if not val:
-            return ""
-        if quote:
-            val = '"' + val + '"'
-        return f"{switch_name} {val}"
-
 
 if __name__ == "__main__":
     # TODO Check if mandatory env vars are fine (Add more vars to mandatory env vars)
