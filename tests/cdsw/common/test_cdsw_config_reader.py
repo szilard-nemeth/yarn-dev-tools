@@ -36,9 +36,10 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     @staticmethod
     def _set_mandatory_env_vars():
-        os.environ["GSHEET_CLIENT_SECRET"] = "sshhhh_secret"
-        os.environ["GSHEET_SPREADSHEET"] = "test_sheet"
-        os.environ["GSHEET_JIRA_COLUMN"] = "jira_col"
+        os.environ["GSHEET_CLIENT_SECRET"] = "ghseet client secret"
+        os.environ["GSHEET_SPREADSHEET"] = "gsheet spreadsheet"
+        os.environ["GSHEET_JIRA_COLUMN"] = "jira column"
+        os.environ["MAIL_ACC_USER"] = "mail account user"
 
     @classmethod
     def _setup_logging(cls):
@@ -79,7 +80,9 @@ class CdswConfigReaderTest(unittest.TestCase):
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
-        self.assertEqual(["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET"], config_reader.config.mandatory_env_vars)
+        self.assertEqual(
+            ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"], config_reader.config.mandatory_env_vars
+        )
 
     def test_config_reader_invalid_mandatory_env_var(self):
         file = self._get_config_file("cdsw_job_config_invalid_mandatory_env_var.json")
@@ -94,7 +97,9 @@ class CdswConfigReaderTest(unittest.TestCase):
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
-        self.assertEqual(["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET"], config_reader.config.mandatory_env_vars)
+        self.assertEqual(
+            ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"], config_reader.config.mandatory_env_vars
+        )
 
     def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_negative_case(self):
         file = self._get_config_file(VALID_CONFIG)
