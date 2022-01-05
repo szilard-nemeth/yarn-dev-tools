@@ -10,7 +10,7 @@ from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationSt
 from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader
 from yarndevtools.common.shared_command_utils import CommandType
 
-VALID_CONFIG = "cdsw_job_config.json"
+VALID_CONFIG_FILE = "cdsw_job_config.json"
 
 PROJECT_NAME = "cdsw-config-reader"
 
@@ -52,7 +52,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         )
 
     def test_config_reader_job_name(self):
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         self._set_mandatory_env_vars()
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
@@ -61,7 +61,7 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     def test_config_reader_valid_command_type(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
@@ -76,7 +76,7 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     def test_config_reader_valid_mandatory_env_vars(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
@@ -92,7 +92,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         LOG.info(exc_msg)
 
     def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_positive_case(self):
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         self._set_mandatory_env_vars()
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
@@ -102,7 +102,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         )
 
     def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_negative_case(self):
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         os.environ["GSHEET_SPREADSHEET"] = "test_sheet"
         with self.assertRaises(ValueError) as ve:
             CdswJobConfigReader.read_from_file(file)
@@ -113,7 +113,7 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     def test_config_reader_mandatory_env_vars_are_of_correct_command_type(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
@@ -121,7 +121,7 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     def test_config_reader_valid_optional_env_vars(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
@@ -136,7 +136,7 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     def test_config_reader_env_vars_mapped_to_yarndevtools_args(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config)
@@ -144,7 +144,7 @@ class CdswConfigReaderTest(unittest.TestCase):
             {
                 "--gsheet-client-secret": "GSHEET_CLIENT_SECRET",
                 "--gsheet-spreadsheet": "GSHEET_SPREADSHEET",
-                "--gseet-jira-column": "GSHEET_JIRA_COLUMN",
+                "--gsheet-jira-column": "GSHEET_JIRA_COLUMN",
             },
             config_reader.config.map_env_vars_to_yarn_dev_tools_argument,
         )
@@ -153,13 +153,42 @@ class CdswConfigReaderTest(unittest.TestCase):
         os.environ["GSHEET_CLIENT_SECRET"] = "sshhhh_secret"
         os.environ["GSHEET_SPREADSHEET"] = "test_sheet"
         # "GSHEET_JIRA_COLUMN" is intentionally missing!
-        file = self._get_config_file(VALID_CONFIG)
+        file = self._get_config_file(VALID_CONFIG_FILE)
 
         with self.assertRaises(ValueError) as ve:
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
         self.assertIn("'GSHEET_JIRA_COLUMN'", exc_msg)
+
+    def test_config_reader_empty_yarndevtools_args(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_empty_yarndevtools_args.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Empty YARN dev tools arguments", exc_msg)
+
+    def test_config_reader_invalid_format_of_yarndevtools_arg(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_invalid_format_of_yarndevtools_arg.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Expected a mapped argument in format: <yarndevtools argument name><SPACE><PLACEHOLDER>", exc_msg)
+
+    def test_config_reader_unmapped_yarndevtools_args(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_unmapped_yarndevtools_args.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("The following yarndevtools arguments are unmapped", exc_msg)
+        self.assertIn("--gsheet-client-secret2", exc_msg)
+        self.assertIn("--gsheet-client-secret3", exc_msg)
 
     @staticmethod
     def _get_config_file(file_name):

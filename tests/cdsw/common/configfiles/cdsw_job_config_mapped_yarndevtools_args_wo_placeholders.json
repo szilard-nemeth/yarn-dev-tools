@@ -9,11 +9,6 @@
     "--gsheet-jira-column": "GSHEET_JIRA_COLUMN"
   },
   "yarnDevToolsArguments": [
-    "--debug",
-    "REVIEWSYNC",
-    "--gsheet",
-    "--gsheet-client-secret $$",
-    "--gsheet-spreadsheet $$",
-    "--gsheet-jira-column $$"
-  ]
+    "--gsheet-client-secret",
+    "--gsheet-jira-column"]
 }
