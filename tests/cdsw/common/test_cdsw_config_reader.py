@@ -1,4 +1,6 @@
+import datetime
 import os
+import re
 import unittest
 import logging
 
@@ -190,7 +192,138 @@ class CdswConfigReaderTest(unittest.TestCase):
         self.assertIn("--gsheet-client-secret2", exc_msg)
         self.assertIn("--gsheet-client-secret3", exc_msg)
 
+    def test_config_reader_variables(self):
+        file = self._get_config_file(VALID_CONFIG_FILE)
+        self._set_mandatory_env_vars()
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.variables)
+        self.assertEqual("testAlgorithm", config_reader.config.variables["algorithm"])
+        # command_data_testAlgorithm_20220105_214629.zip
+
+        self.assertEqual(
+            "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip", config_reader.config.variables["commandDataFileName"]
+        )
+        self._match_env_var_for_regex(
+            config_reader.config, "commandDataFileName", r"command_data_testAlgorithm_(.*)\.zip"
+        )
+
+    def test_config_reader_using_builtin_variable(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_invalid_using_builtin_variable.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Cannot use variables with the same name as built-in variables", exc_msg)
+
+    def test_config_reader_malformed_variable_declaration(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_malformed_variable_declaration.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Malformed variable declaration in", exc_msg)
+
+    def test_config_reader_malformed_variable_declaration_empty_var(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_malformed_variable_declaration_empty_var.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Found malformed (empty) variable declaration", exc_msg)
+
+    def test_config_reader_transitive_variable_resolution_endless(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_endless.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Cannot resolve variable 'varD' in raw var: $$varD$$", exc_msg)
+
+    def test_config_reader_transitive_variable_resolution_unresolved(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_unresolved.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Cannot resolve variable 'varX' in raw var: $$varX$$", exc_msg)
+
+    def test_config_reader_transitive_variable_resolution_valid(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.variables)
+        self.assertEqual("testAlgorithm", config_reader.config.variables["algorithm"])
+
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varE"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varA"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varB"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varC"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varD"])
+
+    def test_config_reader_transitive_variable_resolution_valid_more_complex(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid_more_complex.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.variables)
+        self.assertEqual("testAlgorithm", config_reader.config.variables["algorithm"])
+
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varE"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varA"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varB"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varC"])
+        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varD"])
+        self.assertEqual("s", config_reader.config.resolved_variables["varS"])
+        self.assertEqual("xy", config_reader.config.resolved_variables["varZ"])
+        self.assertEqual("xys", config_reader.config.resolved_variables["varT"])
+        self.assertEqual("xys", config_reader.config.resolved_variables["varU"])
+
+    def test_config_reader_transitive_variable_resolution_valid_more_complex2(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid_more_complex2.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.variables)
+        self.assertEqual("testAlgorithm", config_reader.config.variables["algorithm"])
+
+        self.assertEqual("x", config_reader.config.resolved_variables["varZ"])
+        self.assertEqual("xs", config_reader.config.resolved_variables["varT"])
+        self.assertEqual("x", config_reader.config.resolved_variables["varX"])
+        self.assertEqual("s", config_reader.config.resolved_variables["varS"])
+
+    def _match_env_var_for_regex(self, config, env_name, regex):
+        LOG.debug(
+            "Matching Env var with name '%s' with resolved value of %s, Original value: %s",
+            env_name,
+            config.resolved_variables[env_name],
+            config.variables[env_name],
+        )
+        match = re.match(regex, config.resolved_variables[env_name])
+        if not match:
+            self.fail(
+                "Env var with name '{}' with resolved value of {} does not match regex: {}. Original value: {}".format(
+                    env_name, config.resolved_variables[env_name], regex, config.variables[env_name]
+                )
+            )
+        LOG.debug("Found date: %s", match.group(1))
+
+    # TODO test unresolved variable
+
     @staticmethod
     def _get_config_file(file_name):
         file = FileUtils.join_path(os.getcwd(), "configfiles", file_name)
         return file
+
+    @staticmethod
+    def validate_date(date_text):
+        try:
+            datetime.datetime.strptime(date_text, "%Y%m%d_%H%M%S")
+        except ValueError:
+            raise ValueError("Incorrect data format, should be YYYY-MM-DD")

@@ -18,6 +18,16 @@
   ],
   "variables": {
     "algorithm": "testAlgorithm",
-    "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip"
+    "varA": "$$varB$$",
+    "varB": "$$varC$$",
+    "varC": "$$varD$$",
+    "varD": "$$varE$$",
+    "varE": "no_var_here",
+    "varU": "$$varT$$",
+    "varT": "$$varZ$$$$varS$$",
+    "varS": "s",
+    "varZ": "$$varX$$$$varY$$",
+    "varX": "x",
+    "varY": "y"
   }
 }

@@ -17,6 +17,7 @@
     "--gsheet-jira-column $$"
   ],
   "variables": {
+    "JOB_START_DATE": "20220105_220005",
     "algorithm": "testAlgorithm",
     "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip"
   }
