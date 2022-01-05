@@ -226,7 +226,7 @@ class CommandType(Enum):
         if val in val_to_enum:
             return val_to_enum[val]
         else:
-            raise NotImplementedError
+            raise ValueError("Invalid enum key: {}".format(val))
 
 
 class HtmlHelper:
