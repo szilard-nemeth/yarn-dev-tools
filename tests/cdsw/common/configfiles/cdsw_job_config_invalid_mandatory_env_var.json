@@ -1,0 +1,5 @@
+{
+  "jobName": "Reviewsync",
+  "commandType": "rrr",
+  "mandatoryEnvVars": ["GSHEET_CLIENT_S"]
+}

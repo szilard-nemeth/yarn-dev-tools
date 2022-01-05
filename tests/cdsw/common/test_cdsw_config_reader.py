@@ -61,6 +61,21 @@ class CdswConfigReaderTest(unittest.TestCase):
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
 
-    def _get_config_file(self, file_name):
+    def test_config_reader_invalid_mandatory_env_var(self):
+        file = self._get_config_file("cdsw_job_config_invalid_mandatory_env_var.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+
+    def test_config_reader_mandatory_env_vars_are_of_correct_command_type(self):
+        file = self._get_config_file(VALID_CONFIG)
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config)
+        self.assertEqual(CommandType.REVIEWSYNC, config_reader.config.command_type)
+
+    @staticmethod
+    def _get_config_file(file_name):
         file = FileUtils.join_path(os.getcwd(), "configfiles", file_name)
         return file
