@@ -34,7 +34,7 @@ from yarndevtools.common.shared_command_utils import RepoType, EnvVar, SECRET_PR
 from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, APACHE, HADOOP, CLOUDERA
 
 PYTHON3 = "python3"
-PROJECT_NAME = "yarn-cdsw-branchdiff-reporting"
+PROJECT_NAME = "branch-comparator"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
@@ -94,7 +94,7 @@ class DockerBasedTestConfig:
 
         # Only global-site mode can work in Docker containers
         # With user mode, the following error is coming up:
-        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/branch-comparator/cdsw_runner.py /home/cdsw/jobs//downstream-branchdiff-reporting/cdsw_runner.py
+        # cp /root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/branch-comparator/cdsw_runner.py /home/cdsw/jobs//branch-comparator/cdsw_runner.py
         # cp: cannot stat '/root/.local/lib/python3.8/site-packages/yarndevtools/cdsw/branch-comparator/cdsw_runner.py'
         # No such file or directory
         self.python_module_mode = PythonModuleMode.GLOBAL
