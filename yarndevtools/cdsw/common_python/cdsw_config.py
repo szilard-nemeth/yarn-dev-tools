@@ -56,18 +56,28 @@ class CdswJobConfigReader:
         return job_config
 
     def _validate(self):
-        self._validate_mandatory_env_vars()
-
-    def _validate_mandatory_env_vars(self):
         enum_type = self.command_to_env_var_class[self.config.command_type]
-        valid_env_vars = [e.value for e in enum_type]
+        self.valid_env_vars = [e.value for e in enum_type]
+        self._validate_mandatory_env_var_names()
+        self._ensure_if_mandatory_env_vars_are_set()
+
+    def _validate_mandatory_env_var_names(self):
         for env_var_name in self.config.mandatory_env_vars:
-            if env_var_name not in valid_env_vars:
+            if env_var_name not in self.valid_env_vars:
                 raise ValueError(
                     "Invalid env var specified as '{}'. Valid env vars for Command '{}' are: {}".format(
-                        env_var_name, self.config.command_type, valid_env_vars
+                        env_var_name, self.config.command_type, self.valid_env_vars
                     )
                 )
+
+    def _ensure_if_mandatory_env_vars_are_set(self):
+        not_found_vars = []
+        for env_var in self.config.mandatory_env_vars:
+            if env_var not in os.environ:
+                not_found_vars.append(env_var)
+
+        if not_found_vars:
+            raise ValueError("The following env vars are mandatory but they are not set: {}".format(not_found_vars))
 
     def __repr__(self):
         return self.__str__()
