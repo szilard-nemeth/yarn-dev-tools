@@ -61,12 +61,38 @@ class CdswConfigReaderTest(unittest.TestCase):
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
 
+    def test_config_reader_valid_mandatory_env_vars(self):
+        file = self._get_config_file(VALID_CONFIG)
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config)
+        self.assertEqual(["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET"], config_reader.config.mandatory_env_vars)
+
     def test_config_reader_invalid_mandatory_env_var(self):
         file = self._get_config_file("cdsw_job_config_invalid_mandatory_env_var.json")
         with self.assertRaises(ValueError) as ve:
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
+
+    def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_positive_case(self):
+        file = self._get_config_file(VALID_CONFIG)
+        os.environ["GSHEET_CLIENT_SECRET"] = "sshhhh_secret"
+        os.environ["GSHEET_SPREADSHEET"] = "test_sheet"
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config)
+        self.assertEqual(["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET"], config_reader.config.mandatory_env_vars)
+
+    def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_negative_case(self):
+        file = self._get_config_file(VALID_CONFIG)
+        os.environ["GSHEET_SPREADSHEET"] = "test_sheet"
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("'GSHEET_CLIENT_SECRET'", exc_msg)
+        self.assertNotIn("GSHEET_SPREADSHEET", exc_msg)
 
     def test_config_reader_mandatory_env_vars_are_of_correct_command_type(self):
         file = self._get_config_file(VALID_CONFIG)
