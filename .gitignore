@@ -5,9 +5,7 @@ venv
 __pycache__
 **/credentials.json
 **/token.pickle
-tests/logs
-tests/cdsw/logs/
-/tests/common/logs/
+logs/
 /build/
 /junit/
 /.pytest_cache/
