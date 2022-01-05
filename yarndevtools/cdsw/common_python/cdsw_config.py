@@ -1,12 +1,15 @@
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass, field, fields
 from typing import List, Dict
 
 from dataclasses_json import dataclass_json, LetterCase, config
+from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import JsonFileUtils
-from pythoncommons.string_utils import auto_str
+from pythoncommons.object_utils import CollectionUtils
+from pythoncommons.string_utils import auto_str, StringUtils
 
 from yarndevtools.cdsw.common_python.constants import (
     JiraUmbrellaCheckerEnvVar,
@@ -31,6 +34,8 @@ class CdswJobConfig:
     optional_env_vars: List[str] = field(default_factory=list)
     map_env_vars_to_yarn_dev_tools_argument: Dict[str, str] = field(default_factory=dict)
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
+    variables: Dict[str, str] = field(default_factory=dict)
+    resolved_variables: Dict[str, str] = field(default_factory=dict)
 
 
 @auto_str
@@ -69,6 +74,8 @@ class CdswJobConfigReader:
         self._ensure_if_mandatory_env_vars_are_set()
         self._ensure_that_mapped_env_vars_are_mandatory()
         self._check_yarn_dev_tools_arguments()
+        self.variables = Variables(self.config.variables)
+        self.config.resolved_variables = self.variables.resolved_vars
 
     def _validate_optional_env_var_names(self):
         for env_var_name in self.config.optional_env_vars:
@@ -144,3 +151,64 @@ class CdswJobConfigReader:
 
     def __repr__(self):
         return self.__str__()
+
+
+class Variables:
+    VAR_PLACEHOLDER = "$$"
+    BUILT_IN_VARIABLES = {"JOB_START_DATE": DateUtils.get_current_datetime()}
+
+    def __init__(self, orig_vars: Dict[str, str]):
+        self.orig_vars = orig_vars
+        self.resolved_vars: Dict[str, str] = orig_vars.copy()
+        self.check_variables()
+
+    def check_variables(self):
+        for var_name, raw_var in self.orig_vars.items():
+            if self.VAR_PLACEHOLDER in raw_var:
+                vars_to_replace = self._find_vars_to_replace(raw_var)
+                modified_var = self._replace_vars(self.resolved_vars, raw_var, vars_to_replace)
+                self.resolved_vars[var_name] = modified_var
+
+    @staticmethod
+    def _find_vars_to_replace(raw_var):
+        ph = Variables.VAR_PLACEHOLDER
+        var_sep = re.escape(ph)
+        indices = [m.span() for m in re.finditer(f"{var_sep}.*?{var_sep}", raw_var)]
+        found_placeholders = re.findall(f"{var_sep}", raw_var)
+        if len(found_placeholders) % 2 != 0:
+            raise ValueError("Malformed variable declaration in variable string: {}".format(raw_var))
+        vars_to_replace = [raw_var[i + len(ph) : j - len(ph)] for i, j in indices]
+
+        if "" in vars_to_replace:
+            raise ValueError("Found malformed (empty) variable declaration in raw env var: {}".format(raw_var))
+        return vars_to_replace
+
+    @staticmethod
+    def _replace_vars(vars, raw_var, vars_to_replace: List[str]):
+        ph = Variables.VAR_PLACEHOLDER
+        builtin = Variables.BUILT_IN_VARIABLES
+        for var in vars_to_replace:
+            if var in builtin:
+                # Built-in variable
+                if var in vars:
+                    raise ValueError(
+                        "Cannot use variables with the same name as built-in variables. "
+                        "Built-ins: {}".format(builtin)
+                    )
+                resolved_var = builtin[var]
+                raw_var = raw_var.replace(f"{ph}{var}{ph}", f"{resolved_var}")
+                vars[var] = raw_var
+            elif var not in vars:
+                # variable does not exist
+                raise ValueError("Cannot resolve variable '{}' in raw var: {}".format(var, raw_var))
+            elif ph in vars[var]:
+                # Variable contains PLACEHOLDERs so it's another variable
+                vars_to_replace = Variables._find_vars_to_replace(vars[var])
+                resolved_var = Variables._replace_vars(vars, vars[var], vars_to_replace)
+                vars[var] = resolved_var
+                raw_var = raw_var.replace(f"{ph}{var}{ph}", f"{resolved_var}")
+            else:
+                # Simple variable
+                resolved_var = vars[var]
+                raw_var = raw_var.replace(f"{ph}{var}{ph}", f"{resolved_var}")
+        return raw_var
