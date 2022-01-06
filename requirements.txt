@@ -5,3 +5,4 @@ git+https://github.com/szilard-nemeth/google-api-wrapper.git
 bs4
 setuptools~=54.1.2
 jira
+dataclasses-json
