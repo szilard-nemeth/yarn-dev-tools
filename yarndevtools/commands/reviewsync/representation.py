@@ -90,11 +90,11 @@ class ReviewSyncOutputManager:
     def print_and_save_summary(self, rendered_summary):
         LOG.info(rendered_summary.printable_summary_str)
 
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_TXT)
+        filename = FileUtils.join_path(self.config.session_dir, SUMMARY_FILE_TXT)
         LOG.info(f"Saving summary to text file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary.writable_summary_str)
 
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_HTML)
+        filename = FileUtils.join_path(self.config.session_dir, SUMMARY_FILE_HTML)
         LOG.info(f"Saving summary to html file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary.html_summary)
 
