@@ -211,7 +211,7 @@ class YarnDevTools:
         output_dir = ProjectUtils.get_output_child_dir(CommandType.REVIEWSYNC.output_dir_name)
         reviewsync = ReviewSync(args, parser, output_dir, self.upstream_repo)
         FileUtils.create_symlink_path_dir(
-            CommandType.REVIEW_SHEET_BACKPORT_UPDATER.session_link_name,
+            CommandType.REVIEWSYNC.session_link_name,
             reviewsync.config.session_dir,
             self.project_out_root,
         )
