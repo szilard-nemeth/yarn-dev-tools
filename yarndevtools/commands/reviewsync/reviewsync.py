@@ -16,6 +16,7 @@ import time
 from yarndevtools.commands.reviewsync.common import ReviewsyncData
 from yarndevtools.commands.reviewsync.jira_wrapper import HadoopJiraWrapper
 from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputManager
+from yarndevtools.constants import TRUNK
 
 DEFAULT_BRANCH = "trunk"
 JIRA_URL = "https://issues.apache.org/jira"
@@ -106,6 +107,9 @@ class ReviewSync:
                 self.update_gsheet()
         end_time = time.time()
         LOG.info("Execution of script took %d seconds", end_time - start_time)
+
+        # Check out trunk when finished execution
+        self.upstream_repo.checkout_branch(TRUNK)
 
     def get_or_fetch_issues(self):
         if self.issue_fetch_mode == JiraFetchMode.ISSUES_CMDLINE:
