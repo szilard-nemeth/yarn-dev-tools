@@ -94,9 +94,33 @@ To backport YARN-6221 to 2 branches, run these commands:
 yarn-backport YARN-6221 COMPX-6664 cdpd-master
 yarn-backport YARN-6221 COMPX-6664 CDH-7.1-maint --no-fetch
 ```
-The second parameter is the downstream jira ID.
-The third parameter is the downstream branch.
+The first argument is the upstream Jira ID
+The second argument is the downstream Jira ID.
+The third argument is the downstream branch.
 The `--no-fetch` option is a means to skip git fetch on both repos.
+
+### How to backport to an already existing relation chain?
+1. Go to Gerrit UI and download the patch.
+For example: 
+```
+git fetch "https://gerrit.sjc.cloudera.com/cdh/hadoop" refs/changes/29/156429/5 && git checkout FETCH_HEAD
+```
+2. Checkout a new branch
+```
+git checkout -b my-relation-chain 
+```
+
+3. Run backporter with: 
+```
+yarn-backport-c6 YARN-10314 COMPX-7855 CDH-7.1.7.1000 --no-fetch --downstream_base_ref my-relation-chain
+```
+where, 
+The first argument is the upstream Jira ID
+The second argument is the downstream Jira ID.
+The third argument is the downstream branch.
+The `--no-fetch` option is a means to skip git fetch on both repos.
+The `--downstream_base_ref <local-branch` is a way to use a local branch to base the backport on so the Git remote name won't be prepended.
+
 
 Finally, I set up two aliases for pushing the changes to the downstream repo:
 ```

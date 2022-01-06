@@ -1,8 +1,15 @@
 import logging
-from typing import List
 
 from pythoncommons.git_constants import ORIGIN, HEAD
 from pythoncommons.git_wrapper import GitWrapper
+
+GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke,r=tdomok"
+DEFAULT_MAVEN_COMMAND = "mvn clean install -Pdist -DskipTests -Pnoshade  -Dmaven.javadoc.skip=true"
+WARNING_MESSAGE = (
+    "!! Remember to build project to verify the backported commit compiles !!"
+    f"Run this command to build the project: {DEFAULT_MAVEN_COMMAND}"
+)
+DEFAULT_REMOTE = "cauldron"
 
 LOG = logging.getLogger(__name__)
 
@@ -22,19 +29,14 @@ class Backporter:
     upstream_jira_id : str
         Jira ID of the upstream jira to backport.
         Specified with args.
-
     upstream_repo : GitWrapper
         A GitWrapper object, representing the upstream repository.
     downstream_repo : GitWrapper
         A GitWrapper object, representing the downstream repository.
-    cherry_pick_base_ref : str
-        A branch that is the base of the newly created downstream branch for this backport.
     upstream_branch : str
         The upstream branch to check out, assuming that the specified commit will be already committed on this branch.
     commit_hash : str
         Hash of the commit to backport from the upstream repository.
-    post_commit_messages : list[str]
-        List of messages to print as post-commit guidance.
 
     Methods
     -------
@@ -49,26 +51,36 @@ class Backporter:
         6. Print post-commit guidance.
     """
 
-    def __init__(
-        self, args, upstream_repo, downstream_repo, cherry_pick_base_ref, post_commit_messages: List[str] = None
-    ):
+    def __init__(self, args, upstream_repo, downstream_repo):
         self.args = args
-        # Parsed from args
         self.downstream_jira_id = self.args.downstream_jira_id
         self.downstream_branch = self.args.downstream_branch
         self.upstream_jira_id = self.args.upstream_jira_id
         self.upstream_branch = self.args.upstream_branch
         self.fetch_repos: bool = not self.args.no_fetch
-
         self.upstream_repo = upstream_repo
         self.downstream_repo = downstream_repo
-        self.cherry_pick_base_ref = cherry_pick_base_ref
-        if post_commit_messages and not isinstance(post_commit_messages, list):
-            raise ValueError("Parameter 'post_commit_messages' should be a list of str objects!")
-        self.post_commit_messages = post_commit_messages
+
+        gerrit_push_cmd = (
+            "Run this command to push to gerrit: "
+            f"git push {DEFAULT_REMOTE} HEAD:refs/for/{args.downstream_branch}%{GERRIT_REVIEWER_LIST}"
+        )
+
+        # A branch that is the base of the newly created downstream branch for this backport.
+        self.cherry_pick_base_ref = self._determine_downstream_base_ref(args)
+
+        # List of messages to print as post-commit guidance.
+        self.post_commit_messages = [WARNING_MESSAGE, gerrit_push_cmd]
 
         # Dynamic attributes
         self.commit_hash = None
+
+    @staticmethod
+    def _determine_downstream_base_ref(args):
+        downstream_base_ref = f"{DEFAULT_REMOTE}/{args.downstream_branch}"
+        if "downstream_base_ref" in args and args.downstream_base_ref is not None:
+            downstream_base_ref = args.downstream_base_ref
+        return downstream_base_ref
 
     def run(self):
         LOG.info(
@@ -126,7 +138,7 @@ class Backporter:
         self.upstream_repo.pull(ORIGIN, ff_only=True)
 
     def cherry_pick_commit(self):
-        # Example checkout command: git checkout -b "$CDH_JIRA_NO-$CDH_BRANCH" cauldron/${CDH_BRANCH}
+        # Example checkout command: git checkout -b "$CDH_JIRA_NO-$CDH_BRANCH" <remote>/${CDH_BRANCH}
         new_branch_name = f"{self.downstream_jira_id}-{self.downstream_branch}"
 
         if self.downstream_repo.is_branch_exist(new_branch_name, exc_info=False):

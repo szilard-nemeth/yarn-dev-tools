@@ -34,7 +34,6 @@ from yarndevtools.constants import (
     LOADED_ENV_UPSTREAM_DIR,
     TRUNK,
     ORIGIN_TRUNK,
-    GERRIT_REVIEWER_LIST,
     HADOOP_REPO_TEMPLATE,
     LATEST_DATA_ZIP_LINK_NAME,
     YARNDEVTOOLS_MODULE_NAME,
@@ -101,26 +100,10 @@ class YarnDevTools:
         review_branch_creator.run()
 
     def backport_c6(self, args, parser=None):
-        mvn_cmd = "mvn clean install -Pdist -DskipTests -Pnoshade  -Dmaven.javadoc.skip=true"
-        build_cmd = (
-            "!! Remember to build project to verify the backported commit compiles !!"
-            f"Run this command to build the project: {mvn_cmd}"
-        )
-        gerrit_push_cmd = (
-            "Run this command to push to gerrit: "
-            f"git push cauldron HEAD:refs/for/{args.downstream_branch}%{GERRIT_REVIEWER_LIST}"
-        )
-        post_commit_messages = [build_cmd, gerrit_push_cmd]
-
-        downstream_base_ref = f"cauldron/{args.downstream_branch}"
-        if "downstream_base_ref" in args and args.downstream_base_ref is not None:
-            downstream_base_ref = args.downstream_base_ref
         backporter = Backporter(
             args,
             self.upstream_repo,
             self.downstream_repo,
-            downstream_base_ref,
-            post_commit_messages=post_commit_messages,
         )
         backporter.run()
 

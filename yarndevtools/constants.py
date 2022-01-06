@@ -12,7 +12,6 @@ ORIGIN_BRANCH_3_2 = "origin/branch-3.2"
 TRUNK = "trunk"
 BRANCH_3_1 = "branch-3.1"
 BRANCH_3_3 = "branch-3.3"
-GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke,r=tdomok"
 # TODO Migrate these to a new enum
 ENV_CLOUDERA_HADOOP_ROOT = "CLOUDERA_HADOOP_ROOT"
 ENV_HADOOP_DEV_DIR = "HADOOP_DEV_DIR"
