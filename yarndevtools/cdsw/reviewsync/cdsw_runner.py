@@ -38,7 +38,7 @@ class CdswRunner(CdswRunnerBase):
             account_email=OsUtils.get_env_value(CdswEnvVar.MAIL_ACC_USER.value),
         )
 
-        cmd_type = CommandType.REVIEW_SHEET_BACKPORT_UPDATER
+        cmd_type = CommandType.REVIEWSYNC
         self.run_zipper(cmd_type, debug=True)
 
         sender = "YARN reviewsync"
