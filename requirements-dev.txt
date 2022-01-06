@@ -9,6 +9,7 @@ bs4~=0.0.1
 coolname
 httpretty
 jira
+dataclasses-json
 
 # Python 2
 pathlib
