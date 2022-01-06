@@ -2,14 +2,13 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from typing import List, Dict
 
 from dataclasses_json import dataclass_json, LetterCase, config
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import JsonFileUtils
-from pythoncommons.object_utils import CollectionUtils
-from pythoncommons.string_utils import auto_str, StringUtils
+from pythoncommons.string_utils import auto_str
 
 from yarndevtools.cdsw.common_python.constants import (
     JiraUmbrellaCheckerEnvVar,

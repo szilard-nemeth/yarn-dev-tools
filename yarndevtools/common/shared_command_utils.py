@@ -1,6 +1,5 @@
 import logging
 from enum import Enum
-from os.path import expanduser
 from typing import List, Dict
 
 from pythoncommons.email import EmailAccount, EmailConfig
