@@ -59,7 +59,7 @@ class Backporter:
         self.upstream_branch = self.args.upstream_branch
         self.fetch_repos: bool = not self.args.no_fetch
         self.upstream_repo = upstream_repo
-        self.downstream_repo = downstream_repo
+        self.downstream_repo: GitWrapper = downstream_repo
 
         gerrit_push_cmd = (
             "Run this command to push to gerrit: "
@@ -163,8 +163,10 @@ class Backporter:
                     self.commit_hash,
                 )
             cherry_pick_result = self.downstream_repo.cherry_pick(self.commit_hash, x=True)
-
-            if not cherry_pick_result:
+            if cherry_pick_result:
+                # If self.downstream_base_ref is specified, move that branch as well
+                self.downstream_repo.move_branch(self.cherry_pick_base_ref)
+            else:
                 raise ValueError(
                     f"Failed to cherry-pick commit: {self.commit_hash}. "
                     "Perhaps there were some merge conflicts, "
