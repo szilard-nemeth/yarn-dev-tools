@@ -1,14 +1,15 @@
 import datetime
+import logging
 import os
 import re
 import unittest
-import logging
 
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
+from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons
 from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader
 from yarndevtools.common.shared_command_utils import CommandType
 
@@ -20,13 +21,17 @@ LOG = logging.getLogger(__name__)
 
 
 class CdswConfigReaderTest(unittest.TestCase):
+    configfiles_base_dir = None
     MANDATORY_VARS = {"GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "GSHEET_JIRA_COLUMN"}
+    cdsw_testing_commons = None
 
     @classmethod
     def setUpClass(cls):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(PROJECT_NAME)
         cls._setup_logging()
+        cls.cdsw_testing_commons = CdswTestingCommons()
+        cls.configfiles_base_dir = cls.cdsw_testing_commons.get_path_from_test_basedir("common", "configfiles")
 
     def setUp(self):
         pass
@@ -316,9 +321,9 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     # TODO test unresolved variable
 
-    @staticmethod
-    def _get_config_file(file_name):
-        file = FileUtils.join_path(os.getcwd(), "configfiles", file_name)
+    @classmethod
+    def _get_config_file(cls, file_name):
+        file = FileUtils.join_path(cls.configfiles_base_dir, file_name)
         return file
 
     @staticmethod
