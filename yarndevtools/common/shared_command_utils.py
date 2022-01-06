@@ -23,7 +23,6 @@ from yarndevtools.commands_common import (
 from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME, ANY_JIRA_ID_PATTERN
 
 LOG = logging.getLogger(__name__)
-SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
 
 
 class EnvVar(Enum):
