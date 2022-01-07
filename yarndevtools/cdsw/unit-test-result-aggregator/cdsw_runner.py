@@ -151,7 +151,7 @@ class CdswRunner(CdswRunnerBase):
         abbreviate_tc_package = self._get_cli_switch_value("--abbreviate-testcase-package", abbreviate_tc_package)
         aggregate_filters = self._get_cli_switch_value("--aggregate-filters", aggregate_filters)
         gsheet_compare_with_jira_table = self._get_cli_switch_value(
-            "--ghseet-compare-with-jira-table", gsheet_compare_with_jira_table, quote=True
+            "--gsheet-compare-with-jira-table", gsheet_compare_with_jira_table, quote=True
         )
         skip_lines_starting_with_cli = self._get_cli_switch_value(
             "--skip-lines-starting-with", " ".join(f'"{w}"' for w in skip_lines_starting_with)

@@ -43,9 +43,9 @@ class CdswConfigReaderTest(unittest.TestCase):
 
     @staticmethod
     def _set_mandatory_env_vars():
-        os.environ["GSHEET_CLIENT_SECRET"] = "ghseet client secret"
+        os.environ["GSHEET_CLIENT_SECRET"] = "gsheet client secret"
         os.environ["GSHEET_SPREADSHEET"] = "gsheet spreadsheet"
-        os.environ["GSHEET_JIRA_COLUMN"] = "jira column"
+        os.environ["GSHEET_JIRA_COLUMN"] = "gsheet jira column"
         os.environ["MAIL_ACC_USER"] = "mail account user"
 
     @classmethod
