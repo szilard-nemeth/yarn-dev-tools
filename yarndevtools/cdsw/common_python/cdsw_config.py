@@ -21,6 +21,8 @@ from yarndevtools.cdsw.common_python.constants import (
 )
 from yarndevtools.common.shared_command_utils import CommandType
 
+YARN_DEV_TOOLS_VAR_OVERRIDE_TEMPLATE = "Found argument in yarn_dev_tools_arguments and additional_yarn_dev_tools_arguments: '%s'. The latter will take predence."
+
 LOG = logging.getLogger(__name__)
 
 
@@ -52,7 +54,10 @@ class CdswJobConfig:
     map_env_vars_to_yarn_dev_tools_argument: Dict[str, str] = field(default_factory=dict)
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
+    additional_yarn_dev_tools_arguments: List[str] = field(default_factory=list)
+    # Dynamic properties
     resolved_variables: Dict[str, str] = field(default_factory=dict)
+    final_yarn_dev_tools_arguments: List[str] = field(default_factory=list)
 
 
 @auto_str
@@ -62,6 +67,7 @@ class CdswJobConfigReader:
         "email_settings.subject",
         "email_settings.attachment_file_name",
         "drive_api_upload_settings.file_name",
+        "final_yarn_dev_tools_arguments",
     }
 
     command_to_env_var_class = {
@@ -95,10 +101,11 @@ class CdswJobConfigReader:
         self._validate_optional_env_var_names()
         self._ensure_if_mandatory_env_vars_are_set()
         self._ensure_that_mapped_env_vars_are_mandatory()
-        self._check_yarn_dev_tools_arguments()
+        self._check_yarn_dev_tools_arguments_for_var_placeholders()
         self.variables = Variables(self.config.variables)
         self.config.resolved_variables = self.variables.resolved_vars
-        self.substitute_variables()
+        self.config.final_yarn_dev_tools_arguments = self._finalize_yarn_dev_tools_arguments()
+        self.substitute_variables_in_all_fields()
 
     def _validate_optional_env_var_names(self):
         for env_var_name in self.config.optional_env_vars:
@@ -138,7 +145,7 @@ class CdswJobConfigReader:
                 "so they became mandatory but they are not set: {}".format(not_found_vars)
             )
 
-    def _check_yarn_dev_tools_arguments(self):
+    def _check_yarn_dev_tools_arguments_for_var_placeholders(self):
         if not self.config.yarn_dev_tools_arguments:
             raise ValueError("Empty YARN dev tools arguments!")
 
@@ -172,26 +179,57 @@ class CdswJobConfigReader:
                 )
             )
 
-    def substitute_variables(self):
-        ph = Variables.VAR_PLACEHOLDER
+    def _finalize_yarn_dev_tools_arguments(self) -> List[str]:
+        final_args_with_params: Dict[str, List[str]] = {}
+        self._fill_args_from(final_args_with_params, self.config.yarn_dev_tools_arguments, warn_when_overrides=False)
+        self._fill_args_from(
+            final_args_with_params, self.config.additional_yarn_dev_tools_arguments, warn_when_overrides=True
+        )
+        return [" ".join([arg, *params]) for arg, params in final_args_with_params.items()]
+
+    @staticmethod
+    def _fill_args_from(result: Dict[str, List[str]], arguments: List[str], warn_when_overrides=False):
+        for arg in arguments:
+            split = arg.split(" ")
+            if len(split) == 0:
+                raise ValueError("Unexpected argument value: '{}'".format(arg))
+
+            key = split[0]
+            if len(split) == 1:
+                if warn_when_overrides and key in result:
+                    LOG.warning(YARN_DEV_TOOLS_VAR_OVERRIDE_TEMPLATE, key)
+                result[key] = []
+            else:
+                if warn_when_overrides and key in result:
+                    LOG.warning(YARN_DEV_TOOLS_VAR_OVERRIDE_TEMPLATE, key)
+                result[key] = split[1:]
+
+    def substitute_variables_in_all_fields(self):
         for field_spec in self.VARIABLE_SUBSTITUTION_FIELDS:
-            orig_value = self._find_config_attribute_by_field_spec(self.config, field_spec)
-            if not isinstance(orig_value, str):
+            attribute: str = self._find_config_attribute_by_field_spec(self.config, field_spec)
+            if isinstance(attribute, list):
+                for value in attribute:
+                    self._substitute_variable_in_str(value)
+            elif not isinstance(attribute, str):
                 raise ValueError(
                     "Unexpected configuration attribute '{}', object: {}. Expected type of str!".format(
-                        field_spec, orig_value
+                        field_spec, attribute
                     )
                 )
-            vars_to_replace = Variables.find_vars_to_replace(orig_value)
-
-            # We don't need recursive replace here
-            mod_value = orig_value
-            for var in vars_to_replace:
-                if var not in self.config.resolved_variables:
-                    raise ValueError("Variable '{}' is not defined!".format(var))
-                resolved_var = self.config.resolved_variables[var]
-                mod_value = mod_value.replace(f"{ph}{var}{ph}", f"{resolved_var}")
+            # We don't need recursive substitution here
+            mod_value = self._substitute_variable_in_str(attribute)
             self._set_config_attribute_by_field_spec(self.config, field_spec, mod_value)
+
+    def _substitute_variable_in_str(self, orig_value):
+        ph = Variables.VAR_PLACEHOLDER
+        vars_to_replace = Variables.find_vars_to_replace(orig_value)
+        mod_value = orig_value
+        for var in vars_to_replace:
+            if var not in self.config.resolved_variables:
+                raise ValueError("Variable '{}' is not defined!".format(var))
+            resolved_var = self.config.resolved_variables[var]
+            mod_value = mod_value.replace(f"{ph}{var}{ph}", f"{resolved_var}")
+        return mod_value
 
     @staticmethod
     def _find_config_attribute_by_field_spec(obj, field_spec):
