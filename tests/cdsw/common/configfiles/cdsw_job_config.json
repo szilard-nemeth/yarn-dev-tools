@@ -25,5 +25,9 @@
     "sendAttachment": true,
     "attachmentFilename": "attachmentFilename",
     "subject": "testSubject"
+  },
+  "driveApiUploadSettings": {
+    "enabled": false,
+    "filename": "simple"
   }
 }

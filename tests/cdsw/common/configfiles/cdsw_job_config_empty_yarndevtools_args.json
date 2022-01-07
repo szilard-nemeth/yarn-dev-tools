@@ -8,5 +8,11 @@
     "--gsheet-spreadsheet": "GSHEET_SPREADSHEET",
     "--gsheet-jira-column": "GSHEET_JIRA_COLUMN"
   },
-  "yarnDevToolsArguments": []
+  "yarnDevToolsArguments": [],
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
+  }
 }

@@ -19,5 +19,11 @@
   "variables": {
     "algorithm": "testAlgorithm",
     "varA": "$$varX$$"
+  },
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
   }
 }
