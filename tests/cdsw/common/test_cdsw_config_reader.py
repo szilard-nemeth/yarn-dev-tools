@@ -290,6 +290,17 @@ class CdswConfigReaderTest(unittest.TestCase):
         self.assertEqual("xys", config_reader.config.resolved_variables["varT"])
         self.assertEqual("xys", config_reader.config.resolved_variables["varU"])
 
+    def test_config_reader_email_settings(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_email_settings1.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.email_settings)
+        self.assertEqual("testSubject+v2+v1", config_reader.config.email_settings.subject)
+        self.assertEqual("attachmentFilename+v3+v4", config_reader.config.email_settings.attachment_filename)
+        self.assertFalse(config_reader.config.email_settings.enabled)
+        self.assertTrue(config_reader.config.email_settings.send_attachment)
+
     def test_config_reader_transitive_variable_resolution_valid_more_complex2(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid_more_complex2.json")

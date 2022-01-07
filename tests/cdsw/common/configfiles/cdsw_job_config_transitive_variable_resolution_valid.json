@@ -23,5 +23,11 @@
     "varC": "$$varD$$",
     "varD": "$$varE$$",
     "varE": "no_var_here"
+  },
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
   }
 }

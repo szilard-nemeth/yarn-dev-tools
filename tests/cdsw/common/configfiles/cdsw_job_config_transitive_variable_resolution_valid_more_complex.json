@@ -29,5 +29,11 @@
     "varZ": "$$varX$$$$varY$$",
     "varX": "x",
     "varY": "y"
+  },
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
   }
 }
