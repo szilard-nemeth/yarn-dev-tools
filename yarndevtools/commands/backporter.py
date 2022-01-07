@@ -74,6 +74,7 @@ class Backporter:
 
         # Dynamic attributes
         self.commit_hash = None
+        self.found_commit_at_head = None
 
     @staticmethod
     def _determine_downstream_base_ref(args):
@@ -152,9 +153,23 @@ class Backporter:
                     f"Cannot checkout new branch {new_branch_name} based on ref {self.cherry_pick_base_ref}"
                 )
 
-        git_log_result = self.downstream_repo.log(HEAD, oneline=True, grep=self.upstream_jira_id)
-        if git_log_result:
-            LOG.warning("Commit already cherry-picked to branch. Continuing execution")
+        found_commit = self.downstream_repo.log(
+            HEAD, oneline=True, grep=self.upstream_jira_id, n=1, as_string_message=True
+        )
+        latest_commit = self.downstream_repo.log(HEAD, oneline=True, n=1, as_string_message=True)
+        self.found_commit_at_head = True if latest_commit == found_commit else False
+
+        if found_commit:
+            LOG.warning(
+                "Commit already cherry-picked to branch. Commit details: %s\nContinuing execution", found_commit
+            )
+            if not self.found_commit_at_head:
+                LOG.warning(
+                    "Found cherry-picked commit but it is not at HEAD. Will not touch the commit message of HEAD!"
+                )
+            else:
+                # If self.downstream_base_ref is specified, move that branch as well
+                self.downstream_repo.move_branch(self.cherry_pick_base_ref)
         else:
             if not self.downstream_repo.is_branch_exist(self.commit_hash):
                 raise ValueError(
@@ -179,6 +194,8 @@ class Backporter:
         Since it triggers a commit, it will also add gerrit Change-Id to the commit.
         :return:
         """
+        if not self.found_commit_at_head:
+            return
         head_commit_msg = self.downstream_repo.get_head_commit_message()
         upstream_jira_id_in_commit_msg = self.upstream_jira_id in head_commit_msg
         commit_msg_starts_with_downstream_jira_id = head_commit_msg.startswith(self.downstream_jira_id)
