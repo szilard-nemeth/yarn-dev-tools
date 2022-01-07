@@ -3,18 +3,13 @@
   "commandType": "REVIEWSYNC",
   "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
   "optionalEnvVars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
-  "mapEnvVarsToYarnDevToolsArgument": {
-    "--gsheet-client-secret": "GSHEET_CLIENT_SECRET",
-    "--gsheet-spreadsheet": "GSHEET_SPREADSHEET",
-    "--gsheet-jira-column": "GSHEET_JIRA_COLUMN"
-  },
   "yarnDevToolsArguments": [
     "--debug",
     "REVIEWSYNC",
     "--gsheet",
-    "--gsheet-client-secret $$",
-    "--gsheet-spreadsheet $$",
-    "--gsheet-jira-column $$"
+    "--gsheet-client-secret ENV(GSHEET_CLIENT_SECRET)",
+    "--gsheet-spreadsheet ENV(GSHEET_SPREADSHEET)",
+    "--gsheet-jira-column ENV(GSHEET_JIRA_COLUMN)"
   ],
   "variables": {
     "algorithm": "testAlgorithm",
