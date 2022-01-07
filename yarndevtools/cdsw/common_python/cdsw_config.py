@@ -3,7 +3,7 @@ import logging
 import os
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from dataclasses_json import dataclass_json, LetterCase, config
 from pythoncommons.date_utils import DateUtils
@@ -26,6 +26,15 @@ LOG = logging.getLogger(__name__)
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class EmailSettings:
+    enabled: bool
+    send_attachment: bool
+    attachment_filename: str
+    subject: str
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class CdswJobConfig:
     job_name: str
     command_type: CommandType = field(metadata=config(encoder=CommandType, decoder=CommandType.from_str, mm_field=None))
@@ -35,6 +44,7 @@ class CdswJobConfig:
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
     resolved_variables: Dict[str, str] = field(default_factory=dict)
+    email_settings: EmailSettings = None
 
 
 @auto_str
@@ -75,6 +85,7 @@ class CdswJobConfigReader:
         self._check_yarn_dev_tools_arguments()
         self.variables = Variables(self.config.variables)
         self.config.resolved_variables = self.variables.resolved_vars
+        self.substitute_variables()
 
     def _validate_optional_env_var_names(self):
         for env_var_name in self.config.optional_env_vars:
@@ -148,6 +159,49 @@ class CdswJobConfigReader:
                 )
             )
 
+    def substitute_variables(self):
+        variable_subst_fields = {"email_settings.subject", "email_settings.attachment_filename"}
+        ph = Variables.VAR_PLACEHOLDER
+        for field_spec in variable_subst_fields:
+            orig_value = self._find_config_attribute_by_field_spec(self.config, field_spec)
+            if not isinstance(orig_value, str):
+                raise ValueError(
+                    "Unexpected configuration attribute '{}', object: {}. Expected type of str!".format(
+                        field_spec, orig_value
+                    )
+                )
+            vars_to_replace = Variables.find_vars_to_replace(orig_value)
+
+            # We don't need recursive replace here
+            mod_value = orig_value
+            for var in vars_to_replace:
+                if var not in self.config.resolved_variables:
+                    raise ValueError("Variable '{}' is not defined!".format(var))
+                resolved_var = self.config.resolved_variables[var]
+                mod_value = mod_value.replace(f"{ph}{var}{ph}", f"{resolved_var}")
+            self._set_config_attribute_by_field_spec(self.config, field_spec, mod_value)
+
+    @staticmethod
+    def _find_config_attribute_by_field_spec(obj, field_spec):
+        fields = field_spec.split(".")
+        for i, attr in enumerate(fields):
+            if not hasattr(obj, attr):
+                raise ValueError("Config object has no field with field spec '{}'!", field_spec)
+            obj = getattr(obj, attr)
+        return obj
+
+    @staticmethod
+    def _set_config_attribute_by_field_spec(obj, field_spec, value: Any):
+        fields = field_spec.split(".")
+        parent = None
+        for i, attr in enumerate(fields):
+            if not hasattr(obj, attr):
+                raise ValueError("Config object has no field with field spec '{}'!", field_spec)
+            parent = obj
+            obj = getattr(obj, attr)
+        LOG.debug("Setting attribute of object '%s.%s' to value '%s'", parent, attr, value)
+        setattr(parent, attr, value)
+
     def __repr__(self):
         return self.__str__()
 
@@ -164,12 +218,12 @@ class Variables:
     def check_variables(self):
         for var_name, raw_var in self.orig_vars.items():
             if self.VAR_PLACEHOLDER in raw_var:
-                vars_to_replace = self._find_vars_to_replace(raw_var)
+                vars_to_replace = self.find_vars_to_replace(raw_var)
                 modified_var = self._replace_vars(self.resolved_vars, raw_var, vars_to_replace)
                 self.resolved_vars[var_name] = modified_var
 
     @staticmethod
-    def _find_vars_to_replace(raw_var):
+    def find_vars_to_replace(raw_var):
         ph = Variables.VAR_PLACEHOLDER
         var_sep = re.escape(ph)
         indices = [m.span() for m in re.finditer(f"{var_sep}.*?{var_sep}", raw_var)]
@@ -202,7 +256,7 @@ class Variables:
                 raise ValueError("Cannot resolve variable '{}' in raw var: {}".format(var, raw_var))
             elif ph in vars[var]:
                 # Variable contains PLACEHOLDERs so it's another variable
-                vars_to_replace = Variables._find_vars_to_replace(vars[var])
+                vars_to_replace = Variables.find_vars_to_replace(vars[var])
                 resolved_var = Variables._replace_vars(vars, vars[var], vars_to_replace)
                 vars[var] = resolved_var
                 raw_var = raw_var.replace(f"{ph}{var}{ph}", f"{resolved_var}")
