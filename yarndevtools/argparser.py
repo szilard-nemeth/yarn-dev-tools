@@ -470,7 +470,7 @@ class ArgParser:
         gsheet_group = ArgParser.add_gsheet_arguments(parser)
 
         gsheet_group.add_argument(
-            "--ghseet-compare-with-jira-table",
+            "--gsheet-compare-with-jira-table",
             dest="gsheet_compare_with_jira_table",
             type=str,
             help="This should be provided if comparison of failed testcases with reported jira table must be performed. "

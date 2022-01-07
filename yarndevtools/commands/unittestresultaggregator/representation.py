@@ -514,10 +514,10 @@ class TableRenderer:
 
 
 class UnitTestResultOutputManager:
-    def __init__(self, output_dir, console_mode, ghseet_wrapper):
+    def __init__(self, output_dir, console_mode, gsheet_wrapper):
         self.output_dir = output_dir
         self.console_mode = console_mode
-        self.gsheet_wrapper = ghseet_wrapper
+        self.gsheet_wrapper = gsheet_wrapper
 
     def _write_to_configured_destinations(
         self,
