@@ -350,7 +350,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             YarnCdswBranchDiffTests.config = PROD_CONFIG
 
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
-        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
+        ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         cls._setup_logging()
         cls.docker_test_setup = DockerTestSetup(
             DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=cls.config.dockerfile, logger=CMD_LOG

@@ -1,10 +1,11 @@
 import logging
 import unittest
 
-from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_HOTFIX
-from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.commands.backporter import Backporter
 from pythoncommons.git_constants import ORIGIN
+
+from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_HOTFIX
+from yarndevtools.commands.backporter import Backporter
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import TRUNK, BRANCH_3_1
 from yarndevtools.yarn_dev_tools import DEFAULT_BASE_BRANCH
 
