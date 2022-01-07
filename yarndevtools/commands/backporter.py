@@ -52,6 +52,7 @@ class Backporter:
     """
 
     def __init__(self, args, upstream_repo, downstream_repo):
+        self.cherry_picked_successfully = False
         self.args = args
         self.downstream_jira_id = self.args.downstream_jira_id
         self.downstream_branch = self.args.downstream_branch
@@ -179,6 +180,7 @@ class Backporter:
                 )
             cherry_pick_result = self.downstream_repo.cherry_pick(self.commit_hash, x=True)
             if cherry_pick_result:
+                self.cherry_picked_successfully = True
                 # If self.downstream_base_ref is specified, move that branch as well
                 self.downstream_repo.move_branch(self.cherry_pick_base_ref)
             else:
@@ -194,7 +196,7 @@ class Backporter:
         Since it triggers a commit, it will also add gerrit Change-Id to the commit.
         :return:
         """
-        if not self.found_commit_at_head:
+        if not self.found_commit_at_head and not self.cherry_picked_successfully:
             return
         head_commit_msg = self.downstream_repo.get_head_commit_message()
         upstream_jira_id_in_commit_msg = self.upstream_jira_id in head_commit_msg
