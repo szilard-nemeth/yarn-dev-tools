@@ -26,7 +26,11 @@
   "emailSettings": {
     "enabled": false,
     "sendAttachment": true,
-    "attachmentFilename": "attachmentFilename",
+    "attachmentFileName": "attachmentFileName",
     "subject": "testSubject"
+  },
+    "driveApiUploadSettings": {
+    "enabled": false,
+    "fileName": "simple"
   }
 }
