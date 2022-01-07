@@ -1,6 +1,7 @@
 import logging
 import unittest
 
+import pytest
 from pythoncommons.git_constants import ORIGIN
 
 from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_HOTFIX
@@ -75,12 +76,20 @@ class TestBackporter(unittest.TestCase):
             args.downstream_base_ref = cherry_pick_base_ref
         return args
 
-    def cleanup_and_checkout_branch(self, branch=None, checkout_from=None):
+    def cleanup_and_checkout_branch_in_upstream_repo(self, branch=None, checkout_from=None, remove=True):
+        self._cleanup_and_checkout_branch_internal(self.upstream_utils, branch, checkout_from, remove)
+
+    def cleanup_and_checkout_branch_in_downstream_repo(self, branch=None, checkout_from=None, remove=True):
+        self._cleanup_and_checkout_branch_internal(self.downstream_utils, branch, checkout_from, remove)
+
+    def _cleanup_and_checkout_branch_internal(self, utils: TestUtilities, branch=None, checkout_from=None, remove=True):
         if branch:
-            self.upstream_utils.cleanup_and_checkout_test_branch(pull=False, branch=branch, checkout_from=checkout_from)
+            utils.cleanup_and_checkout_test_branch(
+                pull=False, branch=branch, checkout_from=checkout_from, remove=remove
+            )
             self.assertEqual(branch, str(self.upstream_repo.head.ref))
         else:
-            self.upstream_utils.cleanup_and_checkout_test_branch(pull=False, checkout_from=checkout_from)
+            utils.cleanup_and_checkout_test_branch(pull=False, checkout_from=checkout_from)
             self.assertEqual(YARN_TEST_BRANCH, str(self.upstream_repo.head.ref))
 
     def test_with_uncommitted_should_raise_error(self):
@@ -91,7 +100,7 @@ class TestBackporter(unittest.TestCase):
         self.assertRaises(ValueError, backporter.run)
 
     def test_with_committed_with_wrong_message_should_raise_error(self):
-        self.cleanup_and_checkout_branch()
+        self.cleanup_and_checkout_branch_in_upstream_repo()
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix="dummy")
         args = self.setup_args()
 
@@ -99,7 +108,7 @@ class TestBackporter(unittest.TestCase):
         self.assertRaises(ValueError, backporter.run)
 
     def test_with_committed_with_good_message_remote_to_upstream_does_not_exist(self):
-        self.cleanup_and_checkout_branch()
+        self.cleanup_and_checkout_branch_in_upstream_repo()
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
         args = self.setup_args()
 
@@ -110,7 +119,7 @@ class TestBackporter(unittest.TestCase):
         self.assertRaises(ValueError, backporter.run)
 
     def test_with_committed_with_good_message(self):
-        self.cleanup_and_checkout_branch()
+        self.cleanup_and_checkout_branch_in_upstream_repo()
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
         args = self.setup_args(cherry_pick_base_ref=CHERRY_PICK_BASE_REF)
 
@@ -125,9 +134,10 @@ class TestBackporter(unittest.TestCase):
         self.downstream_utils.verify_commit_message_of_branch(
             self.full_ds_branch, expected_commit_msg, verify_cherry_picked_from=True
         )
+        self.downstream_utils.verify_if_branch_is_moved_to_latest_commit(self.full_ds_branch)
 
     def test_backport_from_branch31(self):
-        self.cleanup_and_checkout_branch(branch=BRANCH_3_1, checkout_from=ORIGIN + "/" + BRANCH_3_1)
+        self.cleanup_and_checkout_branch_in_upstream_repo(branch=BRANCH_3_1, checkout_from=ORIGIN + "/" + BRANCH_3_1)
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
         args = self.setup_args(cherry_pick_base_ref=CHERRY_PICK_BASE_REF)
         args.upstream_branch = BRANCH_3_1
@@ -143,3 +153,35 @@ class TestBackporter(unittest.TestCase):
         self.downstream_utils.verify_commit_message_of_branch(
             self.full_ds_branch, expected_commit_msg, verify_cherry_picked_from=True
         )
+        self.downstream_utils.verify_if_branch_is_moved_to_latest_commit(self.full_ds_branch)
+
+    @pytest.mark.skip(reason="Investigate failure later")
+    def test_backport_relation_chain(self):
+        self.cleanup_and_checkout_branch_in_upstream_repo(branch=BRANCH_3_1, checkout_from=ORIGIN + "/" + BRANCH_3_1)
+        self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
+
+        # Make some commits in downstream repo to simulate a relation chain
+        relation_chain_branch_name = "my-relation-chain"
+        self.cleanup_and_checkout_branch_in_downstream_repo(
+            branch=relation_chain_branch_name, checkout_from=ORIGIN + "/" + TRUNK, remove=False
+        )
+        self.downstream_utils.add_some_file_changes(commit=True, commit_message_prefix="commit-1")
+        self.downstream_utils.add_some_file_changes(commit=True, commit_message_prefix="commit-2")
+        self.downstream_utils.add_some_file_changes(commit=True, commit_message_prefix="commit-3")
+
+        args = self.setup_args(cherry_pick_base_ref=relation_chain_branch_name)
+        args.upstream_branch = BRANCH_3_1
+
+        backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper)
+        backporter.run()
+
+        expected_commit_msg = f"{DOWNSTREAM_JIRA_ID}: {UPSTREAM_JIRA_ID}test_commit"
+        self.assertTrue(
+            self.full_ds_branch in self.downstream_repo.heads,
+            f"Created downstream branch does not exist: {self.full_ds_branch}",
+        )
+        self.downstream_utils.verify_commit_message_of_branch(
+            self.full_ds_branch, expected_commit_msg, verify_cherry_picked_from=True
+        )
+        self.downstream_utils.verify_if_branch_is_moved_to_latest_commit(self.full_ds_branch)
+        self.downstream_utils.verify_if_branch_is_moved_to_latest_commit(relation_chain_branch_name)

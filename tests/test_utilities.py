@@ -253,6 +253,11 @@ class TestUtilities:
         if verify_cherry_picked_from:
             TESTCASE.assertIn("cherry picked from commit ", commit_msg)
 
+    def verify_if_branch_is_moved_to_latest_commit(self, branch):
+        branch_hash = self.repo_wrapper.get_hash_of_commit(branch)
+        head_hash = self.repo_wrapper.repo.head.commit.hexsha
+        TESTCASE.assertEqual(branch_hash, head_hash)
+
     def assert_files_not_empty(self, basedir, expected_files=None):
         found_files = FileUtils.find_files(basedir, regex=".*", single_level=True, full_path_result=True)
         for f in found_files:
