@@ -3,14 +3,12 @@
   "commandType": "REVIEWSYNC",
   "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
   "optionalEnvVars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
-  "mapEnvVarsToYarnDevToolsArgument": {
-    "--gsheet-client-secret": "GSHEET_CLIENT_SECRET",
-    "--gsheet-spreadsheet": "GSHEET_SPREADSHEET",
-    "--gsheet-jira-column": "GSHEET_JIRA_COLUMN"
-  },
   "yarnDevToolsArguments": [
     "--gsheet-client-secret2 $$",
-    "--gsheet-client-secret3 $$"],
+    "--gsheet-client-secret3 $$",
+  "--gsheet-client-secret ENV(GSHEET_CLIENT_SECRET)",
+    "--gsheet-spreadsheet ENV(GSHEET_SPREADSHEET)",
+    "--gsheet-jira-column ENV(GSHEET_JIRA_COLUMN)"],
   "emailSettings": {
     "enabled": false,
     "sendAttachment": true,

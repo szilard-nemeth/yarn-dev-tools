@@ -10,7 +10,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons
-from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader
+from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader, RegularVariables
 from yarndevtools.common.shared_command_utils import CommandType
 
 VALID_CONFIG_FILE = "cdsw_job_config.json"
@@ -141,21 +141,6 @@ class CdswConfigReaderTest(unittest.TestCase):
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
 
-    def test_config_reader_env_vars_mapped_to_yarndevtools_args(self):
-        self._set_mandatory_env_vars()
-        file = self._get_config_file(VALID_CONFIG_FILE)
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
-
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual(
-            {
-                "--gsheet-client-secret": "GSHEET_CLIENT_SECRET",
-                "--gsheet-spreadsheet": "GSHEET_SPREADSHEET",
-                "--gsheet-jira-column": "GSHEET_JIRA_COLUMN",
-            },
-            config_reader.config.map_env_vars_to_yarn_dev_tools_argument,
-        )
-
     def test_config_reader_if_optional_arg_is_mapped_to_yarndevtools_args_it_becomes_mandatory(self):
         os.environ["GSHEET_CLIENT_SECRET"] = "sshhhh_secret"
         os.environ["GSHEET_SPREADSHEET"] = "test_sheet"
@@ -184,18 +169,7 @@ class CdswConfigReaderTest(unittest.TestCase):
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
-        self.assertIn("Expected a mapped argument in format: <yarndevtools argument name><SPACE><PLACEHOLDER>", exc_msg)
-
-    def test_config_reader_unmapped_yarndevtools_args(self):
-        self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_unmapped_yarndevtools_args.json")
-        with self.assertRaises(ValueError) as ve:
-            CdswJobConfigReader.read_from_file(file)
-        exc_msg = ve.exception.args[0]
-        LOG.info(exc_msg)
-        self.assertIn("The following yarndevtools arguments are unmapped", exc_msg)
-        self.assertIn("--gsheet-client-secret2", exc_msg)
-        self.assertIn("--gsheet-client-secret3", exc_msg)
+        self.assertIn("Malformed variable declaration in string: --argument", exc_msg)
 
     def test_config_reader_variables(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
@@ -334,9 +308,9 @@ class CdswConfigReaderTest(unittest.TestCase):
         )
         self.assertFalse(config_reader.config.drive_api_upload_settings.enabled)
 
-    def test_config_reader_additional_yarn_dev_tools_arguments(self):
+    def test_config_reader_additional_yarn_dev_tools_arguments_env_vars(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_additional_yarn_dev_tools_arguments.json")
+        file = self._get_config_file("cdsw_job_config_additional_yarn_dev_tools_arguments_env_vars.json")
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config.additional_yarn_dev_tools_arguments)
@@ -345,9 +319,9 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--debug",
                 "REVIEWSYNC",
                 "--gsheet",
-                "--gsheet-client-secret $$",
-                "--gsheet-spreadsheet $$",
-                "--gsheet-jira-column $$",
+                "--gsheet-client-secret 'gsheet client secret'",
+                "--gsheet-spreadsheet 'gsheet spreadsheet'",
+                "--gsheet-jira-column 'gsheet jira column'",
             ],
             config_reader.config.yarn_dev_tools_arguments,
         )
@@ -360,9 +334,44 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--debug",
                 "REVIEWSYNC",
                 "--gsheet",
-                '--gsheet-client-secret "gsheet client secret"',
-                '--gsheet-spreadsheet "gsheet spreadsheet"',
-                "--gsheet-jira-column gsheet jira column",
+                "--gsheet-client-secret 'gsheet client secret'",
+                "--gsheet-spreadsheet 'gsheet spreadsheet'",
+                "--gsheet-jira-column 'gsheet jira column'",
+                "--arg1",
+                "--arg2 param1 param2",
+                "--arg3 param1",
+                "--arg4",
+            ],
+            config_reader.config.final_yarn_dev_tools_arguments,
+        )
+
+    def test_config_reader_additional_yarn_dev_tools_arguments_regular_vars(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_additional_yarn_dev_tools_arguments_regular_vars.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        job_start_date = RegularVariables.BUILT_IN_VARIABLES["JOB_START_DATE"]
+
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--algo testAlgorithm",
+                f"--command-data-filename command_data_testAlgorithm_{job_start_date}.zip",
+            ],
+            config_reader.config.yarn_dev_tools_arguments,
+        )
+        self.assertEqual(
+            ["--arg1", "--arg2 param1 param2", "--arg3 param1", "--arg4"],
+            config_reader.config.additional_yarn_dev_tools_arguments,
+        )
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--algo testAlgorithm",
+                f"--command-data-filename command_data_testAlgorithm_{job_start_date}.zip",
                 "--arg1",
                 "--arg2 param1 param2",
                 "--arg3 param1",
@@ -377,6 +386,26 @@ class CdswConfigReaderTest(unittest.TestCase):
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config_reader.config.final_yarn_dev_tools_arguments)
+
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--gsheet-client-secret 'gsheet client secret'",
+                "--gsheet-spreadsheet 'gsheet spreadsheet'",
+                "--gsheet-jira-column 'gsheet jira column'",
+            ],
+            config_reader.config.yarn_dev_tools_arguments,
+        )
+        self.assertEqual(
+            [
+                "--arg1",
+                "--gsheet-client-secret bla",
+                "--gsheet-spreadsheet bla2",
+            ],
+            config_reader.config.additional_yarn_dev_tools_arguments,
+        )
         self.assertEqual(
             [
                 "--debug",
@@ -384,10 +413,10 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--gsheet",
                 "--gsheet-client-secret bla",
                 "--gsheet-spreadsheet bla2",
-                '--gsheet-jira-column "gsheet jira column"',
+                "--gsheet-jira-column 'gsheet jira column'",
                 "--arg1",
             ],
-            config_reader.config.yarn_dev_tools_arguments,
+            config_reader.config.final_yarn_dev_tools_arguments,
         )
 
     def _match_env_var_for_regex(self, config, env_name, regex):
@@ -405,8 +434,6 @@ class CdswConfigReaderTest(unittest.TestCase):
                 )
             )
         LOG.debug("Found date: %s", match.group(1))
-
-    # TODO test unresolved variable
 
     @classmethod
     def _get_config_file(cls, file_name):
