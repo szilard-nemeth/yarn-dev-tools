@@ -21,5 +21,11 @@
     "varA": "$$varB$$",
     "varB": "$$varC$$",
     "varC": "$$varD$$"
+  },
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
   }
 }

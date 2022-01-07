@@ -19,5 +19,11 @@
   "variables": {
     "algorithm": "testAlgorithm",
     "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE.zip"
+  },
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
   }
 }

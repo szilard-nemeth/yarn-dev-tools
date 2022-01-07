@@ -38,13 +38,13 @@ class EmailSettings:
 class CdswJobConfig:
     job_name: str
     command_type: CommandType = field(metadata=config(encoder=CommandType, decoder=CommandType.from_str, mm_field=None))
+    email_settings: EmailSettings
     mandatory_env_vars: List[str] = field(default_factory=list)
     optional_env_vars: List[str] = field(default_factory=list)
     map_env_vars_to_yarn_dev_tools_argument: Dict[str, str] = field(default_factory=dict)
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
     resolved_variables: Dict[str, str] = field(default_factory=dict)
-    email_settings: EmailSettings = None
 
 
 @auto_str

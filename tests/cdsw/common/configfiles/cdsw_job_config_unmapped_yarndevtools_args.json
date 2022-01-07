@@ -10,5 +10,11 @@
   },
   "yarnDevToolsArguments": [
     "--gsheet-client-secret2 $$",
-    "--gsheet-client-secret3 $$"]
+    "--gsheet-client-secret3 $$"],
+  "emailSettings": {
+    "enabled": false,
+    "sendAttachment": true,
+    "attachmentFilename": "attachmentFilename",
+    "subject": "testSubject"
+  }
 }
