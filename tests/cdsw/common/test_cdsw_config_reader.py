@@ -334,6 +334,62 @@ class CdswConfigReaderTest(unittest.TestCase):
         )
         self.assertFalse(config_reader.config.drive_api_upload_settings.enabled)
 
+    def test_config_reader_additional_yarn_dev_tools_arguments(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_additional_yarn_dev_tools_arguments.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.additional_yarn_dev_tools_arguments)
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--gsheet-client-secret $$",
+                "--gsheet-spreadsheet $$",
+                "--gsheet-jira-column $$",
+            ],
+            config_reader.config.yarn_dev_tools_arguments,
+        )
+        self.assertEqual(
+            ["--arg1", "--arg2 param1 param2", "--arg3 param1", "--arg4"],
+            config_reader.config.additional_yarn_dev_tools_arguments,
+        )
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                '--gsheet-client-secret "gsheet client secret"',
+                '--gsheet-spreadsheet "gsheet spreadsheet"',
+                "--gsheet-jira-column gsheet jira column",
+                "--arg1",
+                "--arg2 param1 param2",
+                "--arg3 param1",
+                "--arg4",
+            ],
+            config_reader.config.final_yarn_dev_tools_arguments,
+        )
+
+    def test_config_reader_additional_yarn_dev_tools_arguments_overrides(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_additional_yarn_dev_tools_arguments_overrides.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.final_yarn_dev_tools_arguments)
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--gsheet-client-secret bla",
+                "--gsheet-spreadsheet bla2",
+                '--gsheet-jira-column "gsheet jira column"',
+                "--arg1",
+            ],
+            config_reader.config.yarn_dev_tools_arguments,
+        )
+
     def _match_env_var_for_regex(self, config, env_name, regex):
         LOG.debug(
             "Matching Env var with name '%s' with resolved value of %s, Original value: %s",
