@@ -29,8 +29,15 @@ LOG = logging.getLogger(__name__)
 class EmailSettings:
     enabled: bool
     send_attachment: bool
-    attachment_filename: str
+    attachment_file_name: str
     subject: str
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class DriveApiUploadSettings:
+    enabled: bool
+    file_name: str
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -39,6 +46,7 @@ class CdswJobConfig:
     job_name: str
     command_type: CommandType = field(metadata=config(encoder=CommandType, decoder=CommandType.from_str, mm_field=None))
     email_settings: EmailSettings
+    drive_api_upload_settings: DriveApiUploadSettings
     mandatory_env_vars: List[str] = field(default_factory=list)
     optional_env_vars: List[str] = field(default_factory=list)
     map_env_vars_to_yarn_dev_tools_argument: Dict[str, str] = field(default_factory=dict)
@@ -50,6 +58,11 @@ class CdswJobConfig:
 @auto_str
 class CdswJobConfigReader:
     ARG_PLACEHOLDER = "$$"
+    VARIABLE_SUBSTITUTION_FIELDS = {
+        "email_settings.subject",
+        "email_settings.attachment_file_name",
+        "drive_api_upload_settings.file_name",
+    }
 
     command_to_env_var_class = {
         CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaCheckerEnvVar,
@@ -160,9 +173,8 @@ class CdswJobConfigReader:
             )
 
     def substitute_variables(self):
-        variable_subst_fields = {"email_settings.subject", "email_settings.attachment_filename"}
         ph = Variables.VAR_PLACEHOLDER
-        for field_spec in variable_subst_fields:
+        for field_spec in self.VARIABLE_SUBSTITUTION_FIELDS:
             orig_value = self._find_config_attribute_by_field_spec(self.config, field_spec)
             if not isinstance(orig_value, str):
                 raise ValueError(
@@ -193,14 +205,15 @@ class CdswJobConfigReader:
     @staticmethod
     def _set_config_attribute_by_field_spec(obj, field_spec, value: Any):
         fields = field_spec.split(".")
-        parent = None
+        parent = attr = None
         for i, attr in enumerate(fields):
             if not hasattr(obj, attr):
                 raise ValueError("Config object has no field with field spec '{}'!", field_spec)
             parent = obj
             obj = getattr(obj, attr)
-        LOG.debug("Setting attribute of object '%s.%s' to value '%s'", parent, attr, value)
-        setattr(parent, attr, value)
+        if attr:
+            LOG.debug("Setting attribute of object '%s.%s' to value '%s'", parent, attr, value)
+            setattr(parent, attr, value)
 
     def __repr__(self):
         return self.__str__()
