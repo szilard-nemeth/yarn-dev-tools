@@ -1,4 +1,11 @@
 {
   "jobName": "Reviewsync",
-  "commandType": "rrr"
+  "commandType": "rrr",
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": []
+    }
+  ]
+
 }

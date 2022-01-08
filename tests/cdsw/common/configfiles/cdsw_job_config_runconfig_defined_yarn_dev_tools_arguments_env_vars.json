@@ -7,10 +7,11 @@
     "--debug",
     "REVIEWSYNC",
     "--gsheet",
-    "--algo $$algorithm$$",
-    "--command-data-filename $$commandDataFileName$$"
+    "--gsheet-client-secret ENV(GSHEET_CLIENT_SECRET)",
+    "--gsheet-spreadsheet ENV(GSHEET_SPREADSHEET)",
+    "--gsheet-jira-column ENV(GSHEET_JIRA_COLUMN)"
   ],
-  "variables": {
+  "globalVariables": {
     "algorithm": "testAlgorithm",
     "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip"
   },
@@ -24,10 +25,15 @@
     "enabled": false,
     "fileName": "simple"
   },
-  "additionalYarnDevToolsArguments": [
-    "--arg1",
-    "--arg2 param1 param2",
-    "--arg3 param1",
-    "--arg4"
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": [
+        "--arg1",
+        "--arg2 param1 param2",
+        "--arg3 param1",
+        "--arg4"
+      ]
+    }
   ]
 }

@@ -13,5 +13,12 @@
     "driveApiUploadSettings": {
     "enabled": false,
     "fileName": "simple"
-  }
+  },
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": []
+    }
+  ]
+
 }

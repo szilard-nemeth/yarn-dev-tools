@@ -11,7 +11,7 @@
     "--gsheet-spreadsheet ENV(GSHEET_SPREADSHEET)",
     "--gsheet-jira-column ENV(GSHEET_JIRA_COLUMN)"
   ],
-  "variables": {
+  "globalVariables": {
     "algorithm": "testAlgorithm",
     "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip"
   },
@@ -25,9 +25,14 @@
     "enabled": false,
     "fileName": "simple"
   },
-  "additionalYarnDevToolsArguments": [
-    "--arg1",
-    "--gsheet-client-secret bla",
-    "--gsheet-spreadsheet bla2"
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": [
+        "--arg1",
+        "--gsheet-client-secret bla",
+        "--gsheet-spreadsheet bla2"
+      ]
+    }
   ]
 }

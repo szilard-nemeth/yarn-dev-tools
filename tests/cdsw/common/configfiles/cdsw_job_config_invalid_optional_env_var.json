@@ -2,5 +2,12 @@
   "jobName": "Reviewsync",
   "commandType": "rrr",
   "mandatoryEnvVars": ["GSHEET_CLIENT_S"],
-  "optionalEnvVars": ["WRONG_VAR"]
+  "optionalEnvVars": ["WRONG_VAR"],
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": []
+    }
+  ]
+
 }

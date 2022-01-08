@@ -1,5 +1,12 @@
 {
   "jobName": "Reviewsync",
   "commandType": "rrr",
-  "mandatoryEnvVars": ["GSHEET_CLIENT_S"]
+  "mandatoryEnvVars": ["GSHEET_CLIENT_S"],
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": []
+    }
+  ]
+
 }
