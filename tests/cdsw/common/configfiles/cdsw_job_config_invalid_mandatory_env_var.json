@@ -4,6 +4,7 @@
   "mandatoryEnvVars": ["GSHEET_CLIENT_S"],
   "runs": [
     {
+      "name": "dummy",
       "variables": {},
       "yarnDevToolsArguments": []
     }

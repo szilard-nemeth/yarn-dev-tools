@@ -5,6 +5,7 @@
   "optionalEnvVars": ["WRONG_VAR"],
   "runs": [
     {
+      "name": "dummy",
       "variables": {},
       "yarnDevToolsArguments": []
     }

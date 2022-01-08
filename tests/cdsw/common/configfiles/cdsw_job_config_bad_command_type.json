@@ -3,6 +3,7 @@
   "commandType": "rrr",
   "runs": [
     {
+      "name": "dummy",
       "variables": {},
       "yarnDevToolsArguments": []
     }

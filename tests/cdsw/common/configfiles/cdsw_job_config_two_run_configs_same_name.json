@@ -13,9 +13,7 @@
   ],
   "globalVariables": {
     "algorithm": "testAlgorithm",
-    "varA": "$$varB$$",
-    "varB": "$$varC$$",
-    "varC": "$$varD$$"
+    "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip"
   },
   "emailSettings": {
     "enabled": false,
@@ -23,16 +21,24 @@
     "attachmentFileName": "attachmentFileName",
     "subject": "testSubject"
   },
-    "driveApiUploadSettings": {
+  "driveApiUploadSettings": {
     "enabled": false,
     "fileName": "simple"
   },
   "runs": [
     {
-      "name": "dummy",
-      "variables": {},
-      "yarnDevToolsArguments": []
+      "name": "dummy1",
+      "variables": {
+      },
+      "yarnDevToolsArguments": [
+      ]
+    },
+    {
+      "name": "dummy1",
+      "variables": {
+      },
+      "yarnDevToolsArguments": [
+      ]
     }
   ]
-
 }

@@ -31,6 +31,7 @@
   },
   "runs": [
     {
+      "name": "dummy1",
       "variables": {
         "algorithm": "yetAnotherAlgorithm",
         "commandDataFileName": "overriddenCommandData",
@@ -47,6 +48,7 @@
       ]
     },
     {
+      "name": "dummy2",
       "variables": {
         "algorithm": "yetAnotherAlgorithm2",
         "commandDataFileName": "overriddenCommandData2",

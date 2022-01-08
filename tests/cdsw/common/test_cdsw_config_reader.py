@@ -478,6 +478,15 @@ class CdswConfigReaderTest(unittest.TestCase):
             config_reader.config.runs[1].yarn_dev_tools_arguments,
         )
 
+    def test_config_reader_two_run_configs_with_same_name_not_allowed(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_two_run_configs_same_name.json")
+        with self.assertRaises(ValueError) as ve:
+            CdswJobConfigReader.read_from_file(file)
+        exc_msg = ve.exception.args[0]
+        LOG.info(exc_msg)
+        self.assertIn("Duplicate job name not allowed!", exc_msg)
+
     def _match_env_var_for_regex(self, config, env_name, regex):
         LOG.debug(
             "Matching Env var with name '%s' with resolved value of %s, Original value: %s",
