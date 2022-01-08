@@ -435,6 +435,49 @@ class CdswConfigReaderTest(unittest.TestCase):
             config_reader.config.runs[0].yarn_dev_tools_arguments,
         )
 
+    def test_config_reader_two_run_configs_defined_complex(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_two_run_configs_defined_complex.json")
+        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config_reader.config.runs[0])
+        self.assertIsNotNone(config_reader.config.runs[1])
+        original_yarndevtools_args = [
+            "--debug",
+            "REVIEWSYNC",
+            "--gsheet",
+            "--gsheet-client-secret 'gsheet client secret'",
+            "--gsheet-spreadsheet 'gsheet spreadsheet'",
+            "--gsheet-jira-column 'gsheet jira column'",
+        ]
+        self.assertEqual(
+            original_yarndevtools_args,
+            config_reader.config.yarn_dev_tools_arguments,
+        )
+        self.assertEqual(
+            original_yarndevtools_args
+            + [
+                "--testArg1 yetAnotherAlgorithm",
+                "--testArg2 overriddenCommandData",
+                "--testArg3 something+globalValue1",
+                "--testArg4 something+globalValue2",
+                "--testArg5 a new variable",
+            ],
+            config_reader.config.runs[0].yarn_dev_tools_arguments,
+        )
+
+        self.assertEqual(
+            original_yarndevtools_args
+            + [
+                "--testArg1 yetAnotherAlgorithm2",
+                "--testArg2 overriddenCommandData2",
+                "--testArg3 var1+globalValue3",
+                "--testArg4 var2+globalValue4",
+                "--testArg5 var3",
+            ],
+            config_reader.config.runs[1].yarn_dev_tools_arguments,
+        )
+
     def _match_env_var_for_regex(self, config, env_name, regex):
         LOG.debug(
             "Matching Env var with name '%s' with resolved value of %s, Original value: %s",
