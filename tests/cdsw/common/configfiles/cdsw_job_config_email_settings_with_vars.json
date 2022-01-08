@@ -6,28 +6,42 @@
   "yarnDevToolsArguments": [
     "--gsheet-client-secret"
   ],
-  "emailSettings": {
-    "enabled": false,
-    "sendAttachment": true,
-    "attachmentFileName": "attachmentFileName+$$testVar3$$+$$testVar4$$",
-    "subject": "testSubject+$$testVar2$$+$$testVar1$$"
-  },
   "globalVariables": {
     "testVar1": "v1",
     "testVar2": "v2",
     "testVar3": "v3",
     "testVar4": "v4"
   },
-    "driveApiUploadSettings": {
-    "enabled": false,
-    "fileName": "simple"
-  },
   "runs": [
     {
       "name": "dummy",
+      "emailSettings": {
+        "enabled": false,
+        "sendAttachment": true,
+        "attachmentFileName": "attachmentFileName+$$testVar3$$+$$testVar4$$",
+        "subject": "testSubject+$$testVar2$$+$$testVar1$$_1"
+      },
+      "driveApiUploadSettings": {
+        "enabled": false,
+        "fileName": "simple"
+      },
+      "variables": {},
+      "yarnDevToolsArguments": []
+    },
+    {
+      "name": "dummy2",
+      "emailSettings": {
+        "enabled": false,
+        "sendAttachment": true,
+        "attachmentFileName": "attachmentFileName+$$testVar1$$",
+        "subject": "testSubject+$$testVar2$$+$$testVar1$$_2"
+      },
+      "driveApiUploadSettings": {
+        "enabled": false,
+        "fileName": "simple"
+      },
       "variables": {},
       "yarnDevToolsArguments": []
     }
   ]
-
 }

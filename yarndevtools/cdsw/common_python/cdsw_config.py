@@ -46,17 +46,6 @@ ENV_VAR_MATCHER_REGEX = "ENV\\((.*?)\\)"
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class CdswRun:
-    name: str
-    yarn_dev_tools_arguments: List[str] = field(default_factory=list)
-    variables: Dict[str, str] = field(default_factory=dict)
-
-    # Dynamic properties
-    resolved_variables: Dict[str, str] = field(default_factory=dict)
-
-
-@dataclass_json(letter_case=LetterCase.CAMEL)
-@dataclass
 class EmailSettings:
     enabled: bool
     send_attachment: bool
@@ -73,11 +62,22 @@ class DriveApiUploadSettings:
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
+class CdswRun:
+    name: str
+    email_settings: EmailSettings
+    drive_api_upload_settings: DriveApiUploadSettings
+    yarn_dev_tools_arguments: List[str] = field(default_factory=list)
+    variables: Dict[str, str] = field(default_factory=dict)
+
+    # Dynamic properties
+    resolved_variables: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
 class CdswJobConfig:
     job_name: str
     command_type: CommandType = field(metadata=config(encoder=CommandType, decoder=CommandType.from_str, mm_field=None))
-    email_settings: EmailSettings
-    drive_api_upload_settings: DriveApiUploadSettings
     runs: List[CdswRun] = field(default_factory=list)
     mandatory_env_vars: List[str] = field(default_factory=list)
     optional_env_vars: List[str] = field(default_factory=list)
@@ -178,9 +178,9 @@ class VariableStores:
 @auto_str
 class CdswJobConfigReader:
     VARIABLE_SUBSTITUTION_FIELDS = [
-        FieldSpec("email_settings.subject"),
-        FieldSpec("email_settings.attachment_file_name"),
-        FieldSpec("drive_api_upload_settings.file_name"),
+        FieldSpec("runs[].email_settings.subject"),
+        FieldSpec("runs[].email_settings.attachment_file_name"),
+        FieldSpec("runs[].drive_api_upload_settings.file_name"),
         FieldSpec("yarn_dev_tools_arguments"),
         FieldSpec("runs[].yarn_dev_tools_arguments"),
     ]
@@ -309,6 +309,7 @@ class FieldSpecResolver:
                 list_of_lists = []
                 for item in obj:
                     list_of_lists.append(getattr(item, attr))
+                parent_obj = obj
                 obj = list_of_lists
             elif attr.endswith(FieldSpec.MARKER):
                 attr = attr[:-2]
@@ -327,7 +328,20 @@ class FieldSpecResolver:
                 else:
                     raise ValueError("Config object has no field with field spec '{}'!", fsi)
         if attr:
-            return ResolvedFieldSpec(attr, obj, parent_obj)
+            rfs = ResolvedFieldSpec(name=attr, value=obj, parent=parent_obj)
+            value_list = isinstance(rfs.value, list)
+            parent_list = isinstance(rfs.parent, list)
+            if parent_list and not value_list:
+                raise ValueError(
+                    "Invalid configuration for Field spec instance {}. If parent is a list, values should be a list as well!"
+                    "Resolved field spec: {}".format(fsi, rfs)
+                )
+            if parent_list and value_list and len(rfs.parent) != len(rfs.value):
+                raise ValueError(
+                    "Invalid configuration for Field spec instance {}. Parent object list should be the same length of value list!"
+                    "Resolved field spec: {}".format(fsi, rfs)
+                )
+            return rfs
         return None
 
 
@@ -341,8 +355,8 @@ class FieldSpecReplacer:
     ):
         for field_spec in field_specs:
             fsi = FieldSpecInstance.create_from(field_spec)
-            resolved_field_spec = field_spec_resolver.find_attribute_by_field_spec(fsi)
-            attribute = resolved_field_spec.value
+            rfs = field_spec_resolver.find_attribute_by_field_spec(fsi)
+            attribute = rfs.value
             if isinstance(attribute, list):
                 if attribute and isinstance(attribute[0], list):
                     # List of lists
@@ -354,13 +368,13 @@ class FieldSpecReplacer:
                             field_spec_resolver, lst, indexed_fsi, transformer_func, variable_store
                         )
                 else:
-                    variable_store = variable_stores.get_store(fsi, resolved_field_spec)
+                    variable_store = variable_stores.get_store(fsi, rfs)
                     FieldSpecReplacer._set_value_to_list_field_spec(
                         field_spec_resolver, attribute, fsi, transformer_func, variable_store
                     )
             elif isinstance(attribute, str):
                 # We don't need recursive substitution here
-                variable_store = variable_stores.get_store(fsi, resolved_field_spec)
+                variable_store = variable_stores.get_store(fsi, rfs)
                 mod_value = transformer_func(attribute, variable_store)
                 FieldSpecReplacer.set_config_attribute_by_field_spec(field_spec_resolver, fsi, mod_value)
             else:
@@ -372,9 +386,37 @@ class FieldSpecReplacer:
 
     @staticmethod
     def set_config_attribute_by_field_spec(field_spec_resolver: FieldSpecResolver, fsi: FieldSpecInstance, value: Any):
+        if not value:
+            LOG.warning("Tried to set None value to field spec: %s", fsi)
+            return
+
         rfs: ResolvedFieldSpec = field_spec_resolver.find_attribute_by_field_spec(fsi)
-        if value:
-            LOG.debug("Setting attribute of object '%s.%s' to value '%s'", rfs.parent, rfs.name, value)
+        LOG.debug("Field spec: %s, Resolved field spec:%s", fsi, rfs)
+
+        if isinstance(rfs.parent, list):
+            if not isinstance(value, list):
+                raise ValueError(
+                    "Expected a value list if parent is a list on the ResolvedFieldSpec: {}. Value: {}".format(
+                        rfs, value
+                    )
+                )
+            for parent_obj, new_value in zip(rfs.parent, value):
+                LOG.debug(
+                    "Setting attribute of object '%s.%s' to value '%s' (original value was: %s)",
+                    rfs.parent,
+                    rfs.name,
+                    new_value,
+                    rfs.value,
+                )
+                setattr(parent_obj, rfs.name, new_value)
+        else:
+            LOG.debug(
+                "Setting attribute of object '%s.%s' to value '%s' (original value was: %s)",
+                rfs.parent,
+                rfs.name,
+                value,
+                rfs.value,
+            )
             setattr(rfs.parent, rfs.name, value)
 
     @staticmethod
