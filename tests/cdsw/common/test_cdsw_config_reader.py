@@ -283,31 +283,40 @@ class CdswConfigReaderTest(unittest.TestCase):
         file = self._get_config_file("cdsw_job_config_email_settings_with_vars.json")
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.email_settings)
-        self.assertEqual("testSubject+v2+v1", config_reader.config.email_settings.subject)
-        self.assertEqual("attachmentFileName+v3+v4", config_reader.config.email_settings.attachment_file_name)
-        self.assertFalse(config_reader.config.email_settings.enabled)
-        self.assertTrue(config_reader.config.email_settings.send_attachment)
+        email_settings_1 = config_reader.config.runs[0].email_settings
+        email_settings_2 = config_reader.config.runs[1].email_settings
+        self.assertIsNotNone(email_settings_1)
+        self.assertIsNotNone(email_settings_2)
+
+        self.assertEqual("testSubject+v2+v1_1", email_settings_1.subject)
+        self.assertEqual("attachmentFileName+v3+v4", email_settings_1.attachment_file_name)
+        self.assertFalse(email_settings_1.enabled)
+        self.assertTrue(email_settings_1.send_attachment)
+
+        self.assertEqual("testSubject+v2+v1_2", email_settings_2.subject)
+        self.assertEqual("attachmentFileName+v1", email_settings_2.attachment_file_name)
+        self.assertFalse(email_settings_2.enabled)
+        self.assertTrue(email_settings_2.send_attachment)
 
     def test_config_reader_drive_api_upload_settings(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.drive_api_upload_settings)
-        self.assertEqual("simple", config_reader.config.drive_api_upload_settings.file_name)
-        self.assertFalse(config_reader.config.drive_api_upload_settings.enabled)
+        drive_api_upload_settings = config_reader.config.runs[0].drive_api_upload_settings
+        self.assertIsNotNone(drive_api_upload_settings)
+        self.assertEqual("simple", drive_api_upload_settings.file_name)
+        self.assertFalse(drive_api_upload_settings.enabled)
 
     def test_config_reader_drive_api_upload_settings_with_vars(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_drive_api_upload_settings_with_vars.json")
         config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.drive_api_upload_settings)
-        self.assertEqual(
-            "constant1_v1_constant2_v3_constant3", config_reader.config.drive_api_upload_settings.file_name
-        )
-        self.assertFalse(config_reader.config.drive_api_upload_settings.enabled)
+        drive_api_upload_settings = config_reader.config.runs[0].drive_api_upload_settings
+        self.assertIsNotNone(drive_api_upload_settings)
+        self.assertEqual("constant1_v1_constant2_v3_constant3", drive_api_upload_settings.file_name)
+        self.assertFalse(drive_api_upload_settings.enabled)
 
     def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_env_vars(self):
         self._set_mandatory_env_vars()

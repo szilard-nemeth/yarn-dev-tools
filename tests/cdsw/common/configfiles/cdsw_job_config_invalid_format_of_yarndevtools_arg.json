@@ -1,26 +1,33 @@
 {
   "jobName": "Reviewsync",
   "commandType": "REVIEWSYNC",
-  "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
-  "optionalEnvVars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
-  "yarnDevToolsArguments": ["--argument  $$"],
-  "emailSettings": {
-    "enabled": false,
-    "sendAttachment": true,
-    "attachmentFileName": "attachmentFileName",
-    "subject": "testSubject"
-  },
-    "driveApiUploadSettings": {
-    "enabled": false,
-    "fileName": "simple"
-  },
+  "mandatoryEnvVars": [
+    "GSHEET_CLIENT_SECRET",
+    "GSHEET_SPREADSHEET",
+    "MAIL_ACC_USER"
+  ],
+  "optionalEnvVars": [
+    "BRANCHES",
+    "GSHEET_JIRA_COLUMN"
+  ],
+  "yarnDevToolsArguments": [
+    "--argument  $$"
+  ],
   "runs": [
     {
       "name": "dummy",
+      "emailSettings": {
+        "enabled": false,
+        "sendAttachment": true,
+        "attachmentFileName": "attachmentFileName",
+        "subject": "testSubject"
+      },
+      "driveApiUploadSettings": {
+        "enabled": false,
+        "fileName": "simple"
+      },
       "variables": {},
       "yarnDevToolsArguments": []
     }
   ]
-
-
 }

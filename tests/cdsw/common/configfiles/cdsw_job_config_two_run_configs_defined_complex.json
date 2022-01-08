@@ -1,8 +1,15 @@
 {
   "jobName": "Reviewsync",
   "commandType": "REVIEWSYNC",
-  "mandatoryEnvVars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
-  "optionalEnvVars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
+  "mandatoryEnvVars": [
+    "GSHEET_CLIENT_SECRET",
+    "GSHEET_SPREADSHEET",
+    "MAIL_ACC_USER"
+  ],
+  "optionalEnvVars": [
+    "BRANCHES",
+    "GSHEET_JIRA_COLUMN"
+  ],
   "yarnDevToolsArguments": [
     "--debug",
     "REVIEWSYNC",
@@ -19,19 +26,19 @@
     "global3": "globalValue3",
     "global4": "globalValue4"
   },
-  "emailSettings": {
-    "enabled": false,
-    "sendAttachment": true,
-    "attachmentFileName": "attachmentFileName",
-    "subject": "testSubject"
-  },
-  "driveApiUploadSettings": {
-    "enabled": false,
-    "fileName": "simple"
-  },
   "runs": [
     {
       "name": "dummy1",
+      "emailSettings": {
+        "enabled": false,
+        "sendAttachment": true,
+        "attachmentFileName": "attachmentFileName",
+        "subject": "testSubject"
+      },
+      "driveApiUploadSettings": {
+        "enabled": false,
+        "fileName": "simple"
+      },
       "variables": {
         "algorithm": "yetAnotherAlgorithm",
         "commandDataFileName": "overriddenCommandData",
@@ -49,6 +56,16 @@
     },
     {
       "name": "dummy2",
+      "emailSettings": {
+        "enabled": false,
+        "sendAttachment": true,
+        "attachmentFileName": "attachmentFileName",
+        "subject": "testSubject"
+      },
+      "driveApiUploadSettings": {
+        "enabled": false,
+        "fileName": "simple"
+      },
       "variables": {
         "algorithm": "yetAnotherAlgorithm2",
         "commandDataFileName": "overriddenCommandData2",
