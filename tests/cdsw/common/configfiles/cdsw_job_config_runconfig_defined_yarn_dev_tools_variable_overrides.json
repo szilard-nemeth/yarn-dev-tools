@@ -13,10 +13,9 @@
   ],
   "globalVariables": {
     "algorithm": "testAlgorithm",
-    "varT": "$$varZ$$$$varS$$",
-    "varZ": "$$varX$$",
-    "varX": "x",
-    "varS": "s"
+    "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip",
+    "global1": "globalValue1",
+    "global2": "globalValue2"
   },
   "emailSettings": {
     "enabled": false,
@@ -24,15 +23,26 @@
     "attachmentFileName": "attachmentFileName",
     "subject": "testSubject"
   },
-    "driveApiUploadSettings": {
+  "driveApiUploadSettings": {
     "enabled": false,
     "fileName": "simple"
   },
   "runs": [
     {
-      "variables": {},
-      "yarnDevToolsArguments": []
+      "variables": {
+        "algorithm": "yetAnotherAlgorithm",
+        "commandDataFileName": "overriddenCommandData",
+        "testGlobal1": "something+$$global1$$",
+        "testGlobal2": "something+$$global2$$",
+        "testNewVar1": "a new variable"
+      },
+      "yarnDevToolsArguments": [
+        "--testArg1 $$algorithm$$",
+        "--testArg2 $$commandDataFileName$$",
+        "--testArg3 $$testGlobal1$$",
+        "--testArg4 $$testGlobal2$$",
+        "--testArg5 $$testNewVar1$$"
+      ]
     }
   ]
-
 }

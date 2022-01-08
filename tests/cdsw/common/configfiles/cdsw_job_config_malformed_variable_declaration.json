@@ -11,7 +11,7 @@
     "--gsheet-spreadsheet ENV(GSHEET_SPREADSHEET)",
     "--gsheet-jira-column ENV(GSHEET_JIRA_COLUMN)"
   ],
-  "variables": {
+  "globalVariables": {
     "algorithm": "testAlgorithm",
     "commandDataFileName": "command_data_$$algorithm$$_$$JOB_START_DATE.zip"
   },
@@ -24,5 +24,12 @@
     "driveApiUploadSettings": {
     "enabled": false,
     "fileName": "simple"
-  }
+  },
+  "runs": [
+    {
+      "variables": {},
+      "yarnDevToolsArguments": []
+    }
+  ]
+
 }
