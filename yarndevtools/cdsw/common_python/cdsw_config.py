@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from copy import copy
+from copy import copy, deepcopy
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Callable
 
@@ -150,6 +150,30 @@ class ResolvedFieldSpec:
     parent: Any
 
 
+class VariableStores:
+    def __init__(self, config: CdswJobConfig):
+        self.variable_stores = {"CONFIG": config.resolved_variables}
+        for idx, run in enumerate(config.runs):
+            self.variable_stores[f"RUN-{idx}"] = run.resolved_variables
+
+    def get_store(self, fsi: FieldSpecInstance, resolved_field_spec: ResolvedFieldSpec):
+        parent_obj = resolved_field_spec.parent
+        store = None
+        if isinstance(parent_obj, CdswJobConfig):
+            store = self.variable_stores["CONFIG"]
+        elif isinstance(parent_obj, CdswRun):
+            if fsi.index is None:
+                raise ValueError(
+                    "Error while getting variable store. Resolved field spec: {}".format(resolved_field_spec)
+                )
+            store = self.variable_stores[f"RUN-{fsi.index}"]
+
+        if store:
+            return store
+        # Fallback to config store if not found
+        return self.variable_stores["CONFIG"]
+
+
 @auto_str
 class CdswJobConfigReader:
     VARIABLE_SUBSTITUTION_FIELDS = [
@@ -192,30 +216,34 @@ class CdswJobConfigReader:
 
         enum_type = self.command_to_env_var_class[self.config.command_type]
         self.field_spec_resolver = FieldSpecResolver(self.config)
-        self.field_spec_replacer = FieldSpecReplacer(self.config, self.field_spec_resolver)
 
         self.environment_variables = EnvironmentVariables(
             self.config.mandatory_env_vars,
             self.config.optional_env_vars,
             self.config.command_type,
             enum_type,
-            self.field_spec_replacer,
         )
         self.global_variables = RegularVariables(self.config.global_variables)
         self.config.resolved_variables = self.global_variables.resolved_vars
         self._setup_vars_for_runs()
-        self.environment_variables.substitute_env_vars(self.field_spec_resolver, FieldSpec("yarn_dev_tools_arguments"))
+        self.variable_stores = VariableStores(self.config)
         self.environment_variables.substitute_env_vars(
-            self.field_spec_resolver, FieldSpec("runs[].yarn_dev_tools_arguments")
+            self.variable_stores, self.field_spec_resolver, FieldSpec("yarn_dev_tools_arguments")
         )
-        self.field_spec_replacer.substitute_regular_variables_in_fields(
-            self.field_spec_resolver, self.VARIABLE_SUBSTITUTION_FIELDS, self._substitute_regular_variable_in_str
+        self.environment_variables.substitute_env_vars(
+            self.variable_stores, self.field_spec_resolver, FieldSpec("runs[].yarn_dev_tools_arguments")
+        )
+        FieldSpecReplacer.substitute_regular_variables_in_fields(
+            self.variable_stores,
+            self.field_spec_resolver,
+            self.VARIABLE_SUBSTITUTION_FIELDS,
+            self._substitute_regular_variable_in_str,
         )
         self._finalize_yarn_dev_tools_arguments()
 
     def _setup_vars_for_runs(self):
         for run in self.config.runs:
-            vars = copy(self.global_variables)
+            vars = deepcopy(self.global_variables)
             vars.add_more_vars(run.variables)
             run.resolved_variables = vars.resolved_vars
 
@@ -246,14 +274,15 @@ class CdswJobConfigReader:
                     LOG.warning(YARN_DEV_TOOLS_VAR_OVERRIDE_TEMPLATE, key)
                 result[key] = split[1:]
 
-    def _substitute_regular_variable_in_str(self, orig_value):
+    @staticmethod
+    def _substitute_regular_variable_in_str(orig_value: str, variable_store: Dict[str, str]) -> str:
         ph = RegularVariables.VAR_PLACEHOLDER
         vars_to_replace = RegularVariables.find_regular_vars_to_replace(orig_value, NORMAL_VAR_MATCHER)
         mod_value = orig_value
         for var in vars_to_replace:
-            if var not in self.config.resolved_variables:
+            if var not in variable_store:
                 raise ValueError("Variable '{}' is not defined! Original value: {}".format(var, orig_value))
-            resolved_var = self.config.resolved_variables[var]
+            resolved_var = variable_store[var]
             mod_value = mod_value.replace(f"{ph}{var}{ph}", f"{resolved_var}")
         return mod_value
 
@@ -265,7 +294,7 @@ class FieldSpecResolver:
     def __init__(self, main_obj):
         self.main_obj = main_obj
 
-    def find_config_attribute_by_field_spec(self, fsi: FieldSpecInstance) -> ResolvedFieldSpec:
+    def find_attribute_by_field_spec(self, fsi: FieldSpecInstance) -> ResolvedFieldSpec:
         obj = self.main_obj
         parent_obj = None
         attr = None
@@ -297,29 +326,37 @@ class FieldSpecResolver:
 
 
 class FieldSpecReplacer:
-    def __init__(self, main_obj, field_spec_resolver):
-        self.main_obj = main_obj
-        self.field_spec_resolver = field_spec_resolver
-
+    @staticmethod
     def substitute_regular_variables_in_fields(
-        self, field_spec_resolver: FieldSpecResolver, field_specs: List[FieldSpec], transformer_func: Callable
+        variable_stores: VariableStores,
+        field_spec_resolver: FieldSpecResolver,
+        field_specs: List[FieldSpec],
+        transformer_func: Callable[[str, Dict[str, str]], str],
     ):
         for field_spec in field_specs:
             fsi = FieldSpecInstance.create_from(field_spec)
-            resolved_field_spec = field_spec_resolver.find_config_attribute_by_field_spec(fsi)
+            resolved_field_spec = field_spec_resolver.find_attribute_by_field_spec(fsi)
             attribute = resolved_field_spec.value
             if isinstance(attribute, list):
                 if attribute and isinstance(attribute[0], list):
                     # List of lists
                     for idx, lst in enumerate(attribute):
                         indexed_fsi = FieldSpecInstance.create_from(field_spec, index=idx)
-                        self._set_value_to_list_field_spec(lst, indexed_fsi, transformer_func)
+                        rfs: ResolvedFieldSpec = field_spec_resolver.find_attribute_by_field_spec(indexed_fsi)
+                        variable_store = variable_stores.get_store(indexed_fsi, rfs)
+                        FieldSpecReplacer._set_value_to_list_field_spec(
+                            field_spec_resolver, lst, indexed_fsi, transformer_func, variable_store
+                        )
                 else:
-                    self._set_value_to_list_field_spec(attribute, fsi, transformer_func)
+                    variable_store = variable_stores.get_store(fsi, resolved_field_spec)
+                    FieldSpecReplacer._set_value_to_list_field_spec(
+                        field_spec_resolver, attribute, fsi, transformer_func, variable_store
+                    )
             elif isinstance(attribute, str):
                 # We don't need recursive substitution here
-                mod_value = transformer_func(attribute)
-                self.set_config_attribute_by_field_spec(fsi, mod_value)
+                variable_store = variable_stores.get_store(fsi, resolved_field_spec)
+                mod_value = transformer_func(attribute, variable_store)
+                FieldSpecReplacer.set_config_attribute_by_field_spec(field_spec_resolver, fsi, mod_value)
             else:
                 raise ValueError(
                     "Unexpected configuration attribute '{}', object: {}. Expected type of str!".format(
@@ -327,17 +364,25 @@ class FieldSpecReplacer:
                     )
                 )
 
-    def set_config_attribute_by_field_spec(self, fsi: FieldSpecInstance, value: Any):
-        rfs: ResolvedFieldSpec = self.field_spec_resolver.find_config_attribute_by_field_spec(fsi)
+    @staticmethod
+    def set_config_attribute_by_field_spec(field_spec_resolver: FieldSpecResolver, fsi: FieldSpecInstance, value: Any):
+        rfs: ResolvedFieldSpec = field_spec_resolver.find_attribute_by_field_spec(fsi)
         if value:
             LOG.debug("Setting attribute of object '%s.%s' to value '%s'", rfs.parent, rfs.name, value)
             setattr(rfs.parent, rfs.name, value)
 
-    def _set_value_to_list_field_spec(self, lst, fsi: FieldSpecInstance, transformer_func):
+    @staticmethod
+    def _set_value_to_list_field_spec(
+        field_spec_resolver,
+        lst,
+        fsi: FieldSpecInstance,
+        transformer_func: Callable[[str, Dict[str, str]], str],
+        variable_store: Dict[str, str],
+    ):
         mod_list = []
         for value in lst:
-            mod_list.append(transformer_func(value))
-        self.set_config_attribute_by_field_spec(fsi, mod_list)
+            mod_list.append(transformer_func(value, variable_store))
+        FieldSpecReplacer.set_config_attribute_by_field_spec(field_spec_resolver, fsi, mod_list)
 
 
 class EnvironmentVariables:
@@ -347,13 +392,11 @@ class EnvironmentVariables:
         optional_env_vars: List[str],
         command_type: CommandType,
         enum_type,
-        field_spec_replacer: FieldSpecReplacer,
     ):
         self.valid_env_vars = [e.value for e in enum_type] + [e.value for e in CdswEnvVar]
         self._validate_mandatory_env_var_names(mandatory_env_vars, command_type)
         self._validate_optional_env_var_names(optional_env_vars, command_type)
         self._ensure_if_mandatory_env_vars_are_set(mandatory_env_vars)
-        self.field_spec_replacer = field_spec_replacer
 
     def _validate_optional_env_var_names(self, optional_env_vars, command_type):
         for env_var_name in optional_env_vars:
@@ -383,10 +426,12 @@ class EnvironmentVariables:
         if not_found_vars:
             raise ValueError("The following env vars are mandatory but they are not set: {}".format(not_found_vars))
 
-    def substitute_env_vars(self, field_spec_resolver: FieldSpecResolver, field_spec: FieldSpec):
+    def substitute_env_vars(
+        self, variable_stores: VariableStores, field_spec_resolver: FieldSpecResolver, field_spec: FieldSpec
+    ):
         # Separate validation from actual substitution
         not_found_vars = []
-        resolved_field_spec = field_spec_resolver.find_config_attribute_by_field_spec(field_spec)
+        resolved_field_spec = field_spec_resolver.find_attribute_by_field_spec(field_spec)
         values = resolved_field_spec.value
         if values and isinstance(values[0], list):
             values = [item for v in values for item in v]
@@ -401,7 +446,7 @@ class EnvironmentVariables:
                 "so they became mandatory but they are not set: {}".format(not_found_vars)
             )
 
-        def replacer(arg):
+        def replacer(arg, variable_store: Dict[str, str]):
             env_vars_to_replace = EnvironmentVariables.find_env_vars_to_replace(arg, ENV_VAR_MATCHER_REGEX)
             env_var_values_for_arg: Dict[str, str] = {}
             for env_var in env_vars_to_replace:
@@ -412,7 +457,9 @@ class EnvironmentVariables:
                 return arg
 
         # Start substitution
-        self.field_spec_replacer.substitute_regular_variables_in_fields(field_spec_resolver, [field_spec], replacer)
+        FieldSpecReplacer.substitute_regular_variables_in_fields(
+            variable_stores, field_spec_resolver, [field_spec], replacer
+        )
 
     @staticmethod
     def find_env_vars_to_replace(value, regex: str):
