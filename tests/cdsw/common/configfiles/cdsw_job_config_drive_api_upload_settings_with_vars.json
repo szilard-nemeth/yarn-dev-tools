@@ -24,6 +24,7 @@
   },
   "runs": [
     {
+      "name": "dummy",
       "variables": {},
       "yarnDevToolsArguments": []
     }

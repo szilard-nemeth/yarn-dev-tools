@@ -47,6 +47,7 @@ ENV_VAR_MATCHER_REGEX = "ENV\\((.*?)\\)"
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class CdswRun:
+    name: str
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
 
@@ -213,6 +214,11 @@ class CdswJobConfigReader:
             raise ValueError("Section 'runs' must be defined and cannot be empty!")
         if not self.config.yarn_dev_tools_arguments:
             raise ValueError("Empty YARN dev tools arguments!")
+        names = set()
+        for run in self.config.runs:
+            if run.name in names:
+                raise ValueError("Duplicate job name not allowed! Job name: {}".format(run.name))
+            names.add(run.name)
 
         enum_type = self.command_to_env_var_class[self.config.command_type]
         self.field_spec_resolver = FieldSpecResolver(self.config)

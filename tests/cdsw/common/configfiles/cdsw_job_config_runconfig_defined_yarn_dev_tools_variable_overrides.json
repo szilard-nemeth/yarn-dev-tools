@@ -29,6 +29,7 @@
   },
   "runs": [
     {
+      "name": "dummy",
       "variables": {
         "algorithm": "yetAnotherAlgorithm",
         "commandDataFileName": "overriddenCommandData",
