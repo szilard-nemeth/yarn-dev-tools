@@ -86,6 +86,9 @@ class CdswJobConfig:
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
     global_variables: Dict[str, str] = field(default_factory=dict)
 
+    # Dynamic properties
+    resolved_variables: Dict[str, str] = field(default_factory=dict)
+
 
 @dataclass
 class FieldSpec:
@@ -537,9 +540,21 @@ class RegularVariables:
     BUILT_IN_VARIABLES = {"JOB_START_DATE": DateUtils.get_current_datetime()}
 
     def __init__(self, orig_vars: Dict[str, str]):
+        self._validate_vars_not_built_in(orig_vars)
         self.orig_vars = orig_vars
         self.resolved_vars: Dict[str, str] = orig_vars.copy()
         self._add_variables(self.orig_vars)
+
+    @staticmethod
+    def _validate_vars_not_built_in(orig_vars):
+        builtins = RegularVariables.BUILT_IN_VARIABLES
+        for var_name in orig_vars:
+            if var_name in builtins:
+                raise ValueError(
+                    "Cannot use variables with the same name as built-in variables. "
+                    "Built-ins: {}"
+                    "Current var: {}".format(builtins, var_name)
+                )
 
     def add_more_vars(self, vars_dict: Dict[str, str]):
         self._add_variables(vars_dict)
@@ -579,16 +594,11 @@ class RegularVariables:
     def _replace_vars(vars, raw_var, vars_to_replace: List[str]):
         # TODO Use NORMAL_VAR_MATCHER!
         ph = RegularVariables.VAR_PLACEHOLDER
-        builtin = RegularVariables.BUILT_IN_VARIABLES
+        builtins = RegularVariables.BUILT_IN_VARIABLES
         for var in vars_to_replace:
-            if var in builtin:
+            if var in builtins:
                 # Built-in variable
-                if var in vars:
-                    raise ValueError(
-                        "Cannot use variables with the same name as built-in variables. "
-                        "Built-ins: {}".format(builtin)
-                    )
-                resolved_var = builtin[var]
+                resolved_var = builtins[var]
                 raw_var = raw_var.replace(f"{ph}{var}{ph}", f"{resolved_var}")
                 vars[var] = resolved_var
             elif var not in vars:
