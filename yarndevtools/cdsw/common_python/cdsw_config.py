@@ -50,6 +50,7 @@ class EmailSettings:
     enabled: bool
     send_attachment: bool
     attachment_file_name: str
+    email_body_file_from_command_data: str
     subject: str
 
 
