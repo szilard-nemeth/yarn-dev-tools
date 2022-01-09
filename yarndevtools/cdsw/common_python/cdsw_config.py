@@ -529,10 +529,16 @@ class EnvironmentVariables:
     def replace_env_vars(value, env_var_values: Dict[str, str]):
         # TODO Use  ENV_VAR_MATCHER_REGEX
         for env_name, env_value in env_var_values.items():
-            if " " in env_value:
-                env_value = f"'{env_value}'"
+            env_value = EnvironmentVariables._sanitize_env_value(env_value)
             value = value.replace(f"ENV({env_name})", env_value)
         return value
+
+    @staticmethod
+    def _sanitize_env_value(env_value):
+        has_quote_or_single_quote = True if "'" in env_value or '"' in env_value else False
+        if " " in env_value and not has_quote_or_single_quote:
+            env_value = f"'{env_value}'"
+        return env_value
 
 
 class RegularVariables:
