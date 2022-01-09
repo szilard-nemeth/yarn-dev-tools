@@ -85,6 +85,7 @@ class CdswJobConfig:
     optional_env_vars: List[str] = field(default_factory=list)
     yarn_dev_tools_arguments: List[str] = field(default_factory=list)
     global_variables: Dict[str, str] = field(default_factory=dict)
+    env_sanitize_exceptions: List[str] = field(default_factory=list)
 
     # Dynamic properties
     resolved_variables: Dict[str, str] = field(default_factory=dict)
@@ -232,6 +233,7 @@ class CdswJobConfigReader:
         self.environment_variables = EnvironmentVariables(
             self.config.mandatory_env_vars,
             self.config.optional_env_vars,
+            self.config.env_sanitize_exceptions,
             self.config.command_type,
             enum_type,
         )
@@ -444,10 +446,12 @@ class EnvironmentVariables:
         self,
         mandatory_env_vars: List[str],
         optional_env_vars: List[str],
+        env_sanitize_exceptions: List[str],
         command_type: CommandType,
         enum_type,
     ):
         self.valid_env_vars = [e.value for e in enum_type] + [e.value for e in CdswEnvVar]
+        self.env_sanitize_exceptions = env_sanitize_exceptions
         self._validate_mandatory_env_var_names(mandatory_env_vars, command_type)
         self._validate_optional_env_var_names(optional_env_vars, command_type)
         self._ensure_if_mandatory_env_vars_are_set(mandatory_env_vars)
@@ -506,7 +510,7 @@ class EnvironmentVariables:
             for env_var in env_vars_to_replace:
                 env_var_values_for_arg[env_var] = os.environ[env_var]
             if env_var_values_for_arg:
-                return EnvironmentVariables.replace_env_vars(arg, env_var_values_for_arg)
+                return self.replace_env_vars(arg, env_var_values_for_arg)
             else:
                 return arg
 
@@ -525,16 +529,17 @@ class EnvironmentVariables:
                 raise ValueError("Found malformed (empty) variable declaration in string: {}".format(value))
         return vars_to_replace
 
-    @staticmethod
-    def replace_env_vars(value, env_var_values: Dict[str, str]):
+    def replace_env_vars(self, value, env_var_values: Dict[str, str]):
         # TODO Use  ENV_VAR_MATCHER_REGEX
         for env_name, env_value in env_var_values.items():
-            env_value = EnvironmentVariables._sanitize_env_value(env_value)
+            env_value = self._sanitize_env_value(env_name, env_value)
             value = value.replace(f"ENV({env_name})", env_value)
         return value
 
-    @staticmethod
-    def _sanitize_env_value(env_value):
+    def _sanitize_env_value(self, env_name, env_value):
+        if env_name in self.env_sanitize_exceptions:
+            LOG.debug("Won't sanitize env var '%s' as per configuration!", env_name)
+            return env_value
         has_quote_or_single_quote = True if "'" in env_value or '"' in env_value else False
         if " " in env_value and not has_quote_or_single_quote:
             env_value = f"'{env_value}'"

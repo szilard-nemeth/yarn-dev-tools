@@ -537,7 +537,8 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "GSHEET_SPREADSHEET": "env2 env22",
                 "GSHEET_JIRA_COLUMN": "env3 'env33' env333",
                 "GSHEET_STATUS_INFO_COLUMN": "'env4 env44'",
-                "BRANCHES": '"env5 env5555"',
+                "GSHEET_UPDATE_DATE_COLUMN": '"env5 env5555"',
+                "BRANCHES": "branch-3.2 branch-3.3",
             }
         )
         file = self._get_config_file("cdsw_job_config_env_var_sanitize_test.json")
@@ -553,6 +554,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg3 env3 'env33' env333",
                 "--arg4 'env4 env44'",
                 '--arg5 "env5 env5555"',
+                "--arg6 branch-3.2 branch-3.3",
             ],
             config.runs[0].yarn_dev_tools_arguments,
         )
