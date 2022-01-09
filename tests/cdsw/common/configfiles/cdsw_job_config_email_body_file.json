@@ -23,7 +23,8 @@
         "sendAttachment": true,
         "attachmentFileName": "attachmentFileName",
         "emailBodyFileFromCommandData": "report-short.html",
-        "subject": "testSubject"
+        "subject": "testSubject",
+        "sender": "testSender"
       },
       "driveApiUploadSettings": {
         "enabled": false,
