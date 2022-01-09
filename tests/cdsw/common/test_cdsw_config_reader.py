@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import unittest
+from typing import Dict
 
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.file_utils import FileUtils
@@ -47,6 +48,11 @@ class CdswConfigReaderTest(unittest.TestCase):
         os.environ["GSHEET_SPREADSHEET"] = "gsheet spreadsheet"
         os.environ["GSHEET_JIRA_COLUMN"] = "gsheet jira column"
         os.environ["MAIL_ACC_USER"] = "mail account user"
+
+    @staticmethod
+    def _set_env_vars_from_dict(dict_of_vars: Dict[str, str]):
+        for k, v in dict_of_vars.items():
+            os.environ[k] = v
 
     @classmethod
     def _setup_logging(cls):
@@ -523,6 +529,33 @@ class CdswConfigReaderTest(unittest.TestCase):
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
         self.assertIn("Duplicate job name not allowed!", exc_msg)
+
+    def test_config_reader_env_var_sanitize(self):
+        self._set_env_vars_from_dict(
+            {
+                "GSHEET_WORKSHEET": "env1",
+                "GSHEET_SPREADSHEET": "env2 env22",
+                "GSHEET_JIRA_COLUMN": "env3 'env33' env333",
+                "GSHEET_STATUS_INFO_COLUMN": "'env4 env44'",
+                "BRANCHES": '"env5 env5555"',
+            }
+        )
+        file = self._get_config_file("cdsw_job_config_env_var_sanitize_test.json")
+        config = CdswJobConfigReader.read_from_file(file)
+
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--arg1 env1",
+                "--arg2 'env2 env22'",
+                "--arg3 env3 'env33' env333",
+                "--arg4 'env4 env44'",
+                '--arg5 "env5 env5555"',
+            ],
+            config.runs[0].yarn_dev_tools_arguments,
+        )
 
     def _match_env_var_for_regex(self, config, env_name, regex):
         LOG.debug(
