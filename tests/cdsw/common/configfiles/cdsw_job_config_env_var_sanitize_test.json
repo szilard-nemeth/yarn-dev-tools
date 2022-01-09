@@ -1,11 +1,13 @@
 {
   "jobName": "Reviewsync",
   "commandType": "REVIEWSYNC",
+  "envSanitizeExceptions": ["BRANCHES"],
   "mandatoryEnvVars": [
     "GSHEET_WORKSHEET",
     "GSHEET_SPREADSHEET",
     "GSHEET_JIRA_COLUMN",
     "GSHEET_STATUS_INFO_COLUMN",
+    "GSHEET_UPDATE_DATE_COLUMN",
     "BRANCHES"
   ],
   "optionalEnvVars": [
@@ -18,7 +20,8 @@
     "--arg2 ENV(GSHEET_SPREADSHEET)",
     "--arg3 ENV(GSHEET_JIRA_COLUMN)",
     "--arg4 ENV(GSHEET_STATUS_INFO_COLUMN)",
-    "--arg5 ENV(BRANCHES)"
+    "--arg5 ENV(GSHEET_UPDATE_DATE_COLUMN)",
+    "--arg6 ENV(BRANCHES)"
   ],
   "globalVariables": {
   },
