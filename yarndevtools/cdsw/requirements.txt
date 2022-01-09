@@ -4,5 +4,5 @@ git+https://github.infra.cloudera.com/snemeth/yarn-dev-tools-mirror
 humanize
 docker
 jira
-pytest
 dataclasses-json
+pytest

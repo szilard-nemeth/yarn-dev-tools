@@ -4,5 +4,5 @@ git+https://github.com/szilard-nemeth/yarn-dev-tools.git
 humanize
 docker
 jira
-pytest
 dataclasses-json
+pytest
