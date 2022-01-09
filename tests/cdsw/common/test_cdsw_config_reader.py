@@ -74,6 +74,17 @@ class CdswConfigReaderTest(unittest.TestCase):
         self.assertIsNotNone(config)
         self.assertEqual(CommandType.REVIEWSYNC, config.command_type)
 
+    def test_config_reader_email_body_file(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_email_body_file.json")
+        config = CdswJobConfigReader.read_from_file(file)
+
+        self.assertIsNotNone(config.runs)
+        run = config.runs[0]
+        self.assertIsNotNone(run)
+        self.assertIsNotNone(run.email_settings)
+        self.assertEqual(run.email_settings.email_body_file_from_command_data, "report-short.html")
+
     def test_config_reader_invalid_command_type(self):
         file = self._get_config_file("cdsw_job_config_bad_command_type.json")
         with self.assertRaises(ValueError) as ve:
