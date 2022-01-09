@@ -38,8 +38,10 @@
       "emailSettings": {
         "enabled": false,
         "sendAttachment": true,
+        "emailBodyFileFromCommandData": "report-short.html",
         "attachmentFileName": "attachmentFileName",
-        "subject": "testSubject"
+        "subject": "testSubject",
+        "sender": "testSender"
       },
       "driveApiUploadSettings": {
         "enabled": false,

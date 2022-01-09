@@ -18,8 +18,10 @@
       "emailSettings": {
         "enabled": false,
         "sendAttachment": true,
+        "emailBodyFileFromCommandData": "report-short.html",
         "attachmentFileName": "attachmentFileName+$$testVar3$$+$$testVar4$$",
-        "subject": "testSubject+$$testVar2$$+$$testVar1$$_1"
+        "subject": "testSubject+$$testVar2$$+$$testVar1$$_1",
+        "sender": "testSender"
       },
       "driveApiUploadSettings": {
         "enabled": false,
@@ -33,8 +35,10 @@
       "emailSettings": {
         "enabled": false,
         "sendAttachment": true,
+        "emailBodyFileFromCommandData": "report-short.html",
         "attachmentFileName": "attachmentFileName+$$testVar1$$",
-        "subject": "testSubject+$$testVar2$$+$$testVar1$$_2"
+        "subject": "testSubject+$$testVar2$$+$$testVar1$$_2",
+        "sender": "testSender"
       },
       "driveApiUploadSettings": {
         "enabled": false,

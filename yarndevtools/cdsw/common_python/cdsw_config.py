@@ -52,6 +52,7 @@ class EmailSettings:
     attachment_file_name: str
     email_body_file_from_command_data: str
     subject: str
+    sender: str
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
