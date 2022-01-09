@@ -61,18 +61,18 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_job_name(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
         self._set_mandatory_env_vars()
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual("Reviewsync", config_reader.config.job_name)
+        self.assertIsNotNone(config)
+        self.assertEqual("Reviewsync", config.job_name)
 
     def test_config_reader_valid_command_type(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual(CommandType.REVIEWSYNC, config_reader.config.command_type)
+        self.assertIsNotNone(config)
+        self.assertEqual(CommandType.REVIEWSYNC, config.command_type)
 
     def test_config_reader_invalid_command_type(self):
         file = self._get_config_file("cdsw_job_config_bad_command_type.json")
@@ -84,12 +84,10 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_valid_mandatory_env_vars(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual(
-            ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"], config_reader.config.mandatory_env_vars
-        )
+        self.assertIsNotNone(config)
+        self.assertEqual(["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"], config.mandatory_env_vars)
 
     def test_config_reader_invalid_mandatory_env_var(self):
         file = self._get_config_file("cdsw_job_config_invalid_mandatory_env_var.json")
@@ -101,12 +99,10 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_positive_case(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
         self._set_mandatory_env_vars()
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual(
-            ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"], config_reader.config.mandatory_env_vars
-        )
+        self.assertIsNotNone(config)
+        self.assertEqual(["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"], config.mandatory_env_vars)
 
     def test_config_reader_check_if_mandatory_env_vars_missing(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
@@ -121,18 +117,18 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_mandatory_env_vars_are_of_correct_command_type(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual(CommandType.REVIEWSYNC, config_reader.config.command_type)
+        self.assertIsNotNone(config)
+        self.assertEqual(CommandType.REVIEWSYNC, config.command_type)
 
     def test_config_reader_valid_optional_env_vars(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config)
-        self.assertEqual(["BRANCHES", "GSHEET_JIRA_COLUMN"], config_reader.config.optional_env_vars)
+        self.assertIsNotNone(config)
+        self.assertEqual(["BRANCHES", "GSHEET_JIRA_COLUMN"], config.optional_env_vars)
 
     def test_config_reader_valid_optional_env_vars_should_be_also_part_of_env_var_class(self):
         file = self._get_config_file("cdsw_job_config_invalid_optional_env_var.json")
@@ -174,19 +170,17 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_variables(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
         self._set_mandatory_env_vars()
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.global_variables)
-        self.assertEqual("testAlgorithm", config_reader.config.global_variables["algorithm"])
+        self.assertIsNotNone(config.global_variables)
+        self.assertEqual("testAlgorithm", config.global_variables["algorithm"])
         # command_data_testAlgorithm_20220105_214629.zip
 
         self.assertEqual(
             "command_data_$$algorithm$$_$$JOB_START_DATE$$.zip",
-            config_reader.config.global_variables["commandDataFileName"],
+            config.global_variables["commandDataFileName"],
         )
-        self._match_env_var_for_regex(
-            config_reader.config, "commandDataFileName", r"command_data_testAlgorithm_(.*)\.zip"
-        )
+        self._match_env_var_for_regex(config, "commandDataFileName", r"command_data_testAlgorithm_(.*)\.zip")
 
     def test_config_reader_using_builtin_variable(self):
         self._set_mandatory_env_vars()
@@ -236,55 +230,55 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_transitive_variable_resolution_valid(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.global_variables)
-        self.assertEqual("testAlgorithm", config_reader.config.global_variables["algorithm"])
+        self.assertIsNotNone(config.global_variables)
+        self.assertEqual("testAlgorithm", config.global_variables["algorithm"])
 
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varE"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varA"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varB"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varC"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varD"])
+        self.assertEqual("no_var_here", config.resolved_variables["varE"])
+        self.assertEqual("no_var_here", config.resolved_variables["varA"])
+        self.assertEqual("no_var_here", config.resolved_variables["varB"])
+        self.assertEqual("no_var_here", config.resolved_variables["varC"])
+        self.assertEqual("no_var_here", config.resolved_variables["varD"])
 
     def test_config_reader_transitive_variable_resolution_valid_more_complex(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid_more_complex.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.global_variables)
-        self.assertEqual("testAlgorithm", config_reader.config.global_variables["algorithm"])
+        self.assertIsNotNone(config.global_variables)
+        self.assertEqual("testAlgorithm", config.global_variables["algorithm"])
 
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varE"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varA"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varB"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varC"])
-        self.assertEqual("no_var_here", config_reader.config.resolved_variables["varD"])
-        self.assertEqual("s", config_reader.config.resolved_variables["varS"])
-        self.assertEqual("xy", config_reader.config.resolved_variables["varZ"])
-        self.assertEqual("xys", config_reader.config.resolved_variables["varT"])
-        self.assertEqual("xys", config_reader.config.resolved_variables["varU"])
+        self.assertEqual("no_var_here", config.resolved_variables["varE"])
+        self.assertEqual("no_var_here", config.resolved_variables["varA"])
+        self.assertEqual("no_var_here", config.resolved_variables["varB"])
+        self.assertEqual("no_var_here", config.resolved_variables["varC"])
+        self.assertEqual("no_var_here", config.resolved_variables["varD"])
+        self.assertEqual("s", config.resolved_variables["varS"])
+        self.assertEqual("xy", config.resolved_variables["varZ"])
+        self.assertEqual("xys", config.resolved_variables["varT"])
+        self.assertEqual("xys", config.resolved_variables["varU"])
 
     def test_config_reader_transitive_variable_resolution_valid_more_complex2(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_transitive_variable_resolution_valid_more_complex2.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.global_variables)
-        self.assertEqual("testAlgorithm", config_reader.config.global_variables["algorithm"])
+        self.assertIsNotNone(config.global_variables)
+        self.assertEqual("testAlgorithm", config.global_variables["algorithm"])
 
-        self.assertEqual("x", config_reader.config.resolved_variables["varZ"])
-        self.assertEqual("xs", config_reader.config.resolved_variables["varT"])
-        self.assertEqual("x", config_reader.config.resolved_variables["varX"])
-        self.assertEqual("s", config_reader.config.resolved_variables["varS"])
+        self.assertEqual("x", config.resolved_variables["varZ"])
+        self.assertEqual("xs", config.resolved_variables["varT"])
+        self.assertEqual("x", config.resolved_variables["varX"])
+        self.assertEqual("s", config.resolved_variables["varS"])
 
     def test_config_reader_email_settings(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_email_settings_with_vars.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        email_settings_1 = config_reader.config.runs[0].email_settings
-        email_settings_2 = config_reader.config.runs[1].email_settings
+        email_settings_1 = config.runs[0].email_settings
+        email_settings_2 = config.runs[1].email_settings
         self.assertIsNotNone(email_settings_1)
         self.assertIsNotNone(email_settings_2)
 
@@ -301,9 +295,9 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_drive_api_upload_settings(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        drive_api_upload_settings = config_reader.config.runs[0].drive_api_upload_settings
+        drive_api_upload_settings = config.runs[0].drive_api_upload_settings
         self.assertIsNotNone(drive_api_upload_settings)
         self.assertEqual("simple", drive_api_upload_settings.file_name)
         self.assertFalse(drive_api_upload_settings.enabled)
@@ -311,9 +305,9 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_drive_api_upload_settings_with_vars(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_drive_api_upload_settings_with_vars.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        drive_api_upload_settings = config_reader.config.runs[0].drive_api_upload_settings
+        drive_api_upload_settings = config.runs[0].drive_api_upload_settings
         self.assertIsNotNone(drive_api_upload_settings)
         self.assertEqual("constant1_v1_constant2_v3_constant3", drive_api_upload_settings.file_name)
         self.assertFalse(drive_api_upload_settings.enabled)
@@ -321,10 +315,10 @@ class CdswConfigReaderTest(unittest.TestCase):
     def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_env_vars(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_env_vars.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.runs[0])
-        self.assertIsNotNone(config_reader.config.runs[0].yarn_dev_tools_arguments)
+        self.assertIsNotNone(config.runs[0])
+        self.assertIsNotNone(config.runs[0].yarn_dev_tools_arguments)
         self.assertEqual(
             [
                 "--debug",
@@ -334,7 +328,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--gsheet-spreadsheet 'gsheet spreadsheet'",
                 "--gsheet-jira-column 'gsheet jira column'",
             ],
-            config_reader.config.yarn_dev_tools_arguments,
+            config.yarn_dev_tools_arguments,
         )
         self.assertEqual(
             [
@@ -349,16 +343,16 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg3 param1",
                 "--arg4",
             ],
-            config_reader.config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].yarn_dev_tools_arguments,
         )
 
     def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_regular_vars(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_regular_vars.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
         job_start_date = RegularVariables.BUILT_IN_VARIABLES["JOB_START_DATE"]
 
-        self.assertIsNotNone(config_reader.config.runs[0])
+        self.assertIsNotNone(config.runs[0])
         self.assertEqual(
             [
                 "--debug",
@@ -367,7 +361,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--algo testAlgorithm",
                 f"--command-data-filename command_data_testAlgorithm_{job_start_date}.zip",
             ],
-            config_reader.config.yarn_dev_tools_arguments,
+            config.yarn_dev_tools_arguments,
         )
         self.assertEqual(
             [
@@ -381,15 +375,15 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg3 param1",
                 "--arg4",
             ],
-            config_reader.config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].yarn_dev_tools_arguments,
         )
 
     def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_overrides(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_overrides.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.runs[0])
+        self.assertIsNotNone(config.runs[0])
         self.assertEqual(
             [
                 "--debug",
@@ -399,7 +393,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--gsheet-spreadsheet 'gsheet spreadsheet'",
                 "--gsheet-jira-column 'gsheet jira column'",
             ],
-            config_reader.config.yarn_dev_tools_arguments,
+            config.yarn_dev_tools_arguments,
         )
         self.assertEqual(
             [
@@ -411,15 +405,15 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--gsheet-jira-column 'gsheet jira column'",
                 "--arg1",
             ],
-            config_reader.config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].yarn_dev_tools_arguments,
         )
 
     def test_config_reader_runconfig_defined_yarn_dev_tools_variable_overrides(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_variable_overrides.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.runs[0])
+        self.assertIsNotNone(config.runs[0])
         original_yarndevtools_args = [
             "--debug",
             "REVIEWSYNC",
@@ -430,7 +424,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         ]
         self.assertEqual(
             original_yarndevtools_args,
-            config_reader.config.yarn_dev_tools_arguments,
+            config.yarn_dev_tools_arguments,
         )
         self.assertEqual(
             original_yarndevtools_args
@@ -441,16 +435,16 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--testArg4 something+globalValue2",
                 "--testArg5 a new variable",
             ],
-            config_reader.config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].yarn_dev_tools_arguments,
         )
 
     def test_config_reader_two_run_configs_defined_complex(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_two_run_configs_defined_complex.json")
-        config_reader: CdswJobConfigReader = CdswJobConfigReader.read_from_file(file)
+        config = CdswJobConfigReader.read_from_file(file)
 
-        self.assertIsNotNone(config_reader.config.runs[0])
-        self.assertIsNotNone(config_reader.config.runs[1])
+        self.assertIsNotNone(config.runs[0])
+        self.assertIsNotNone(config.runs[1])
         original_yarndevtools_args = [
             "--debug",
             "REVIEWSYNC",
@@ -461,7 +455,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         ]
         self.assertEqual(
             original_yarndevtools_args,
-            config_reader.config.yarn_dev_tools_arguments,
+            config.yarn_dev_tools_arguments,
         )
         self.assertEqual(
             original_yarndevtools_args
@@ -472,7 +466,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--testArg4 something+globalValue2",
                 "--testArg5 a new variable",
             ],
-            config_reader.config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].yarn_dev_tools_arguments,
         )
 
         self.assertEqual(
@@ -484,7 +478,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--testArg4 var2+globalValue4",
                 "--testArg5 var3",
             ],
-            config_reader.config.runs[1].yarn_dev_tools_arguments,
+            config.runs[1].yarn_dev_tools_arguments,
         )
 
     def test_config_reader_two_run_configs_with_same_name_not_allowed(self):
