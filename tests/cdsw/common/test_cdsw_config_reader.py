@@ -202,6 +202,29 @@ class CdswConfigReaderTest(unittest.TestCase):
         LOG.info(exc_msg)
         self.assertIn("Cannot use variables with the same name as built-in variables", exc_msg)
 
+    def test_config_reader_using_builtin_variable_in_other_variable(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_using_builtin_variable_in_other_variable.json")
+        config = CdswJobConfigReader.read_from_file(file)
+
+        job_start_date = RegularVariables.BUILT_IN_VARIABLES["JOB_START_DATE"]
+        expected_subject = f"YARN reviewsync report [start date: {job_start_date}]"
+        expected_command_data_file_name = f"command_data_{job_start_date}.zip"
+        self.assertIsNotNone(config.runs[0])
+        self.assertEqual(
+            {
+                "JOB_START_DATE": job_start_date,
+                "sender": "YARN reviewsync",
+                "subject": expected_subject,
+                "commandDataFileName": expected_command_data_file_name,
+            },
+            config.resolved_variables,
+        )
+        self.assertEqual(expected_command_data_file_name, config.runs[0].email_settings.attachment_file_name)
+        self.assertEqual("report-short.html", config.runs[0].email_settings.email_body_file_from_command_data)
+        self.assertEqual("YARN reviewsync", config.runs[0].email_settings.sender)
+        self.assertEqual(expected_subject, config.runs[0].email_settings.subject)
+
     def test_config_reader_malformed_variable_declaration(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_malformed_variable_declaration.json")
