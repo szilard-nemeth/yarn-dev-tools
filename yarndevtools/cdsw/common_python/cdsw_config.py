@@ -196,15 +196,16 @@ class CdswJobConfigReader:
 
     def __init__(self, data):
         self.data = data
-        self.config: CdswJobConfig = self._parse()
-        self._validate()
 
     @staticmethod
     def read_from_file(file):
         data_dict = JsonFileUtils.load_data_from_json_file(file)
-        return CdswJobConfigReader(data_dict)
+        config_reader = CdswJobConfigReader(data_dict)
+        config_reader.config = config_reader.parse()
+        config_reader._validate()
+        return config_reader.config
 
-    def _parse(self):
+    def parse(self):
         job_config = CdswJobConfig.from_json(json.dumps(self.data))
         LOG.info("Job config: %s", job_config)
         return job_config
