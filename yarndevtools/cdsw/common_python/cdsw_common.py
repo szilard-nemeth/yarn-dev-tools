@@ -180,6 +180,9 @@ class CdswRunnerBase(ABC):
         self.common_mail_config = CommonMailConfig()
         self._setup_google_drive()
 
+        # Dynamic
+        self.dry_run = False
+
     def _setup_google_drive(self):
         if OsUtils.is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
@@ -202,21 +205,27 @@ class CdswRunnerBase(ABC):
     def start(self, basedir, cdsw_runner_script_path: str):
         pass
 
-    @staticmethod
-    def run_clone_downstream_repos_script(basedir):
+    def run_clone_downstream_repos_script(self, basedir):
         script = os.path.join(basedir, "clone_downstream_repos.sh")
         cmd = f"{BASHX} {script}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
+        self._run_command(cmd)
 
-    @staticmethod
-    def run_clone_upstream_repos_script(basedir):
+    def run_clone_upstream_repos_script(self, basedir):
         script = os.path.join(basedir, "clone_upstream_repos.sh")
         cmd = f"{BASHX} {script}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
+        self._run_command(cmd)
 
     def execute_yarndevtools_script(self, script_args):
         cmd = f"{PY3} {CommonFiles.YARN_DEV_TOOLS_SCRIPT} {script_args}"
-        SubprocessCommandRunner.run_and_follow_stdout_stderr(cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True)
+        self._run_command(cmd)
+
+    def _run_command(self, cmd):
+        if self.dry_run:
+            LOG.info("[DRY-RUN] Would run command: %s", cmd)
+        else:
+            SubprocessCommandRunner.run_and_follow_stdout_stderr(
+                cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True
+            )
 
     @staticmethod
     def current_date_formatted():
