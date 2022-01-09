@@ -35,7 +35,8 @@ class ReviewSyncConfig:
         self.downstream_branches = args.branches if hasattr(args, "branches") else []
         self.issues = args.issues if hasattr(args, "issues") else []
 
-    def _validate_args(self, parser, args):
+    @staticmethod
+    def _validate_args(parser, args):
         if not args.issues and not args.gsheet_enable:
             parser.error(
                 "Either list of jira issues (--issues) or Google Sheet integration (--gsheet) need to be provided!"
