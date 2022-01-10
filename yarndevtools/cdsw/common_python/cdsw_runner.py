@@ -118,7 +118,7 @@ class NewCdswRunner(CdswRunnerBase):
         self.dry_run = self.cdsw_runner_config.dry_run
 
         setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
-        self.start(setup_result, CdswRunnerBase.get_filename(self.command_type.output_dir_name))
+        self.start(setup_result, None)
 
     def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         self.start_common(setup_result, cdsw_runner_script_path)
@@ -184,7 +184,7 @@ class NewCdswRunner(CdswRunnerBase):
         if drive_link_html_text:
             kwargs["prepend_text_to_email_body"] = drive_link_html_text
 
-        LOG.debug("kwargs for email: %", kwargs)
+        LOG.debug("kwargs for email: %s", kwargs)
         self.send_latest_command_data_in_email(
             sender=run.email_settings.sender,
             subject=run.email_settings.subject,
