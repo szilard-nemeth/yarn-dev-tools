@@ -174,14 +174,15 @@ class CdswSetup:
 
 
 class CdswRunnerBase(ABC):
-    def __init__(self):
+    def __init__(self, dry_run: bool = False):
+        self.executed_commands = []
         self.cdsw_runner_script_path = None
         self.start_date_str = None
         self.common_mail_config = CommonMailConfig()
         self._setup_google_drive()
 
         # Dynamic
-        self.dry_run = False
+        self.dry_run = dry_run
 
     def _setup_google_drive(self):
         if OsUtils.is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
@@ -220,6 +221,7 @@ class CdswRunnerBase(ABC):
         self._run_command(cmd)
 
     def _run_command(self, cmd):
+        self.executed_commands.append(cmd)
         if self.dry_run:
             LOG.info("[DRY-RUN] Would run command: %s", cmd)
         else:
@@ -237,7 +239,7 @@ class CdswRunnerBase(ABC):
             f"{debug_mode} "
             f"{CommandType.ZIP_LATEST_COMMAND_DATA.name} {command_type.name} "
             f"--dest_dir /tmp "
-            f"--ignore-filetypes {ignore_filetypes} "
+            f"--ignore-filetypes {ignore_filetypes}"
         )
 
     def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:

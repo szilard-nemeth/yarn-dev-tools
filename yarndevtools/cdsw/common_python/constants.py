@@ -28,7 +28,7 @@ class BranchComparatorEnvVar(Enum):
 
 
 class JiraUmbrellaCheckerEnvVar(Enum):
-    UMBRELLA_IDS = "UMBRELLA_IDS"  # TODO use this env var class
+    UMBRELLA_IDS = "UMBRELLA_IDS"
 
 
 class ReviewSheetBackportUpdaterEnvVar(Enum):

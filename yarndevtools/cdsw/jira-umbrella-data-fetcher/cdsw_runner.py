@@ -28,6 +28,7 @@ class CdswRunner(CdswRunnerBase):
         self.run_clone_upstream_repos_script(setup_result.basedir)
 
         # umbrella_ids = ["YARN-10496", "YARN-6223", "YARN-8820"]
+        # TODO use this: JiraUmbrellaCheckerEnvVar.UMBRELLA_IDS
         umbrella_ids = ["YARN-10888", "YARN-10889"]
         self.run_upstream_umbrella_checker_and_send_mail(umbrella_ids)
 
