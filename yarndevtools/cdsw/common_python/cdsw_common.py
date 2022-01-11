@@ -277,7 +277,8 @@ class CdswRunnerBase(ABC):
             f"{send_attachment_param}"
         )
 
-    def determine_recipients(self, default_recipients=MAIL_ADDR_YARN_ENG_BP):
+    @staticmethod
+    def determine_recipients(default_recipients=MAIL_ADDR_YARN_ENG_BP):
         recipients_env = OsUtils.get_env_value(CdswEnvVar.MAIL_RECIPIENTS.value)
         if recipients_env:
             return recipients_env
