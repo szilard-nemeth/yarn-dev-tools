@@ -94,9 +94,9 @@ To backport YARN-6221 to 2 branches, run these commands:
 yarn-backport YARN-6221 COMPX-6664 cdpd-master
 yarn-backport YARN-6221 COMPX-6664 CDH-7.1-maint --no-fetch
 ```
-The first argument is the upstream Jira ID
-The second argument is the downstream Jira ID.
-The third argument is the downstream branch.
+The first argument is the upstream Jira ID<br>
+The second argument is the downstream Jira ID.<br>
+The third argument is the downstream branch.<br>
 The `--no-fetch` option is a means to skip git fetch on both repos.
 
 ### How to backport to an already existing relation chain?
@@ -114,11 +114,11 @@ git checkout -b my-relation-chain
 ```
 yarn-backport-c6 YARN-10314 COMPX-7855 CDH-7.1.7.1000 --no-fetch --downstream_base_ref my-relation-chain
 ```
-where, 
-The first argument is the upstream Jira ID
-The second argument is the downstream Jira ID.
-The third argument is the downstream branch.
-The `--no-fetch` option is a means to skip git fetch on both repos.
+where:<br>
+The first argument is the upstream Jira ID<br>
+The second argument is the downstream Jira ID.<br>
+The third argument is the downstream branch.<br>
+The `--no-fetch` option is a means to skip git fetch on both repos.<br>
 The `--downstream_base_ref <local-branch` is a way to use a local branch to base the backport on so the Git remote name won't be prepended.
 
 
@@ -146,7 +146,7 @@ Wait for the session to be launched and open up a terminal by Clicking "Terminal
 
 The script performs the following actions: 
 1. Downloads the scripts that are cloning the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module.
-The download location is: `/home/cdsw/scripts`
+The download location is: `/home/cdsw/scripts`<br>
 Please note that the files will be downloaded from the internal Cloudera mirror of this repository!
 - [clone_downstream_repos.sh](yarndevtools/cdsw/scripts/clone_downstream_repos.sh)
 - [clone_upstream_repos.sh](yarndevtools/cdsw/scripts/clone_upstream_repos.sh)
