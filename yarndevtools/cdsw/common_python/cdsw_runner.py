@@ -67,24 +67,37 @@ class ArgParser:
         return args, parser
 
 
+class NewCdswConfigReaderAdapter:
+    def read_from_file(self, file: str):
+        return CdswJobConfigReader.read_from_file(file)
+
+
 class NewCdswRunnerConfig:
-    def __init__(self, parser, args):
+    def __init__(self, parser, args, config_reader: NewCdswConfigReaderAdapter = None):
         self._validate_args(parser, args)
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
-        self.execution_mode = self.determine_execution_mode()
+        self.execution_mode = self.determine_execution_mode(args)
         if self.execution_mode == ExecutionMode.SPECIFIED_CONFIG_FILE:
             self.job_config_file = args.config_file
         elif self.execution_mode == ExecutionMode.AUTO_DISCOVERY:
             # TODO implement discovery
             pass
-        self.command_type = CommandType[args.cmd_type]
+        self._parse_command_type(args)
         self.dry_run = args.dry_run
+        self.config_reader = config_reader
+
+    def _parse_command_type(self, args):
+        enum_vals = {ct.name: ct for ct in CommandType}
+        if args.cmd_type not in enum_vals:
+            raise ValueError("Invalid command type specified! Possible values are: {}".format(enum_vals))
+        self.command_type = CommandType[args.cmd_type]
 
     @staticmethod
     def _validate_args(parser, args):
         pass
 
-    def determine_execution_mode(self):
+    @staticmethod
+    def determine_execution_mode(args):
         # If there's no --config-file specified, it means auto-discovery
         if not hasattr(args, "config_file"):
             LOG.info("Config file not specified! Activated mode: %s", ExecutionMode.AUTO_DISCOVERY)
@@ -97,28 +110,25 @@ class NewCdswRunnerConfig:
 
 class NewCdswRunner(CdswRunnerBase):
     def __init__(self, config: NewCdswRunnerConfig):
-        super().__init__()
+        super().__init__(dry_run=config.dry_run)
         self.cdsw_runner_config = config
-
-        # Dynamic fields
-        self.job_config: CdswJobConfig
-        self.command_type = None
+        self.dry_run = config.dry_run
+        self.job_config: CdswJobConfig = config.config_reader.read_from_file(config.job_config_file)
+        self.command_type = self._determine_command_type()
 
     # TODO Rename later
     def begin(self):
-        self.job_config: CdswJobConfig = CdswJobConfigReader.read_from_file(config.job_config_file)
+        setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        self.start(setup_result, None)
 
+    def _determine_command_type(self):
         if self.cdsw_runner_config.command_type != self.job_config.command_type:
             raise ValueError(
                 "Specified command line command type is different than job's command type. CLI: {}, Job definition: {}".format(
-                    args.cmd_type, self.job_config.command_type
+                    self.cdsw_runner_config.command_type, self.job_config.command_type
                 )
             )
-        self.command_type = self.job_config.command_type
-        self.dry_run = self.cdsw_runner_config.dry_run
-
-        setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
-        self.start(setup_result, None)
+        return self.job_config.command_type
 
     def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         self.start_common(setup_result, cdsw_runner_script_path)
@@ -127,7 +137,6 @@ class NewCdswRunner(CdswRunnerBase):
     def _execute_runs(self):
         runs: List[CdswRun] = self.job_config.runs
         for run in runs:
-            self.command_data_filename = run.email_settings
             self._execute_yarn_dev_tools(run)
             self._execute_command_data_zipper()
             drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
