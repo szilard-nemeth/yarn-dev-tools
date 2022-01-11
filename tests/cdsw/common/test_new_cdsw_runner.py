@@ -1,8 +1,9 @@
 import unittest
 import logging
 from typing import List, Set
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, call
 
+from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.string_utils import StringUtils
 
@@ -33,6 +34,8 @@ CDSW_JOB_CONFIG_READER_CLASS_NAME = CdswJobConfigReader.__name__
 CDSW_CONFIG_READER_READ_METHOD_PATH = "yarndevtools.cdsw.common_python.cdsw_config.{}".format(
     CDSW_JOB_CONFIG_READER_CLASS_NAME
 )
+SUBPROCESSRUNNER_RUN_METHOD_PATH = "pythoncommons.process.SubprocessCommandRunner.run_and_follow_stdout_stderr"
+CDSW_RUNNER_DRIVE_CDSW_HELPER_PATH = "yarndevtools.cdsw.common_python.cdsw_common.GoogleDriveCdswHelper.upload"
 PARSER = None
 SETUP_RESULT = None
 CDSW_RUNNER_SCRIPT_PATH = None
@@ -65,9 +68,32 @@ class CommandExpectations:
         if not self.arguments_in_order and not self.arguments_with_any_order:
             raise ValueError("Expectation argument lists are both empty!")
 
-        set_of_args = self._get_expected_arguments_as_set()
-        actual_args: Set[str] = self.x(command)
-        self.testcase.assertEqual(set_of_args, actual_args)
+        expected_args_set: Set[str] = self._get_expected_arguments_as_set()
+        actual_args_set: Set[str] = self.extract_args_from_command(command)
+
+        # Check set of args first
+        self.testcase.assertEqual(expected_args_set, actual_args_set)
+
+        # Check ordering as well
+        indices = []
+        for idx, arg in enumerate(self.arguments_in_order):
+            indices.append(command.index(arg))
+            if idx > 1 and indices[idx] < indices[idx - 1]:
+                prev = self.arguments_in_order[indices[idx - 1]]
+                self.testcase.fail(
+                    "Detected wrong order of arguments. {} should be after {}. "
+                    "All expected arguments (In this particular order): {}, "
+                    "Command: {}".format(arg, prev, self.arguments_in_order, command)
+                )
+        arguments_not_found = []
+        for arg in self.arguments_with_any_order:
+            if arg not in command:
+                arguments_not_found.append(arg)
+
+        self.testcase.assertTrue(
+            len(arguments_not_found) == 0,
+            msg="The following arguments are not found: {}, " "command: {}".format(arguments_not_found, command),
+        )
 
     def _get_expected_arguments_as_set(self):
         set_of_args = {*self._split_by(self.arguments_with_any_order), *self._split_by(self.arguments_in_order)}
@@ -86,7 +112,8 @@ class CommandExpectations:
                 lists.append(arg.split(" "))
         return [item for sublist in lists for item in sublist]
 
-    def x(self, command):
+    @staticmethod
+    def extract_args_from_command(command):
         command_parts = command.split(" ")
 
         args_set = set()
@@ -144,6 +171,45 @@ class TestNewCdswRunner(unittest.TestCase):
         args.dry_run = dry_run
         return args
 
+    @staticmethod
+    def _create_cdsw_runner_with_mock_config(args, mock_job_config):
+        mock_job_config_reader: NewCdswConfigReaderAdapter = Mock(spec=NewCdswConfigReaderAdapter)
+        mock_job_config_reader.read_from_file.return_value = mock_job_config
+        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=mock_job_config_reader)
+        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        return cdsw_runner
+
+    @staticmethod
+    def _create_mock_job_config(runs: List[CdswRun]):
+        mock_job_config: CdswJobConfig = Mock(spec=CdswJobConfig)
+        mock_job_config.command_type = DEFAULT_COMMAND_TYPE
+        mock_job_config.runs = runs
+        return mock_job_config
+
+    @staticmethod
+    def _create_mock_cdsw_run(name: str, email_enabled=False, google_drive_upload_enabled=False):
+        mock_run1: CdswRun = Mock(spec=CdswRun)
+        mock_run1.name = name
+        mock_run1.yarn_dev_tools_arguments = ["--arg1", "--arg2 bla", "--arg3 bla3"]
+        mock_run1.email_settings = EmailSettings(
+            enabled=email_enabled,
+            send_attachment=True,
+            attachment_file_name="test_attachment_filename.zip",
+            email_body_file_from_command_data="test",
+            subject="testSubject",
+            sender="testSender",
+        )
+        mock_run1.drive_api_upload_settings = DriveApiUploadSettings(
+            enabled=google_drive_upload_enabled, file_name="testGoogleDriveApiFilename"
+        )
+        return mock_run1
+
+    @staticmethod
+    def create_mock_drive_api_file(file_link: str):
+        mock_drive_file = Mock(spec=DriveApiFile)
+        mock_drive_file.link = file_link
+        return mock_drive_file
+
     def test_argument_parsing_into_config_auto_discovery(self):
         args = self._create_args_for_auto_discovery(dry_run=True)
         config = NewCdswRunnerConfig(None, args)
@@ -170,31 +236,12 @@ class TestNewCdswRunner(unittest.TestCase):
         exc_msg = ve.exception.args[0]
         self.assertIn("Invalid command type specified! Possible values are:", exc_msg)
 
-    def test_execute_runs_single_run(self):
-        mock_job_config: CdswJobConfig = Mock(spec=CdswJobConfig)
-        mock_job_config.command_type = DEFAULT_COMMAND_TYPE
-        mock_run1: CdswRun = Mock(spec=CdswRun)
-        mock_run1.yarn_dev_tools_arguments = ["--arg1", "--arg2 bla", "--arg3 bla3"]
-        mock_run1.email_settings = EmailSettings(
-            enabled=True,
-            send_attachment=True,
-            attachment_file_name="test_attachment_filename.zip",
-            email_body_file_from_command_data="test",
-            subject="testSubject",
-            sender="testSender",
-        )
-        mock_run1.drive_api_upload_settings = DriveApiUploadSettings(
-            enabled=True, file_name="testGoogleDriveApiFilename"
-        )
-
-        mock_job_config.runs = [mock_run1]
+    def test_execute_runs_single_run_with_fake_args(self):
+        mock_run1 = self._create_mock_cdsw_run("run1", email_enabled=True, google_drive_upload_enabled=True)
+        mock_job_config = self._create_mock_job_config([mock_run1])
 
         args = self._create_args_for_specified_file("fake-config-file.json", dry_run=True)
-        mock_job_config_reader: NewCdswConfigReaderAdapter = Mock(spec=NewCdswConfigReaderAdapter)
-        mock_job_config_reader.read_from_file.return_value = mock_job_config
-        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=mock_job_config_reader)
-
-        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
         exp_command_1 = (
@@ -240,6 +287,80 @@ class TestNewCdswRunner(unittest.TestCase):
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
         self._assert_commands(expectations, cdsw_runner.executed_commands)
+
+    @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
+    @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_PATH)
+    def test_execute_two_runs_with_fake_args(self, mock_google_drive_cdsw_helper_upload, mock_subprocess_runner):
+        mock_google_drive_cdsw_helper_upload.return_value = self.create_mock_drive_api_file(
+            "http://googledrive/link-of-file-in-google-drive"
+        )
+
+        mock_run1 = self._create_mock_cdsw_run("run1", email_enabled=True, google_drive_upload_enabled=True)
+        mock_run2 = self._create_mock_cdsw_run("run2", email_enabled=False, google_drive_upload_enabled=False)
+        mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
+
+        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=False)
+        cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
+        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+
+        calls_of_yarndevtools = mock_subprocess_runner.call_args_list
+        calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
+        self.assertIn(
+            "python3 yarndevtools.py --arg1 --arg2 bla --arg3 bla3", self._get_call_arguments(calls_of_yarndevtools, 0)
+        )
+        self.assertIn(
+            "python3 yarndevtools.py --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
+            self._get_call_arguments(calls_of_yarndevtools, 1),
+        )
+        self.assertIn(
+            "python3 yarndevtools.py --debug SEND_LATEST_COMMAND_DATA",
+            self._get_call_arguments(calls_of_yarndevtools, 2),
+        )
+        self.assertEqual(
+            calls_of_google_drive_uploader,
+            [
+                call(
+                    CommandType.REVIEWSYNC,
+                    "/Users/snemeth/snemeth-dev-projects/yarndevtools/latest-command-data-zip-reviewsync",
+                    "testGoogleDriveApiFilename",
+                )
+            ],
+        )
+
+        self.assertIn(
+            "python3 yarndevtools.py --arg1 --arg2 bla --arg3 bla3", self._get_call_arguments(calls_of_yarndevtools, 3)
+        )
+        self.assertIn(
+            "python3 yarndevtools.py --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
+            self._get_call_arguments(calls_of_yarndevtools, 4),
+        )
+
+        # Assert there are no more calls
+        self.assertTrue(
+            len(calls_of_yarndevtools) == 5,
+            msg="Unexpected calls of yarndevtools: {}. First 5 calls are okay.".format(calls_of_yarndevtools),
+        )
+        self.assertTrue(
+            len(calls_of_google_drive_uploader) == 1,
+            msg="Unexpected calls of Google Drive uploader: {}. First call is okay.".format(
+                calls_of_google_drive_uploader
+            ),
+        )
+
+    @staticmethod
+    def _get_call_arguments(mock, index):
+        return mock[index][0][0]
+
+    # TODO TC: Google Drive, settings are not defined
+    # TODO TC: Google Drive, settings are defined but not enabled
+    # TODO TC Dry run does not invoke anything: Email, Drive upload, etc.
+    # TODO TC: CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION is set to False
+    # TODO TC: run_clone_downstream_repos_script
+    # TODO TC: run_clone_upstream_repos_script
+    # TODO TC: execute_yarndevtools_script
+    # TODO TC: run_zipper
+    # TODO TC: upload_command_data_to_drive
+    # TODO TC: send_latest_command_data_in_email
 
     def _assert_commands(self, expectations: List[CommandExpectations], actual_commands: List[str]):
         self.assertEqual(
