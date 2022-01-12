@@ -38,6 +38,9 @@ class CdswConfigReaderTest(unittest.TestCase):
         pass
 
     def tearDown(self) -> None:
+        self._clear_env_vars()
+
+    def _clear_env_vars(self):
         for var in self.MANDATORY_VARS:
             if var in os.environ:
                 del os.environ[var]
