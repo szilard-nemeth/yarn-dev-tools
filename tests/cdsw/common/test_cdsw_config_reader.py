@@ -11,7 +11,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons
-from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader, RegularVariables
+from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader
 from yarndevtools.common.shared_command_utils import CommandType
 
 VALID_CONFIG_FILE = "cdsw_job_config.json"
@@ -216,7 +216,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         file = self._get_config_file("cdsw_job_config_using_builtin_variable_in_other_variable.json")
         config = CdswJobConfigReader.read_from_file(file)
 
-        job_start_date = RegularVariables.BUILT_IN_VARIABLES["JOB_START_DATE"]
+        job_start_date = config.job_start_date
         expected_subject = f"YARN reviewsync report [start date: {job_start_date}]"
         expected_command_data_file_name = f"command_data_{job_start_date}.zip"
         self.assertIsNotNone(config.runs[0])
@@ -393,7 +393,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         self._set_mandatory_env_vars()
         file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_regular_vars.json")
         config = CdswJobConfigReader.read_from_file(file)
-        job_start_date = RegularVariables.BUILT_IN_VARIABLES["JOB_START_DATE"]
+        job_start_date = config.job_start_date
 
         self.assertIsNotNone(config.runs[0])
         self.assertEqual(

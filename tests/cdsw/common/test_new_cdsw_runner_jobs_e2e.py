@@ -114,11 +114,11 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--ignore-filetypes", "java js")
         )
 
-        start_date = cdsw_runner.start_date_str
+        job_start_date = cdsw_runner.job_config.job_start_date
 
         wrap_d = StringUtils.wrap_to_quotes
         wrap_s = StringUtils.wrap_to_single_quotes
-        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{start_date}.zip</a>')
+        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
         exp_command_3 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
@@ -129,10 +129,98 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--smtp_port", "465")
             .add_expected_arg("--account_user", wrap_d("testMailUser"))
             .add_expected_arg("--account_password", wrap_d("testMailPassword"))
-            .add_expected_arg("--subject", wrap_d(f"YARN reviewsync report [start date: {start_date}]"))
+            .add_expected_arg("--subject", wrap_d(f"YARN reviewsync report [start date: {job_start_date}]"))
             .add_expected_arg("--sender", wrap_d("YARN reviewsync"))
             .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
-            .add_expected_arg("--attachment-filename", f"command_data_{start_date}.zip")
+            .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
+            .add_expected_arg("--file-as-email-body-from-zip", "report-short.html")
+            .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
+            .add_expected_arg("--send-attachment")
+        )
+
+        expectations = [exp_command_1, exp_command_2, exp_command_3]
+        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+
+    def test_review_sheet_backport_updater_e2e(self):
+        cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
+        config_file = FileUtils.find_files(
+            cdsw_root_dir,
+            find_type=FindResultType.FILES,
+            regex="review_sheet_backport_updater_.*",
+            single_level=False,
+            full_path_result=True,
+            exclude_dirs=["yarndevtools-results"],
+        )[0]
+
+        self._set_env_vars_from_dict(
+            {
+                "GSHEET_CLIENT_SECRET": "testGsheetClientSecret",
+                "GSHEET_WORKSHEET": "testGsheetWorkSheet",
+                "GSHEET_SPREADSHEET": "testGsheetSpreadSheet",
+                "GSHEET_JIRA_COLUMN": "testGsheetJiraColumn",
+                "GSHEET_UPDATE_DATE_COLUMN": "testGsheetUpdateDateColumn",
+                "GSHEET_STATUS_INFO_COLUMN": "testGsheetStatusInfoColumn",
+                "BRANCHES": "branch-3.2 branch-3.3",
+                "MAIL_ACC_USER": "testMailUser",
+                "MAIL_ACC_PASSWORD": "testMailPassword",
+            }
+        )
+
+        args = self._create_args_for_specified_file(
+            config_file, CommandType.REVIEW_SHEET_BACKPORT_UPDATER, dry_run=True
+        )
+        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=NewCdswConfigReaderAdapter())
+        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+
+        exp_command_1 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("REVIEW_SHEET_BACKPORT_UPDATER")
+            .add_expected_arg("--gsheet")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--gsheet-client-secret", "testGsheetClientSecret")
+            .add_expected_arg("--gsheet-worksheet", "testGsheetWorkSheet")
+            .add_expected_arg("--gsheet-spreadsheet", "testGsheetSpreadSheet")
+            .add_expected_arg("--gsheet-jira-column", "testGsheetJiraColumn")
+            .add_expected_arg("--gsheet-update-date-column", "testGsheetUpdateDateColumn")
+            .add_expected_arg("--gsheet-status-info-column", "testGsheetStatusInfoColumn")
+            .add_expected_arg("--branches", "branch-3.2 branch-3.3")
+        )
+
+        exp_command_2 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
+            .add_expected_ordered_arg("REVIEW_SHEET_BACKPORT_UPDATER")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--dest_dir", "/tmp")
+            .add_expected_arg("--ignore-filetypes", "java js")
+        )
+
+        job_start_date = cdsw_runner.job_config.job_start_date
+
+        wrap_d = StringUtils.wrap_to_quotes
+        wrap_s = StringUtils.wrap_to_single_quotes
+        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
+        exp_command_3 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
+            .add_expected_arg("--smtp_port", "465")
+            .add_expected_arg("--account_user", wrap_d("testMailUser"))
+            .add_expected_arg("--account_password", wrap_d("testMailPassword"))
+            .add_expected_arg(
+                "--subject", wrap_d(f"YARN review sheet backport updater report [start date: {job_start_date}]")
+            )
+            .add_expected_arg("--sender", wrap_d("YARN review sheet backport updater"))
+            .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
+            .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
             .add_expected_arg("--file-as-email-body-from-zip", "report-short.html")
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")

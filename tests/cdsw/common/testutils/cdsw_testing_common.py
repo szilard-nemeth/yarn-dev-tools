@@ -12,6 +12,9 @@ from pythoncommons.project_utils import SimpleProjectUtils
 
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
+DO_NOT_SPLIT_ARG_PARAMS = {"--prepend_email_body_with_text", "--subject", "--sender"}
+DO_NOT_SPLIT_ARG_PARAMS_TUPLE = tuple(DO_NOT_SPLIT_ARG_PARAMS)
+
 TESTS_DIR_NAME = "tests"
 
 CDSW_DIRNAME = "cdsw"
@@ -90,7 +93,7 @@ class CommandExpectations:
     def _split_by(lst: List[str]):
         lists: List[List[str]] = []
         for arg in lst:
-            if arg.startswith("--prepend_email_body_with_text"):
+            if arg.startswith(DO_NOT_SPLIT_ARG_PARAMS_TUPLE):
                 split = arg.split(" ")
                 joined_args = " ".join(split[1:])
                 new_list = [split[0], joined_args]
@@ -104,28 +107,32 @@ class CommandExpectations:
         command_parts = command.split(" ")
 
         args_set = set()
-        inside_email_body_arg = False
-        email_body_arg = ""
+        inside_special_arg = False
+        special_arg = ""
         # 22 = {str} '--prepend_email_body_with_text'
         # 23 = {str} '\'<a'
         # 24 = {str} 'href="dummy_link">Command'
         # 25 = {str} 'data'
         # 26 = {str} 'file:'
         # 27 = {str} 'testGoogleDriveApiFilename</a>\''
-        for part in command_parts:
-            if part == "--prepend_email_body_with_text":
-                inside_email_body_arg = True
-                args_set.add("--prepend_email_body_with_text")
-            elif inside_email_body_arg and part.startswith("--"):
-                inside_email_body_arg = False
+        for arg in command_parts:
+            if inside_special_arg and arg.startswith("--"):
+                # New argument starts, close special_arg and add it to set
+                inside_special_arg = False
                 # Remove first extra space
-                email_body_arg = email_body_arg[1:]
-                args_set.add(email_body_arg)
-                args_set.add(part)
-            elif inside_email_body_arg:
-                email_body_arg += " " + part
+                special_arg = special_arg[1:]
+                args_set.add(special_arg)
+                args_set.add(arg)
+                special_arg = ""
+            if arg in DO_NOT_SPLIT_ARG_PARAMS:
+                # Found argument that is special
+                inside_special_arg = True
+                args_set.add(arg)
+            elif inside_special_arg:
+                special_arg += " " + arg
             else:
-                args_set.add(part)
+                inside_special_arg = False
+                args_set.add(arg)
         return args_set
 
 

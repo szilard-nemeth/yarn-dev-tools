@@ -1,6 +1,6 @@
 {
-  "jobName": "Reviewsync",
-  "commandType": "REVIEWSYNC",
+  "jobName": "Review sheet backport updater",
+  "commandType": "REVIEW_SHEET_BACKPORT_UPDATER",
   "envSanitizeExceptions": ["BRANCHES"],
   "mandatoryEnvVars": [
     "GSHEET_CLIENT_SECRET",
@@ -16,7 +16,7 @@
   "optionalEnvVars": [],
   "yarnDevToolsArguments": [
     "--debug",
-    "REVIEWSYNC",
+    "REVIEW_SHEET_BACKPORT_UPDATER",
     "--gsheet",
     "--gsheet-client-secret ENV(GSHEET_CLIENT_SECRET)",
     "--gsheet-worksheet ENV(GSHEET_WORKSHEET)",
@@ -27,8 +27,8 @@
     "--branches ENV(BRANCHES)"
   ],
   "globalVariables": {
-    "sender": "YARN reviewsync",
-    "subject": "YARN reviewsync report [start date: $$JOB_START_DATE$$]",
+    "sender": "YARN review sheet backport updater",
+    "subject": "YARN review sheet backport updater report [start date: $$JOB_START_DATE$$]",
     "commandDataFileName": "command_data_$$JOB_START_DATE$$.zip"
   },
   "runs": [
@@ -38,7 +38,7 @@
       },
       "emailSettings": {
         "enabled": true,
-        "sendAttachment": true,
+        "sendAttachment": false,
         "attachmentFileName": "$$commandDataFileName$$",
         "emailBodyFileFromCommandData": "report-short.html",
         "sender": "$$sender$$",

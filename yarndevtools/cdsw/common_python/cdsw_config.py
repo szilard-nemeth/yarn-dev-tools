@@ -22,6 +22,8 @@ from yarndevtools.cdsw.common_python.constants import (
 )
 from yarndevtools.common.shared_command_utils import CommandType
 
+JOB_START_DATE_KEY = "JOB_START_DATE"
+
 YARN_DEV_TOOLS_VAR_OVERRIDE_TEMPLATE = "Found argument in yarn_dev_tools_arguments and runconfig.yarn_dev_tools_arguments: '%s'. The latter will take predence."
 
 LOG = logging.getLogger(__name__)
@@ -89,6 +91,10 @@ class CdswJobConfig:
 
     # Dynamic properties
     resolved_variables: Dict[str, str] = field(default_factory=dict)
+
+    @property
+    def job_start_date(self):
+        return RegularVariables._BUILT_IN_VARIABLES[JOB_START_DATE_KEY]
 
 
 @dataclass
@@ -185,6 +191,7 @@ class VariableStores:
 class CdswJobConfigReader:
     VARIABLE_SUBSTITUTION_FIELDS = [
         FieldSpec("runs[].email_settings.subject"),
+        FieldSpec("runs[].email_settings.sender"),
         FieldSpec("runs[].email_settings.attachment_file_name"),
         FieldSpec("runs[].drive_api_upload_settings.file_name"),
         FieldSpec("yarn_dev_tools_arguments"),
@@ -290,7 +297,7 @@ class CdswJobConfigReader:
 
     @staticmethod
     def _substitute_regular_variable_in_str(orig_value: str, variable_store: Dict[str, str]) -> str:
-        ph = RegularVariables.VAR_PLACEHOLDER
+        ph = RegularVariables._VAR_PLACEHOLDER
         vars_to_replace = RegularVariables.find_regular_vars_to_replace(orig_value, NORMAL_VAR_MATCHER)
         mod_value = orig_value
         for var in vars_to_replace:
@@ -547,8 +554,8 @@ class EnvironmentVariables:
 
 
 class RegularVariables:
-    VAR_PLACEHOLDER = "$$"
-    BUILT_IN_VARIABLES = {"JOB_START_DATE": DateUtils.get_current_datetime()}
+    _VAR_PLACEHOLDER = "$$"
+    _BUILT_IN_VARIABLES = {JOB_START_DATE_KEY: DateUtils.get_current_datetime()}
 
     def __init__(self, orig_vars: Dict[str, str]):
         self._validate_vars_not_built_in(orig_vars)
@@ -558,7 +565,7 @@ class RegularVariables:
 
     @staticmethod
     def _validate_vars_not_built_in(orig_vars):
-        builtins = RegularVariables.BUILT_IN_VARIABLES
+        builtins = RegularVariables._BUILT_IN_VARIABLES
         for var_name in orig_vars:
             if var_name in builtins:
                 raise ValueError(
@@ -572,7 +579,7 @@ class RegularVariables:
 
     def _add_variables(self, var_dict):
         for var_name, raw_var in var_dict.items():
-            if self.VAR_PLACEHOLDER in raw_var:
+            if self._VAR_PLACEHOLDER in raw_var:
                 vars_to_replace = self.find_regular_vars_to_replace(raw_var, NORMAL_VAR_MATCHER)
                 modified_var = self._replace_vars(self.resolved_vars, raw_var, vars_to_replace)
                 self.resolved_vars[var_name] = modified_var
@@ -604,8 +611,8 @@ class RegularVariables:
     @staticmethod
     def _replace_vars(vars, raw_var, vars_to_replace: List[str]):
         # TODO Use NORMAL_VAR_MATCHER!
-        ph = RegularVariables.VAR_PLACEHOLDER
-        builtins = RegularVariables.BUILT_IN_VARIABLES
+        ph = RegularVariables._VAR_PLACEHOLDER
+        builtins = RegularVariables._BUILT_IN_VARIABLES
         for var in vars_to_replace:
             if var in builtins:
                 # Built-in variable
