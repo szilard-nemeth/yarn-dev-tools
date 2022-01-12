@@ -6,7 +6,7 @@ import site
 import sys
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 # https://stackoverflow.com/a/50255019/1106893
 from googleapiwrapper.common import ServiceType
@@ -176,6 +176,9 @@ class CdswSetup:
 class CdswRunnerBase(ABC):
     def __init__(self, dry_run: bool = False):
         self.executed_commands = []
+        self.google_drive_uploads: List[
+            Tuple[CommandType, str, DriveApiFile]
+        ] = []  # Tuple of: (command_type, drive_filename, drive_api_file)
         self.cdsw_runner_script_path = None
         self.start_date_str = None
         self.common_mail_config = CommonMailConfig()

@@ -9,6 +9,7 @@ from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup
 from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 
 LOG = logging.getLogger(__name__)
@@ -151,6 +152,12 @@ class NewCdswRunner(CdswRunnerBase):
         self.run_zipper(self.command_type, debug=True)
 
     def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
+        if not self.is_drive_integration_enabled:
+            LOG.info(
+                "Google Drive integration is disabled with env var '%s'!",
+                CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value,
+            )
+            return
         if not run.drive_api_upload_settings:
             LOG.info("Google Drive upload settings is not defined for run: %s", run.name)
             return
@@ -161,6 +168,7 @@ class NewCdswRunner(CdswRunnerBase):
         drive_filename = run.drive_api_upload_settings.file_name
         if not self.dry_run:
             drive_api_file: DriveApiFile = self.upload_command_data_to_drive(self.command_type, drive_filename)
+            self.google_drive_uploads.append((self.command_type, drive_filename, drive_api_file))
             return f'<a href="{drive_api_file.link}">Command data file: {drive_filename}</a>'
         else:
             LOG.info(
