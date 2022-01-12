@@ -201,7 +201,9 @@ class CdswRunnerBase(ABC):
         LOG.info("Starting CDSW runner...")
         LOG.info("Setup result: %s", setup_result)
         self.cdsw_runner_script_path = cdsw_runner_script_path
-        self.start_date_str = self.current_date_formatted()
+        self.start_date_str = (
+            self.current_date_formatted()
+        )  # TODO Is this the same as in RegularVariables.BUILT_IN_VARIABLES?
         if OsUtils.is_env_var_true(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False):
             Restarter.restart_execution(self.cdsw_runner_script_path)
 

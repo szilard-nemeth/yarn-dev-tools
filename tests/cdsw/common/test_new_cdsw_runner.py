@@ -1,7 +1,7 @@
 import os
 import unittest
 import logging
-from typing import List, Set
+from typing import List
 from unittest.mock import patch, Mock, call as mock_call, _CallList
 
 from googleapiwrapper.google_drive import DriveApiFile
@@ -10,6 +10,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import StringUtils
 
+from tests.cdsw.common.testutils.cdsw_testing_common import CommandExpectations, CdswTestingCommons
 from tests.test_utilities import Object
 from yarndevtools.cdsw.common_python.cdsw_common import CommonFiles
 from yarndevtools.cdsw.common_python.cdsw_config import (
@@ -44,106 +45,6 @@ PARSER = None
 SETUP_RESULT = None
 CDSW_RUNNER_SCRIPT_PATH = None
 LOG = logging.getLogger(__name__)
-
-
-class CommandExpectations:
-    def __init__(self, testcase):
-        self.testcase: unittest.TestCase = testcase
-        self.arguments_with_any_order = []
-        self.arguments_in_order = []
-
-    def add_expected_arg(self, argument, param: str = None):
-        s = argument
-        if param:
-            s = f"{s} {param}"
-        self.arguments_with_any_order.append(s)
-        return self
-
-    def add_expected_arg_at_position(self, argument, pos: int):
-        self.arguments_in_order.insert(pos, argument)
-        return self
-
-    def add_expected_ordered_arg(self, argument):
-        self.arguments_in_order.append(argument)
-        return self
-
-    def verify_command(self, command):
-        LOG.info("Verifying command: %s", command)
-        if not self.arguments_in_order and not self.arguments_with_any_order:
-            raise ValueError("Expectation argument lists are both empty!")
-
-        expected_args_set: Set[str] = self._get_expected_arguments_as_set()
-        actual_args_set: Set[str] = self.extract_args_from_command(command)
-
-        # Check set of args first
-        self.testcase.assertEqual(expected_args_set, actual_args_set)
-
-        # Check ordering as well
-        indices = []
-        for idx, arg in enumerate(self.arguments_in_order):
-            indices.append(command.index(arg))
-            if idx > 1 and indices[idx] < indices[idx - 1]:
-                prev = self.arguments_in_order[indices[idx - 1]]
-                self.testcase.fail(
-                    "Detected wrong order of arguments. {} should be after {}. "
-                    "All expected arguments (In this particular order): {}, "
-                    "Command: {}".format(arg, prev, self.arguments_in_order, command)
-                )
-        arguments_not_found = []
-        for arg in self.arguments_with_any_order:
-            if arg not in command:
-                arguments_not_found.append(arg)
-
-        self.testcase.assertTrue(
-            len(arguments_not_found) == 0,
-            msg="The following arguments are not found: {}, " "command: {}".format(arguments_not_found, command),
-        )
-
-    def _get_expected_arguments_as_set(self):
-        set_of_args = {*self._split_by(self.arguments_with_any_order), *self._split_by(self.arguments_in_order)}
-        return set_of_args
-
-    @staticmethod
-    def _split_by(lst: List[str]):
-        lists: List[List[str]] = []
-        for arg in lst:
-            if arg.startswith("--prepend_email_body_with_text"):
-                split = arg.split(" ")
-                joined_args = " ".join(split[1:])
-                new_list = [split[0], joined_args]
-                lists.append(new_list)
-            else:
-                lists.append(arg.split(" "))
-        return [item for sublist in lists for item in sublist]
-
-    @staticmethod
-    def extract_args_from_command(command):
-        command_parts = command.split(" ")
-
-        args_set = set()
-        inside_email_body_arg = False
-        email_body_arg = ""
-        # 22 = {str} '--prepend_email_body_with_text'
-        # 23 = {str} '\'<a'
-        # 24 = {str} 'href="dummy_link">Command'
-        # 25 = {str} 'data'
-        # 26 = {str} 'file:'
-        # 27 = {str} 'testGoogleDriveApiFilename</a>\''
-        for part in command_parts:
-            if part == "--prepend_email_body_with_text":
-                inside_email_body_arg = True
-                args_set.add("--prepend_email_body_with_text")
-            elif inside_email_body_arg and part.startswith("--"):
-                inside_email_body_arg = False
-                # Remove first extra space
-                email_body_arg = email_body_arg[1:]
-                args_set.add(email_body_arg)
-                args_set.add(part)
-            elif inside_email_body_arg:
-                email_body_arg += " " + part
-            else:
-                args_set.add(part)
-        return args_set
 
 
 class TestNewCdswRunner(unittest.TestCase):
@@ -305,7 +206,7 @@ class TestNewCdswRunner(unittest.TestCase):
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
-        self._assert_commands(expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)
@@ -406,7 +307,7 @@ class TestNewCdswRunner(unittest.TestCase):
             len(calls_of_google_drive_uploader) == 0,
             msg="Unexpected calls to Google Drive uploader: {}".format(calls_of_google_drive_uploader),
         )
-        self._assert_no_calls_with_arg(calls_of_yarndevtools, "SEND_LATEST_COMMAND_DATA")
+        CdswTestingCommons.assert_no_calls_with_arg(self, calls_of_yarndevtools, "SEND_LATEST_COMMAND_DATA")
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)
@@ -444,7 +345,7 @@ class TestNewCdswRunner(unittest.TestCase):
             len(calls_of_google_drive_uploader) == 0,
             msg="Unexpected calls to Google Drive uploader: {}".format(calls_of_google_drive_uploader),
         )
-        self._assert_no_calls_with_arg(calls_of_yarndevtools, "SEND_LATEST_COMMAND_DATA")
+        CdswTestingCommons.assert_no_calls_with_arg(self, calls_of_yarndevtools, "SEND_LATEST_COMMAND_DATA")
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)
@@ -538,20 +439,3 @@ class TestNewCdswRunner(unittest.TestCase):
 
     # TODO Add TC: send_latest_command_data_in_email, various testcases
     # TODO Add TC: unknown command type
-
-    def _assert_commands(self, expectations: List[CommandExpectations], actual_commands: List[str]):
-        self.assertEqual(
-            len(actual_commands),
-            len(expectations),
-            msg="Not all commands are having expectations set. Commands: {}, Expectations: {}".format(
-                actual_commands, expectations
-            ),
-        )
-        for actual_command, expectation in zip(actual_commands, expectations):
-            expectation.verify_command(actual_command)
-
-    def _assert_no_calls_with_arg(self, call_list: _CallList, arg: str):
-        for call in call_list:
-            actual_args = list(call.args)
-            if arg in actual_args:
-                self.fail("Unexpected call with argument that is forbidden in call: {}".format(arg))
