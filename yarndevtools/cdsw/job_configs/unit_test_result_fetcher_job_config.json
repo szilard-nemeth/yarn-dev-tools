@@ -1,0 +1,78 @@
+{
+  "jobName": "Unit test result fetcher",
+  "commandType": "UNIT_TEST_RESULT_FETCHER",
+  "envSanitizeExceptions": [],
+  "mandatoryEnvVars": [
+    "MAIL_ACC_USER",
+    "MAIL_ACC_PASSWORD"
+  ],
+  "optionalEnvVars": [
+    "BUILD_PROCESSING_LIMIT",
+    "FORCE_SENDING_MAIL",
+    "RESET_JOB_BUILD_DATA"],
+  "yarnDevToolsArguments": [
+    "--debug",
+    "UNIT_TEST_RESULT_FETCHER",
+    "--smtp_server $$smtp_server$$",
+    "--smtp_port $$smtp_port$$",
+    "--account_user ENV(MAIL_ACC_USER)",
+    "--account_password ENV(MAIL_ACC_PASSWORD)",
+    "--sender $$sender$$",
+    "--recipients $$recipients$$",
+    "--mode $$mode$$",
+    "--testcase-filter $$testcase_filters$$",
+    "--request-limit $$buildProcessingLimit$$",
+    "--num-builds jenkins_examine_unlimited_builds",
+    "if($$omitJobSummary$$, '--omit-job-summary', '')",
+    "if($$downloadUncachedJobData$$, '--download-uncached-job-data', '')",
+    "if($$forceSendingMail$$, '--force-sending-email', '')",
+    "if($$useGoogleDriveCache$$, '--cache-type google_drive', '')"
+
+  ],
+  "globalVariables": {
+    "sender": "YARN unit test result fetcher",
+    "subject": "YARN unit test result fetcher report [start date: $$JOB_START_DATE$$]",
+    "commandDataFileName": "command_data_$$JOB_START_DATE$$.zip",
+    "defaultForceSendingEmail": false,
+    "defaultResetJobBuildData": false,
+    "defaultBuildProcessingLimit": 999,
+    "defaultEmailRecipients": "yarn_eng_bp@cloudera.com",
+    "mode": "jenkins_master",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 465,
+    "tc_filter_yarn": "YARN:org.apache.hadoop.yarn ",
+    "tc_filter_mr": "MAPREDUCE:org.apache.hadoop.mapreduce",
+    "tc_filter_hdfs": "HDFS:org.apache.hadoop.hdfs",
+    "tc_filter_hadoop_common": "HADOOP_COMMON:org.apache.hadoop",
+    "testcase_filters": "$$tc_filter_yarn$$ $$tc_filter_mr$$ $$tc_filter_hdfs$$ $$tc_filter_hadoop_common$$",
+    "recipients": "if(ENV(MAIL_RECIPIENTS), ENV(MAIL_RECIPIENTS), $$defaultEmailRecipients$$)",
+    "forceSendingEmail": "if(ENV(FORCE_SENDING_MAIL), True, $$defaultForceSendingEmail$$)",
+    "resetJobBuildData": "if(ENV(RESET_JOB_BUILD_DATA), True, $$defaultResetJobBuildData$$)",
+    "buildProcessingLimit": "if(ENV(BUILD_PROCESSING_LIMIT), ENV(BUILD_PROCESSING_LIMIT), $$defaultBuildProcessingLimit$$)",
+    "omitJobSummary": false,
+    "downloadUncachedJobData": false,
+    "useGoogleDriveCache": true
+
+  },
+  "runs": [
+    {
+      "name": "run1",
+      "variables": {
+      },
+      "emailSettings": {
+        "enabled": false,
+        "sendAttachment": false,
+        "attachmentFileName": "$$commandDataFileName$$",
+        "emailBodyFileFromCommandData": "N/A",
+        "sender": "$$sender$$",
+        "subject": "$$subject$$"
+      },
+      "driveApiUploadSettings": {
+        "enabled": false,
+        "fileName": "$$commandDataFileName$$"
+      },
+      "yarnDevToolsArguments": [
+      ]
+    }
+  ]
+}
