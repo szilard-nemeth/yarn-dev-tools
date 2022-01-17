@@ -251,7 +251,7 @@ class CdswRun:
 class CdswJobConfig:
     job_name: str
     command_type: CommandType
-    runs: List[CdswRun] = field(default_factory=list)
+    runs: Union[List[CdswRun], Callable] = field(default_factory=list)
     mandatory_env_vars: List[str] = field(default_factory=list)
     optional_env_vars: List[str] = field(default_factory=list)
     yarn_dev_tools_arguments: List[Union[str, Callable]] = field(default_factory=list)
@@ -323,8 +323,7 @@ class CdswJobConfig:
 @auto_str
 class CdswJobConfigReader:
     # TODO Move this to resolver
-    VARIABLE_SUBSTITUTION_FIELDS = [
-        FieldSpec("global_variables"),
+    FIELD_SUBSTITIONS_RUN_FIELDS = [
         FieldSpec("runs[].email_settings.subject"),
         FieldSpec("runs[].email_settings.sender"),
         FieldSpec("runs[].email_settings.attachment_file_name"),
@@ -332,8 +331,20 @@ class CdswJobConfigReader:
         FieldSpec("runs[].drive_api_upload_settings.file_name"),
         FieldSpec("runs[].yarn_dev_tools_arguments"),
         FieldSpec("runs[].variables"),
+    ]
+
+    DEFAULT_VARIABLE_SUBSTITUTION_FIELDS = [
+        FieldSpec("global_variables"),
+        *FIELD_SUBSTITIONS_RUN_FIELDS,
         FieldSpec("yarn_dev_tools_arguments"),
     ]
+
+    FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG = [
+        FieldSpec("global_variables"),
+        FieldSpec("yarn_dev_tools_arguments"),
+    ]
+
+    FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG = [*FIELD_SUBSTITIONS_RUN_FIELDS]
 
     command_to_env_var_class = {
         CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaCheckerEnvVar,
@@ -373,11 +384,9 @@ class CdswJobConfigReader:
             raise ValueError("Section 'runs' must be defined and cannot be empty!")
         if not config.yarn_dev_tools_arguments:
             raise ValueError("Empty YARN dev tools arguments!")
-        names = set()
-        for run in config.runs:
-            if run.name in names:
-                raise ValueError("Duplicate job name not allowed! Job name: {}".format(run.name))
-            names.add(run.name)
+
+        self.runs_defined_as_callable = isinstance(config.runs, Callable)
+        self._validate_run_names(config)
 
         enum_type = self.command_to_env_var_class[config.command_type]
         self._field_spec_resolver = FieldSpecResolver(config)
@@ -390,14 +399,42 @@ class CdswJobConfigReader:
         GlobalVariables(config.global_variables)
         # TODO Move this to resolver
         self._resolve_vars(config)
+        self._generate_runs_if_required(config)
         self._finalize_yarn_dev_tools_arguments(config)
 
+    def _validate_run_names(self, config, force_validate=False):
+        names = set()
+        if self.runs_defined_as_callable and not force_validate:
+            return
+        for run in config.runs:
+            if run.name in names:
+                raise ValueError("Duplicate job name not allowed! Job name: {}".format(run.name))
+            names.add(run.name)
+
     def _resolve_vars(self, config):
+        fields_to_resolve = self.DEFAULT_VARIABLE_SUBSTITUTION_FIELDS
+        if self.runs_defined_as_callable:
+            fields_to_resolve = self.FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG
         FieldSpecReplacer.substitute_regular_variables_in_fields(
             config,
             self._field_spec_resolver,
-            self.VARIABLE_SUBSTITUTION_FIELDS,
+            fields_to_resolve,
         )
+
+    def _generate_runs_if_required(self, config):
+        if self.runs_defined_as_callable:
+            run_dicts = config.runs(config)
+            runs = []
+            for run_dict in run_dicts:
+                runs.append(from_dict(data_class=CdswRun, data=run_dict))
+            config.runs = runs
+            self._validate_run_names(config, force_validate=True)
+
+            FieldSpecReplacer.substitute_regular_variables_in_fields(
+                config,
+                self._field_spec_resolver,
+                self.FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG,
+            )
 
     def _finalize_yarn_dev_tools_arguments(self, config):
         for run in config.runs:

@@ -22,6 +22,7 @@ from googleapiwrapper.google_drive import (
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
@@ -345,3 +346,16 @@ class GoogleDriveCdswHelper:
         drive_path = FileUtils.join_path(self.drive_command_data_basedir, cmd_type.real_name, drive_filename)
         drive_api_file: DriveApiFile = self.drive_wrapper.upload_file(local_file_path, drive_path)
         return drive_api_file
+
+
+class JiraUmbrellaDataFetcherCdswUtils:
+    @staticmethod
+    def fetch_umbrella_titles(jira_ids: List[str]) -> Dict[str, str]:
+        return {j_id: JiraUmbrellaDataFetcherCdswUtils._fetch_umbrella_title(j_id) for j_id in jira_ids}
+
+    @staticmethod
+    def _fetch_umbrella_title(jira_id: str):
+        jira_html_file = f"/tmp/jira_{jira_id}.html"
+        LOG.info("Fetching HTML of jira: %s", jira_id)
+        jira_html = JiraUtils.download_jira_html("https://issues.apache.org/jira/browse/", jira_id, jira_html_file)
+        return JiraUtils.parse_jira_title(jira_html)

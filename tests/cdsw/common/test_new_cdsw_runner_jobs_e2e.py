@@ -16,6 +16,7 @@ SETUP_RESULT = None
 CDSW_RUNNER_SCRIPT_PATH = None
 
 
+# TODO Extract code as much as possible
 class TestNewCdswRunnerJobsE2E(unittest.TestCase):
     ENV_VARS = [
         "GSHEET_CLIENT_SECRET",
@@ -103,16 +104,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--branches", "branch-3.2 branch-3.3")
         )
 
-        exp_command_2 = (
-            CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
-            .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
-            .add_expected_ordered_arg("REVIEWSYNC")
-            .add_expected_arg("--debug")
-            .add_expected_arg("--dest_dir", "/tmp")
-            .add_expected_arg("--ignore-filetypes", "java js")
-        )
+        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.REVIEWSYNC)
 
         job_start_date = cdsw_runner.job_config.job_start_date()
 
@@ -277,16 +269,114 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--cache-type", param="google_drive")
         )
 
+        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_FETCHER)
+
+        expectations = [exp_command_1, exp_command_2]
+        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+
+    def _get_expected_zip_latest_command_data_command(self, cmd_type: CommandType):
         exp_command_2 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
             .add_expected_ordered_arg("yarndevtools.py")
             .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
-            .add_expected_ordered_arg("UNIT_TEST_RESULT_FETCHER")
+            .add_expected_ordered_arg(cmd_type.name)
             .add_expected_arg("--debug")
             .add_expected_arg("--dest_dir", "/tmp")
             .add_expected_arg("--ignore-filetypes", "java js")
         )
+        return exp_command_2
 
-        expectations = [exp_command_1, exp_command_2]
+    def test_jira_umbrella_data_fetcher_e2e(self):
+        cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
+        config_file = FileUtils.find_files(
+            cdsw_root_dir,
+            find_type=FindResultType.FILES,
+            regex="jira_umbrella_data_fetcher_.*",
+            single_level=False,
+            full_path_result=True,
+            exclude_dirs=["yarndevtools-results"],
+        )[0]
+
+        self._set_env_vars_from_dict(
+            {
+                "BRANCHES": "branch-3.2 branch-3.3",
+                "MAIL_ACC_USER": "testMailUser",
+                "MAIL_ACC_PASSWORD": "testMailPassword",
+                "UMBRELLA_IDS": "YARN-10496 YARN-6223",
+            }
+        )
+
+        args = self._create_args_for_specified_file(config_file, CommandType.JIRA_UMBRELLA_DATA_FETCHER, dry_run=True)
+        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=NewCdswConfigReaderAdapter())
+        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+
+        job_start_date = cdsw_runner.job_config.job_start_date()
+        wrap_d = StringUtils.wrap_to_quotes
+        sender = wrap_d("YARN upstream umbrella checker")
+        subject1 = wrap_d(
+            f"YARN Upstream umbrella checker report: "
+            f"[UMBRELLA: YARN-10496 ([Umbrella] Support Flexible Auto Queue Creation in Capacity Scheduler), "
+            f"start date: {job_start_date}]"
+        )
+
+        subject2 = wrap_d(
+            f"YARN Upstream umbrella checker report: "
+            f"[UMBRELLA: YARN-6223 ([Umbrella] Natively support GPU configuration/discovery/scheduling/isolation on YARN), "
+            f"start date: {job_start_date}]"
+        )
+
+        # TODO Mock jira request / response
+        exp_command_1 = self._get_expected_jira_umbrella_data_fetcher_main_command("YARN-10496")
+        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
+
+        exp_command_3 = self._get_expected_send_latest_command_data_command(
+            job_start_date, subject=subject1, sender=sender
+        )
+        exp_command_4 = self._get_expected_jira_umbrella_data_fetcher_main_command("YARN-6223")
+        exp_command_5 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
+        exp_command_6 = self._get_expected_send_latest_command_data_command(
+            job_start_date, subject=subject2, sender=sender
+        )
+
+        expectations = [exp_command_1, exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6]
         CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+
+    def _get_expected_send_latest_command_data_command(self, job_start_date, subject, sender):
+        wrap_d = StringUtils.wrap_to_quotes
+        wrap_s = StringUtils.wrap_to_single_quotes
+        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
+        exp_command_3 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
+            .add_expected_arg("--smtp_port", "465")
+            .add_expected_arg("--account_user", wrap_d("testMailUser"))
+            .add_expected_arg("--account_password", wrap_d("testMailPassword"))
+            .add_expected_arg("--subject", subject)
+            .add_expected_arg("--sender", sender)
+            .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
+            .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
+            .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
+            .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
+            .add_expected_arg("--send-attachment")
+        )
+        return exp_command_3
+
+    def _get_expected_jira_umbrella_data_fetcher_main_command(self, umbrella_id: str):
+        exp_command_1 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("JIRA_UMBRELLA_DATA_FETCHER")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--branches", "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x")
+            .add_expected_arg("--force")
+            .add_expected_arg("--ignore-changes")
+            .add_expected_arg(umbrella_id)
+        )
+        return exp_command_1
