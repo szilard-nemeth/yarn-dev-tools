@@ -23,18 +23,6 @@ class CdswRunner(CdswRunnerBase):
         repo_type_env = OsUtils.get_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.DOWNSTREAM.value)
         repo_type: RepoType = RepoType[repo_type_env.upper()]
 
-        if repo_type == RepoType.DOWNSTREAM:
-            self.run_clone_downstream_repos_script(setup_result.basedir)
-        elif repo_type == RepoType.UPSTREAM:
-            # If we are in upstream mode, make sure downstream dir exist
-            # Currently, yarndevtools requires both repos to be present when initializing.
-            # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
-            # Git init the other repository so everything will be alright
-            FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
-            FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
-            os.system("git init")
-            self.run_clone_upstream_repos_script(setup_result.basedir)
-
         # TODO investigate why legacy script fails!
         self.run_comparator_and_send_mail(repo_type, algorithm="simple", run_legacy_script=False)
         self.run_comparator_and_send_mail(repo_type, algorithm="grouped", run_legacy_script=False)

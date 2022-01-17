@@ -1,16 +1,18 @@
 import logging
+import os
 import time
 from argparse import ArgumentParser
 from enum import Enum
 from typing import List
 
 from googleapiwrapper.google_drive import DriveApiFile
+from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup
+from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup, CommonDirs
 from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar
-from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar
+from yarndevtools.common.shared_command_utils import CommandType, RepoType
 
 LOG = logging.getLogger(__name__)
 
@@ -120,6 +122,7 @@ class NewCdswRunner(CdswRunnerBase):
     # TODO Rename later
     def begin(self):
         setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        self._execute_preparation_steps(setup_result)
         self.start(setup_result, None)
 
     def _determine_command_type(self):
@@ -207,6 +210,26 @@ class NewCdswRunner(CdswRunnerBase):
             subject=run.email_settings.subject,
             **kwargs,
         )
+
+    def _execute_preparation_steps(self, setup_result):
+        if self.command_type == CommandType.JIRA_UMBRELLA_DATA_FETCHER:
+            self.run_clone_downstream_repos_script(setup_result.basedir)
+            self.run_clone_upstream_repos_script(setup_result.basedir)
+        elif self.command_type == CommandType.BRANCH_COMPARATOR:
+            repo_type_env = OsUtils.get_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.DOWNSTREAM.value)
+            repo_type: RepoType = RepoType[repo_type_env.upper()]
+
+            if repo_type == RepoType.DOWNSTREAM:
+                self.run_clone_downstream_repos_script(setup_result.basedir)
+            elif repo_type == RepoType.UPSTREAM:
+                # If we are in upstream mode, make sure downstream dir exist
+                # Currently, yarndevtools requires both repos to be present when initializing.
+                # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
+                # Git init the other repository so everything will be alright
+                FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
+                FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
+                os.system("git init")
+                self.run_clone_upstream_repos_script(setup_result.basedir)
 
 
 if __name__ == "__main__":
