@@ -100,6 +100,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         with self.assertRaises(WrongTypeError) as ve:
             CdswJobConfigReader.read_from_file(file)
         LOG.info(ve.exception)
+        # TODO Add assertion for exception message
 
     def test_config_reader_valid_mandatory_env_vars(self):
         self._set_mandatory_env_vars()
@@ -115,6 +116,7 @@ class CdswConfigReaderTest(unittest.TestCase):
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
+        # TODO Add assertion for exception message
 
     def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_positive_case(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
@@ -134,6 +136,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         self.assertIn("'GSHEET_CLIENT_SECRET'", exc_msg)
         self.assertNotIn("GSHEET_SPREADSHEET", exc_msg)
 
+    # TODO Add negative testcase for this
     def test_config_reader_mandatory_env_vars_are_of_correct_command_type(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
@@ -156,6 +159,7 @@ class CdswConfigReaderTest(unittest.TestCase):
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
+        # TODO Add assertion for exception message
 
     def test_config_reader_if_optional_arg_is_mapped_to_yarndevtools_args_it_becomes_mandatory(self):
         self._set_mandatory_env_vars()
@@ -526,6 +530,48 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg4 'env4 env44'",
                 '--arg5 "env5 env5555"',
                 "--arg6 branch-3.2 branch-3.3",
+            ],
+            config.runs[0].yarn_dev_tools_arguments,
+        )
+
+    def test_config_reader_yarn_dev_tools_arguments_with_includes(self):
+        self._set_mandatory_env_vars()
+        file = self._get_config_file("cdsw_job_config_yarn_dev_tools_arguments_with_includes.py")
+        config = CdswJobConfigReader.read_from_file(file)
+
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--gsheet-client-secret 'gsheet client secret'",
+                "--gsheet-spreadsheet 'gsheet spreadsheet'",
+                "--gsheet-jira-column 'gsheet jira column'",
+                "--force-sending-email",
+                "--cache-type google_drive",
+            ],
+            config.runs[0].yarn_dev_tools_arguments,
+        )
+
+    def test_config_reader_yarn_dev_tools_arguments_with_conditional_env_var(self):
+        self._set_mandatory_env_vars()
+        os.environ["ENV1"] = "envVal1"
+        os.environ["ENV3"] = "envVal3"
+        file = self._get_config_file("cdsw_job_config_yarn_globals_with_conditional_env_var.py")
+        config = CdswJobConfigReader.read_from_file(file)
+
+        self.assertEqual(
+            [
+                "--debug",
+                "REVIEWSYNC",
+                "--gsheet",
+                "--gsheet-client-secret 'gsheet client secret'",
+                "--gsheet-spreadsheet 'gsheet spreadsheet'",
+                "--gsheet-jira-column 'gsheet jira column'",
+                "--arg1 envVal1",
+                "--arg2 False",
+                "--arg3 envVal3",
+                "--arg4 1999",
             ],
             config.runs[0].yarn_dev_tools_arguments,
         )

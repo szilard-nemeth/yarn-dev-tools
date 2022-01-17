@@ -228,3 +228,65 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
         CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+
+    def test_unit_test_result_fetcher_e2e(self):
+        cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
+        config_file = FileUtils.find_files(
+            cdsw_root_dir,
+            find_type=FindResultType.FILES,
+            regex="unit_test_result_fetcher.*",
+            single_level=False,
+            full_path_result=True,
+            exclude_dirs=["yarndevtools-results"],
+        )[0]
+
+        self._set_env_vars_from_dict(
+            {
+                "MAIL_ACC_USER": "testMailUser",
+                "MAIL_ACC_PASSWORD": "testMailPassword",
+            }
+        )
+
+        args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_FETCHER, dry_run=True)
+        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=NewCdswConfigReaderAdapter())
+        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+
+        exp_command_1 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("UNIT_TEST_RESULT_FETCHER")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--smtp_server", param="smtp.gmail.com")
+            .add_expected_arg("--smtp_port", param="465")
+            .add_expected_arg("--account_user", param="testMailUser")
+            .add_expected_arg("--account_password", param="testMailPassword")
+            .add_expected_arg("--sender", param="YARN unit test result fetcher")
+            .add_expected_arg("--recipients", param="yarn_eng_bp@cloudera.com")
+            .add_expected_arg("--mode", param="jenkins_master")
+            .add_expected_arg(
+                "--testcase-filter",
+                param="YARN:org.apache.hadoop.yarn "
+                "MAPREDUCE:org.apache.hadoop.mapreduce "
+                "HDFS:org.apache.hadoop.hdfs "
+                "HADOOP_COMMON:org.apache.hadoop",
+            )
+            .add_expected_arg("--request-limit", param="999")
+            .add_expected_arg("--num-builds", param="jenkins_examine_unlimited_builds")
+            .add_expected_arg("--cache-type", param="google_drive")
+        )
+
+        exp_command_2 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
+            .add_expected_ordered_arg("UNIT_TEST_RESULT_FETCHER")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--dest_dir", "/tmp")
+            .add_expected_arg("--ignore-filetypes", "java js")
+        )
+
+        expectations = [exp_command_1, exp_command_2]
+        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
