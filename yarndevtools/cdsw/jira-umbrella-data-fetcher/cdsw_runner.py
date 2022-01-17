@@ -24,8 +24,6 @@ CMD_LOG = logging.getLogger(__name__)
 class CdswRunner(CdswRunnerBase):
     def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
         self.start_common(setup_result, cdsw_runner_script_path)
-        self.run_clone_downstream_repos_script(setup_result.basedir)
-        self.run_clone_upstream_repos_script(setup_result.basedir)
 
         # umbrella_ids = ["YARN-10496", "YARN-6223", "YARN-8820"]
         # TODO use this: JiraUmbrellaCheckerEnvVar.UMBRELLA_IDS
