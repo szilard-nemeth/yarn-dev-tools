@@ -5,4 +5,5 @@ humanize
 docker
 jira
 dataclasses-json
+dacite
 pytest

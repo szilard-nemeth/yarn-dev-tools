@@ -30,6 +30,8 @@ from yarndevtools.cdsw.common_python.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
+FAKE_CONFIG_FILE = "fake-config-file.py"
+
 DEFAULT_COMMAND_TYPE = CommandType.REVIEWSYNC
 # CDSW_RUNNER_CLASSNAME = NewCdswRunner.__name__
 CDSW_JOB_CONFIG_READER_CLASS_NAME = CdswJobConfigReader.__name__
@@ -139,18 +141,16 @@ class TestNewCdswRunner(unittest.TestCase):
         self.assertEqual(ExecutionMode.AUTO_DISCOVERY, config.execution_mode)
 
     def test_argument_parsing_into_config(self):
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=True)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         config = NewCdswRunnerConfig(PARSER, args)
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
         self.assertEqual(ExecutionMode.SPECIFIED_CONFIG_FILE, config.execution_mode)
-        self.assertEqual("fake-config-file.json", config.job_config_file)
+        self.assertEqual(FAKE_CONFIG_FILE, config.job_config_file)
 
     def test_argument_parsing_into_config_invalid_command_type(self):
-        args = self._create_args_for_specified_file(
-            "fake-config-file.json", dry_run=True, override_cmd_type="WRONGCOMMAND"
-        )
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True, override_cmd_type="WRONGCOMMAND")
         with self.assertRaises(ValueError) as ve:
             NewCdswRunnerConfig(None, args)
         exc_msg = ve.exception.args[0]
@@ -160,7 +160,7 @@ class TestNewCdswRunner(unittest.TestCase):
         mock_run1 = self._create_mock_cdsw_run("run1", email_enabled=True, google_drive_upload_enabled=True)
         mock_job_config = self._create_mock_job_config([mock_run1])
 
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=True)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
@@ -219,7 +219,7 @@ class TestNewCdswRunner(unittest.TestCase):
         mock_run2 = self._create_mock_cdsw_run("run2", email_enabled=False, google_drive_upload_enabled=False)
         mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
 
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=False)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
@@ -296,7 +296,7 @@ class TestNewCdswRunner(unittest.TestCase):
         )
         mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
 
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=False)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
@@ -334,7 +334,7 @@ class TestNewCdswRunner(unittest.TestCase):
         )
         mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
 
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=False)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
@@ -366,7 +366,7 @@ class TestNewCdswRunner(unittest.TestCase):
         )
         mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
 
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=True)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
@@ -397,7 +397,7 @@ class TestNewCdswRunner(unittest.TestCase):
         # Need to enable dry-run to not fail the whole script
         # But it's hard to differentiate if dry-run or the ENABLE_GOOGLE_DRIVE_INTEGRATION env var disabled the file upload to Google Drive
         # So an additional check is added for the google_drive_uploads
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=True)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 
@@ -417,7 +417,7 @@ class TestNewCdswRunner(unittest.TestCase):
         )
         mock_job_config = self._create_mock_job_config([mock_run1])
 
-        args = self._create_args_for_specified_file("fake-config-file.json", dry_run=False)
+        args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
 

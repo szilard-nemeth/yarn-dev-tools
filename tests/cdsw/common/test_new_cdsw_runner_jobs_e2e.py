@@ -114,7 +114,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--ignore-filetypes", "java js")
         )
 
-        job_start_date = cdsw_runner.job_config.job_start_date
+        job_start_date = cdsw_runner.job_config.job_start_date()
 
         wrap_d = StringUtils.wrap_to_quotes
         wrap_s = StringUtils.wrap_to_single_quotes
@@ -200,7 +200,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--ignore-filetypes", "java js")
         )
 
-        job_start_date = cdsw_runner.job_config.job_start_date
+        job_start_date = cdsw_runner.job_config.job_start_date()
 
         wrap_d = StringUtils.wrap_to_quotes
         wrap_s = StringUtils.wrap_to_single_quotes
