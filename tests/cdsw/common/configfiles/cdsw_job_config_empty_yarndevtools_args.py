@@ -1,0 +1,25 @@
+from yarndevtools.common.shared_command_utils import CommandType
+
+config = {
+    "job_name": "Reviewsync",
+    "command_type": CommandType.REVIEWSYNC,
+    "mandatory_env_vars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
+    "optional_env_vars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
+    "yarn_dev_tools_arguments": [],
+    "runs": [
+        {
+            "name": "dummy",
+            "email_settings": {
+                "enabled": False,
+                "send_attachment": True,
+                "email_body_file_from_command_data": "report-short.html",
+                "attachment_file_name": "attachment_file_name",
+                "subject": "testSubject",
+                "sender": "testSender",
+            },
+            "drive_api_upload_settings": {"enabled": False, "file_name": "simple"},
+            "variables": {},
+            "yarn_dev_tools_arguments": [],
+        }
+    ],
+}

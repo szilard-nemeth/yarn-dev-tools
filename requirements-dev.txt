@@ -1,7 +1,7 @@
 flake8
 pytest>=3.6
 pytest-cov
-setuptools~=54.1.2
+setuptools
 pre-commit
 git+https://github.com/szilard-nemeth/python-commons.git
 git+https://github.com/szilard-nemeth/google-api-wrapper.git
@@ -10,6 +10,7 @@ coolname
 httpretty
 jira
 dataclasses-json
+dacite
 
 # Python 2
 pathlib

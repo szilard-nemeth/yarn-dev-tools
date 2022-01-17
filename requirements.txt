@@ -6,3 +6,4 @@ bs4
 setuptools~=54.1.2
 jira
 dataclasses-json
+dacite
