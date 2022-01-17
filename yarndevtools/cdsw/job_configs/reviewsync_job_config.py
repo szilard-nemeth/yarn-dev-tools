@@ -18,7 +18,7 @@ config = {
     "optional_env_vars": [],
     "yarn_dev_tools_arguments": [
         "--debug",
-        "REVIEWSYNC",
+        f"{CommandType.REVIEWSYNC.name}",
         "--gsheet",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
         lambda conf: f"--gsheet-worksheet {conf.env('GSHEET_WORKSHEET')}",

@@ -255,7 +255,7 @@ class CdswJobConfig:
     mandatory_env_vars: List[str] = field(default_factory=list)
     optional_env_vars: List[str] = field(default_factory=list)
     yarn_dev_tools_arguments: List[Union[str, Callable]] = field(default_factory=list)
-    global_variables: Dict[str, Union[str, Callable]] = field(default_factory=dict)
+    global_variables: Dict[str, Union[str, bool, int, Callable]] = field(default_factory=dict)
     env_sanitize_exceptions: List[str] = field(default_factory=list)
 
     @staticmethod
@@ -265,13 +265,14 @@ class CdswJobConfig:
     def __post_init__(self):
         self._current_rfs: ResolvedFieldSpec
 
+    # TODO Move these methods from this and below to resolver
     def var(self, var_name):
         resolution_context = self._current_rfs.name
         if resolution_context == "global_variables":
             val = self._resolve_from_global(var_name, resolution_context)
             if isinstance(val, Callable):
                 return self.resolve_lambda(val, self._current_rfs)
-            if val:
+            if val is not None:
                 return val
         elif resolution_context == "variables" and type(self._current_rfs.parent == CdswRun):
             return self._resolve_from_global(var_name, resolution_context)
@@ -286,11 +287,17 @@ class CdswJobConfig:
         else:
             return self._resolve_from_global(var_name, resolution_context)
 
-    def env(self, env_name):
+    def env(self, env_name: str):
         env_value = os.getenv(env_name)
         if not env_value:
             raise ValueError("The following env var is not set: {}".format(env_name))
         return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
+
+    def env_or_default(self, env_name: str, default: str):
+        env_value = os.getenv(env_name)
+        if env_value:
+            return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
+        return default
 
     def resolve_lambda(self, callable, rfs: ResolvedFieldSpec):
         self._current_rfs = rfs
@@ -315,6 +322,7 @@ class CdswJobConfig:
 
 @auto_str
 class CdswJobConfigReader:
+    # TODO Move this to resolver
     VARIABLE_SUBSTITUTION_FIELDS = [
         FieldSpec("global_variables"),
         FieldSpec("runs[].email_settings.subject"),
@@ -380,6 +388,7 @@ class CdswJobConfigReader:
             enum_type,
         )
         GlobalVariables(config.global_variables)
+        # TODO Move this to resolver
         self._resolve_vars(config)
         self._finalize_yarn_dev_tools_arguments(config)
 
@@ -401,6 +410,8 @@ class CdswJobConfigReader:
     @staticmethod
     def _fill_args_from(result: Dict[str, List[str]], arguments: List[str], warn_when_overrides=False):
         for arg in arguments:
+            if arg == "":
+                continue
             split = arg.split(" ")
             if len(split) == 0:
                 raise ValueError("Unexpected argument value: '{}'".format(arg))
