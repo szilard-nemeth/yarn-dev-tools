@@ -19,13 +19,13 @@ from pythoncommons.project_utils import (
 )
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CDSW_DIRNAME, LocalDirs
-from yarndevtools.cdsw.common_python.cdsw_common import (
+from yarndevtools.cdsw.common.cdsw_common import (
     CommonDirs,
     PythonModuleMode,
     TestExecMode,
     DEFAULT_TEST_EXECUTION_MODE,
 )
-from yarndevtools.cdsw.common_python.constants import (
+from yarndevtools.cdsw.common.constants import (
     CdswEnvVar,
     CDSW_RUNNER_PY,
     BranchComparatorEnvVar,

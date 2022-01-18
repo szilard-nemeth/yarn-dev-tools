@@ -7,8 +7,8 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
 from tests.test_utilities import Object
-from yarndevtools.cdsw.common_python.cdsw_common import CommonFiles
-from yarndevtools.cdsw.common_python.cdsw_runner import NewCdswRunnerConfig, NewCdswConfigReaderAdapter, NewCdswRunner
+from yarndevtools.cdsw.common.cdsw_common import CommonFiles
+from yarndevtools.cdsw.common.cdsw_runner import NewCdswRunnerConfig, NewCdswConfigReaderAdapter, NewCdswRunner
 from yarndevtools.common.shared_command_utils import CommandType
 
 PARSER = None

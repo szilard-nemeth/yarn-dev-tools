@@ -1,5 +1,5 @@
-from yarndevtools.cdsw.common_python.cdsw_common import JiraUmbrellaDataFetcherCdswUtils
-from yarndevtools.cdsw.common_python.cdsw_config import Include
+from yarndevtools.cdsw.common.cdsw_common import JiraUmbrellaDataFetcherCdswUtils
+from yarndevtools.cdsw.common.cdsw_config import Include
 from yarndevtools.common.shared_command_utils import CommandType
 
 

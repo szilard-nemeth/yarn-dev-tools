@@ -12,21 +12,21 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CommandExpectations, CdswTestingCommons
 from tests.test_utilities import Object
-from yarndevtools.cdsw.common_python.cdsw_common import CommonFiles
-from yarndevtools.cdsw.common_python.cdsw_config import (
+from yarndevtools.cdsw.common.cdsw_common import CommonFiles
+from yarndevtools.cdsw.common.cdsw_config import (
     CdswRun,
     CdswJobConfig,
     EmailSettings,
     DriveApiUploadSettings,
     CdswJobConfigReader,
 )
-from yarndevtools.cdsw.common_python.cdsw_runner import (
+from yarndevtools.cdsw.common.cdsw_runner import (
     NewCdswRunnerConfig,
     NewCdswRunner,
     ExecutionMode,
     NewCdswConfigReaderAdapter,
 )
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar
+from yarndevtools.cdsw.common.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -35,13 +35,13 @@ FAKE_CONFIG_FILE = "fake-config-file.py"
 DEFAULT_COMMAND_TYPE = CommandType.REVIEWSYNC
 # CDSW_RUNNER_CLASSNAME = NewCdswRunner.__name__
 CDSW_JOB_CONFIG_READER_CLASS_NAME = CdswJobConfigReader.__name__
-# CDSW_RUNNER_BEGIN_PATH = "yarndevtools.cdsw.common_python.cdsw_runner.{}.begin".format(
+# CDSW_RUNNER_BEGIN_PATH = "yarndevtools.cdsw.common.cdsw_runner.{}.begin".format(
 #     CDSW_RUNNER_CLASSNAME)
-CDSW_CONFIG_READER_READ_METHOD_PATH = "yarndevtools.cdsw.common_python.cdsw_config.{}".format(
+CDSW_CONFIG_READER_READ_METHOD_PATH = "yarndevtools.cdsw.common.cdsw_config.{}".format(
     CDSW_JOB_CONFIG_READER_CLASS_NAME
 )
 SUBPROCESSRUNNER_RUN_METHOD_PATH = "pythoncommons.process.SubprocessCommandRunner.run_and_follow_stdout_stderr"
-CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH = "yarndevtools.cdsw.common_python.cdsw_common.GoogleDriveCdswHelper.upload"
+CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH = "yarndevtools.cdsw.common.cdsw_common.GoogleDriveCdswHelper.upload"
 DRIVE_API_WRAPPER_UPLOAD_PATH = "googleapiwrapper.google_drive.DriveApiWrapper.upload_file"
 PARSER = None
 SETUP_RESULT = None

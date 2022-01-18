@@ -9,9 +9,9 @@ from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.cdsw.common_python.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup, CommonDirs
-from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
-from yarndevtools.cdsw.common_python.constants import CdswEnvVar, BranchComparatorEnvVar
+from yarndevtools.cdsw.common.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup, CommonDirs
+from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
+from yarndevtools.cdsw.common.constants import CdswEnvVar, BranchComparatorEnvVar
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
 
 LOG = logging.getLogger(__name__)
