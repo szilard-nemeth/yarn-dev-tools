@@ -8,14 +8,14 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.cdsw.common_python.cdsw_common import (
+from yarndevtools.cdsw.common.cdsw_common import (
     CdswRunnerBase,
     CdswSetup,
     CommonDirs,
     SKIP_AGGREGATION_DEFAULTS_FILENAME,
     CdswSetupResult,
 )
-from yarndevtools.cdsw.common_python.constants import (
+from yarndevtools.cdsw.common.constants import (
     CdswEnvVar,
     UnitTestResultAggregatorEnvVar,
     UnitTestResultAggregatorOptionalEnvVar,

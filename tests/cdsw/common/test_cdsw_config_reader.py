@@ -12,7 +12,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons
-from yarndevtools.cdsw.common_python.cdsw_config import CdswJobConfigReader
+from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader
 from yarndevtools.common.shared_command_utils import CommandType
 
 VALID_CONFIG_FILE = "cdsw_job_config.py"

@@ -34,14 +34,14 @@ from pythoncommons.project_utils import (
 )
 
 from tests.cdsw.common.testutils.cdsw_testing_common import SECRET_PROJECTS_DIR
-from yarndevtools.cdsw.common_python.constants import (
+from yarndevtools.cdsw.common.constants import (
     CdswEnvVar,
     PROJECT_NAME,
 )
 
 # Constants
 # TODO Move this to EnvVar enum
-from yarndevtools.cdsw.common_python.restarter import Restarter
+from yarndevtools.cdsw.common.restarter import Restarter
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 

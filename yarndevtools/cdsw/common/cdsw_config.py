@@ -9,7 +9,7 @@ from dacite import from_dict
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.cdsw.common_python.constants import (
+from yarndevtools.cdsw.common.constants import (
     JiraUmbrellaCheckerEnvVar,
     BranchComparatorEnvVar,
     UnitTestResultFetcherEnvVar,
