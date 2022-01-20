@@ -162,9 +162,9 @@ class DockerBasedTestConfig:
             },
             make_key(p_exec_mode, get_str(TestExecMode.UPSTREAM)): {
                 get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirs.USER_DEV_ROOT, APACHE, HADOOP),
-                get_str(BranchComparatorEnvVar.REPO_TYPE): RepoType.UPSTREAM.value,
-                get_str(BranchComparatorEnvVar.FEATURE_BRANCH): ORIGIN_BRANCH_3_3,
-                get_str(BranchComparatorEnvVar.MASTER_BRANCH): ORIGIN_TRUNK,
+                get_str(BranchComparatorEnvVar.BRANCH_COMP_REPO_TYPE): RepoType.UPSTREAM.value,
+                get_str(BranchComparatorEnvVar.BRANCH_COMP_FEATURE_BRANCH): ORIGIN_BRANCH_3_3,
+                get_str(BranchComparatorEnvVar.BRANCH_COMP_MASTER_BRANCH): ORIGIN_TRUNK,
             },
             make_key(p_module_mode, get_str(PythonModuleMode.GLOBAL)): {
                 get_str(CdswEnvVar.PYTHON_MODULE_MODE): PythonModuleMode.GLOBAL.value

@@ -1,3 +1,4 @@
+import inspect
 import logging
 import os
 import re
@@ -382,8 +383,6 @@ class CdswJobConfigReader:
         LOG.info("Validating config: %s", config)
         if not config.runs:
             raise ValueError("Section 'runs' must be defined and cannot be empty!")
-        if not config.yarn_dev_tools_arguments:
-            raise ValueError("Empty YARN dev tools arguments!")
 
         self.runs_defined_as_callable = isinstance(config.runs, Callable)
         self._validate_run_names(config)

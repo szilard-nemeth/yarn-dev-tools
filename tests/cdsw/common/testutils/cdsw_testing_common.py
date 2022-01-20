@@ -205,7 +205,7 @@ class CdswTestingCommons:
         )
 
     @staticmethod
-    def assert_commands(tc, expectations: List[CommandExpectations], actual_commands: List[str]):
+    def verify_commands(tc, expectations: List[CommandExpectations], actual_commands: List[str]):
         tc.assertEqual(
             len(actual_commands),
             len(expectations),
