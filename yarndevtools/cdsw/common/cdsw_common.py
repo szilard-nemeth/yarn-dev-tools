@@ -32,11 +32,11 @@ from pythoncommons.project_utils import (
     PROJECTS_BASEDIR,
     PROJECTS_BASEDIR_NAME,
 )
-
 from tests.cdsw.common.testutils.cdsw_testing_common import SECRET_PROJECTS_DIR
 from yarndevtools.cdsw.common.constants import (
     CdswEnvVar,
     PROJECT_NAME,
+    UnitTestResultAggregatorEnvVar,
 )
 
 # Constants
@@ -348,6 +348,16 @@ class GoogleDriveCdswHelper:
         return drive_api_file
 
 
+class GenericCdswConfigUtils:
+    @staticmethod
+    def quote_list_items(lst):
+        return " ".join(f'"{w}"' for w in lst)
+
+    @staticmethod
+    def quote(val):
+        return '"' + val + '"'
+
+
 class JiraUmbrellaDataFetcherCdswUtils:
     @staticmethod
     def fetch_umbrella_titles(jira_ids: List[str]) -> Dict[str, str]:
@@ -359,3 +369,54 @@ class JiraUmbrellaDataFetcherCdswUtils:
         LOG.info("Fetching HTML of jira: %s", jira_id)
         jira_html = JiraUtils.download_jira_html("https://issues.apache.org/jira/browse/", jira_id, jira_html_file)
         return JiraUtils.parse_jira_title(jira_html)
+
+
+class UnitTestResultAggregatorCdswUtils:
+    DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "Failed testcases (", "FILTER:", "Filter expression: "]
+
+    # TODO Refactor this method
+    @classmethod
+    def determine_lines_to_skip(cls) -> List[str]:
+        skip_lines_starting_with: List[str] = cls.DEFAULT_SKIP_LINES_STARTING_WITH
+        # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
+        # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
+        skip_aggregation_res_file = OsUtils.get_env_value(
+            UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
+        )
+        skip_aggregation_res_file_auto_discovery = OsUtils.get_env_value(
+            UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
+        )
+        LOG.info(
+            "Value of env var '%s': %s",
+            UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
+            skip_aggregation_res_file_auto_discovery,
+        )
+
+        found_with_auto_discovery: str or None = None
+        if skip_aggregation_res_file_auto_discovery:
+            results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, SKIP_AGGREGATION_DEFAULTS_FILENAME)
+            if not results:
+                LOG.warning(
+                    "Skip aggregation resource file auto-discovery is enabled, "
+                    "but failed to find file '%s' from base directory '%s'.",
+                    SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                )
+            elif len(results) > 1:
+                LOG.warning(
+                    "Skip aggregation resource file auto-discovery is enabled, "
+                    "but but found multiple files from base directory '%s'. Found files: %s",
+                    SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                    results,
+                )
+            else:
+                found_with_auto_discovery = results[0]
+        if found_with_auto_discovery:
+            LOG.info("Found Skip aggregation resource file with auto-discovery: %s", found_with_auto_discovery)
+            return FileUtils.read_file_to_list(found_with_auto_discovery)
+        elif skip_aggregation_res_file:
+            LOG.info("Trying to check specified skip aggregation resource file: %s", skip_aggregation_res_file)
+            FileUtils.ensure_is_file(skip_aggregation_res_file)
+            return FileUtils.read_file_to_list(skip_aggregation_res_file)
+        return skip_lines_starting_with

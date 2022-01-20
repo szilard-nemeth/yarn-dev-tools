@@ -7,7 +7,7 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
 from tests.test_utilities import Object
-from yarndevtools.cdsw.common.cdsw_common import CommonFiles
+from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup, CommonDirs
 from yarndevtools.cdsw.common.cdsw_runner import NewCdswRunnerConfig, NewCdswConfigReaderAdapter, NewCdswRunner
 from yarndevtools.common.shared_command_utils import CommandType
 
@@ -31,6 +31,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
     ]
 
     def setUp(self) -> None:
+        CdswSetup._setup_python_module_root_and_yarndevtools_path()
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = "yarndevtools.py"
         self.cdsw_testing_commons = CdswTestingCommons()
 
@@ -343,7 +344,93 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         expectations = [exp_command_1, exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6]
         CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
 
-    def _get_expected_send_latest_command_data_command(self, job_start_date, subject, sender):
+    def test_unit_test_result_aggregator_e2e(self):
+        cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
+        config_file = FileUtils.find_files(
+            cdsw_root_dir,
+            find_type=FindResultType.FILES,
+            regex="unit_test_result_aggregator_.*",
+            single_level=False,
+            full_path_result=True,
+            exclude_dirs=["yarndevtools-results"],
+        )[0]
+
+        skip_aggregation_defaults_file = FileUtils.find_files(
+            cdsw_root_dir,
+            find_type=FindResultType.FILES,
+            regex="skip_aggregation_defaults.*",
+            single_level=False,
+            full_path_result=True,
+            exclude_dirs=["yarndevtools-results"],
+        )[0]
+
+        self._set_env_vars_from_dict(
+            {
+                "GSHEET_CLIENT_SECRET": "testGsheetClientSecret",
+                "GSHEET_WORKSHEET": "testGsheetWorkSheet",
+                "GSHEET_SPREADSHEET": "testGsheetSpreadSheet",
+                "MAIL_ACC_USER": "testMailUser",
+                "MAIL_ACC_PASSWORD": "testMailPassword",
+                "MATCH_EXPRESSION": "YARN::org.apache.hadoop.yarn MR::org.apache.hadoop.mapreduce",
+                "ABBREV_TC_PACKAGE": "org.apache.hadoop.yarn.server",
+                "AGGREGATE_FILTERS": "CDPD-7.1.x CDPD-7.x",
+                "GSHEET_COMPARE_WITH_JIRA_TABLE": "testcases with jiras",
+                "SKIP_AGGREGATION_RESOURCE_FILE": skip_aggregation_defaults_file,
+                "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY": "1",
+                "REQUEST_LIMIT": "3000",
+            }
+        )
+
+        args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
+        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=NewCdswConfigReaderAdapter())
+        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+
+        job_start_date = cdsw_runner.job_config.job_start_date()
+        wrap_d = StringUtils.wrap_to_quotes
+        sender = wrap_d("YARN unit test aggregator")
+        subject = wrap_d(f"YARN unit test aggregator report [start date: {job_start_date}]")
+
+        exp_command_1 = exp_command_1 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--gsheet")
+            .add_expected_arg("--gsheet-client-secret", "testGsheetClientSecret")
+            .add_expected_arg("--gsheet-worksheet", "testGsheetWorkSheet")
+            .add_expected_arg("--gsheet-spreadsheet", "testGsheetSpreadSheet")
+            .add_expected_arg("--account-email", "testMailUser")
+            .add_expected_arg("--request-limit", "3000")
+            .add_expected_arg("--gmail-query", 'subject:"YARN Daily unit test report"')
+            .add_expected_arg("--match-expression", "YARN::org.apache.hadoop.yarn MR::org.apache.hadoop.mapreduce")
+            .add_expected_arg(
+                "--skip-lines-starting-with",
+                '"Failed testcases:" '
+                '"Failed testcases (filter: org.apache.hadoop.yarn):" '
+                '"FILTER:" '
+                '"Filter expression:" '
+                '"Project: YARN, filter expression: org.apache.hadoop.yarn" '
+                '"org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.TestLeafQueue.org.apache.hadoop.yarn.server.resourcemanager.scheduler.capacity.TestLeafQueue" '
+                '"org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.converter.TestFSConfigToCSConfigConverter.org.apache.hadoop.yarn.server.resourcemanager.scheduler.fair.converter.TestFSConfigToCSConfigConverter"',
+            )
+            .add_expected_arg("--summary-mode", "html")
+            .add_expected_arg("--smart-subject-query")
+            .add_expected_arg("--abbreviate-testcase-package", "org.apache.hadoop.yarn.server")
+            .add_expected_arg("--aggregate-filters", '"CDPD-7.1.x CDPD-7.x"')
+            .add_expected_arg("--gsheet-compare-with-jira-table", '"testcases with jiras"')
+        )
+        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
+        exp_command_3 = self._get_expected_send_latest_command_data_command(
+            job_start_date, subject=subject, sender=sender, email_file_from_zip="report-short.html"
+        )
+        expectations = [exp_command_1, exp_command_2, exp_command_3]
+        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+
+    def _get_expected_send_latest_command_data_command(
+        self, job_start_date, subject, sender, email_file_from_zip="summary.html"
+    ):
         wrap_d = StringUtils.wrap_to_quotes
         wrap_s = StringUtils.wrap_to_single_quotes
         expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
@@ -361,7 +448,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--sender", sender)
             .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
             .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
-            .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
+            .add_expected_arg("--file-as-email-body-from-zip", email_file_from_zip)
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
         )
