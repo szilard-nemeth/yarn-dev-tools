@@ -216,7 +216,9 @@ class NewCdswRunner(CdswRunnerBase):
             self.run_clone_downstream_repos_script(setup_result.basedir)
             self.run_clone_upstream_repos_script(setup_result.basedir)
         elif self.command_type == CommandType.BRANCH_COMPARATOR:
-            repo_type_env = OsUtils.get_env_value(BranchComparatorEnvVar.REPO_TYPE.value, RepoType.DOWNSTREAM.value)
+            repo_type_env = OsUtils.get_env_value(
+                BranchComparatorEnvVar.BRANCH_COMP_REPO_TYPE.value, RepoType.DOWNSTREAM.value
+            )
             repo_type: RepoType = RepoType[repo_type_env.upper()]
 
             if repo_type == RepoType.DOWNSTREAM:

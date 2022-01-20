@@ -132,7 +132,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
-        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_review_sheet_backport_updater_e2e(self):
         cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
@@ -220,7 +220,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
-        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_unit_test_result_fetcher_e2e(self):
         cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
@@ -273,7 +273,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_FETCHER)
 
         expectations = [exp_command_1, exp_command_2]
-        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def _get_expected_zip_latest_command_data_command(self, cmd_type: CommandType):
         exp_command_2 = (
@@ -342,7 +342,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6]
-        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_unit_test_result_aggregator_e2e(self):
         cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
@@ -426,14 +426,99 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             job_start_date, subject=subject, sender=sender, email_file_from_zip="report-short.html"
         )
         expectations = [exp_command_1, exp_command_2, exp_command_3]
-        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
+
+    def test_branch_comparator_e2e(self):
+        cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
+        config_file = FileUtils.find_files(
+            cdsw_root_dir,
+            find_type=FindResultType.FILES,
+            regex="branch_comparator_.*",
+            single_level=False,
+            full_path_result=True,
+            exclude_dirs=["yarndevtools-results"],
+        )[0]
+
+        self._set_env_vars_from_dict(
+            {
+                "MAIL_ACC_USER": "testMailUser",
+                "MAIL_ACC_PASSWORD": "testMailPassword",
+                "BRANCH_COMP_MASTER_BRANCH": "someMasterBranch",
+                "BRANCH_COMP_FEATURE_BRANCH": "someFeatureBranch",
+            }
+        )
+
+        args = self._create_args_for_specified_file(config_file, CommandType.BRANCH_COMPARATOR, dry_run=True)
+        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=NewCdswConfigReaderAdapter())
+        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+
+        job_start_date = cdsw_runner.job_config.job_start_date()
+        wrap_d = StringUtils.wrap_to_quotes
+        sender = wrap_d("YARN branch diff reporter")
+        subject1 = wrap_d(f"YARN branch diff report [simple algorithm, start date: {job_start_date}]")
+        subject2 = wrap_d(f"YARN branch diff report [grouped algorithm, start date: {job_start_date}]")
+
+        exp_command_1_1 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("BRANCH_COMPARATOR")
+            .add_expected_arg("simple")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--repo-type", "DOWNSTREAM")
+            .add_expected_arg("someFeatureBranch")
+            .add_expected_arg("someMasterBranch")
+            .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
+        )
+        exp_command_2_1 = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg("BRANCH_COMPARATOR")
+            .add_expected_arg("grouped")
+            .add_expected_arg("--debug")
+            .add_expected_arg("--repo-type", "DOWNSTREAM")
+            .add_expected_arg("someFeatureBranch")
+            .add_expected_arg("someMasterBranch")
+            .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
+        )
+        exp_command_1_2 = exp_command_2_2 = self._get_expected_zip_latest_command_data_command(
+            CommandType.BRANCH_COMPARATOR
+        )
+        exp_command_1_3 = self._get_expected_send_latest_command_data_command(
+            job_start_date,
+            subject=subject1,
+            sender=sender,
+            email_file_from_zip="summary.html",
+            command_data_filename=f"command_data_simple_{job_start_date}.zip",
+        )
+
+        exp_command_2_3 = self._get_expected_send_latest_command_data_command(
+            job_start_date,
+            subject=subject2,
+            sender=sender,
+            email_file_from_zip="summary.html",
+            command_data_filename=f"command_data_grouped_{job_start_date}.zip",
+        )
+        expectations = [
+            exp_command_1_1,
+            exp_command_1_2,
+            exp_command_1_3,
+            exp_command_2_1,
+            exp_command_2_2,
+            exp_command_2_3,
+        ]
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def _get_expected_send_latest_command_data_command(
-        self, job_start_date, subject, sender, email_file_from_zip="summary.html"
+        self, job_start_date, subject, sender, email_file_from_zip="summary.html", command_data_filename=None
     ):
+        if not command_data_filename:
+            command_data_filename = f"command_data_{job_start_date}.zip"
         wrap_d = StringUtils.wrap_to_quotes
         wrap_s = StringUtils.wrap_to_single_quotes
-        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
+        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: {command_data_filename}</a>')
         exp_command_3 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
@@ -447,7 +532,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--subject", subject)
             .add_expected_arg("--sender", sender)
             .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
-            .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
+            .add_expected_arg("--attachment-filename", command_data_filename)
             .add_expected_arg("--file-as-email-body-from-zip", email_file_from_zip)
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")

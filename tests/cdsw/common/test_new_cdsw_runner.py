@@ -206,7 +206,7 @@ class TestNewCdswRunner(unittest.TestCase):
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
-        CdswTestingCommons.assert_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)
