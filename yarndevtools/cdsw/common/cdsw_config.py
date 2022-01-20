@@ -534,5 +534,5 @@ class EnvironmentVariables:
             return env_value
         has_quote_or_single_quote = True if "'" in env_value or '"' in env_value else False
         if " " in env_value and not has_quote_or_single_quote:
-            env_value = f"'{env_value}'"
+            env_value = '"' + env_value + '"'
         return env_value

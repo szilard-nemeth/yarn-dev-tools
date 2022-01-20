@@ -12,7 +12,15 @@ from pythoncommons.project_utils import SimpleProjectUtils
 
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
-DO_NOT_SPLIT_ARG_PARAMS = {"--prepend_email_body_with_text", "--subject", "--sender"}
+ESCAPED_ARGS = {"--aggregate-filters"}
+ESCAPED_ARGS_TUPLE = tuple(ESCAPED_ARGS)
+DO_NOT_SPLIT_ARG_PARAMS = {
+    "--prepend_email_body_with_text",
+    "--subject",
+    "--sender",
+    "--aggregate-filters",
+    "--gsheet-compare-with-jira-table",
+}
 DO_NOT_SPLIT_ARG_PARAMS_TUPLE = tuple(DO_NOT_SPLIT_ARG_PARAMS)
 
 TESTS_DIR_NAME = "tests"
@@ -96,6 +104,9 @@ class CommandExpectations:
             if arg.startswith(DO_NOT_SPLIT_ARG_PARAMS_TUPLE):
                 split = arg.split(" ")
                 joined_args = " ".join(split[1:])
+                # TODO
+                # if arg.startswith(ESCAPED_ARGS_TUPLE):
+                #     joined_args = "\"" + joined_args + "\""
                 new_list = [split[0], joined_args]
                 lists.append(new_list)
             else:
@@ -120,7 +131,8 @@ class CommandExpectations:
                 # New argument starts, close special_arg and add it to set
                 inside_special_arg = False
                 # Remove first extra space
-                special_arg = special_arg[1:]
+                # TODO
+                # special_arg = special_arg[1:]
                 args_set.add(special_arg)
                 args_set.add(arg)
                 special_arg = ""
@@ -129,10 +141,14 @@ class CommandExpectations:
                 inside_special_arg = True
                 args_set.add(arg)
             elif inside_special_arg:
-                special_arg += " " + arg
+                if len(special_arg) > 0:
+                    special_arg += " "
+                special_arg += arg
             else:
                 inside_special_arg = False
                 args_set.add(arg)
+        if inside_special_arg and special_arg != "":
+            args_set.add(special_arg)
         return args_set
 
 
