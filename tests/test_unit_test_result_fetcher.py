@@ -35,7 +35,7 @@ from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 EMAIL_CLASS_NAME = Email.__name__
-SEND_MAIL_PATCH_PATH = "yarndevtools.commands.jenkinstestreporter.jenkins_test_reporter.{}.send_mail".format(
+SEND_MAIL_PATCH_PATH = "yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher.{}.send_mail".format(
     EMAIL_CLASS_NAME
 )
 NETWORK_UTILS_PATCH_PATH = "pythoncommons.network_utils.NetworkUtils.fetch_json"
@@ -115,28 +115,28 @@ class JenkinsTestReport:
     @staticmethod
     def get_arbitrary():
         spec = JenkinsReportJsonSpec.get_arbitrary()
-        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_json = TestUnitTestResultFetcher._get_jenkins_report_as_json(spec)
         report_dict = json.loads(report_json)
         return report_dict, spec
 
     @staticmethod
     def get_with_regression():
         spec = JenkinsReportJsonSpec.get_with_regression()
-        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_json = TestUnitTestResultFetcher._get_jenkins_report_as_json(spec)
         report_dict = json.loads(report_json)
         return report_dict, spec
 
     @staticmethod
     def get_all_green():
         spec = JenkinsReportJsonSpec.get_with_only_passed()
-        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_json = TestUnitTestResultFetcher._get_jenkins_report_as_json(spec)
         report_dict = json.loads(report_json)
         return report_dict, spec
 
     @staticmethod
     def get_empty():
         spec = JenkinsReportJsonSpec.get_empty()
-        report_json = TestJenkinsTestReporter._get_jenkins_report_as_json(spec)
+        report_json = TestUnitTestResultFetcher._get_jenkins_report_as_json(spec)
         report_dict = json.loads(report_json)
         return report_dict, spec
 
@@ -243,8 +243,8 @@ class JenkinsReportJsonSpec:
             failed={
                 PACK_3: 10,
                 PACK_4: 20,
-                TestJenkinsTestReporter._get_package_from_filter(YARN_TC_FILTER): 5,
-                TestJenkinsTestReporter._get_package_from_filter(MAPRED_TC_FILTER): 10,
+                TestUnitTestResultFetcher._get_package_from_filter(YARN_TC_FILTER): 5,
+                TestUnitTestResultFetcher._get_package_from_filter(MAPRED_TC_FILTER): 10,
             },
             skipped={PACK_1: 10, PACK_2: 20},
             passed={PACK_1: 10, PACK_2: 20},
@@ -257,8 +257,8 @@ class JenkinsReportJsonSpec:
             failed={
                 PACK_3: 10,
                 PACK_4: 20,
-                TestJenkinsTestReporter._get_package_from_filter(YARN_TC_FILTER): 5,
-                TestJenkinsTestReporter._get_package_from_filter(MAPRED_TC_FILTER): 10,
+                TestUnitTestResultFetcher._get_package_from_filter(YARN_TC_FILTER): 5,
+                TestUnitTestResultFetcher._get_package_from_filter(MAPRED_TC_FILTER): 10,
             },
             passed={},
             skipped={},
@@ -336,7 +336,7 @@ class JenkinsBuildsGenerator:
         return JenkinsBuilds(builds)
 
 
-class TestJenkinsTestReporter(unittest.TestCase):
+class TestUnitTestResultFetcher(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Invoke this to setup main output directory and avoid test failures while initing config
@@ -405,7 +405,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @staticmethod
     def _get_default_jenkins_builds_as_json(build_id=200):
-        builds_as_dict = TestJenkinsTestReporter._get_default_jenkins_builds_as_dict(build_id)
+        builds_as_dict = TestUnitTestResultFetcher._get_default_jenkins_builds_as_dict(build_id)
         builds_json = json.dumps(builds_as_dict, indent=4)
         return build_id, builds_json
 
@@ -417,9 +417,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     @staticmethod
     def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, job_name=DEFAULT_JOB_NAME, build_id=200):
-        build_url = TestJenkinsTestReporter.get_build_url(jenkins_url, job_name, build_id)
+        build_url = TestUnitTestResultFetcher.get_build_url(jenkins_url, job_name, build_id)
         final_url = rf"{build_url}/testReport/api/json.*"
-        final_url = TestJenkinsTestReporter.sanitize_url(final_url)
+        final_url = TestUnitTestResultFetcher.sanitize_url(final_url)
         LOG.info("Mocked URL: %s", final_url)
         httpretty.register_uri(
             httpretty.GET,
@@ -433,9 +433,9 @@ class TestJenkinsTestReporter(unittest.TestCase):
         jenkins_url=JENKINS_MAIN_URL,
         job_name=JOB_NAME,
     ):
-        job_url = TestJenkinsTestReporter.get_job_url(jenkins_url, job_name)
+        job_url = TestUnitTestResultFetcher.get_job_url(jenkins_url, job_name)
         final_url = rf"{job_url}/api/json.*"
-        final_url = TestJenkinsTestReporter.sanitize_url(final_url)
+        final_url = TestUnitTestResultFetcher.sanitize_url(final_url)
         LOG.info("Mocked URL: %s", final_url)
         httpretty.register_uri(
             httpretty.GET,
@@ -447,14 +447,14 @@ class TestJenkinsTestReporter(unittest.TestCase):
     def get_job_url(jenkins_url: str, job_name: str):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        return TestJenkinsTestReporter.sanitize_url(f"{jenkins_url}/job/{job_name}/")
+        return TestUnitTestResultFetcher.sanitize_url(f"{jenkins_url}/job/{job_name}/")
 
     @staticmethod
     def get_build_url(jenkins_url: str, job_name: str, build_id: int):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        job_url = TestJenkinsTestReporter.get_job_url(jenkins_url, job_name)
-        return TestJenkinsTestReporter.sanitize_url(f"{job_url}/{build_id}/")
+        job_url = TestUnitTestResultFetcher.get_job_url(jenkins_url, job_name)
+        return TestUnitTestResultFetcher.sanitize_url(f"{job_url}/{build_id}/")
 
     @staticmethod
     def sanitize_url(url: str):
@@ -531,7 +531,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = UnitTestResultFetcher(self.generate_args(), self.output_dir)
         reporter.run()
-        job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
+        job_url = TestUnitTestResultFetcher.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=30)
         self._assert_num_filtered_testcases_single_build(
@@ -557,7 +557,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = UnitTestResultFetcher(self.generate_args(), self.output_dir)
         reporter.run()
-        job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
+        job_url = TestUnitTestResultFetcher.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=55)
         self._assert_num_filtered_testcases_single_build(
@@ -580,7 +580,7 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
         reporter = UnitTestResultFetcher(self.generate_args(tc_filters=MULTI_FILTER), self.output_dir)
         reporter.run()
-        job_url = TestJenkinsTestReporter.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
+        job_url = TestUnitTestResultFetcher.get_build_url(JENKINS_MAIN_URL, DEFAULT_JOB_NAME, 200)
         self._assert_send_mail(mock_send_mail_call)
         self._assert_all_failed_testcases(reporter, spec, expected_failed_count=45)
         self._assert_num_filtered_testcases_single_build(
@@ -602,21 +602,21 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     def test_jenkins_api_converter_parse_job_data_check_failed_testcases(self):
         report_dict, spec = JenkinsTestReport.get_arbitrary()
-        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_regression_testcases(self):
         report_dict, spec = JenkinsTestReport.get_with_regression()
-        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_counters(self):
         report_dict, spec = JenkinsTestReport.get_arbitrary()
-        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
 
         exp_counter = JobBuildDataCounters(failed=45, passed=30, skipped=30)
@@ -625,14 +625,14 @@ class TestJenkinsTestReporter(unittest.TestCase):
 
     def test_jenkins_api_converter_parse_job_data_check_status_counters_all_green_job(self):
         report_dict, spec = JenkinsTestReport.get_all_green()
-        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.ALL_GREEN, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_status_counters_empty_job(self):
         report_dict, spec = JenkinsTestReport.get_empty()
-        failed_jenkins_build = FailedJenkinsBuild(TestJenkinsTestReporter.get_arbitrary_build_url(), 12345, "testJob")
+        failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.EMPTY, job_build_data.status)
