@@ -14,10 +14,9 @@ from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationSt
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons
 from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 VALID_CONFIG_FILE = "cdsw_job_config.py"
-
-PROJECT_NAME = "cdsw-config-reader"
 
 LOG = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class CdswConfigReaderTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
-        ProjectUtils.get_test_output_basedir(PROJECT_NAME)
+        ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         cls._setup_logging()
         cls.cdsw_testing_commons = CdswTestingCommons()
         cls.configfiles_base_dir = cls.cdsw_testing_commons.get_path_from_test_basedir("common", "configfiles")

@@ -1,7 +1,7 @@
 import unittest
 from os.path import expanduser
 from typing import List, Set
-from unittest.mock import _CallList
+from unittest.mock import _CallList, patch
 
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.github_utils import GitHubUtils
@@ -11,6 +11,8 @@ from pythoncommons.object_utils import ObjUtils
 from pythoncommons.project_utils import SimpleProjectUtils
 
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+
+DRIVE_API_WRAPPER_PATH = "googleapiwrapper.google_drive.DriveApiWrapper"
 
 ESCAPED_ARGS = {"--aggregate-filters"}
 ESCAPED_ARGS_TUPLE = tuple(ESCAPED_ARGS)
@@ -222,3 +224,11 @@ class CdswTestingCommons:
             actual_args = list(call.args)
             if arg in actual_args:
                 tc.fail("Unexpected call with argument that is forbidden in call: {}".format(arg))
+
+    @staticmethod
+    def mock_google_drive():
+        with patch(DRIVE_API_WRAPPER_PATH) as MockDriveWrapper:
+            instance = MockDriveWrapper.return_value
+        instance.upload_file.return_value = "mockedUpload"
+        assert MockDriveWrapper() is instance
+        assert MockDriveWrapper().upload_file() == "mockedUpload"

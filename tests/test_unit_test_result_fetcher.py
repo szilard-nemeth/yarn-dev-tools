@@ -345,7 +345,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.UNIT_TEST_RESULT_FETCHER)
 
     def setUp(self):
         if not USE_REAL_API:

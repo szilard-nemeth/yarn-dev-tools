@@ -305,7 +305,7 @@ QUICK_DEV_CONFIG = DockerBasedTestConfig(
     container_sleep_seconds=500,
     install_requirements=False,
 )
-ACTIVE_CONFIG = QUICK_DEV_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
+ACTIVE_CONFIG = PROD_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
 
 
 class YarnCdswBranchDiffTests(unittest.TestCase):

@@ -52,6 +52,7 @@ LOG = logging.getLogger(__name__)
 class TestNewCdswRunner(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
+        OsUtils.clear_env_vars([CdswEnvVar.MAIL_RECIPIENTS.name])
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = "yarndevtools.py"
         OsUtils.set_env_value(CdswEnvVar.MAIL_ACC_USER.value, "mailUser")
         OsUtils.set_env_value(CdswEnvVar.MAIL_ACC_PASSWORD.value, "mailPassword")

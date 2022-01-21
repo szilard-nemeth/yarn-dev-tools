@@ -31,7 +31,7 @@ class TestBranchComparator(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.BRANCH_COMPARATOR)
 
     def setUp(self):
         pass

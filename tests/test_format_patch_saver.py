@@ -34,7 +34,7 @@ class TestFormatPatchSaver(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.SAVE_DIFF_AS_PATCHES)
 
     def setUp(self):
         self.current_datetime = DateUtils.get_current_datetime()
