@@ -10,6 +10,7 @@ import logging
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.project_utils import SimpleProjectUtils
 
+from yarndevtools.cdsw.common.constants import SECRET_PROJECTS_DIR
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 DRIVE_API_WRAPPER_PATH = "googleapiwrapper.google_drive.DriveApiWrapper"
@@ -30,8 +31,6 @@ TESTS_DIR_NAME = "tests"
 CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 LOG = logging.getLogger(__name__)
-
-SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
 
 
 class LocalDirs:

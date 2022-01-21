@@ -32,11 +32,11 @@ from pythoncommons.project_utils import (
     PROJECTS_BASEDIR,
     PROJECTS_BASEDIR_NAME,
 )
-from tests.cdsw.common.testutils.cdsw_testing_common import SECRET_PROJECTS_DIR
 from yarndevtools.cdsw.common.constants import (
     CdswEnvVar,
     PROJECT_NAME,
     UnitTestResultAggregatorEnvVar,
+    SECRET_PROJECTS_DIR,
 )
 
 # Constants
