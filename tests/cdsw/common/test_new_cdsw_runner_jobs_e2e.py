@@ -1,6 +1,7 @@
 import os
 import unittest
 from typing import Dict
+from unittest.mock import patch
 
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.string_utils import StringUtils
@@ -11,12 +12,15 @@ from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup, CommonD
 from yarndevtools.cdsw.common.cdsw_runner import NewCdswRunnerConfig, NewCdswConfigReaderAdapter, NewCdswRunner
 from yarndevtools.common.shared_command_utils import CommandType
 
+DRIVE_API_WRAPPER_UPLOAD_PATH = "googleapiwrapper.google_drive.DriveApiWrapper.upload_file"
+
 PARSER = None
 SETUP_RESULT = None
 CDSW_RUNNER_SCRIPT_PATH = None
 
 
 # TODO Extract code as much as possible
+@patch(DRIVE_API_WRAPPER_UPLOAD_PATH)
 class TestNewCdswRunnerJobsE2E(unittest.TestCase):
     ENV_VARS = [
         "GSHEET_CLIENT_SECRET",
