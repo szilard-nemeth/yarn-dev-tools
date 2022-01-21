@@ -38,43 +38,52 @@ echo "Python module mode: $PYTHON_MODULE_MODE"
 echo "Execution mode: $EXEC_MODE"
 
 echo "Downloading clone repository scripts..."
-SCRIPTS_DIR="/home/cdsw/scripts"
-mkdir $SCRIPTS_DIR
-
-
 #No errors allowed in curl / chmod
+REPOS_ROOT="/home/cdsw/repos/"
 set -e
-curl -o $SCRIPTS_DIR/clone_downstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_downstream_repos.sh
-curl -o $SCRIPTS_DIR/clone_upstream_repos.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/clone_upstream_repos.sh
-curl -o $SCRIPTS_DIR/install-requirements.sh https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/scripts/install-requirements.sh
-curl -o $SCRIPTS_DIR/start_job.py https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/start_job.py
-chmod +x $SCRIPTS_DIR/clone_downstream_repos.sh
-chmod +x $SCRIPTS_DIR/clone_upstream_repos.sh
-chmod +x $SCRIPTS_DIR/install-requirements.sh
-chmod +x $SCRIPTS_DIR/start_job.py
+mkdir -p $REPOS_ROOT
+cd $REPOS_ROOT
 
 set +e
-mkdir $SCRIPTS_DIR/libreloader
+git clone https://github.com/szilard-nemeth/yarn-dev-tools.git
+
+CDSW_ROOT="/home/cdsw/"
+SCRIPTS_ROOT="$CDSW_ROOT/scripts"
+mkdir -p $CDSW_ROOT
+mkdir -p $SCRIPTS_ROOT
+cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/scripts/*.sh $CDSW_ROOT/scripts
+cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/start_job.py $CDSW_ROOT/scripts
 set -e
-touch $SCRIPTS_DIR/libreloader/__init__.py
-curl -o $SCRIPTS_DIR/libreloader/reload_dependencies.py https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/libreloader/reload_dependencies.py
-chmod +x $SCRIPTS_DIR/libreloader/reload_dependencies.py
+
+CLONE_DS_REPOS_SCRIPT_PATH="$SCRIPTS_ROOT/clone_downstream_repos.sh"
+CLONE_US_REPOS_SCRIPT_PATH="$SCRIPTS_ROOT/clone_upstream_repos.sh"
+INSTALL_REQUIREMENTS_SCRIPT_PATH="$SCRIPTS_ROOT/install-requirements.sh"
+START_JOB_SCRIPT_PATH="$SCRIPTS_ROOT/start_job.py"
+
+
+chmod +x $CLONE_DS_REPOS_SCRIPT_PATH
+chmod +x $CLONE_US_REPOS_SCRIPT_PATH
+chmod +x $INSTALL_REQUIREMENTS_SCRIPT_PATH
+chmod +x $START_JOB_SCRIPT_PATH
 
 set -e
 #No errors allowed after this point!
 
 # Always run clone_upstream_repos.sh
 echo "Cloning upstream repos..."
-$SCRIPTS_DIR/clone_upstream_repos.sh
+$CLONE_US_REPOS_SCRIPT_PATH
 
 # Only run clone_downstream_repos.sh if execution mode == "cloudera"
 if [[ "$EXEC_MODE" == "cloudera" ]]; then
   echo "Cloning downstream repos..."
-  $SCRIPTS_DIR/clone_downstream_repos.sh
+  $CLONE_DS_REPOS_SCRIPT_PATH
 fi
 
-. $DIR/install-requirements.sh $EXEC_MODE
+. $INSTALL_REQUIREMENTS_SCRIPT_PATH $EXEC_MODE
 
+# =================================================================
+# Set up python package root
+# =================================================================
 GLOBAL_SITE_PACKAGES=$(python3 -c 'import site; print(site.getsitepackages()[0])')
 USER_SITE_PACKAGES=$(python3 -m site --user-site)
 echo "GLOBAL_SITE_PACKAGES: $GLOBAL_SITE_PACKAGES"
@@ -87,39 +96,34 @@ if [[ "$PYTHON_MODULE_MODE" == "global" ]]; then
   PYTHON_SITE=$GLOBAL_SITE_PACKAGES
 fi
 
+
+# =================================================================
+# COPY JOB CONFIGURATIONS TO THEIR PLACE
+# !!! FROM THIS POINT, USE ALL FILES FROM THE PYTHON MODULE !!!
+# =================================================================
+
 #Set up some convenience variables
 CDSW_PACKAGE_ROOT="$PYTHON_SITE/yarndevtools/cdsw"
-JOBS_ROOT=/home/cdsw/jobs/
-JOB_BRANCH_COMPARATOR="branch-comparator"
-JOB_JIRA_UMBRELLA_DATA_FETCHER="jira-umbrella-data-fetcher"
-JOB_UT_RESULT_AGGREGATOR="unit-test-result-aggregator"
-JOB_UT_RESULT_REPORTER="unit-test-result-fetcher"
-JOB_REVIEW_SHEET_BACKPORT_UPDATER="review-sheet-backport-updater"
-JOB_REVIEWSYNC="reviewsync"
-CDSW_RUNNER_SCRIPT="cdsw_runner.py"
+CDSW_PACKAGE_ROOT_JOB_CONFIGS="$CDSW_PACKAGE_ROOT/job_configs"
+JOBS_ROOT="$CDSW_ROOT/jobs/"
+CDSW_RUNNER_SCRIPT_PATH="$SCRIPTS_ROOT/cdsw_runner.py"
 
 # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
 # the linked script is not there.
 echo "Copying scripts to place..."
-
 rm -rf $JOBS_ROOT
 mkdir -p $JOBS_ROOT
-mkdir -p $JOBS_ROOT/$JOB_BRANCH_COMPARATOR
-mkdir -p $JOBS_ROOT/$JOB_JIRA_UMBRELLA_DATA_FETCHER/
-mkdir -p $JOBS_ROOT/$JOB_UT_RESULT_AGGREGATOR/
-mkdir -p $JOBS_ROOT/$JOB_UT_RESULT_REPORTER/
-mkdir -p $JOBS_ROOT/$JOB_REVIEW_SHEET_BACKPORT_UPDATER/
-mkdir -p $JOBS_ROOT/$JOB_REVIEWSYNC/
+cp $CDSW_PACKAGE_ROOT_JOB_CONFIGS/*.py $JOBS_ROOT/
 
-cp $CDSW_PACKAGE_ROOT/$JOB_BRANCH_COMPARATOR/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_BRANCH_COMPARATOR/$CDSW_RUNNER_SCRIPT
-cp $CDSW_PACKAGE_ROOT/$JOB_JIRA_UMBRELLA_DATA_FETCHER/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_JIRA_UMBRELLA_DATA_FETCHER/$CDSW_RUNNER_SCRIPT
-cp $CDSW_PACKAGE_ROOT/$JOB_UT_RESULT_AGGREGATOR/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_UT_RESULT_AGGREGATOR/$CDSW_RUNNER_SCRIPT
-cp $CDSW_PACKAGE_ROOT/$JOB_UT_RESULT_REPORTER/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_UT_RESULT_REPORTER/$CDSW_RUNNER_SCRIPT
-cp $CDSW_PACKAGE_ROOT/$JOB_REVIEW_SHEET_BACKPORT_UPDATER/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_REVIEW_SHEET_BACKPORT_UPDATER/$CDSW_RUNNER_SCRIPT
-cp $CDSW_PACKAGE_ROOT/$JOB_REVIEWSYNC/$CDSW_RUNNER_SCRIPT $JOBS_ROOT/$JOB_REVIEWSYNC/$CDSW_RUNNER_SCRIPT
+echo "Copying cdsw_runner.py into place..."
+cp "$CDSW_PACKAGE_ROOT/common/cdsw_runner.py" "$CDSW_RUNNER_SCRIPT_PATH"
 
-echo "Adding execute flag for all cdsw_runner.py scripts..."
-find /home/cdsw/jobs/ | grep cdsw_runner | xargs chmod +x
 echo "Installed jobs:"
-find /home/cdsw/jobs/ | grep cdsw_runner | xargs ls -la
+find $JOBS_ROOT | xargs ls -la
 set +x
+
+echo "Start jobs script path:"
+echo $START_JOB_SCRIPT_PATH
+
+echo "CDSW runner script path:"
+echo $CDSW_RUNNER_SCRIPT_PATH

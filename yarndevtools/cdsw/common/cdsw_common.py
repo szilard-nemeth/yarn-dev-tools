@@ -292,6 +292,7 @@ class CdswRunnerBase(ABC):
 
     @staticmethod
     def get_filename(dir_name: str):
+        # TODO Is this method used anymore?
         # Apparently, there is no chance to get the stackframe that called this method.
         # The 0th frame holds this method, though.
         # See file: cdsw_stacktrace_example.txt

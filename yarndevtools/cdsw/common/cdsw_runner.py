@@ -83,6 +83,7 @@ class NewCdswRunnerConfig:
         if self.execution_mode == ExecutionMode.SPECIFIED_CONFIG_FILE:
             self.job_config_file = args.config_file
         elif self.execution_mode == ExecutionMode.AUTO_DISCOVERY:
+            LOG.info("Trying to discover config file for command: %s", self.command_type)
             # TODO implement discovery
             pass
         self._parse_command_type(args)
