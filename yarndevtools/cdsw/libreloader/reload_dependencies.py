@@ -112,7 +112,7 @@ class Reloader:
             for file in files:
                 filepath = subdir + os.sep + file
                 if filepath.endswith(".py"):
-                    cls.copy_file(filepath, YARN_DEV_TOOLS_JOBS_BASEDIR)
+                    cls.copy_file(filepath, os.path.join(YARN_DEV_TOOLS_JOBS_BASEDIR, file))
 
     @classmethod
     def remove_dir(cls, dir, force=False):

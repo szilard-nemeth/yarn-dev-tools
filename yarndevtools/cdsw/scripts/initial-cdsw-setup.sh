@@ -53,6 +53,7 @@ mkdir -p $CDSW_ROOT
 mkdir -p $SCRIPTS_ROOT
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/scripts/*.sh $CDSW_ROOT/scripts
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/start_job.py $CDSW_ROOT/scripts
+cp -R $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/libreloader/ $CDSW_ROOT/scripts/libreloader
 set -e
 
 CLONE_DS_REPOS_SCRIPT_PATH="$SCRIPTS_ROOT/clone_downstream_repos.sh"
