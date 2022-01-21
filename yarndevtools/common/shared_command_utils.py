@@ -204,6 +204,7 @@ class CommandType(Enum):
         "latest-session-reviewsync",
     )
 
+    # TODO Unify value vs. output_dir_name: Using both causes confusion
     def __init__(self, value, output_dir_name, session_based: bool, session_link_name: str = ""):
         self.real_name = value
         self.session_based = session_based

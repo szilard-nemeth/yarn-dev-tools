@@ -315,7 +315,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if GitHubUtils.is_github_ci_execution():
-            # Always use PROD config when Github CI is executed
+            # Always use PROD config when GitHub CI is executed
             LOG.info("Changing configuration to PROD as Github Actions CI is being executed...")
             YarnCdswBranchDiffTests.config = PROD_CONFIG
 
@@ -326,6 +326,10 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=cls.config.dockerfile, logger=CMD_LOG
         )
         cls.setup_default_docker_mounts()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        OsUtils.clear_env_vars(list(cls.config.env_dict.keys()))
 
     @classmethod
     def setup_default_docker_mounts(cls):
