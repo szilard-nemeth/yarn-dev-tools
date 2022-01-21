@@ -861,11 +861,11 @@ class UnitTestResultFetcher:
     def run(self):
         LOG.info("Starting Jenkins test reporter. Details: %s", str(self.config))
         SimpleLoggingSetup.init_logger(
-            project_name=CommandType.UNIT_TEST_RESULT_FETCHER.value,
+            project_name=CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
             console_debug=self.config.args.debug,
-            postfix=self.config.args.command,
+            postfix=None,
             repos=None,
             verbose_git_log=self.config.args.verbose,
             enable_logging_setup_debug_details=False,
