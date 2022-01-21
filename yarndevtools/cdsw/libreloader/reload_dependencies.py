@@ -22,25 +22,6 @@ YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 DEFAULT_TEST_EXECUTION_MODE = "cloudera"  # Same as TestExecMode.CLOUDERA.value
 
 
-BRANCH_COMPARATOR_DIR_NAME = "branch-comparator"
-JIRA_UMBRELLA_DATA_FETCHER_DIR_NAME = "jira-umbrella-data-fetcher"
-UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME = "unit-test-result-aggregator"
-REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME = "review-sheet-backport-updater"
-REVIEWSYNC_DIR_NAME = "reviewsync"
-UNIT_TEST_RESULT_REPORTING_DIR_NAME = "unit-test-result-fetcher"
-# Same as CommonDirs.CDSW_SCRIPT_DIR_NAMES
-CDSW_SCRIPT_DIR_NAMES = [
-    BRANCH_COMPARATOR_DIR_NAME,
-    JIRA_UMBRELLA_DATA_FETCHER_DIR_NAME,
-    UNIT_TEST_RESULT_AGGREGATOR_DIR_NAME,
-    REVIEW_SHEET_BACKPORT_UPDATER_DIR_NAME,
-    REVIEWSYNC_DIR_NAME,
-    UNIT_TEST_RESULT_REPORTING_DIR_NAME,
-]
-
-CDSW_RUNNER_PY = "cdsw_runner.py"
-
-
 class Reloader:
     YARN_DEV_TOOLS_MODULE_ROOT = None
 
@@ -119,25 +100,19 @@ class Reloader:
         if TEST_EXECUTION_MODE_ENV_VAR in os.environ:
             exec_mode = os.environ[TEST_EXECUTION_MODE_ENV_VAR]
         cls._run_script(script, args=[exec_mode], exit_on_nonzero_exitcode=exit_on_nonzero_exitcode)
-        cls._copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts()
+        cls._copy_job_configs_to_cdsw_jobs_root()
 
     @classmethod
-    def _copy_cdsw_jobs_to_yarndevtools_cdsw_runner_scripts(cls):
+    def _copy_job_configs_to_cdsw_jobs_root(cls):
         # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
         # the linked script is not there.
         LOG.info("Copying jobs to place...")
-        for job_dirname in CDSW_SCRIPT_DIR_NAMES:
-            cdsw_runner_of_job = os.path.join(cls.YARN_DEV_TOOLS_MODULE_ROOT, "cdsw", job_dirname, CDSW_RUNNER_PY)
-            if not os.path.isfile(cdsw_runner_of_job):
-                raise ValueError("Cannot find script: {}".format(cdsw_runner_of_job))
-
-            # It's safer to delete dirs one by one explicitly, without specifying just the parent
-            cdsw_job_dir = os.path.join(YARN_DEV_TOOLS_JOBS_BASEDIR, job_dirname)
-            cls.remove_dir(cdsw_job_dir, force=True)
-
-            cls.create_new_dir(cdsw_job_dir)
-            target_script_path = os.path.join(cdsw_job_dir, CDSW_RUNNER_PY)
-            cls.copy_file(cdsw_runner_of_job, target_script_path)
+        configs_root_dir = os.path.join(cls.YARN_DEV_TOOLS_MODULE_ROOT, "cdsw", "job_configs")
+        for subdir, dirs, files in os.walk(configs_root_dir):
+            for file in files:
+                filepath = subdir + os.sep + file
+                if filepath.endswith(".py"):
+                    cls.copy_file(filepath, YARN_DEV_TOOLS_JOBS_BASEDIR)
 
     @classmethod
     def remove_dir(cls, dir, force=False):

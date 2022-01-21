@@ -42,6 +42,8 @@ if len(sys.argv) != 2:
     raise ValueError("Should only have one argument, the name of the job!")
 
 reload_dependencies.Reloader.start()
+
+# Start the CDSW runner
 job_name = sys.argv[1]
-script_path = os.path.join("/home", "cdsw", "jobs", job_name, "cdsw_runner.py")
-exec(open(script_path).read())
+cdsw_runner_path = os.path.join(scripts_dir, "cdsw_runner.py")
+exec(open(cdsw_runner_path).read())
