@@ -173,15 +173,6 @@ class CdswConfigReaderTest(unittest.TestCase):
         LOG.info(exc_msg)
         self.assertIn("GSHEET_JIRA_COLUMN", exc_msg)
 
-    def test_config_reader_empty_yarndevtools_args(self):
-        self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_empty_yarndevtools_args.py")
-        with self.assertRaises(ValueError) as ve:
-            CdswJobConfigReader.read_from_file(file)
-        exc_msg = ve.exception.args[0]
-        LOG.info(exc_msg)
-        self.assertIn("Empty YARN dev tools arguments", exc_msg)
-
     def test_config_reader_variables(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
         self._set_mandatory_env_vars()
