@@ -4,15 +4,16 @@ from typing import Dict
 from unittest.mock import patch
 
 from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.os_utils import OsUtils
 from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
 from tests.test_utilities import Object
 from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup, CommonDirs
 from yarndevtools.cdsw.common.cdsw_runner import NewCdswRunnerConfig, NewCdswConfigReaderAdapter, NewCdswRunner
+from yarndevtools.cdsw.common.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 
-DRIVE_API_WRAPPER_UPLOAD_PATH = "googleapiwrapper.google_drive.DriveApiWrapper.upload_file"
 
 PARSER = None
 SETUP_RESULT = None
@@ -20,7 +21,6 @@ CDSW_RUNNER_SCRIPT_PATH = None
 
 
 # TODO Extract code as much as possible
-@patch(DRIVE_API_WRAPPER_UPLOAD_PATH)
 class TestNewCdswRunnerJobsE2E(unittest.TestCase):
     ENV_VARS = [
         "GSHEET_CLIENT_SECRET",
@@ -34,13 +34,19 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         "MAIL_ACC_PASSWORD",
     ]
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        OsUtils.clear_env_vars([CdswEnvVar.MAIL_RECIPIENTS.name])
+
     def setUp(self) -> None:
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = "yarndevtools.py"
         self.cdsw_testing_commons = CdswTestingCommons()
+        CdswTestingCommons.mock_google_drive()
 
     def tearDown(self) -> None:
         self._clear_env_vars()
+        CdswTestingCommons.mock_google_drive()
 
     @classmethod
     def _clear_env_vars(cls):

@@ -99,11 +99,11 @@ class TestUtilities:
             self.reset_and_checkout_trunk()
 
     @staticmethod
-    def tearDownClass(test_name):
-        TestUtilities.collect_and_zip_test_artifacts(test_name)
+    def tearDownClass(test_name, command_type):
+        TestUtilities.collect_and_zip_test_artifacts(test_name, command_type)
 
     @staticmethod
-    def collect_and_zip_test_artifacts(test_name):
+    def collect_and_zip_test_artifacts(test_name, command_type):
         github_ci_exec: bool = GitHubUtils.is_github_ci_execution()
         github_workspace_path = None
         if github_ci_exec:
@@ -136,8 +136,9 @@ class TestUtilities:
                     output_export_basedir, f"test_project_basedir_{project_name}_{test_name}.zip"
                 )
                 all_zip_files.append(project_basedir_zipfile_path)
+                zip_basedir = FileUtils.join_path(project_basedir, command_type.output_dir_name)
                 ZipFileUtils.create_zip_file(
-                    src_files=[project_basedir],
+                    src_files=[zip_basedir],
                     filename=project_basedir_zipfile_path,
                     ignore_files=[SANDBOX_REPO, SANDBOX_REPO + SANDBOX_REPO_DOWNSTREAM_HOTFIX, "yarndevtools_export"],
                     compress=True,

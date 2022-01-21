@@ -29,7 +29,7 @@ class TestUpstreamPRFetcher(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.UPSTREAM_PR_FETCH)
 
     def setUp(self):
         self.utils.reset_and_checkout_existing_branch(DEFAULT_BRANCH, pull=False)

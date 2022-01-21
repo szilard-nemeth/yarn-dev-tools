@@ -22,7 +22,7 @@ class TestPatchSaver(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.utils.setUpClass(CommandType.SAVE_DIFF_AS_PATCHES)
+        cls.utils.setUpClass(CommandType.SAVE_PATCH)
         cls.utils.pull_to_trunk()
         cls.repo = cls.utils.repo
         cls.repo_wrapper = cls.utils.repo_wrapper
@@ -31,7 +31,7 @@ class TestPatchSaver(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.SAVE_PATCH)
 
     def cleanup_and_checkout_branch(self, test_branch):
         self.utils.cleanup_and_checkout_test_branch(pull=False)
