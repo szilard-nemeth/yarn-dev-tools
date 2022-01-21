@@ -51,7 +51,7 @@ class ArgParser:
         parser.add_argument(
             "cmd_type",
             type=str,
-            choices=[e.name for e in CommandType],
+            choices=[e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType],
             help="Type of command.",
         )
 
