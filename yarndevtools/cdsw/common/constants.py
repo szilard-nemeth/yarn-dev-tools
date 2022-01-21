@@ -1,8 +1,12 @@
 from enum import Enum
+from os.path import expanduser
+
+from pythoncommons.file_utils import FileUtils
 
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
 CDSW_RUNNER_PY = "cdsw_runner.py"
+SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
 
 
 # TODO Add default value of all env vars to enum

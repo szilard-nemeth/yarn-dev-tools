@@ -15,7 +15,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import RegexUtils
 
-from tests.cdsw.common.testutils.cdsw_testing_common import SECRET_PROJECTS_DIR
+from yarndevtools.cdsw.common.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common import (
     MATCH_ALL_LINES_EXPRESSION,
     MATCHTYPE_ALL_POSTFIX,
