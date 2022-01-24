@@ -120,9 +120,9 @@ class CdswSetup:
 
         # This must happen before other operations as it sets: CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
-        LOG.info("Using basedir for scripts: " + basedir)
-        LOG.debug("Common dirs after setup: ", ObjUtils.get_class_members(CommonDirs))
-        LOG.debug("Common files after setup: ", ObjUtils.get_class_members(CommonFiles))
+        LOG.info("Using basedir for scripts: %s", basedir)
+        LOG.debug("Common dirs after setup: %s", ObjUtils.get_class_members(CommonDirs))
+        LOG.debug("Common files after setup: %s", ObjUtils.get_class_members(CommonFiles))
         return CdswSetupResult(basedir, output_basedir, env_var_dict)
 
     @staticmethod
