@@ -23,7 +23,7 @@ from yarndevtools.cdsw.common.cdsw_config import (
 from yarndevtools.cdsw.common.cdsw_runner import (
     CdswRunnerConfig,
     CdswRunner,
-    ExecutionMode,
+    ConfigMode,
     CdswConfigReaderAdapter,
 )
 from yarndevtools.cdsw.common.constants import CdswEnvVar
@@ -139,7 +139,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
-        self.assertEqual(ExecutionMode.AUTO_DISCOVERY, config.execution_mode)
+        self.assertEqual(ConfigMode.AUTO_DISCOVERY, config.execution_mode)
 
     def test_argument_parsing_into_config(self):
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
@@ -147,7 +147,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
-        self.assertEqual(ExecutionMode.SPECIFIED_CONFIG_FILE, config.execution_mode)
+        self.assertEqual(ConfigMode.SPECIFIED_CONFIG_FILE, config.execution_mode)
         self.assertEqual(FAKE_CONFIG_FILE, config.job_config_file)
 
     def test_argument_parsing_into_config_invalid_command_type(self):
