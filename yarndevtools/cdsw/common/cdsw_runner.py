@@ -245,7 +245,7 @@ if __name__ == "__main__":
 
     args, parser = ArgParser.parse_args()
     end_time = time.time()
-    config = NewCdswRunnerConfig(parser, args)
+    config = NewCdswRunnerConfig(parser, args, NewCdswConfigReaderAdapter())
     cdsw_runner = NewCdswRunner(config)
     cdsw_runner.begin()
 
