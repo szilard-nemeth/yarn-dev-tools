@@ -6,7 +6,7 @@ from enum import Enum
 from typing import List
 
 from googleapiwrapper.google_drive import DriveApiFile
-from pythoncommons.file_utils import FileUtils
+from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.cdsw.common.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup, CommonDirs
@@ -64,6 +64,7 @@ class ArgParser:
             help="Dry run",
         )
         parser.add_argument("--config-file", type=str, help="Full path to job config file (JSON format)")
+        parser.add_argument("--config-dir", type=str, help="Full path to the directory of the configs")
 
         args = parser.parse_args()
         if args.verbose:
@@ -81,15 +82,34 @@ class NewCdswRunnerConfig:
         self._validate_args(parser, args)
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.execution_mode = self.determine_execution_mode(args)
-        if self.execution_mode == ExecutionMode.SPECIFIED_CONFIG_FILE:
-            self.job_config_file = args.config_file
-        elif self.execution_mode == ExecutionMode.AUTO_DISCOVERY:
-            LOG.info("Trying to discover config file for command: %s", self.command_type)
-            # TODO implement discovery
-            pass
+        self.job_config_file = self._determine_job_config_file_location(args)
         self._parse_command_type(args)
         self.dry_run = args.dry_run
         self.config_reader = config_reader
+
+    def _determine_job_config_file_location(self, args):
+        if self.execution_mode == ExecutionMode.SPECIFIED_CONFIG_FILE:
+            return args.config_file
+        elif self.execution_mode == ExecutionMode.AUTO_DISCOVERY:
+            LOG.info("Trying to discover config file for command: %s", self.command_type)
+            return self._discover_config_file()
+
+    def _discover_config_file(self):
+        file_paths = FileUtils.find_files(
+            self.config_dir,
+            find_type=FindResultType.FILES,
+            regex=".*\\.py",
+            single_level=True,
+            full_path_result=True,
+        )
+        expected_filename = f"{self.command_type.output_dir}_job_config.py"
+        file_names = [os.path.basename(f) for f in file_paths]
+        if expected_filename not in file_names:
+            raise ValueError(
+                "Auto-discovery failed for command '{}'. Expected file path: {}, Actual files found: {}".format(
+                    self.command_type, expected_filename, file_paths
+                )
+            )
 
     def _parse_command_type(self, args):
         try:
@@ -101,9 +121,14 @@ class NewCdswRunnerConfig:
         except ValueError:
             raise ValueError("Invalid command type specified! Possible values are: {}".format(POSSIBLE_COMMAND_TYPES))
 
-    @staticmethod
-    def _validate_args(parser, args):
-        pass
+    def _validate_args(self, parser, args):
+        if hasattr(args, "config_file"):
+            self.config_file = args.config_file
+        if hasattr(args, "config_dir"):
+            self.config_dir = args.config_dir
+
+        if not self.config_file and not self.config_dir:
+            parser.error("Either config file (--config-file) or config dir (--config-dir) need to be provided!")
 
     @staticmethod
     def determine_execution_mode(args):
