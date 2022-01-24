@@ -15,6 +15,7 @@ from yarndevtools.cdsw.common.constants import CdswEnvVar, BranchComparatorEnvVa
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
 
 LOG = logging.getLogger(__name__)
+POSSIBLE_COMMAND_TYPES = [e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType]
 
 
 class ExecutionMode(Enum):
@@ -51,7 +52,7 @@ class ArgParser:
         parser.add_argument(
             "cmd_type",
             type=str,
-            choices=[e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType],
+            choices=POSSIBLE_COMMAND_TYPES,
             help="Type of command.",
         )
 
@@ -91,10 +92,14 @@ class NewCdswRunnerConfig:
         self.config_reader = config_reader
 
     def _parse_command_type(self, args):
-        enum_vals = {ct.name: ct for ct in CommandType}
-        if args.cmd_type not in enum_vals:
-            raise ValueError("Invalid command type specified! Possible values are: {}".format(enum_vals))
-        self.command_type = CommandType[args.cmd_type]
+        try:
+            self.command_type = CommandType.by_real_name(args.cmd_type)
+        except ValueError:
+            pass  # Fallback to output_dir_name
+        try:
+            self.command_type = CommandType.by_output_dir_name(args.cmd_type)
+        except ValueError:
+            raise ValueError("Invalid command type specified! Possible values are: {}".format(POSSIBLE_COMMAND_TYPES))
 
     @staticmethod
     def _validate_args(parser, args):
