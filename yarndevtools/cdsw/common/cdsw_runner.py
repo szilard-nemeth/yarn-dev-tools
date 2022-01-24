@@ -192,7 +192,7 @@ class CdswRunner:
 
     def start(self):
         LOG.info("Starting CDSW runner...")
-        setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        setup_result: CdswSetupResult = CdswSetup.initial_setup()
         self.job_config: CdswJobConfig = config.config_reader.read_from_file(config.job_config_file)
         self.command_type = self._determine_command_type()
         self.output_basedir = setup_result.output_basedir
