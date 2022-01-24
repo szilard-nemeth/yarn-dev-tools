@@ -413,7 +413,7 @@ if __name__ == "__main__":
         logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
-        postfix=args.command,
+        postfix=args.cmd_type,
         verbose_git_log=args.verbose,
     )
     LOG.info("Logging to files: %s", logging_config.log_file_paths)
