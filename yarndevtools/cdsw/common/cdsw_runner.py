@@ -100,10 +100,10 @@ class CdswConfigReaderAdapter:
 class CdswRunnerConfig:
     def __init__(self, parser, args, config_reader: CdswConfigReaderAdapter = None):
         self._validate_args(parser, args)
+        self._parse_command_type(args)
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.execution_mode = self.determine_execution_mode(args)
         self.job_config_file = self._determine_job_config_file_location(args)
-        self._parse_command_type(args)
         self.dry_run = args.dry_run
         self.config_reader = config_reader
 
@@ -122,7 +122,7 @@ class CdswRunnerConfig:
             single_level=True,
             full_path_result=True,
         )
-        expected_filename = f"{self.command_type.output_dir}_job_config.py"
+        expected_filename = f"{self.command_type.output_dir_name}_job_config.py"
         file_names = [os.path.basename(f) for f in file_paths]
         if expected_filename not in file_names:
             raise ValueError(
@@ -130,7 +130,7 @@ class CdswRunnerConfig:
                     self.command_type, expected_filename, file_paths
                 )
             )
-        return expected_filename
+        return FileUtils.join_path(self.config_dir, expected_filename)
 
     def _parse_command_type(self, args):
         try:
@@ -143,9 +143,10 @@ class CdswRunnerConfig:
             raise ValueError("Invalid command type specified! Possible values are: {}".format(POSSIBLE_COMMAND_TYPES))
 
     def _validate_args(self, parser, args):
-        if hasattr(args, "config_file"):
+        self.config_file = self.config_dir = None
+        if hasattr(args, "config_file") and args.config_file:
             self.config_file = args.config_file
-        if hasattr(args, "config_dir"):
+        if hasattr(args, "config_dir") and args.config_dir:
             self.config_dir = args.config_dir
 
         if not self.config_file and not self.config_dir:
@@ -154,7 +155,7 @@ class CdswRunnerConfig:
     @staticmethod
     def determine_execution_mode(args):
         # If there's no --config-file specified, it means auto-discovery
-        if not hasattr(args, "config_file"):
+        if not hasattr(args, "config_file") or not args.config_file:
             LOG.info("Config file not specified! Activated mode: %s", ConfigMode.AUTO_DISCOVERY)
             return ConfigMode.AUTO_DISCOVERY
         return ConfigMode.SPECIFIED_CONFIG_FILE
