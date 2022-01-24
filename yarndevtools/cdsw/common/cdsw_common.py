@@ -102,7 +102,7 @@ class CdswSetupResult:
 
 class CdswSetup:
     @staticmethod
-    def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
+    def initial_setup(env_var_dict: Dict[str, str] = None):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
         output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
         # TODO sanity_check_number_of_handlers should be set to True
@@ -115,27 +115,8 @@ class CdswSetup:
         )
         LOG.info("Logging to files: %s", logging_config.log_file_paths)
         LOG.info(f"Python version info: {sys.version}")
-        if not env_var_dict:
-            env_var_dict = {}
-        if not mandatory_env_vars:
-            mandatory_env_vars = []
-
-        if mandatory_env_vars:
-            LOG.info(f"Printing env vars: {os.environ}")
-
-        env_var_dict.update(
-            {
-                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value: CommonDirs.HADOOP_CLOUDERA_BASEDIR,
-                CdswEnvVar.HADOOP_DEV_DIR.value: CommonDirs.HADOOP_UPSTREAM_BASEDIR,
-            }
-        )
-
-        CdswSetup.prepare_env_vars(env_var_dict=env_var_dict, mandatory_env_vars=mandatory_env_vars)
-        # TODO Migrate this to CdswEnvVar
-        if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
-            basedir = OsUtils.get_env_value(ENV_OVERRIDE_SCRIPT_BASEDIR)
-        else:
-            basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
+        env_var_dict = CdswSetup._prepare_env_vars(env_var_dict)
+        basedir = CdswSetup._determine_basedir()
 
         # This must happen before other operations as it sets: CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
@@ -143,6 +124,29 @@ class CdswSetup:
         LOG.debug("Common dirs after setup: ", ObjUtils.get_class_members(CommonDirs))
         LOG.debug("Common files after setup: ", ObjUtils.get_class_members(CommonFiles))
         return CdswSetupResult(basedir, output_basedir, env_var_dict)
+
+    @staticmethod
+    def _determine_basedir():
+        # TODO Migrate this to CdswEnvVar
+        if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
+            basedir = OsUtils.get_env_value(ENV_OVERRIDE_SCRIPT_BASEDIR)
+        else:
+            basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
+        return basedir
+
+    @staticmethod
+    def _prepare_env_vars(env_var_dict):
+        if not env_var_dict:
+            env_var_dict = {}
+        env_var_dict.update(
+            {
+                CdswEnvVar.CLOUDERA_HADOOP_ROOT.value: CommonDirs.HADOOP_CLOUDERA_BASEDIR,
+                CdswEnvVar.HADOOP_DEV_DIR.value: CommonDirs.HADOOP_UPSTREAM_BASEDIR,
+            }
+        )
+        for k, v in env_var_dict.items():
+            OsUtils.set_env_value(k, v)
+        return env_var_dict
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
@@ -162,15 +166,6 @@ class CdswSetup:
             raise ValueError("Invalid python module mode: {}".format(python_module_mode))
         CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT = FileUtils.join_path(python_site, YARNDEVTOOLS_MODULE_NAME)
         CommonFiles.YARN_DEV_TOOLS_SCRIPT = os.path.join(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, "yarn_dev_tools.py")
-
-    @staticmethod
-    def prepare_env_vars(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
-        for k, v in env_var_dict.items():
-            OsUtils.set_env_value(k, v)
-
-        for env_var in mandatory_env_vars:
-            if env_var not in os.environ:
-                raise ValueError(f"{env_var} is not set. Please set it to a valid value!")
 
 
 class CommonMailConfig:
