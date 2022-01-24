@@ -221,11 +221,25 @@ class CommandType(Enum):
 
     @staticmethod
     def from_str(val):
-        val_to_enum = {ct.name: ct for ct in CommandType}
-        if val in val_to_enum:
-            return val_to_enum[val]
+        allowed_values = {ct.name: ct for ct in CommandType}
+        return CommandType._validate(val, allowed_values, "Invalid enum key")
+
+    @staticmethod
+    def by_real_name(val):
+        allowed_values = {ct.real_name: ct for ct in CommandType}
+        return CommandType._validate(val, allowed_values, "Invalid enum value by real name")
+
+    @staticmethod
+    def by_output_dir_name(val):
+        allowed_values = {ct.output_dir_name: ct for ct in CommandType}
+        return CommandType._validate(val, allowed_values, "Invalid enum value by output dir name")
+
+    @classmethod
+    def _validate(cls, val, allowed_values, err_message_prefix):
+        if val in allowed_values:
+            return allowed_values[val]
         else:
-            raise ValueError("Invalid enum key: {}".format(val))
+            raise ValueError("{}: {}".format(err_message_prefix, val))
 
 
 class HtmlHelper:
