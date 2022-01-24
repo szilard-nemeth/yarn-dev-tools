@@ -195,18 +195,10 @@ class CdswRunner:
         )  # TODO Is this date the same as in RegularVariables.BUILT_IN_VARIABLES?
 
         for run in self.job_config.runs:
-            self._execute_yarn_dev_tools(run)
-            self._execute_command_data_zipper()
+            self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))
+            self.execute_command_data_zipper(self.command_type, debug=True)
             drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
             self._send_email_if_required(run, drive_link_html_text)
-
-    def _execute_yarn_dev_tools(self, run: CdswRun):
-        args = run.yarn_dev_tools_arguments
-        args_as_string = " ".join(args)
-        self.execute_yarndevtools_script(args_as_string)
-
-    def _execute_command_data_zipper(self):
-        self.execute_command_data_zipper(self.command_type, debug=True)
 
     def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
         if not self.is_drive_integration_enabled:
@@ -408,6 +400,7 @@ class CdswRunner:
 if __name__ == "__main__":
     start_time = time.time()
     args, parser = ArgParser.parse_args()
+    ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
         project_name=YARNDEVTOOLS_MODULE_NAME,
         logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
