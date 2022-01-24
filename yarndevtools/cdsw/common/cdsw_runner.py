@@ -2,7 +2,6 @@ import inspect
 import logging
 import os
 import time
-from abc import ABC
 from argparse import ArgumentParser
 from enum import Enum
 from typing import List, Tuple
@@ -166,7 +165,6 @@ class NewCdswRunner:
         self.google_drive_uploads: List[
             Tuple[CommandType, str, DriveApiFile]
         ] = []  # Tuple of: (command_type, drive_filename, drive_api_file)
-        self.cdsw_runner_script_path = None
         self.start_date_str = None
         self.common_mail_config = CommonMailConfig()
         self._setup_google_drive()
@@ -185,15 +183,15 @@ class NewCdswRunner:
         return self.job_config.command_type
 
     def start(self):
-        cdsw_runner_script_path = None
+        LOG.info("Starting CDSW runner...")
         setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        LOG.info("Setup result: %s", setup_result)
         self._execute_preparation_steps(setup_result)
-        self.start_common(setup_result, cdsw_runner_script_path)
-        self._execute_runs()
+        self.start_date_str = (
+            self.current_date_formatted()
+        )  # TODO Is this date the same as in RegularVariables.BUILT_IN_VARIABLES?
 
-    def _execute_runs(self):
-        runs: List[CdswRun] = self.job_config.runs
-        for run in runs:
+        for run in self.job_config.runs:
             self._execute_yarn_dev_tools(run)
             self._execute_command_data_zipper()
             drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
