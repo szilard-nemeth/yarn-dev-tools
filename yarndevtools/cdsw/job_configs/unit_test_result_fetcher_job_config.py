@@ -1,4 +1,4 @@
-from yarndevtools.cdsw.common.cdsw_common import MAIL_ADDR_YARN_ENG_BP
+from yarndevtools.cdsw.common.cdsw_common import MAIL_ADDR_YARN_ENG_BP, GenericCdswConfigUtils
 from yarndevtools.cdsw.common.cdsw_config import Include
 from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
     UnitTestResultFetcherCacheType,
@@ -34,7 +34,7 @@ config = {
         lambda conf: f"{Include.when(conf.var('resetJobBuildData'), '{}'.format(conf.var('resetJobBuildDataVal')), '')}",
     ],
     "global_variables": {
-        "sender": "YARN unit test result fetcher",
+        "sender": GenericCdswConfigUtils.quote("YARN unit test result fetcher"),
         "subject": lambda conf: f"YARN unit test result fetcher report [start date: {conf.job_start_date()}]",
         "commandDataFileName": lambda conf: f"command_data_{conf.job_start_date()}.zip",
         "defaultForceSendingEmail": False,
