@@ -255,20 +255,22 @@ class UnitTestResultAggregatorCdswUtils:
 
         found_with_auto_discovery: str or None = None
         if skip_aggregation_res_file_auto_discovery:
-            results = FileUtils.search_files(CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT, SKIP_AGGREGATION_DEFAULTS_FILENAME)
+            search_basedir = CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
+            LOG.info("Looking for file '%s' in basedir: %s", SKIP_AGGREGATION_DEFAULTS_FILENAME, search_basedir)
+            results = FileUtils.search_files(search_basedir, SKIP_AGGREGATION_DEFAULTS_FILENAME)
             if not results:
                 LOG.warning(
                     "Skip aggregation resource file auto-discovery is enabled, "
                     "but failed to find file '%s' from base directory '%s'.",
                     SKIP_AGGREGATION_DEFAULTS_FILENAME,
-                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                    search_basedir,
                 )
             elif len(results) > 1:
                 LOG.warning(
                     "Skip aggregation resource file auto-discovery is enabled, "
-                    "but but found multiple files from base directory '%s'. Found files: %s",
+                    "but multiple files found from base directory '%s'. Found files: %s",
                     SKIP_AGGREGATION_DEFAULTS_FILENAME,
-                    CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT,
+                    search_basedir,
                     results,
                 )
             else:
