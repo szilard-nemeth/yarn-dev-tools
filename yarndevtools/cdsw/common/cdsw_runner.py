@@ -190,6 +190,7 @@ class CdswRunner:
     def start(self):
         LOG.info("Starting CDSW runner...")
         setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        self.output_basedir = setup_result.output_basedir
         LOG.info("Setup result: %s", setup_result)
         self._execute_preparation_steps(setup_result)
         self.start_date_str = (
@@ -334,8 +335,7 @@ class CdswRunner:
         )
 
     def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:
-        output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_type.command_data_zip_name)
+        full_file_path_of_cmd_data = FileUtils.join_path(self.output_basedir, cmd_type.command_data_zip_name)
         return self.drive_cdsw_helper.upload(cmd_type, full_file_path_of_cmd_data, drive_filename)
 
     def send_latest_command_data_in_email(
