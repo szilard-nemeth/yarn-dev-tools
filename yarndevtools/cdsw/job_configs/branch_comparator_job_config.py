@@ -55,7 +55,7 @@ config = {
         "sender": "YARN branch diff reporter",
         "debugMode": True,
         "runLegacyScript": False,
-        "repoType": lambda conf: f"{conf.env_or_default('BRANCH_COMP_REPO_TYPE', RepoType.DOWNSTREAM.value.upper())}",
+        "repoType": lambda conf: f"{conf.env_or_default('BRANCH_COMP_REPO_TYPE', RepoType.DOWNSTREAM.value.lower())}",
         "authorsToFilter": "rel-eng@cloudera.com",
         "defaultMasterBranch": "origin/cdpd-master",
         "masterBranchEnv": lambda conf: conf.env_or_default("BRANCH_COMP_MASTER_BRANCH", ""),
