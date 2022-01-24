@@ -401,16 +401,17 @@ class CdswRunner:
 if __name__ == "__main__":
     start_time = time.time()
     args, parser = ArgParser.parse_args()
-    ProjectUtils.get_output_basedir(CDSW_PROJECT)
-    logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-        project_name=CDSW_PROJECT,
-        logger_name_prefix=CDSW_PROJECT,
-        execution_mode=ExecutionMode.PRODUCTION,
-        console_debug=args.debug,
-        postfix=args.cmd_type,
-        verbose_git_log=args.verbose,
-    )
-    LOG.info("Logging to files: %s", logging_config.log_file_paths)
+    # TODO Temporarily removed
+    # ProjectUtils.get_output_basedir(CDSW_PROJECT)
+    # logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
+    #     project_name=CDSW_PROJECT,
+    #     logger_name_prefix=CDSW_PROJECT,
+    #     execution_mode=ExecutionMode.PRODUCTION,
+    #     console_debug=args.debug,
+    #     postfix=args.cmd_type,
+    #     verbose_git_log=args.verbose,
+    # )
+    # LOG.info("Logging to files: %s", logging_config.log_file_paths)
 
     config = CdswRunnerConfig(parser, args, CdswConfigReaderAdapter())
     cdsw_runner = CdswRunner(config)
