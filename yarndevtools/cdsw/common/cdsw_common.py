@@ -1,12 +1,10 @@
 import dataclasses
-import inspect
 import logging
 import os
 import site
 import sys
-from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 # https://stackoverflow.com/a/50255019/1106893
 from googleapiwrapper.common import ServiceType
@@ -20,12 +18,10 @@ from googleapiwrapper.google_drive import (
     DriveApiFile,
 )
 from pythoncommons.constants import ExecutionMode
-from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.logging_setup import SimpleLoggingSetup, SimpleLoggingSetupConfig
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import (
     ProjectUtils,
     ProjectRootDeterminationStrategy,
@@ -41,7 +37,6 @@ from yarndevtools.cdsw.common.constants import (
 
 # Constants
 # TODO Move this to EnvVar enum
-from yarndevtools.cdsw.common.restarter import Restarter
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -172,142 +167,6 @@ class CdswSetup:
         for env_var in mandatory_env_vars:
             if env_var not in os.environ:
                 raise ValueError(f"{env_var} is not set. Please set it to a valid value!")
-
-
-class CdswRunnerBase(ABC):
-    def __init__(self, dry_run: bool = False):
-        self.executed_commands = []
-        self.google_drive_uploads: List[
-            Tuple[CommandType, str, DriveApiFile]
-        ] = []  # Tuple of: (command_type, drive_filename, drive_api_file)
-        self.cdsw_runner_script_path = None
-        self.start_date_str = None
-        self.common_mail_config = CommonMailConfig()
-        self._setup_google_drive()
-
-        # Dynamic
-        self.dry_run = dry_run
-
-    def _setup_google_drive(self):
-        if OsUtils.is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
-            self.drive_cdsw_helper = GoogleDriveCdswHelper()
-        else:
-            self.drive_cdsw_helper = None
-
-    @property
-    def is_drive_integration_enabled(self):
-        return self.drive_cdsw_helper is not None
-
-    def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
-        LOG.info("Starting CDSW runner...")
-        LOG.info("Setup result: %s", setup_result)
-        self.cdsw_runner_script_path = cdsw_runner_script_path
-        self.start_date_str = (
-            self.current_date_formatted()
-        )  # TODO Is this the same as in RegularVariables.BUILT_IN_VARIABLES?
-        if OsUtils.is_env_var_true(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False):
-            Restarter.restart_execution(self.cdsw_runner_script_path)
-
-    @abstractmethod
-    def start(self, basedir, cdsw_runner_script_path: str):
-        pass
-
-    def run_clone_downstream_repos_script(self, basedir):
-        script = os.path.join(basedir, "clone_downstream_repos.sh")
-        cmd = f"{BASHX} {script}"
-        self._run_command(cmd)
-
-    def run_clone_upstream_repos_script(self, basedir):
-        script = os.path.join(basedir, "clone_upstream_repos.sh")
-        cmd = f"{BASHX} {script}"
-        self._run_command(cmd)
-
-    def execute_yarndevtools_script(self, script_args):
-        cmd = f"{PY3} {CommonFiles.YARN_DEV_TOOLS_SCRIPT} {script_args}"
-        self._run_command(cmd)
-
-    def _run_command(self, cmd):
-        self.executed_commands.append(cmd)
-        if self.dry_run:
-            LOG.info("[DRY-RUN] Would run command: %s", cmd)
-        else:
-            SubprocessCommandRunner.run_and_follow_stdout_stderr(
-                cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True
-            )
-
-    @staticmethod
-    def current_date_formatted():
-        return DateUtils.get_current_datetime()
-
-    def run_zipper(self, command_type: CommandType, debug=False, ignore_filetypes: str = "java js"):
-        debug_mode = "--debug" if debug else ""
-        self.execute_yarndevtools_script(
-            f"{debug_mode} "
-            f"{CommandType.ZIP_LATEST_COMMAND_DATA.name} {command_type.name} "
-            f"--dest_dir /tmp "
-            f"--ignore-filetypes {ignore_filetypes}"
-        )
-
-    def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:
-        output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
-        full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_type.command_data_zip_name)
-        return self.drive_cdsw_helper.upload(cmd_type, full_file_path_of_cmd_data, drive_filename)
-
-    def send_latest_command_data_in_email(
-        self,
-        sender,
-        subject,
-        recipients=None,
-        attachment_filename=None,
-        email_body_file: str = None,
-        prepend_text_to_email_body: str = None,
-        send_attachment: bool = True,
-    ):
-        if not recipients:
-            recipients = self.determine_recipients()
-        attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
-        email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
-        email_body_prepend_param = (
-            f"--prepend_email_body_with_text '{prepend_text_to_email_body}'" if prepend_text_to_email_body else ""
-        )
-        send_attachment_param = "--send-attachment" if send_attachment else ""
-        self.execute_yarndevtools_script(
-            f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.name} "
-            f"{self.common_mail_config.as_arguments()}"
-            f'--subject "{subject}" '
-            f'--sender "{sender}" '
-            f'--recipients "{recipients}" '
-            f"--attachment-filename {attachment_filename_val} "
-            f"{email_body_file_param} "
-            f"{email_body_prepend_param} "
-            f"{send_attachment_param}"
-        )
-
-    @staticmethod
-    def determine_recipients(default_recipients=MAIL_ADDR_YARN_ENG_BP):
-        recipients_env = OsUtils.get_env_value(CdswEnvVar.MAIL_RECIPIENTS.value)
-        if recipients_env:
-            return recipients_env
-        return default_recipients
-
-    @staticmethod
-    def get_filename(dir_name: str):
-        # TODO Is this method used anymore?
-        # Apparently, there is no chance to get the stackframe that called this method.
-        # The 0th frame holds this method, though.
-        # See file: cdsw_stacktrace_example.txt
-        # Let's put the path together by hand
-        stack = inspect.stack()
-        LOG.debug("Discovered stack while getting filename: %s", stack)
-        file_path = stack[0].filename
-        rindex = file_path.rindex("cdsw" + os.sep)
-        script_abs_path = file_path[:rindex] + f"cdsw{os.sep}{dir_name}{os.sep}cdsw_runner.py"
-        if not os.path.exists(script_abs_path):
-            raise ValueError(
-                "Script should have existed under path: {}. "
-                "Please double-check the code that assembles the path!".format(script_abs_path)
-            )
-        return script_abs_path
 
 
 class CommonMailConfig:
