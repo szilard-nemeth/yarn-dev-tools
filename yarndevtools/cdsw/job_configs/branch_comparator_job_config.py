@@ -58,12 +58,12 @@ config = {
         "repoType": lambda conf: f"{conf.env_or_default('BRANCH_COMP_REPO_TYPE', RepoType.DOWNSTREAM.value.upper())}",
         "authorsToFilter": "rel-eng@cloudera.com",
         "defaultMasterBranch": "origin/cdpd-master",
-        "masterBranchEnv": lambda conf: conf.env("BRANCH_COMP_MASTER_BRANCH"),
+        "masterBranchEnv": lambda conf: conf.env_or_default("BRANCH_COMP_MASTER_BRANCH", ""),
         "masterBranch": lambda conf: conf.var("masterBranchEnv")
         if conf.var("masterBranchEnv")
         else conf.var("defaultMasterBranch"),
         "defaultFeatureBranch": "origin/CDH-7.1-maint",
-        "featureBranchEnv": lambda conf: conf.env("BRANCH_COMP_FEATURE_BRANCH"),
+        "featureBranchEnv": lambda conf: conf.env_or_default("BRANCH_COMP_FEATURE_BRANCH", ""),
         "featureBranch": lambda conf: conf.var("featureBranchEnv")
         if conf.var("featureBranchEnv")
         else conf.var("defaultFeatureBranch"),
