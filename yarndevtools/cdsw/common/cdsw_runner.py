@@ -26,6 +26,7 @@ from yarndevtools.cdsw.common.cdsw_common import (
     CommonFiles,
     MAIL_ADDR_YARN_ENG_BP,
     CommonMailConfig,
+    CDSW_PROJECT,
 )
 from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
 from yarndevtools.cdsw.common.constants import CdswEnvVar, BranchComparatorEnvVar
@@ -400,10 +401,10 @@ class CdswRunner:
 if __name__ == "__main__":
     start_time = time.time()
     args, parser = ArgParser.parse_args()
-    ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+    ProjectUtils.get_output_basedir(CDSW_PROJECT)
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-        project_name=YARNDEVTOOLS_MODULE_NAME,
-        logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+        project_name=CDSW_PROJECT,
+        logger_name_prefix=CDSW_PROJECT,
         execution_mode=ExecutionMode.PRODUCTION,
         console_debug=args.debug,
         postfix=args.cmd_type,
