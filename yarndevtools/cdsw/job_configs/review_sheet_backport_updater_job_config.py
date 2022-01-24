@@ -19,7 +19,6 @@ config = {
     "yarn_dev_tools_arguments": [
         "--debug",
         f"{CommandType.REVIEW_SHEET_BACKPORT_UPDATER.name}",
-        "--gsheet",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
         lambda conf: f"--gsheet-worksheet {conf.env('GSHEET_WORKSHEET')}",
         lambda conf: f"--gsheet-spreadsheet {conf.env('GSHEET_SPREADSHEET')}",
