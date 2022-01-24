@@ -358,6 +358,8 @@ class CdswJobConfigReader:
 
     @staticmethod
     def read_from_file(file):
+        if not file:
+            raise ValueError("Config file must be specified!")
         config_reader = CdswJobConfigReader()
         conf_dict = config_reader._read_from_python_conf(file)
         config = from_dict(data_class=CdswJobConfig, data=conf_dict)
