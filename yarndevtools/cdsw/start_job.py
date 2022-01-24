@@ -30,6 +30,7 @@ def fix_pythonpath(additional_dir):
 
 
 scripts_dir = os.path.join("/home", "cdsw", "scripts")
+jobs_dir = os.path.join("/home", "cdsw", "jobs")
 fix_pythonpath(scripts_dir)
 
 # NOW IT'S SAFE TO IMPORT LIBRELOADER
@@ -45,5 +46,7 @@ reload_dependencies.Reloader.start()
 
 # Start the CDSW runner
 job_name = sys.argv[1]
+sys.argv.append("--config-dir")
+sys.argv.append(jobs_dir)
 cdsw_runner_path = os.path.join(scripts_dir, "cdsw_runner.py")
 exec(open(cdsw_runner_path).read())
