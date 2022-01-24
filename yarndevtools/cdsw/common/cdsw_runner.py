@@ -7,8 +7,10 @@ from enum import Enum
 from typing import List, Tuple
 
 from googleapiwrapper.google_drive import DriveApiFile
+from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
 from pythoncommons.project_utils import ProjectUtils
@@ -35,7 +37,7 @@ LOG = logging.getLogger(__name__)
 POSSIBLE_COMMAND_TYPES = [e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType]
 
 
-class ExecutionMode(Enum):
+class ConfigMode(Enum):
     AUTO_DISCOVERY = ("DISCOVER_CONFIG_FILE", "auto_discovery")
     SPECIFIED_CONFIG_FILE = ("SPECIFIED_CONFIG_FILE", "specified_file_config")
 
@@ -105,9 +107,9 @@ class CdswRunnerConfig:
         self.config_reader = config_reader
 
     def _determine_job_config_file_location(self, args):
-        if self.execution_mode == ExecutionMode.SPECIFIED_CONFIG_FILE:
+        if self.execution_mode == ConfigMode.SPECIFIED_CONFIG_FILE:
             return args.config_file
-        elif self.execution_mode == ExecutionMode.AUTO_DISCOVERY:
+        elif self.execution_mode == ConfigMode.AUTO_DISCOVERY:
             LOG.info("Trying to discover config file for command: %s", self.command_type)
             return self._discover_config_file()
 
@@ -152,9 +154,9 @@ class CdswRunnerConfig:
     def determine_execution_mode(args):
         # If there's no --config-file specified, it means auto-discovery
         if not hasattr(args, "config_file"):
-            LOG.info("Config file not specified! Activated mode: %s", ExecutionMode.AUTO_DISCOVERY)
-            return ExecutionMode.AUTO_DISCOVERY
-        return ExecutionMode.SPECIFIED_CONFIG_FILE
+            LOG.info("Config file not specified! Activated mode: %s", ConfigMode.AUTO_DISCOVERY)
+            return ConfigMode.AUTO_DISCOVERY
+        return ConfigMode.SPECIFIED_CONFIG_FILE
 
     def __str__(self):
         return f"Full command: {self.full_cmd}\n"
@@ -405,11 +407,20 @@ class CdswRunner:
 
 if __name__ == "__main__":
     start_time = time.time()
-
     args, parser = ArgParser.parse_args()
-    end_time = time.time()
+    logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
+        project_name=YARNDEVTOOLS_MODULE_NAME,
+        logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+        execution_mode=ExecutionMode.PRODUCTION,
+        console_debug=args.debug,
+        postfix=args.command,
+        verbose_git_log=args.verbose,
+    )
+    LOG.info("Logging to files: %s", logging_config.log_file_paths)
+
     config = CdswRunnerConfig(parser, args, CdswConfigReaderAdapter())
     cdsw_runner = CdswRunner(config)
     cdsw_runner.start()
 
+    end_time = time.time()
     LOG.info("Execution of script took %d seconds", end_time - start_time)
