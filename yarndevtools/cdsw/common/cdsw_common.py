@@ -95,6 +95,7 @@ class PythonModuleMode(Enum):
 @dataclasses.dataclass
 class CdswSetupResult:
     basedir: str
+    output_basedir: str
     env_vars: Dict[str, str]
 
 
@@ -102,7 +103,7 @@ class CdswSetup:
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None, mandatory_env_vars: List[str] = None):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
-        ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
+        output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
         # TODO sanity_check_number_of_handlers should be set to True
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
@@ -138,7 +139,7 @@ class CdswSetup:
         # This must happen before other operations as it sets: CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
         LOG.info("Using basedir for scripts: " + basedir)
-        return CdswSetupResult(basedir, env_var_dict)
+        return CdswSetupResult(basedir, output_basedir, env_var_dict)
 
     @staticmethod
     def _setup_python_module_root_and_yarndevtools_path():
