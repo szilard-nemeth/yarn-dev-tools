@@ -170,13 +170,16 @@ class CdswRunner:
         self.google_drive_uploads: List[
             Tuple[CommandType, str, DriveApiFile]
         ] = []  # Tuple of: (command_type, drive_filename, drive_api_file)
-        self.start_date_str = None
         self.common_mail_config = CommonMailConfig()
         self._setup_google_drive()
         self.cdsw_runner_config = config
         self.dry_run = config.dry_run
-        self.job_config: CdswJobConfig = config.config_reader.read_from_file(config.job_config_file)
-        self.command_type = self._determine_command_type()
+
+        # Dynamic fields
+        self.job_config = None
+        self.start_date_str = None
+        self.command_type = None
+        self.output_basedir = None
 
     def _determine_command_type(self):
         if self.cdsw_runner_config.command_type != self.job_config.command_type:
@@ -190,6 +193,8 @@ class CdswRunner:
     def start(self):
         LOG.info("Starting CDSW runner...")
         setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        self.job_config: CdswJobConfig = config.config_reader.read_from_file(config.job_config_file)
+        self.command_type = self._determine_command_type()
         self.output_basedir = setup_result.output_basedir
         LOG.info("Setup result: %s", setup_result)
         self._execute_preparation_steps(setup_result)
