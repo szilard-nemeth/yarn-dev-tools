@@ -89,13 +89,13 @@ class ArgParser:
         return args, parser
 
 
-class NewCdswConfigReaderAdapter:
+class CdswConfigReaderAdapter:
     def read_from_file(self, file: str):
         return CdswJobConfigReader.read_from_file(file)
 
 
-class NewCdswRunnerConfig:
-    def __init__(self, parser, args, config_reader: NewCdswConfigReaderAdapter = None):
+class CdswRunnerConfig:
+    def __init__(self, parser, args, config_reader: CdswConfigReaderAdapter = None):
         self._validate_args(parser, args)
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.execution_mode = self.determine_execution_mode(args)
@@ -159,8 +159,8 @@ class NewCdswRunnerConfig:
         return f"Full command: {self.full_cmd}\n"
 
 
-class NewCdswRunner:
-    def __init__(self, config: NewCdswRunnerConfig):
+class CdswRunner:
+    def __init__(self, config: CdswRunnerConfig):
         self.executed_commands = []
         self.google_drive_uploads: List[
             Tuple[CommandType, str, DriveApiFile]
@@ -407,8 +407,8 @@ if __name__ == "__main__":
 
     args, parser = ArgParser.parse_args()
     end_time = time.time()
-    config = NewCdswRunnerConfig(parser, args, NewCdswConfigReaderAdapter())
-    cdsw_runner = NewCdswRunner(config)
+    config = CdswRunnerConfig(parser, args, CdswConfigReaderAdapter())
+    cdsw_runner = CdswRunner(config)
     cdsw_runner.start()
 
     LOG.info("Execution of script took %d seconds", end_time - start_time)

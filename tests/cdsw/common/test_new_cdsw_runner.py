@@ -21,10 +21,10 @@ from yarndevtools.cdsw.common.cdsw_config import (
     CdswJobConfigReader,
 )
 from yarndevtools.cdsw.common.cdsw_runner import (
-    NewCdswRunnerConfig,
-    NewCdswRunner,
+    CdswRunnerConfig,
+    CdswRunner,
     ExecutionMode,
-    NewCdswConfigReaderAdapter,
+    CdswConfigReaderAdapter,
 )
 from yarndevtools.cdsw.common.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
@@ -85,10 +85,10 @@ class TestNewCdswRunner(unittest.TestCase):
 
     @staticmethod
     def _create_cdsw_runner_with_mock_config(args, mock_job_config):
-        mock_job_config_reader: NewCdswConfigReaderAdapter = Mock(spec=NewCdswConfigReaderAdapter)
+        mock_job_config_reader: CdswConfigReaderAdapter = Mock(spec=CdswConfigReaderAdapter)
         mock_job_config_reader.read_from_file.return_value = mock_job_config
-        cdsw_runner_config = NewCdswRunnerConfig(PARSER, args, config_reader=mock_job_config_reader)
-        cdsw_runner = NewCdswRunner(cdsw_runner_config)
+        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=mock_job_config_reader)
+        cdsw_runner = CdswRunner(cdsw_runner_config)
         return cdsw_runner
 
     @staticmethod
@@ -135,7 +135,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
     def test_argument_parsing_into_config_auto_discovery(self):
         args = self._create_args_for_auto_discovery(dry_run=True)
-        config = NewCdswRunnerConfig(None, args)
+        config = CdswRunnerConfig(None, args)
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
@@ -143,7 +143,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
     def test_argument_parsing_into_config(self):
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
-        config = NewCdswRunnerConfig(PARSER, args)
+        config = CdswRunnerConfig(PARSER, args)
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
@@ -153,7 +153,7 @@ class TestNewCdswRunner(unittest.TestCase):
     def test_argument_parsing_into_config_invalid_command_type(self):
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True, override_cmd_type="WRONGCOMMAND")
         with self.assertRaises(ValueError) as ve:
-            NewCdswRunnerConfig(None, args)
+            CdswRunnerConfig(None, args)
         exc_msg = ve.exception.args[0]
         self.assertIn("Invalid command type specified! Possible values are:", exc_msg)
 
