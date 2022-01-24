@@ -127,6 +127,7 @@ class CdswRunnerConfig:
                     self.command_type, expected_filename, file_paths
                 )
             )
+        return expected_filename
 
     def _parse_command_type(self, args):
         try:
