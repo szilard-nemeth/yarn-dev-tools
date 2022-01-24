@@ -122,7 +122,7 @@ class CdswRunnerConfig:
             single_level=True,
             full_path_result=True,
         )
-        expected_filename = f"{self.command_type.output_dir_name}_job_config.py"
+        expected_filename = f"{self.command_type.real_name}_job_config.py"
         file_names = [os.path.basename(f) for f in file_paths]
         if expected_filename not in file_names:
             raise ValueError(
