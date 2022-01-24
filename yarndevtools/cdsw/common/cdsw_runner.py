@@ -1,18 +1,36 @@
+import inspect
 import logging
 import os
 import time
+from abc import ABC
 from argparse import ArgumentParser
 from enum import Enum
-from typing import List
+from typing import List, Tuple
 
 from googleapiwrapper.google_drive import DriveApiFile
+from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.os_utils import OsUtils
+from pythoncommons.process import SubprocessCommandRunner
+from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.cdsw.common.cdsw_common import CdswRunnerBase, CdswSetupResult, CdswSetup, CommonDirs
+from yarndevtools.cdsw.common.cdsw_common import (
+    CdswSetupResult,
+    CdswSetup,
+    CommonDirs,
+    GoogleDriveCdswHelper,
+    CMD_LOG,
+    BASHX,
+    PY3,
+    CommonFiles,
+    MAIL_ADDR_YARN_ENG_BP,
+    CommonMailConfig,
+)
 from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
 from yarndevtools.cdsw.common.constants import CdswEnvVar, BranchComparatorEnvVar
+from yarndevtools.cdsw.common.restarter import Restarter
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 LOG = logging.getLogger(__name__)
 POSSIBLE_COMMAND_TYPES = [e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType]
@@ -142,19 +160,20 @@ class NewCdswRunnerConfig:
         return f"Full command: {self.full_cmd}\n"
 
 
-class NewCdswRunner(CdswRunnerBase):
+class NewCdswRunner:
     def __init__(self, config: NewCdswRunnerConfig):
-        super().__init__(dry_run=config.dry_run)
+        self.executed_commands = []
+        self.google_drive_uploads: List[
+            Tuple[CommandType, str, DriveApiFile]
+        ] = []  # Tuple of: (command_type, drive_filename, drive_api_file)
+        self.cdsw_runner_script_path = None
+        self.start_date_str = None
+        self.common_mail_config = CommonMailConfig()
+        self._setup_google_drive()
         self.cdsw_runner_config = config
         self.dry_run = config.dry_run
         self.job_config: CdswJobConfig = config.config_reader.read_from_file(config.job_config_file)
         self.command_type = self._determine_command_type()
-
-    # TODO Rename later
-    def begin(self):
-        setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
-        self._execute_preparation_steps(setup_result)
-        self.start(setup_result, None)
 
     def _determine_command_type(self):
         if self.cdsw_runner_config.command_type != self.job_config.command_type:
@@ -165,7 +184,10 @@ class NewCdswRunner(CdswRunnerBase):
             )
         return self.job_config.command_type
 
-    def start(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
+    def start(self):
+        cdsw_runner_script_path = None
+        setup_result: CdswSetupResult = CdswSetup.initial_setup(mandatory_env_vars=self.job_config.mandatory_env_vars)
+        self._execute_preparation_steps(setup_result)
         self.start_common(setup_result, cdsw_runner_script_path)
         self._execute_runs()
 
@@ -183,7 +205,7 @@ class NewCdswRunner(CdswRunnerBase):
         self.execute_yarndevtools_script(args_as_string)
 
     def _execute_command_data_zipper(self):
-        self.run_zipper(self.command_type, debug=True)
+        self.execute_command_data_zipper(self.command_type, debug=True)
 
     def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
         if not self.is_drive_integration_enabled:
@@ -244,8 +266,8 @@ class NewCdswRunner(CdswRunnerBase):
 
     def _execute_preparation_steps(self, setup_result):
         if self.command_type == CommandType.JIRA_UMBRELLA_DATA_FETCHER:
-            self.run_clone_downstream_repos_script(setup_result.basedir)
-            self.run_clone_upstream_repos_script(setup_result.basedir)
+            self.execute_clone_downstream_repos_script(setup_result.basedir)
+            self.execute_clone_upstream_repos_script(setup_result.basedir)
         elif self.command_type == CommandType.BRANCH_COMPARATOR:
             repo_type_env = OsUtils.get_env_value(
                 BranchComparatorEnvVar.BRANCH_COMP_REPO_TYPE.value, RepoType.DOWNSTREAM.value
@@ -253,7 +275,7 @@ class NewCdswRunner(CdswRunnerBase):
             repo_type: RepoType = RepoType[repo_type_env.upper()]
 
             if repo_type == RepoType.DOWNSTREAM:
-                self.run_clone_downstream_repos_script(setup_result.basedir)
+                self.execute_clone_downstream_repos_script(setup_result.basedir)
             elif repo_type == RepoType.UPSTREAM:
                 # If we are in upstream mode, make sure downstream dir exist
                 # Currently, yarndevtools requires both repos to be present when initializing.
@@ -262,7 +284,124 @@ class NewCdswRunner(CdswRunnerBase):
                 FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
                 FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
                 os.system("git init")
-                self.run_clone_upstream_repos_script(setup_result.basedir)
+                self.execute_clone_upstream_repos_script(setup_result.basedir)
+
+    def _setup_google_drive(self):
+        if OsUtils.is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
+            self.drive_cdsw_helper = GoogleDriveCdswHelper()
+        else:
+            self.drive_cdsw_helper = None
+
+    def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
+        LOG.info("Starting CDSW runner...")
+        LOG.info("Setup result: %s", setup_result)
+        self.cdsw_runner_script_path = cdsw_runner_script_path
+        self.start_date_str = (
+            self.current_date_formatted()
+        )  # TODO Is this the same as in RegularVariables.BUILT_IN_VARIABLES?
+        if OsUtils.is_env_var_true(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False):
+            Restarter.restart_execution(self.cdsw_runner_script_path)
+
+    def execute_clone_downstream_repos_script(self, basedir):
+        script = os.path.join(basedir, "clone_downstream_repos.sh")
+        cmd = f"{BASHX} {script}"
+        self._run_command(cmd)
+
+    def execute_clone_upstream_repos_script(self, basedir):
+        script = os.path.join(basedir, "clone_upstream_repos.sh")
+        cmd = f"{BASHX} {script}"
+        self._run_command(cmd)
+
+    def execute_yarndevtools_script(self, script_args):
+        cmd = f"{PY3} {CommonFiles.YARN_DEV_TOOLS_SCRIPT} {script_args}"
+        self._run_command(cmd)
+
+    def _run_command(self, cmd):
+        self.executed_commands.append(cmd)
+        if self.dry_run:
+            LOG.info("[DRY-RUN] Would run command: %s", cmd)
+        else:
+            SubprocessCommandRunner.run_and_follow_stdout_stderr(
+                cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True
+            )
+
+    @staticmethod
+    def current_date_formatted():
+        return DateUtils.get_current_datetime()
+
+    def execute_command_data_zipper(self, command_type: CommandType, debug=False, ignore_filetypes: str = "java js"):
+        debug_mode = "--debug" if debug else ""
+        self.execute_yarndevtools_script(
+            f"{debug_mode} "
+            f"{CommandType.ZIP_LATEST_COMMAND_DATA.name} {command_type.name} "
+            f"--dest_dir /tmp "
+            f"--ignore-filetypes {ignore_filetypes}"
+        )
+
+    def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:
+        output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+        full_file_path_of_cmd_data = FileUtils.join_path(output_basedir, cmd_type.command_data_zip_name)
+        return self.drive_cdsw_helper.upload(cmd_type, full_file_path_of_cmd_data, drive_filename)
+
+    def send_latest_command_data_in_email(
+        self,
+        sender,
+        subject,
+        recipients=None,
+        attachment_filename=None,
+        email_body_file: str = None,
+        prepend_text_to_email_body: str = None,
+        send_attachment: bool = True,
+    ):
+        if not recipients:
+            recipients = self.determine_recipients()
+        attachment_filename_val = f"{attachment_filename}" if attachment_filename else ""
+        email_body_file_param = f"--file-as-email-body-from-zip {email_body_file}" if email_body_file else ""
+        email_body_prepend_param = (
+            f"--prepend_email_body_with_text '{prepend_text_to_email_body}'" if prepend_text_to_email_body else ""
+        )
+        send_attachment_param = "--send-attachment" if send_attachment else ""
+        self.execute_yarndevtools_script(
+            f"--debug {CommandType.SEND_LATEST_COMMAND_DATA.name} "
+            f"{self.common_mail_config.as_arguments()}"
+            f'--subject "{subject}" '
+            f'--sender "{sender}" '
+            f'--recipients "{recipients}" '
+            f"--attachment-filename {attachment_filename_val} "
+            f"{email_body_file_param} "
+            f"{email_body_prepend_param} "
+            f"{send_attachment_param}"
+        )
+
+    @staticmethod
+    def determine_recipients(default_recipients=MAIL_ADDR_YARN_ENG_BP):
+        recipients_env = OsUtils.get_env_value(CdswEnvVar.MAIL_RECIPIENTS.value)
+        if recipients_env:
+            return recipients_env
+        return default_recipients
+
+    @staticmethod
+    def get_filename(dir_name: str):
+        # TODO Is this method used anymore?
+        # Apparently, there is no chance to get the stackframe that called this method.
+        # The 0th frame holds this method, though.
+        # See file: cdsw_stacktrace_example.txt
+        # Let's put the path together by hand
+        stack = inspect.stack()
+        LOG.debug("Discovered stack while getting filename: %s", stack)
+        file_path = stack[0].filename
+        rindex = file_path.rindex("cdsw" + os.sep)
+        script_abs_path = file_path[:rindex] + f"cdsw{os.sep}{dir_name}{os.sep}cdsw_runner.py"
+        if not os.path.exists(script_abs_path):
+            raise ValueError(
+                "Script should have existed under path: {}. "
+                "Please double-check the code that assembles the path!".format(script_abs_path)
+            )
+        return script_abs_path
+
+    @property
+    def is_drive_integration_enabled(self):
+        return self.drive_cdsw_helper is not None
 
 
 if __name__ == "__main__":
@@ -272,6 +411,6 @@ if __name__ == "__main__":
     end_time = time.time()
     config = NewCdswRunnerConfig(parser, args, NewCdswConfigReaderAdapter())
     cdsw_runner = NewCdswRunner(config)
-    cdsw_runner.begin()
+    cdsw_runner.start()
 
     LOG.info("Execution of script took %d seconds", end_time - start_time)
