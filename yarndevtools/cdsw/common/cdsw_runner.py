@@ -140,7 +140,15 @@ class CdswRunnerConfig:
         try:
             self.command_type = CommandType.by_output_dir_name(args.cmd_type)
         except ValueError:
-            raise ValueError("Invalid command type specified! Possible values are: {}".format(POSSIBLE_COMMAND_TYPES))
+            pass
+        try:
+            self.command_type = CommandType[args.cmd_type]
+        except Exception:
+            raise ValueError(
+                "Invalid command type specified: {}. Possible values are: {}".format(
+                    args.cmd_type, POSSIBLE_COMMAND_TYPES
+                )
+            )
 
     def _validate_args(self, parser, args):
         self.config_file = self.config_dir = None
@@ -193,7 +201,9 @@ class CdswRunner:
     def start(self):
         LOG.info("Starting CDSW runner...")
         setup_result: CdswSetupResult = CdswSetup.initial_setup()
-        self.job_config: CdswJobConfig = config.config_reader.read_from_file(config.job_config_file)
+        self.job_config: CdswJobConfig = self.cdsw_runner_config.config_reader.read_from_file(
+            self.cdsw_runner_config.job_config_file
+        )
         self.command_type = self._determine_command_type()
         self.output_basedir = setup_result.output_basedir
         LOG.info("Setup result: %s", setup_result)

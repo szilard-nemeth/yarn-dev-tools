@@ -103,7 +103,7 @@ class CdswSetupResult:
 class CdswSetup:
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None):
-        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH)
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH, allow_overwrite=False)
         output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
         # TODO sanity_check_number_of_handlers should be set to True
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(

@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import dataclass, field
 from os.path import expanduser
 from typing import List, Set
 from unittest.mock import _CallList, patch
@@ -41,11 +42,11 @@ class LocalDirs:
     CDSW_SECRET_DIR = FileUtils.join_path(SECRET_PROJECTS_DIR, CDSW_DIRNAME)
 
 
+@dataclass
 class CommandExpectations:
-    def __init__(self, testcase):
-        self.testcase: unittest.TestCase = testcase
-        self.arguments_with_any_order = []
-        self.arguments_in_order = []
+    testcase: unittest.TestCase
+    arguments_with_any_order: List[str] = field(default_factory=list)
+    arguments_in_order: List[str] = field(default_factory=list)
 
     def add_expected_arg(self, argument, param: str = None):
         s = argument
