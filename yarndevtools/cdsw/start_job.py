@@ -26,12 +26,13 @@ def add_to_pythonpath(additional_dir):
         print(f"New {pypath}: {get_pythonpath()}")
     sys.path.append(additional_dir)
     print("Fixed sys.path: " + str(sys.path))
-    print("Fixed PYTHONPATH: " + str(os.environ["PYTHONPATH"]))
+    print("Fixed PYTHONPATH: " + str(os.environ[pypath]))
 
 
 # Only used script is the libreloader from /home/cdsw/scripts/
-scripts_dir = os.path.join("/home", "cdsw", "scripts")
-jobs_dir = os.path.join("/home", "cdsw", "jobs")
+cdsw_home_dir = os.path.join("/home", "cdsw")
+scripts_dir = os.path.join(cdsw_home_dir, "scripts")
+jobs_dir = os.path.join(cdsw_home_dir, "jobs")
 add_to_pythonpath(scripts_dir)
 
 # NOW IT'S SAFE TO IMPORT LIBRELOADER
@@ -49,7 +50,7 @@ reload_dependencies.Reloader.start()
 # Get the Python module root
 module_root = reload_dependencies.Reloader.get_python_module_root()
 yarn_dev_tools_module_root = os.path.join(module_root, YARNDEVTOOLS_MODULE_NAME)
-cdsw_runner_path = os.path.join(yarn_dev_tools_module_root, "cdsw_runner.py")
+cdsw_runner_path = os.path.join(yarn_dev_tools_module_root, "cdsw", "common", "cdsw_runner.py")
 print("YARN dev tools module root is: %s", Reloader.YARN_DEV_TOOLS_MODULE_ROOT)
 
 
