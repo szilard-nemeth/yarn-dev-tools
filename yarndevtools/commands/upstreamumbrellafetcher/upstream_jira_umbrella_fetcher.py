@@ -130,7 +130,7 @@ class UpstreamJiraUmbrellaFetcher:
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()
         LOG.info(f"Starting umbrella jira fetcher... \n{str(self.config)}")
-        self.log_current_branch()
+        self.log_current_upstream_repo_branch()
         self.upstream_repo.fetch(all=True)
         self.downstream_repo.fetch(all=True)
         if self.config.force_mode:
@@ -215,10 +215,13 @@ class UpstreamJiraUmbrellaFetcher:
             LOG.info("Pickled umbrella data file not found under path: %s", self.pickled_data_file)
             return False
 
-    def log_current_branch(self):
+    def log_current_upstream_repo_branch(self, force_switch_branch=True):
         curr_branch = self.upstream_repo.get_current_branch_name()
         LOG.info("Current branch: %s", curr_branch)
+
         if curr_branch != self.config.upstream_base_branch:
+            if force_switch_branch:
+                self.upstream_repo.checkout_branch(self.config.upstream_base_branch)
             raise ValueError(f"Current branch is not {self.config.upstream_base_branch}. Exiting!")
 
     def fetch_jira_ids(self):
