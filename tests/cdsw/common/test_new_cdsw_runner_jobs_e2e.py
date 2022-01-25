@@ -330,7 +330,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
                 "BRANCHES": "branch-3.2 branch-3.3",
                 "MAIL_ACC_USER": "testMailUser",
                 "MAIL_ACC_PASSWORD": "testMailPassword",
-                "UMBRELLA_IDS": "YARN-10496 YARN-6223",
+                "UMBRELLA_IDS": '"YARN-10496 YARN-6223"',
             }
         )
 
