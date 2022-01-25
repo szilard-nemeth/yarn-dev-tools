@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.os_utils import OsUtils
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
@@ -13,7 +14,7 @@ from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup, CommonD
 from yarndevtools.cdsw.common.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter, CdswRunner
 from yarndevtools.cdsw.common.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
-
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 PARSER = None
 SETUP_RESULT = None
@@ -37,12 +38,28 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         OsUtils.clear_env_vars([CdswEnvVar.MAIL_RECIPIENTS.name])
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
+        ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+
+        # We need the value of 'CommonFiles.YARN_DEV_TOOLS_SCRIPT'
+        CdswSetup._setup_python_module_root_and_yarndevtools_path()
+        cls.yarn_dev_tools_script_path = CommonFiles.YARN_DEV_TOOLS_SCRIPT
 
     def setUp(self) -> None:
-        CdswSetup._setup_python_module_root_and_yarndevtools_path()
-        CommonFiles.YARN_DEV_TOOLS_SCRIPT = "yarndevtools.py"
         self.cdsw_testing_commons = CdswTestingCommons()
         CdswTestingCommons.mock_google_drive()
+
+        self.exp_command_clone_downstream_repos = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("bash -x")
+            .add_expected_ordered_arg("/home/cdsw/scripts/clone_downstream_repos.sh")
+        )
+
+        self.exp_command_clone_upstream_repos = (
+            CommandExpectations(self)
+            .add_expected_ordered_arg("bash -x")
+            .add_expected_ordered_arg("/home/cdsw/scripts/clone_upstream_repos.sh")
+        )
 
     def tearDown(self) -> None:
         self._clear_env_vars()
@@ -97,12 +114,12 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         args = self._create_args_for_specified_file(config_file, CommandType.REVIEWSYNC, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = CdswRunner(cdsw_runner_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("REVIEWSYNC")
             .add_expected_arg("--gsheet")
             .add_expected_arg("--debug")
@@ -125,7 +142,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_3 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
             .add_expected_arg("--debug")
             .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
@@ -136,7 +153,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--sender", wrap_d("YARN reviewsync"))
             .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
             .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
-            .add_expected_arg("--file-as-email-body-from-zip", "report-short.html")
+            .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
         )
@@ -174,14 +191,13 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         )
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = CdswRunner(cdsw_runner_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("REVIEW_SHEET_BACKPORT_UPDATER")
-            .add_expected_arg("--gsheet")
             .add_expected_arg("--debug")
             .add_expected_arg("--gsheet-client-secret", "testGsheetClientSecret")
             .add_expected_arg("--gsheet-worksheet", "testGsheetWorkSheet")
@@ -195,7 +211,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_2 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
             .add_expected_ordered_arg("REVIEW_SHEET_BACKPORT_UPDATER")
             .add_expected_arg("--debug")
@@ -211,7 +227,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_3 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
             .add_expected_arg("--debug")
             .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
@@ -249,23 +265,23 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
                 "MAIL_ACC_PASSWORD": "testMailPassword",
             }
         )
-
+        wrap_d = StringUtils.wrap_to_quotes
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_FETCHER, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = CdswRunner(cdsw_runner_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("UNIT_TEST_RESULT_FETCHER")
             .add_expected_arg("--debug")
             .add_expected_arg("--smtp_server", param="smtp.gmail.com")
             .add_expected_arg("--smtp_port", param="465")
             .add_expected_arg("--account_user", param="testMailUser")
             .add_expected_arg("--account_password", param="testMailPassword")
-            .add_expected_arg("--sender", param="YARN unit test result fetcher")
+            .add_expected_arg("--sender", param=wrap_d("YARN unit test result fetcher"))
             .add_expected_arg("--recipients", param="yarn_eng_bp@cloudera.com")
             .add_expected_arg("--mode", param="jenkins_master")
             .add_expected_arg(
@@ -289,7 +305,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_2 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
             .add_expected_ordered_arg(cmd_type.name)
             .add_expected_arg("--debug")
@@ -321,7 +337,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         args = self._create_args_for_specified_file(config_file, CommandType.JIRA_UMBRELLA_DATA_FETCHER, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = CdswRunner(cdsw_runner_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         job_start_date = cdsw_runner.job_config.job_start_date()
         wrap_d = StringUtils.wrap_to_quotes
@@ -351,7 +367,16 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             job_start_date, subject=subject2, sender=sender
         )
 
-        expectations = [exp_command_1, exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6]
+        expectations = [
+            self.exp_command_clone_downstream_repos,
+            self.exp_command_clone_upstream_repos,
+            exp_command_1,
+            exp_command_2,
+            exp_command_3,
+            exp_command_4,
+            exp_command_5,
+            exp_command_6,
+        ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_unit_test_result_aggregator_e2e(self):
@@ -394,7 +419,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = CdswRunner(cdsw_runner_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         job_start_date = cdsw_runner.job_config.job_start_date()
         wrap_d = StringUtils.wrap_to_quotes
@@ -404,7 +429,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_1 = exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR")
             .add_expected_arg("--debug")
             .add_expected_arg("--gsheet")
@@ -461,7 +486,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         args = self._create_args_for_specified_file(config_file, CommandType.BRANCH_COMPARATOR, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = CdswRunner(cdsw_runner_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         job_start_date = cdsw_runner.job_config.job_start_date()
         wrap_d = StringUtils.wrap_to_quotes
@@ -472,11 +497,11 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_1_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("BRANCH_COMPARATOR")
             .add_expected_arg("simple")
             .add_expected_arg("--debug")
-            .add_expected_arg("--repo-type", "DOWNSTREAM")
+            .add_expected_arg("--repo-type", "downstream")
             .add_expected_arg("someFeatureBranch")
             .add_expected_arg("someMasterBranch")
             .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
@@ -484,11 +509,11 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_2_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("BRANCH_COMPARATOR")
             .add_expected_arg("grouped")
             .add_expected_arg("--debug")
-            .add_expected_arg("--repo-type", "DOWNSTREAM")
+            .add_expected_arg("--repo-type", "downstream")
             .add_expected_arg("someFeatureBranch")
             .add_expected_arg("someMasterBranch")
             .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
@@ -512,6 +537,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             command_data_filename=f"command_data_grouped_{job_start_date}.zip",
         )
         expectations = [
+            self.exp_command_clone_downstream_repos,
             exp_command_1_1,
             exp_command_1_2,
             exp_command_1_3,
@@ -532,7 +558,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_3 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
             .add_expected_arg("--debug")
             .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
@@ -553,7 +579,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("JIRA_UMBRELLA_DATA_FETCHER")
             .add_expected_arg("--debug")
             .add_expected_arg("--branches", "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x")

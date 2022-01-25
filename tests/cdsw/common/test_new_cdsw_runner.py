@@ -1,4 +1,6 @@
+import argparse
 import os
+import tempfile
 import unittest
 import logging
 from typing import List
@@ -12,7 +14,7 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CommandExpectations, CdswTestingCommons
 from tests.test_utilities import Object
-from yarndevtools.cdsw.common.cdsw_common import CommonFiles
+from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup
 from yarndevtools.cdsw.common.cdsw_config import (
     CdswRun,
     CdswJobConfig,
@@ -31,6 +33,7 @@ from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 FAKE_CONFIG_FILE = "fake-config-file.py"
+REVIEWSYNC_CONFIG_FILE_NAME = "reviewsync_job_config.py"
 
 DEFAULT_COMMAND_TYPE = CommandType.REVIEWSYNC
 # CDSW_RUNNER_CLASSNAME = NewCdswRunner.__name__
@@ -43,32 +46,51 @@ CDSW_CONFIG_READER_READ_METHOD_PATH = "yarndevtools.cdsw.common.cdsw_config.{}".
 SUBPROCESSRUNNER_RUN_METHOD_PATH = "pythoncommons.process.SubprocessCommandRunner.run_and_follow_stdout_stderr"
 CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH = "yarndevtools.cdsw.common.cdsw_common.GoogleDriveCdswHelper.upload"
 DRIVE_API_WRAPPER_UPLOAD_PATH = "googleapiwrapper.google_drive.DriveApiWrapper.upload_file"
-PARSER = None
-SETUP_RESULT = None
-CDSW_RUNNER_SCRIPT_PATH = None
 LOG = logging.getLogger(__name__)
 
 
 class TestNewCdswRunner(unittest.TestCase):
+    parser = None
+
     @classmethod
     def setUpClass(cls) -> None:
+        cls._setup_parser()
         OsUtils.clear_env_vars([CdswEnvVar.MAIL_RECIPIENTS.name])
-        CommonFiles.YARN_DEV_TOOLS_SCRIPT = "yarndevtools.py"
         OsUtils.set_env_value(CdswEnvVar.MAIL_ACC_USER.value, "mailUser")
         OsUtils.set_env_value(CdswEnvVar.MAIL_ACC_PASSWORD.value, "mailPassword")
 
+        # We need the value of 'CommonFiles.YARN_DEV_TOOLS_SCRIPT'
+        CdswSetup._setup_python_module_root_and_yarndevtools_path()
+        cls.yarn_dev_tools_script_path = CommonFiles.YARN_DEV_TOOLS_SCRIPT
+
     def setUp(self) -> None:
+        self.tmp_dir_name = None
         if CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value in os.environ:
             del os.environ[CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value]
 
-    @staticmethod
-    def _create_args_for_auto_discovery(dry_run: bool):
+    def tearDown(self) -> None:
+        if self.tmp_dir_name:
+            self.tmp_dir_name.cleanup()
+
+    @classmethod
+    def _setup_parser(cls):
+        def parser_error_side_effect(message, **kwargs):
+            raise Exception(message)
+
+        cls.parser: argparse.ArgumentParser = Mock(spec=argparse.ArgumentParser)
+        cls.parser.error.side_effect = parser_error_side_effect
+
+    def _create_args_for_auto_discovery(self, dry_run: bool):
         args = Object()
         args.debug = True
         args.verbose = True
         args.cmd_type = DEFAULT_COMMAND_TYPE.name
         args.dry_run = dry_run
-        return args
+        self.tmp_dir_name = tempfile.TemporaryDirectory()
+        args.config_dir = self.tmp_dir_name.name
+        reviewsync_config_file_path = FileUtils.join_path(self.tmp_dir_name.name, REVIEWSYNC_CONFIG_FILE_NAME)
+        FileUtils.create_new_empty_file(reviewsync_config_file_path)
+        return args, reviewsync_config_file_path
 
     @staticmethod
     def _create_args_for_specified_file(config_file: str, dry_run: bool, override_cmd_type: str = None):
@@ -83,11 +105,10 @@ class TestNewCdswRunner(unittest.TestCase):
         args.dry_run = dry_run
         return args
 
-    @staticmethod
-    def _create_cdsw_runner_with_mock_config(args, mock_job_config):
+    def _create_cdsw_runner_with_mock_config(self, args, mock_job_config):
         mock_job_config_reader: CdswConfigReaderAdapter = Mock(spec=CdswConfigReaderAdapter)
         mock_job_config_reader.read_from_file.return_value = mock_job_config
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=mock_job_config_reader)
+        cdsw_runner_config = CdswRunnerConfig(self.parser, args, config_reader=mock_job_config_reader)
         cdsw_runner = CdswRunner(cdsw_runner_config)
         return cdsw_runner
 
@@ -134,16 +155,17 @@ class TestNewCdswRunner(unittest.TestCase):
         return mock_drive_file
 
     def test_argument_parsing_into_config_auto_discovery(self):
-        args = self._create_args_for_auto_discovery(dry_run=True)
-        config = CdswRunnerConfig(None, args)
+        args, reviewsync_config_file_path = self._create_args_for_auto_discovery(dry_run=True)
+        config = CdswRunnerConfig(self.parser, args)
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
         self.assertEqual(ConfigMode.AUTO_DISCOVERY, config.execution_mode)
+        self.assertEqual(reviewsync_config_file_path, config.job_config_file)
 
     def test_argument_parsing_into_config(self):
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
-        config = CdswRunnerConfig(PARSER, args)
+        config = CdswRunnerConfig(self.parser, args)
 
         self.assertEqual(DEFAULT_COMMAND_TYPE, config.command_type)
         self.assertTrue(config.dry_run)
@@ -153,9 +175,9 @@ class TestNewCdswRunner(unittest.TestCase):
     def test_argument_parsing_into_config_invalid_command_type(self):
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True, override_cmd_type="WRONGCOMMAND")
         with self.assertRaises(ValueError) as ve:
-            CdswRunnerConfig(None, args)
+            CdswRunnerConfig(self.parser, args)
         exc_msg = ve.exception.args[0]
-        self.assertIn("Invalid command type specified! Possible values are:", exc_msg)
+        self.assertIn("Invalid command type specified", exc_msg)
 
     def test_execute_runs_single_run_with_fake_args(self):
         mock_run1 = self._create_mock_cdsw_run("run1", email_enabled=True, google_drive_upload_enabled=True)
@@ -163,12 +185,12 @@ class TestNewCdswRunner(unittest.TestCase):
 
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_arg("--arg1")
             .add_expected_arg("--arg2", param="bla")
             .add_expected_arg("--arg3", param="bla3")
@@ -177,7 +199,7 @@ class TestNewCdswRunner(unittest.TestCase):
         exp_command_2 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
             .add_expected_ordered_arg("REVIEWSYNC")
             .add_expected_arg("--debug")
@@ -190,7 +212,7 @@ class TestNewCdswRunner(unittest.TestCase):
         exp_command_3 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg("yarndevtools.py")
+            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
             .add_expected_arg("--debug")
             .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
@@ -222,20 +244,20 @@ class TestNewCdswRunner(unittest.TestCase):
 
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         calls_of_yarndevtools = mock_subprocess_runner.call_args_list
         calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
         self.assertIn(
-            "python3 yarndevtools.py --arg1 --arg2 bla --arg3 bla3",
+            f"python3 {self.yarn_dev_tools_script_path} --arg1 --arg2 bla --arg3 bla3",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 0),
         )
         self.assertIn(
-            "python3 yarndevtools.py --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
+            f"python3 {self.yarn_dev_tools_script_path} --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 1),
         )
         self.assertIn(
-            "python3 yarndevtools.py --debug SEND_LATEST_COMMAND_DATA",
+            f"python3 {self.yarn_dev_tools_script_path} --debug SEND_LATEST_COMMAND_DATA",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 2),
         )
         self.assertEqual(
@@ -250,11 +272,11 @@ class TestNewCdswRunner(unittest.TestCase):
         )
 
         self.assertIn(
-            "python3 yarndevtools.py --arg1 --arg2 bla --arg3 bla3",
+            f"python3 {self.yarn_dev_tools_script_path} --arg1 --arg2 bla --arg3 bla3",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 3),
         )
         self.assertIn(
-            "python3 yarndevtools.py --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
+            f"python3 {self.yarn_dev_tools_script_path} --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 4),
         )
 
@@ -299,7 +321,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         calls_of_yarndevtools = mock_subprocess_runner.call_args_list
         calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
@@ -337,7 +359,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         calls_of_yarndevtools = mock_subprocess_runner.call_args_list
         calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
@@ -369,7 +391,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         calls_of_yarndevtools = mock_subprocess_runner.call_args_list
         calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
@@ -400,7 +422,7 @@ class TestNewCdswRunner(unittest.TestCase):
         # So an additional check is added for the google_drive_uploads
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
         self.assertTrue(
@@ -420,7 +442,7 @@ class TestNewCdswRunner(unittest.TestCase):
 
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=False)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
-        cdsw_runner.start(SETUP_RESULT, CDSW_RUNNER_SCRIPT_PATH)
+        cdsw_runner.start()
 
         calls_of_google_drive_uploader = mock_drive_api_wrapper_upload.call_args_list
         self.assertTrue(
