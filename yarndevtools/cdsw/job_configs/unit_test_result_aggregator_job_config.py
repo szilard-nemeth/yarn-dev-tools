@@ -1,9 +1,8 @@
-from yarndevtools.cdsw.common.cdsw_common import (
-    JiraUmbrellaDataFetcherCdswUtils,
+from yarndevtools.cdsw.cdsw_common import (
     UnitTestResultAggregatorCdswUtils,
     GenericCdswConfigUtils,
 )
-from yarndevtools.cdsw.common.cdsw_config import Include
+from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.commands.unittestresultaggregator.common import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
 

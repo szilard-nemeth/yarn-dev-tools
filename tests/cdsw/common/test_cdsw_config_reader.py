@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import unittest
-from typing import Dict, Callable
+from typing import Dict
 
 from dacite import WrongTypeError
 from pythoncommons.constants import ExecutionMode
@@ -12,7 +12,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons
-from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader
+from yarndevtools.cdsw.cdsw_config import CdswJobConfigReader
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 

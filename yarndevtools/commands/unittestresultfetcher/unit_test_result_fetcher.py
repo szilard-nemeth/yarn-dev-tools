@@ -32,7 +32,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.cdsw.common.constants import SECRET_PROJECTS_DIR
+from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.common.shared_command_utils import FullEmailConfig, CommandType
 
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME

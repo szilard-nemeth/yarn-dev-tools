@@ -7,15 +7,12 @@ from enum import Enum
 from typing import List, Tuple
 
 from googleapiwrapper.google_drive import DriveApiFile
-from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils, FindResultType
-from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.process import SubprocessCommandRunner
-from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.cdsw.common.cdsw_common import (
+from yarndevtools.cdsw.cdsw_common import (
     CdswSetupResult,
     CdswSetup,
     CommonDirs,
@@ -26,13 +23,11 @@ from yarndevtools.cdsw.common.cdsw_common import (
     CommonFiles,
     MAIL_ADDR_YARN_ENG_BP,
     CommonMailConfig,
-    CDSW_PROJECT,
 )
-from yarndevtools.cdsw.common.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
-from yarndevtools.cdsw.common.constants import CdswEnvVar, BranchComparatorEnvVar
-from yarndevtools.cdsw.common.restarter import Restarter
+from yarndevtools.cdsw.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
+from yarndevtools.cdsw.constants import CdswEnvVar, BranchComparatorEnvVar
+from yarndevtools.cdsw.restarter import Restarter
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 LOG = logging.getLogger(__name__)
 POSSIBLE_COMMAND_TYPES = [e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType]

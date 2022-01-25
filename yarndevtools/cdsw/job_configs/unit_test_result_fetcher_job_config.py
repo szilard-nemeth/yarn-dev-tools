@@ -1,5 +1,5 @@
-from yarndevtools.cdsw.common.cdsw_common import MAIL_ADDR_YARN_ENG_BP, GenericCdswConfigUtils
-from yarndevtools.cdsw.common.cdsw_config import Include
+from yarndevtools.cdsw.cdsw_common import MAIL_ADDR_YARN_ENG_BP, GenericCdswConfigUtils
+from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
     UnitTestResultFetcherCacheType,
     DEFAULT_REQUEST_LIMIT,

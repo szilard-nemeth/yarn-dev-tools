@@ -108,7 +108,7 @@ fi
 CDSW_PACKAGE_ROOT="$PYTHON_SITE/yarndevtools/cdsw"
 CDSW_PACKAGE_ROOT_JOB_CONFIGS="$CDSW_PACKAGE_ROOT/job_configs"
 JOBS_ROOT="$CDSW_ROOT/jobs/"
-CDSW_RUNNER_SCRIPT_PATH="$CDSW_PACKAGE_ROOT/common/cdsw_runner.py"
+CDSW_RUNNER_SCRIPT_PATH="$CDSW_PACKAGE_ROOT/cdsw_runner.py"
 
 # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
 # the linked script is not there.
