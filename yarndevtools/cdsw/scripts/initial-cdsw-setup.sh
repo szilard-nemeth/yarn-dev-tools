@@ -49,22 +49,23 @@ git clone https://github.com/szilard-nemeth/yarn-dev-tools.git
 
 CDSW_ROOT="/home/cdsw/"
 SCRIPTS_ROOT="$CDSW_ROOT/scripts"
+rm "$SCRIPTS_ROOT/*"
 mkdir -p $CDSW_ROOT
 mkdir -p $SCRIPTS_ROOT
-cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/scripts/*.sh $CDSW_ROOT/scripts
+cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/scripts/{clone_downstream_repos.sh,clone_upstream_repos.sh} $CDSW_ROOT/scripts
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/start_job.py $CDSW_ROOT/scripts
 cp -R $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/libreloader/ $CDSW_ROOT/scripts/libreloader
 set -e
 
+INSTALL_REQUIREMENTS_SCRIPT_PATH="$CDSW_ROOT/install-requirements.sh"
 CLONE_DS_REPOS_SCRIPT_PATH="$SCRIPTS_ROOT/clone_downstream_repos.sh"
 CLONE_US_REPOS_SCRIPT_PATH="$SCRIPTS_ROOT/clone_upstream_repos.sh"
-INSTALL_REQUIREMENTS_SCRIPT_PATH="$SCRIPTS_ROOT/install-requirements.sh"
 START_JOB_SCRIPT_PATH="$SCRIPTS_ROOT/start_job.py"
 
 
+chmod +x $INSTALL_REQUIREMENTS_SCRIPT_PATH
 chmod +x $CLONE_DS_REPOS_SCRIPT_PATH
 chmod +x $CLONE_US_REPOS_SCRIPT_PATH
-chmod +x $INSTALL_REQUIREMENTS_SCRIPT_PATH
 chmod +x $START_JOB_SCRIPT_PATH
 
 set -e
@@ -107,7 +108,7 @@ fi
 CDSW_PACKAGE_ROOT="$PYTHON_SITE/yarndevtools/cdsw"
 CDSW_PACKAGE_ROOT_JOB_CONFIGS="$CDSW_PACKAGE_ROOT/job_configs"
 JOBS_ROOT="$CDSW_ROOT/jobs/"
-CDSW_RUNNER_SCRIPT_PATH="$SCRIPTS_ROOT/cdsw_runner.py"
+CDSW_RUNNER_SCRIPT_PATH="$CDSW_PACKAGE_ROOT/common/cdsw_runner.py"
 
 # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
 # the linked script is not there.
@@ -116,15 +117,9 @@ rm -rf $JOBS_ROOT
 mkdir -p $JOBS_ROOT
 cp $CDSW_PACKAGE_ROOT_JOB_CONFIGS/*.py $JOBS_ROOT/
 
-echo "Copying cdsw_runner.py into place..."
-cp "$CDSW_PACKAGE_ROOT/common/cdsw_runner.py" "$CDSW_RUNNER_SCRIPT_PATH"
-
+# PRINT INFO
 echo "Installed jobs:"
 find $JOBS_ROOT | xargs ls -la
 set +x
-
-echo "Start jobs script path:"
-echo $START_JOB_SCRIPT_PATH
-
-echo "CDSW runner script path:"
-echo $CDSW_RUNNER_SCRIPT_PATH
+echo "Start jobs script path: $START_JOB_SCRIPT_PATH"
+echo "CDSW runner script path: $CDSW_RUNNER_SCRIPT_PATH"
