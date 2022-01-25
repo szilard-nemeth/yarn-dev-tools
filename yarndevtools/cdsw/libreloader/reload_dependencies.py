@@ -10,7 +10,6 @@ from typing import List
 LOG = logging.getLogger(__name__)
 CDSW_BASEDIR = os.path.join("/home", "cdsw")
 YARN_DEV_TOOLS_JOBS_BASEDIR = os.path.join(CDSW_BASEDIR, "jobs")  # Same as CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR
-INSTALL_REQUIREMENTS_SCRIPT = os.path.join(CDSW_BASEDIR, "scripts", "install-requirements.sh")
 
 MODULE_MODE_GLOBAL = "global"
 MODULE_MODE_USER = "user"
@@ -24,24 +23,33 @@ DEFAULT_TEST_EXECUTION_MODE = "cloudera"  # Same as TestExecMode.CLOUDERA.value
 
 class Reloader:
     YARN_DEV_TOOLS_MODULE_ROOT = None
+    CONFIGS_ROOT_DIR = None
+    INSTALL_REQUIREMENTS_SCRIPT = None
 
     @classmethod
     def start(cls):
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-        cls._check_mandatory_scripts()
-        python_site = cls._setup_python_module_root()
-        cls.YARN_DEV_TOOLS_MODULE_ROOT = os.path.join(python_site, YARNDEVTOOLS_MODULE_NAME)
-        LOG.info("YARN dev tools module root is: %s", cls.YARN_DEV_TOOLS_MODULE_ROOT)
-
+        cls._setup_paths()
         cls._install_requirements_if_needed()
         LOG.info("{} Finished execution succesfully".format(sys.argv[0]))
 
     @classmethod
+    def _setup_paths(cls):
+        module_root = cls.get_python_module_root()
+        cls.YARN_DEV_TOOLS_MODULE_ROOT = os.path.join(module_root, YARNDEVTOOLS_MODULE_NAME)
+        cls.CONFIGS_ROOT_DIR = os.path.join(cls.YARN_DEV_TOOLS_MODULE_ROOT, "cdsw", "job_configs")
+        cls.INSTALL_REQUIREMENTS_SCRIPT = os.path.join(
+            cls.YARN_DEV_TOOLS_MODULE_ROOT, "cdsw", "scripts", "install-requirements.sh"
+        )
+        LOG.info("YARN dev tools module root is: %s", cls.YARN_DEV_TOOLS_MODULE_ROOT)
+        cls._check_mandatory_scripts()
+
+    @classmethod
     def _check_mandatory_scripts(cls):
-        if not os.path.isfile(INSTALL_REQUIREMENTS_SCRIPT):
+        if not os.path.isfile(cls.INSTALL_REQUIREMENTS_SCRIPT):
             raise ValueError(
                 "Cannot find file {}. Make sure you ran the initial-cdsw-setup.sh script once!".format(
-                    INSTALL_REQUIREMENTS_SCRIPT
+                    cls.INSTALL_REQUIREMENTS_SCRIPT
                 )
             )
 
@@ -60,7 +68,7 @@ class Reloader:
             LOG.warning("Skipping installation of Python requirements as per configuration!")
 
     @classmethod
-    def _setup_python_module_root(cls):
+    def get_python_module_root(cls):
         # For CDSW execution, user python module mode is preferred.
         # For test execution, it depends on how the initial-cdsw-setup.sh script was executed in the container.
         python_module_mode = MODULE_MODE_USER
@@ -95,11 +103,12 @@ class Reloader:
         :param exit_on_nonzero_exitcode:
         :return:
         """
-        script = INSTALL_REQUIREMENTS_SCRIPT
         exec_mode = DEFAULT_TEST_EXECUTION_MODE
         if TEST_EXECUTION_MODE_ENV_VAR in os.environ:
             exec_mode = os.environ[TEST_EXECUTION_MODE_ENV_VAR]
-        cls._run_script(script, args=[exec_mode], exit_on_nonzero_exitcode=exit_on_nonzero_exitcode)
+        cls._run_script(
+            cls.INSTALL_REQUIREMENTS_SCRIPT, args=[exec_mode], exit_on_nonzero_exitcode=exit_on_nonzero_exitcode
+        )
         cls._copy_job_configs_to_cdsw_jobs_root()
 
     @classmethod
@@ -107,8 +116,7 @@ class Reloader:
         # IMPORTANT: CDSW is able to launch linked scripts, but cannot modify and save the job's form because it thinks
         # the linked script is not there.
         LOG.info("Copying jobs to place...")
-        configs_root_dir = os.path.join(cls.YARN_DEV_TOOLS_MODULE_ROOT, "cdsw", "job_configs")
-        for subdir, dirs, files in os.walk(configs_root_dir):
+        for subdir, dirs, files in os.walk(cls.CONFIGS_ROOT_DIR):
             for file in files:
                 filepath = subdir + os.sep + file
                 if filepath.endswith(".py"):

@@ -14,7 +14,7 @@ def set_env_value(env, value):
     os.environ[env] = value
 
 
-def fix_pythonpath(additional_dir):
+def add_to_pythonpath(additional_dir):
     pypath = PYTHONPATH_ENV_VAR
     if pypath in os.environ:
         print(f"Old {pypath}: {get_pythonpath()}")
@@ -29,13 +29,15 @@ def fix_pythonpath(additional_dir):
     print("Fixed PYTHONPATH: " + str(os.environ["PYTHONPATH"]))
 
 
+# Only used script is the libreloader from /home/cdsw/scripts/
 scripts_dir = os.path.join("/home", "cdsw", "scripts")
 jobs_dir = os.path.join("/home", "cdsw", "jobs")
-fix_pythonpath(scripts_dir)
+add_to_pythonpath(scripts_dir)
 
 # NOW IT'S SAFE TO IMPORT LIBRELOADER
 # IGNORE FLAKE8: E402 module level import not at top of file
 from libreloader import reload_dependencies  # DO NOT REMOVE !! # noqa: E402
+from libreloader.reload_dependencies import YARNDEVTOOLS_MODULE_NAME, Reloader  # DO NOT REMOVE !! # noqa: E402
 
 print(f"Name of the script      : {sys.argv[0]=}")
 print(f"Arguments of the script : {sys.argv[1:]=}")
@@ -44,9 +46,15 @@ if len(sys.argv) != 2:
 
 reload_dependencies.Reloader.start()
 
+# Get the Python module root
+module_root = reload_dependencies.Reloader.get_python_module_root()
+yarn_dev_tools_module_root = os.path.join(module_root, YARNDEVTOOLS_MODULE_NAME)
+cdsw_runner_path = os.path.join(yarn_dev_tools_module_root, "cdsw_runner.py")
+print("YARN dev tools module root is: %s", Reloader.YARN_DEV_TOOLS_MODULE_ROOT)
+
+
 # Start the CDSW runner
 job_name = sys.argv[1]
 sys.argv.append("--config-dir")
 sys.argv.append(jobs_dir)
-cdsw_runner_path = os.path.join(scripts_dir, "cdsw_runner.py")
 exec(open(cdsw_runner_path).read())
