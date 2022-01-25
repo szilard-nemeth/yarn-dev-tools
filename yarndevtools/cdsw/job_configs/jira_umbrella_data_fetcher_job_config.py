@@ -1,4 +1,4 @@
-from yarndevtools.cdsw.common.cdsw_common import JiraUmbrellaDataFetcherCdswUtils
+from yarndevtools.cdsw.common.cdsw_common import JiraUmbrellaDataFetcherCdswUtils, GenericCdswConfigUtils
 from yarndevtools.cdsw.common.cdsw_config import Include
 from yarndevtools.common.shared_command_utils import CommandType
 
@@ -23,7 +23,7 @@ def generate_runs(conf):
             "yarn_dev_tools_arguments": [umbrella_id],
         }
         for umbrella_id, title in JiraUmbrellaDataFetcherCdswUtils.fetch_umbrella_titles(
-            conf.var("jiraUmbrellaIds").split(" ")
+            GenericCdswConfigUtils.unquote(conf.var("jiraUmbrellaIds")).split(" ")
         ).items()
     ]
     return runs

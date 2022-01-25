@@ -216,6 +216,10 @@ class GenericCdswConfigUtils:
     def quote(val):
         return '"' + val + '"'
 
+    @staticmethod
+    def unquote(val):
+        return val.strip('"')
+
 
 class JiraUmbrellaDataFetcherCdswUtils:
     @staticmethod
