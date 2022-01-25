@@ -100,7 +100,7 @@ class CdswConfigReaderAdapter:
 class CdswRunnerConfig:
     def __init__(self, parser, args, config_reader: CdswConfigReaderAdapter = None):
         self._validate_args(parser, args)
-        self._parse_command_type(args)
+        self.command_type = self._parse_command_type(args)
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.execution_mode = self.determine_execution_mode(args)
         self.job_config_file = self._determine_job_config_file_location(args)
@@ -132,17 +132,24 @@ class CdswRunnerConfig:
             )
         return FileUtils.join_path(self.config_dir, expected_filename)
 
-    def _parse_command_type(self, args):
+    @staticmethod
+    def _parse_command_type(args):
         try:
-            self.command_type = CommandType.by_real_name(args.cmd_type)
+            command_type = CommandType.by_real_name(args.cmd_type)
+            if command_type:
+                return command_type
         except ValueError:
             pass  # Fallback to output_dir_name
         try:
-            self.command_type = CommandType.by_output_dir_name(args.cmd_type)
+            command_type = CommandType.by_output_dir_name(args.cmd_type)
+            if command_type:
+                return command_type
         except ValueError:
             pass
         try:
-            self.command_type = CommandType[args.cmd_type]
+            command_type = CommandType[args.cmd_type]
+            if command_type:
+                return command_type
         except Exception:
             raise ValueError(
                 "Invalid command type specified: {}. Possible values are: {}".format(
