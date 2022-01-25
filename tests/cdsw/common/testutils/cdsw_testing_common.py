@@ -1,6 +1,5 @@
 import unittest
 from dataclasses import dataclass, field
-from os.path import expanduser
 from typing import List, Set
 from unittest.mock import _CallList, patch
 
@@ -11,7 +10,7 @@ import logging
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.project_utils import SimpleProjectUtils
 
-from yarndevtools.cdsw.common.constants import SECRET_PROJECTS_DIR
+from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 DRIVE_API_WRAPPER_PATH = "googleapiwrapper.google_drive.DriveApiWrapper"

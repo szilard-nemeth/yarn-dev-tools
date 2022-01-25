@@ -1,4 +1,4 @@
-from yarndevtools.cdsw.common.cdsw_config import Include
+from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.common.shared_command_utils import CommandType
 
 config = {

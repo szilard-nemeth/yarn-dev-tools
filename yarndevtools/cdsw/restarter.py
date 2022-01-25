@@ -4,7 +4,7 @@ import sys
 
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.cdsw.common.constants import CdswEnvVar
+from yarndevtools.cdsw.constants import CdswEnvVar
 
 LOG = logging.getLogger(__name__)
 

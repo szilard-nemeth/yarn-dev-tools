@@ -4,7 +4,7 @@ import tempfile
 import unittest
 import logging
 from typing import List
-from unittest.mock import patch, Mock, call as mock_call, _CallList
+from unittest.mock import patch, Mock, call as mock_call
 
 from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
@@ -14,21 +14,21 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CommandExpectations, CdswTestingCommons
 from tests.test_utilities import Object
-from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup
-from yarndevtools.cdsw.common.cdsw_config import (
+from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup
+from yarndevtools.cdsw.cdsw_config import (
     CdswRun,
     CdswJobConfig,
     EmailSettings,
     DriveApiUploadSettings,
     CdswJobConfigReader,
 )
-from yarndevtools.cdsw.common.cdsw_runner import (
+from yarndevtools.cdsw.cdsw_runner import (
     CdswRunnerConfig,
     CdswRunner,
     ConfigMode,
     CdswConfigReaderAdapter,
 )
-from yarndevtools.cdsw.common.constants import CdswEnvVar
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 

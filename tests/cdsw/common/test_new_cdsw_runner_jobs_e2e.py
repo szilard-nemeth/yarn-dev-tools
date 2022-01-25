@@ -1,7 +1,6 @@
 import os
 import unittest
 from typing import Dict
-from unittest.mock import patch
 
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.os_utils import OsUtils
@@ -10,9 +9,9 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
 from tests.test_utilities import Object
-from yarndevtools.cdsw.common.cdsw_common import CommonFiles, CdswSetup, CommonDirs
-from yarndevtools.cdsw.common.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter, CdswRunner
-from yarndevtools.cdsw.common.constants import CdswEnvVar
+from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup
+from yarndevtools.cdsw.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter, CdswRunner
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 

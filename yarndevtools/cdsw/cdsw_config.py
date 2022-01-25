@@ -1,8 +1,7 @@
-import inspect
 import logging
 import os
 import re
-from copy import deepcopy, copy
+from copy import copy
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Callable, Union
 
@@ -10,7 +9,7 @@ from dacite import from_dict
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.cdsw.common.constants import (
+from yarndevtools.cdsw.constants import (
     JiraUmbrellaCheckerEnvVar,
     BranchComparatorEnvVar,
     UnitTestResultFetcherEnvVar,
