@@ -9,7 +9,7 @@ from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
 from tests.test_utilities import Object
-from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup
+from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GenericCdswConfigUtils
 from yarndevtools.cdsw.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter, CdswRunner
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
@@ -408,7 +408,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
                 "MATCH_EXPRESSION": "YARN::org.apache.hadoop.yarn MR::org.apache.hadoop.mapreduce",
                 "ABBREV_TC_PACKAGE": "org.apache.hadoop.yarn.server",
                 "AGGREGATE_FILTERS": "CDPD-7.1.x CDPD-7.x",
-                "GSHEET_COMPARE_WITH_JIRA_TABLE": "testcases with jiras",
+                "GSHEET_COMPARE_WITH_JIRA_TABLE": GenericCdswConfigUtils.quote("testcases with jiras"),
                 "SKIP_AGGREGATION_RESOURCE_FILE": skip_aggregation_defaults_file,
                 "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY": "1",
                 "REQUEST_LIMIT": "3000",
@@ -425,7 +425,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
         sender = wrap_d("YARN unit test aggregator")
         subject = wrap_d(f"YARN unit test aggregator report [start date: {job_start_date}]")
 
-        exp_command_1 = exp_command_1 = (
+        exp_command_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)

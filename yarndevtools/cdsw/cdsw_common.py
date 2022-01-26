@@ -214,6 +214,8 @@ class GenericCdswConfigUtils:
 
     @staticmethod
     def quote(val):
+        if '"' in val:
+            return val
         return '"' + val + '"'
 
     @staticmethod
