@@ -1,5 +1,6 @@
 from yarndevtools.cdsw.cdsw_common import JiraUmbrellaDataFetcherCdswUtils, GenericCdswConfigUtils
 from yarndevtools.cdsw.cdsw_config import Include
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 
 
@@ -42,13 +43,14 @@ config = {
     ],
     "optional_env_vars": [],
     "yarn_dev_tools_arguments": [
-        "--debug",
+        lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.JIRA_UMBRELLA_DATA_FETCHER.name}",
         lambda conf: f"--branches {conf.var('branches')}",
         lambda conf: f"{Include.when(conf.var('forceMode'), '--force', '')}",
         lambda conf: f"{Include.when(conf.var('ignoreChanges'), '--ignore-changes', '')}",
     ],
     "global_variables": {
+        "debugMode": lambda conf: conf.env_or_default(CdswEnvVar.DEBUG_ENABLED.value, True),
         "sender": "YARN upstream umbrella checker",
         "branches": "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x",
         "commandDataFileName": lambda conf: f"command_data_{conf.job_start_date()}.zip",

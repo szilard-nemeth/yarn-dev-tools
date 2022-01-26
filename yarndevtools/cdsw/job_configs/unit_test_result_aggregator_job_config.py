@@ -3,6 +3,7 @@ from yarndevtools.cdsw.cdsw_common import (
     GenericCdswConfigUtils,
 )
 from yarndevtools.cdsw.cdsw_config import Include
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.commands.unittestresultaggregator.common import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
 
@@ -27,7 +28,7 @@ config = {
         "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY",
     ],
     "yarn_dev_tools_arguments": [
-        "--debug",
+        lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.name}",
         lambda conf: f"--{conf.var('execMode')}",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
@@ -50,6 +51,7 @@ config = {
         ),
     ],
     "global_variables": {
+        "debugMode": lambda conf: conf.env_or_default(CdswEnvVar.DEBUG_ENABLED.value, True),
         "sender": "YARN unit test aggregator",
         "subject": lambda conf: f"YARN unit test aggregator report [start date: {conf.job_start_date()}]",
         "commandDataFileName": lambda conf: f"command_data_{conf.job_start_date()}.zip",

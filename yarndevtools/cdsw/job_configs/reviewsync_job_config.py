@@ -1,3 +1,5 @@
+from yarndevtools.cdsw.cdsw_config import Include
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 
 config = {
@@ -17,7 +19,7 @@ config = {
     ],
     "optional_env_vars": [],
     "yarn_dev_tools_arguments": [
-        "--debug",
+        lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.REVIEWSYNC.name}",
         "--gsheet",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
@@ -29,6 +31,7 @@ config = {
         lambda conf: f"--branches {conf.env('BRANCHES')}",
     ],
     "global_variables": {
+        "debugMode": lambda conf: conf.env_or_default(CdswEnvVar.DEBUG_ENABLED.value, True),
         "sender": "YARN reviewsync",
         "subject": lambda conf: f"YARN reviewsync report [start date: {conf.job_start_date()}]",
         "commandDataFileName": lambda conf: f"command_data_{conf.job_start_date()}.zip",
