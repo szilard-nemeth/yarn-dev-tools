@@ -50,7 +50,7 @@ reload_dependencies.Reloader.start()
 # Get the Python module root
 module_root = reload_dependencies.Reloader.get_python_module_root()
 yarn_dev_tools_module_root = os.path.join(module_root, YARNDEVTOOLS_MODULE_NAME)
-cdsw_runner_path = os.path.join(yarn_dev_tools_module_root, "cdsw", "common", "cdsw_runner.py")
+cdsw_runner_path = os.path.join(yarn_dev_tools_module_root, "cdsw", "cdsw_runner.py")
 print("YARN dev tools module root is: %s", Reloader.YARN_DEV_TOOLS_MODULE_ROOT)
 
 
