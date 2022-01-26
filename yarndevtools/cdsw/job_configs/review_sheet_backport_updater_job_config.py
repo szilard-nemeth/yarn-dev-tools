@@ -1,3 +1,5 @@
+from yarndevtools.cdsw.cdsw_config import Include
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
 
 config = {
@@ -17,7 +19,7 @@ config = {
     ],
     "optional_env_vars": [],
     "yarn_dev_tools_arguments": [
-        "--debug",
+        lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.REVIEW_SHEET_BACKPORT_UPDATER.name}",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
         lambda conf: f"--gsheet-worksheet {conf.env('GSHEET_WORKSHEET')}",
@@ -28,6 +30,7 @@ config = {
         lambda conf: f"--branches {conf.env('BRANCHES')}",
     ],
     "global_variables": {
+        "debugMode": lambda conf: conf.env_or_default(CdswEnvVar.DEBUG_ENABLED.value, True),
         "sender": "YARN review sheet backport updater",
         "subject": lambda conf: f"YARN review sheet backport updater report [start date: {conf.job_start_date()}]",
         "commandDataFileName": lambda conf: f"command_data_{conf.job_start_date()}.zip",

@@ -1,4 +1,5 @@
 from yarndevtools.cdsw.cdsw_config import Include
+from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
 
 algorithms = ["simple", "grouped"]
@@ -53,7 +54,7 @@ config = {
     "yarn_dev_tools_arguments": [],
     "global_variables": {
         "sender": "YARN branch diff reporter",
-        "debugMode": True,
+        "debugMode": lambda conf: conf.env_or_default(CdswEnvVar.DEBUG_ENABLED.value, True),
         "runLegacyScript": False,
         "repoType": lambda conf: f"{conf.env_or_default('BRANCH_COMP_REPO_TYPE', RepoType.DOWNSTREAM.value.lower())}",
         "authorsToFilter": "rel-eng@cloudera.com",
