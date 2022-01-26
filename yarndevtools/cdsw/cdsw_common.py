@@ -54,7 +54,7 @@ class TestExecMode(Enum):
 DEFAULT_TEST_EXECUTION_MODE = TestExecMode.CLOUDERA.value
 
 ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
-SKIP_AGGREGATION_DEFAULTS_FILENAME = "unit-test-result-aggregator/skip_aggregation_defaults.txt"
+SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.txt"
 LOG = logging.getLogger(__name__)
 CMD_LOG = SimpleLoggingSetup.create_command_logger(__name__)
 BASEDIR = None
