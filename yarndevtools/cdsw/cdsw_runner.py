@@ -216,9 +216,10 @@ class CdswRunner:
 
         for run in self.job_config.runs:
             self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))
-            self.execute_command_data_zipper(self.command_type, debug=True)
-            drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
-            self._send_email_if_required(run, drive_link_html_text)
+            if self.command_type.session_based:
+                self.execute_command_data_zipper(self.command_type, debug=True)
+                drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
+                self._send_email_if_required(run, drive_link_html_text)
 
     def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
         if not self.is_drive_integration_enabled:
