@@ -203,6 +203,7 @@ class CdswRunner:
     def start(self):
         LOG.info("Starting CDSW runner...")
         setup_result: CdswSetupResult = CdswSetup.initial_setup()
+        LOG.info("Setup result: %s", setup_result)
         self.job_config: CdswJobConfig = self.cdsw_runner_config.config_reader.read_from_file(
             self.cdsw_runner_config.job_config_file
         )
@@ -305,16 +306,6 @@ class CdswRunner:
             self.drive_cdsw_helper = GoogleDriveCdswHelper()
         else:
             self.drive_cdsw_helper = None
-
-    def start_common(self, setup_result: CdswSetupResult, cdsw_runner_script_path: str):
-        LOG.info("Starting CDSW runner...")
-        LOG.info("Setup result: %s", setup_result)
-        self.cdsw_runner_script_path = cdsw_runner_script_path
-        self.start_date_str = (
-            self.current_date_formatted()
-        )  # TODO Is this the same as in RegularVariables.BUILT_IN_VARIABLES?
-        if OsUtils.is_env_var_true(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED.value, default_val=False):
-            Restarter.restart_execution(self.cdsw_runner_script_path)
 
     def execute_clone_downstream_repos_script(self, basedir):
         script = os.path.join(basedir, "clone_downstream_repos.sh")
