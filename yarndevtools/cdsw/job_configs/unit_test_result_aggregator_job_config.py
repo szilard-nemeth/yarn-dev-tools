@@ -44,7 +44,7 @@ config = {
         lambda conf: Include.when(
             conf.var("abbreviateTestcasePackageEnv"), conf.var("abbreviateTestcasePackageVal"), ""
         ),
-        lambda conf: Include.when(conf.var("aggregateFiltersEnv"), conf.var("agregateFiltersVal"), ""),
+        lambda conf: Include.when(conf.var("aggregateFiltersEnv"), conf.var("aggregateFiltersVal"), ""),
         lambda conf: Include.when(
             conf.var("gsheetCompareWithJiraTableEnv"), conf.var("gsheetCompareWithJiraTableVal"), ""
         ),
@@ -60,7 +60,7 @@ config = {
         "abbreviateTestcasePackageEnv": lambda conf: conf.env("ABBREV_TC_PACKAGE"),
         "abbreviateTestcasePackageVal": lambda conf: f"--abbreviate-testcase-package {conf.var('abbreviateTestcasePackageEnv')}",
         "aggregateFiltersEnv": lambda conf: conf.env("AGGREGATE_FILTERS"),
-        "agregateFiltersVal": lambda conf: f"--aggregate-filters {conf.var('aggregateFiltersEnv')}",
+        "aggregateFiltersVal": lambda conf: f"--aggregate-filters {conf.var('aggregateFiltersEnv')}",
         "gsheetCompareWithJiraTableEnv": lambda conf: conf.env("GSHEET_COMPARE_WITH_JIRA_TABLE"),
         "gsheetCompareWithJiraTableVal": lambda conf: f"--gsheet-compare-with-jira-table {GenericCdswConfigUtils.quote(conf.var('gsheetCompareWithJiraTableEnv'))}",
         "defaultGmailQuery": 'subject:"YARN Daily unit test report"',
