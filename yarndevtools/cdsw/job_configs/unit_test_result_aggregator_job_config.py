@@ -28,7 +28,7 @@ config = {
         "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY",
     ],
     "yarn_dev_tools_arguments": [
-        lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
+        lambda conf: f"{Include.when('True' == conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.name}",
         lambda conf: f"--{conf.var('execMode')}",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
@@ -40,7 +40,6 @@ config = {
         lambda conf: f"--gmail-query {conf.var('defaultGmailQuery')}",
         lambda conf: f"--summary-mode {conf.var('summaryMode')}",
         lambda conf: f"--skip-lines-starting-with {conf.var('skipLinesStartingWithCLI')}",
-        lambda conf: f"{Include.when(conf.var('debug'), '--debug', '')}",
         lambda conf: f"{Include.when(conf.var('smartSubjectQuery'), '--smart-subject-query', '')}",
         lambda conf: Include.when(
             conf.var("abbreviateTestcasePackageEnv"), conf.var("abbreviateTestcasePackageVal"), ""
@@ -55,7 +54,6 @@ config = {
         "sender": "YARN unit test aggregator",
         "subject": lambda conf: f"YARN unit test aggregator report [start date: {conf.job_start_date()}]",
         "commandDataFileName": lambda conf: f"command_data_{conf.job_start_date()}.zip",
-        "debug": True,
         "smartSubjectQuery": True,
         "summaryMode": "html",
         "execMode": OperationMode.GSHEET.name.lower(),

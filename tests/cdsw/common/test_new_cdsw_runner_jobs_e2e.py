@@ -83,7 +83,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
     @staticmethod
     def _set_env_vars_from_dict(dict_of_vars: Dict[str, str]):
         for k, v in dict_of_vars.items():
-            os.environ[k] = v
+            os.environ[k] = str(v)
 
     def test_reviewsync_e2e(self):
         cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
@@ -412,6 +412,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
                 "SKIP_AGGREGATION_RESOURCE_FILE": skip_aggregation_defaults_file,
                 "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY": "1",
                 "REQUEST_LIMIT": "3000",
+                "DEBUG_ENABLED": False,
             }
         )
 
@@ -430,7 +431,6 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_ordered_arg("python3")
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR")
-            .add_expected_arg("--debug")
             .add_expected_arg("--gsheet")
             .add_expected_arg("--gsheet-client-secret", "testGsheetClientSecret")
             .add_expected_arg("--gsheet-worksheet", "testGsheetWorkSheet")
