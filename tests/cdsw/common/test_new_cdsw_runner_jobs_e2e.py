@@ -452,7 +452,7 @@ class TestNewCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--summary-mode", "html")
             .add_expected_arg("--smart-subject-query")
             .add_expected_arg("--abbreviate-testcase-package", "org.apache.hadoop.yarn.server")
-            .add_expected_arg("--aggregate-filters", '"CDPD-7.1.x CDPD-7.x"')
+            .add_expected_arg("--aggregate-filters", "CDPD-7.1.x CDPD-7.x")
             .add_expected_arg("--gsheet-compare-with-jira-table", '"testcases with jiras"')
         )
         exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
