@@ -27,7 +27,6 @@ from yarndevtools.cdsw.cdsw_common import (
 )
 from yarndevtools.cdsw.constants import (
     CdswEnvVar,
-    CDSW_RUNNER_PY,
     BranchComparatorEnvVar,
 )
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar, CommandType
@@ -39,6 +38,7 @@ PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
 BASH = "bash"
+CDSW_RUNNER_PY = "cdsw_runner.py"
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"

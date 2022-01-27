@@ -393,25 +393,6 @@ class CdswRunner:
             return recipients_env
         return default_recipients
 
-    @staticmethod
-    def get_filename(dir_name: str):
-        # TODO Is this method used anymore?
-        # Apparently, there is no chance to get the stackframe that called this method.
-        # The 0th frame holds this method, though.
-        # See file: cdsw_stacktrace_example.txt
-        # Let's put the path together by hand
-        stack = inspect.stack()
-        LOG.debug("Discovered stack while getting filename: %s", stack)
-        file_path = stack[0].filename
-        rindex = file_path.rindex("cdsw" + os.sep)
-        script_abs_path = file_path[:rindex] + f"cdsw{os.sep}{dir_name}{os.sep}cdsw_runner.py"
-        if not os.path.exists(script_abs_path):
-            raise ValueError(
-                "Script should have existed under path: {}. "
-                "Please double-check the code that assembles the path!".format(script_abs_path)
-            )
-        return script_abs_path
-
     @property
     def is_drive_integration_enabled(self):
         return self.drive_cdsw_helper is not None
