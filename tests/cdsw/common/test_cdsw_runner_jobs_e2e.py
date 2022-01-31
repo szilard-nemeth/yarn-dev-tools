@@ -21,7 +21,7 @@ CDSW_RUNNER_SCRIPT_PATH = None
 
 
 # TODO Extract code as much as possible
-class TestNewCdswRunnerJobsE2E(unittest.TestCase):
+class TestCdswRunnerJobsE2E(unittest.TestCase):
     ENV_VARS = [
         "GSHEET_CLIENT_SECRET",
         "GSHEET_WORKSHEET",

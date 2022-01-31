@@ -12,9 +12,13 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import StringUtils
 
-from tests.cdsw.common.testutils.cdsw_testing_common import CommandExpectations, CdswTestingCommons
+from tests.cdsw.common.testutils.cdsw_testing_common import (
+    CommandExpectations,
+    CdswTestingCommons,
+    FakeGoogleDriveCdswHelper,
+)
 from tests.test_utilities import Object
-from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup
+from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GoogleDriveCdswHelper
 from yarndevtools.cdsw.cdsw_config import (
     CdswRun,
     CdswJobConfig,
@@ -36,20 +40,23 @@ FAKE_CONFIG_FILE = "fake-config-file.py"
 REVIEWSYNC_CONFIG_FILE_NAME = "reviewsync_job_config.py"
 
 DEFAULT_COMMAND_TYPE = CommandType.REVIEWSYNC
-# CDSW_RUNNER_CLASSNAME = NewCdswRunner.__name__
 CDSW_JOB_CONFIG_READER_CLASS_NAME = CdswJobConfigReader.__name__
-# CDSW_RUNNER_BEGIN_PATH = "yarndevtools.cdsw.common.cdsw_runner.{}.begin".format(
-#     CDSW_RUNNER_CLASSNAME)
-CDSW_CONFIG_READER_READ_METHOD_PATH = "yarndevtools.cdsw.common.cdsw_config.{}".format(
-    CDSW_JOB_CONFIG_READER_CLASS_NAME
-)
+CDSW_CONFIG_READER_READ_METHOD_PATH = "yarndevtools.cdsw.cdsw_config.{}".format(CDSW_JOB_CONFIG_READER_CLASS_NAME)
 SUBPROCESSRUNNER_RUN_METHOD_PATH = "pythoncommons.process.SubprocessCommandRunner.run_and_follow_stdout_stderr"
-CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH = "yarndevtools.cdsw.common.cdsw_common.GoogleDriveCdswHelper.upload"
+CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH = "yarndevtools.cdsw.cdsw_common.GoogleDriveCdswHelper.upload"
 DRIVE_API_WRAPPER_UPLOAD_PATH = "googleapiwrapper.google_drive.DriveApiWrapper.upload_file"
 LOG = logging.getLogger(__name__)
 
 
-class TestNewCdswRunner(unittest.TestCase):
+class FakeCdswRunner(CdswRunner):
+    def __init__(self, config: CdswRunnerConfig):
+        super().__init__(config)
+
+    def create_google_drive_cdsw_helper(self):
+        return FakeGoogleDriveCdswHelper()
+
+
+class TestCdswRunner(unittest.TestCase):
     parser = None
 
     @classmethod
@@ -62,6 +69,7 @@ class TestNewCdswRunner(unittest.TestCase):
         # We need the value of 'CommonFiles.YARN_DEV_TOOLS_SCRIPT'
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
         cls.yarn_dev_tools_script_path = CommonFiles.YARN_DEV_TOOLS_SCRIPT
+        cls.fake_google_drive_cdsw_helper = FakeGoogleDriveCdswHelper()
 
     def setUp(self) -> None:
         self.tmp_dir_name = None
@@ -109,7 +117,8 @@ class TestNewCdswRunner(unittest.TestCase):
         mock_job_config_reader: CdswConfigReaderAdapter = Mock(spec=CdswConfigReaderAdapter)
         mock_job_config_reader.read_from_file.return_value = mock_job_config
         cdsw_runner_config = CdswRunnerConfig(self.parser, args, config_reader=mock_job_config_reader)
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
+        cdsw_runner.drive_cdsw_helper = self.fake_google_drive_cdsw_helper
         return cdsw_runner
 
     @staticmethod
@@ -233,11 +242,14 @@ class TestNewCdswRunner(unittest.TestCase):
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)
-    def test_execute_two_runs_with_fake_args(self, mock_google_drive_cdsw_helper_upload, mock_subprocess_runner):
+    def test_execute_two_runs_with_fake_args(
+        self,
+        mock_google_drive_cdsw_helper_upload,
+        mock_subprocess_runner,
+    ):
         mock_google_drive_cdsw_helper_upload.return_value = self.create_mock_drive_api_file(
             "http://googledrive/link-of-file-in-google-drive"
         )
-
         mock_run1 = self._create_mock_cdsw_run("run1", email_enabled=True, google_drive_upload_enabled=True)
         mock_run2 = self._create_mock_cdsw_run("run2", email_enabled=False, google_drive_upload_enabled=False)
         mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
@@ -302,7 +314,11 @@ class TestNewCdswRunner(unittest.TestCase):
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)
-    def test_google_drive_settings_are_not_defined(self, mock_google_drive_cdsw_helper_upload, mock_subprocess_runner):
+    def test_google_drive_settings_are_not_defined(
+        self,
+        mock_google_drive_cdsw_helper_upload,
+        mock_subprocess_runner,
+    ):
         mock_run1 = self._create_mock_cdsw_run(
             "run1",
             email_enabled=True,
@@ -388,7 +404,6 @@ class TestNewCdswRunner(unittest.TestCase):
             add_google_drive_settings=False,
         )
         mock_job_config = self._create_mock_job_config([mock_run1, mock_run2])
-
         args = self._create_args_for_specified_file(FAKE_CONFIG_FILE, dry_run=True)
         cdsw_runner = self._create_cdsw_runner_with_mock_config(args, mock_job_config)
         cdsw_runner.start()
