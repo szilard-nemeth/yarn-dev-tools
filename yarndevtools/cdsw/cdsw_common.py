@@ -36,8 +36,6 @@ from yarndevtools.cdsw.constants import (
     SECRET_PROJECTS_DIR,
 )
 
-# Constants
-# TODO Move this to EnvVar enum
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -53,7 +51,7 @@ class TestExecMode(Enum):
 
 DEFAULT_TEST_EXECUTION_MODE = TestExecMode.CLOUDERA.value
 
-ENV_OVERRIDE_SCRIPT_BASEDIR = "OVERRIDE_SCRIPT_BASEDIR"
+
 SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.txt"
 LOG = logging.getLogger(__name__)
 CMD_LOG = SimpleLoggingSetup.create_command_logger(__name__)
@@ -73,15 +71,6 @@ class CommonDirs:
     HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
     USER_DEV_ROOT = FileUtils.join_path("/", "Users", "snemeth", "development")
     YARN_DEV_TOOLS_MODULE_ROOT = None
-    # TODO seems unused
-    CDSW_SCRIPT_DIR_NAMES: List[str] = [
-        CommandType.BRANCH_COMPARATOR.output_dir_name,
-        CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name,
-        CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name,
-        CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name,
-        CommandType.REVIEW_SHEET_BACKPORT_UPDATER.output_dir_name,
-        CommandType.REVIEWSYNC.output_dir_name,
-    ]
 
 
 class CommonFiles:
@@ -127,9 +116,8 @@ class CdswSetup:
 
     @staticmethod
     def _determine_basedir():
-        # TODO Migrate this to CdswEnvVar
-        if ENV_OVERRIDE_SCRIPT_BASEDIR in os.environ:
-            basedir = OsUtils.get_env_value(ENV_OVERRIDE_SCRIPT_BASEDIR)
+        if CdswEnvVar.OVERRIDE_SCRIPT_BASEDIR.value in os.environ:
+            basedir = OsUtils.get_env_value(CdswEnvVar.OVERRIDE_SCRIPT_BASEDIR.value)
         else:
             basedir = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
         return basedir
