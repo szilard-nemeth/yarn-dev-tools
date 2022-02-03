@@ -258,40 +258,19 @@ class CdswJobConfig:
     global_variables: Dict[str, Union[str, bool, int, Callable]] = field(default_factory=dict)
     env_sanitize_exceptions: List[str] = field(default_factory=list)
 
+    def __post_init__(self):
+        self.resolver: Resolver = None
+
     @staticmethod
     def job_start_date():
         return GlobalVariables.BUILT_IN_VARIABLES[JOB_START_DATE_KEY]
 
-    def __post_init__(self):
-        self._current_rfs: ResolvedFieldSpec
-
     # TODO Move these methods from this and below to resolver
     def var(self, var_name):
-        resolution_context = self._current_rfs.name
-        if resolution_context == "global_variables":
-            val = self._resolve_from_global(var_name, resolution_context)
-            if isinstance(val, Callable):
-                return self.resolve_lambda(val, self._current_rfs)
-            if val is not None:
-                return val
-        elif resolution_context == "variables" and type(self._current_rfs.parent == CdswRun):
-            return self._resolve_from_global(var_name, resolution_context)
-        elif resolution_context == "yarn_dev_tools_arguments" and type(self._current_rfs.parent == CdswRun):
-            cdsw_run = self._current_rfs.parent
-            val = self._resolve_from_variables(cdsw_run, var_name, resolution_context)
-            if isinstance(val, Callable):
-                return self.resolve_lambda(val, self._current_rfs)
-            if val:
-                return val
-            return self._resolve_from_global(var_name, resolution_context)
-        else:
-            return self._resolve_from_global(var_name, resolution_context)
+        return self.resolver.var(var_name)
 
     def env(self, env_name: str):
-        env_value = os.getenv(env_name)
-        if not env_value:
-            raise ValueError("The following env var is not set: {}".format(env_name))
-        return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
+        return self.resolver.env(env_name)
 
     def env_or_default(self, env_name: str, default: str):
         env_value = os.getenv(env_name)
@@ -300,52 +279,11 @@ class CdswJobConfig:
         return default
 
     def resolve_lambda(self, callable, rfs: ResolvedFieldSpec):
-        self._current_rfs = rfs
-        if not isinstance(callable, Callable):
-            return callable
-        return callable(self)
-
-    def _resolve_from_global(self, var_name, resolution_context: str):
-        LOG.debug("Resolving variable '%s' from '%s'", var_name, resolution_context)
-        if var_name in self.global_variables:
-            return self.global_variables[var_name]
-        raise ValueError("Cannot resolve variable '{}' in: {}".format(var_name, resolution_context))
-
-    def _resolve_from_variables(self, cdsw_run, var_name, resolution_context: str):
-        LOG.debug("Resolving variable '%s' from '%s'", var_name, resolution_context)
-        if not hasattr(cdsw_run, "variables"):
-            return None
-        if var_name in cdsw_run.variables:
-            return cdsw_run.variables[var_name]
-        # TODO raise exception if not found?
+        return self.resolver.resolve_lambda(callable, rfs)
 
 
 @auto_str
 class CdswJobConfigReader:
-    # TODO Move this to resolver
-    FIELD_SUBSTITIONS_RUN_FIELDS = [
-        FieldSpec("runs[].email_settings.subject"),
-        FieldSpec("runs[].email_settings.sender"),
-        FieldSpec("runs[].email_settings.attachment_file_name"),
-        FieldSpec("runs[].email_settings.email_body_file_from_command_data"),
-        FieldSpec("runs[].drive_api_upload_settings.file_name"),
-        FieldSpec("runs[].yarn_dev_tools_arguments"),
-        FieldSpec("runs[].variables"),
-    ]
-
-    DEFAULT_VARIABLE_SUBSTITUTION_FIELDS = [
-        FieldSpec("global_variables"),
-        *FIELD_SUBSTITIONS_RUN_FIELDS,
-        FieldSpec("yarn_dev_tools_arguments"),
-    ]
-
-    FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG = [
-        FieldSpec("global_variables"),
-        FieldSpec("yarn_dev_tools_arguments"),
-    ]
-
-    FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG = [*FIELD_SUBSTITIONS_RUN_FIELDS]
-
     command_to_env_var_class = {
         CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaCheckerEnvVar,
         CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
@@ -385,44 +323,32 @@ class CdswJobConfigReader:
         if not config.runs:
             raise ValueError("Section 'runs' must be defined and cannot be empty!")
 
-        self.runs_defined_as_callable = isinstance(config.runs, Callable)
-        self._validate_run_names(config)
-
         enum_type = self.command_to_env_var_class[config.command_type]
-        self._field_spec_resolver = FieldSpecResolver(config)
         self._environment_variables = EnvironmentVariables(
             config.mandatory_env_vars,
             config.optional_env_vars,
             config.command_type,
             enum_type,
         )
-        GlobalVariables(config.global_variables)
-        # TODO Move this to resolver
-        self._resolve_vars(config)
+        global_vars = GlobalVariables(config.global_variables)
+        config.resolver = Resolver(global_vars, config)
+
+        self._validate_run_names(config)
+        config.resolver.resolve_vars()
         self._generate_runs_if_required(config)
         self._finalize_yarn_dev_tools_arguments(config)
 
     def _validate_run_names(self, config, force_validate=False):
         names = set()
-        if self.runs_defined_as_callable and not force_validate:
+        if config.resolver.runs_defined_as_callable and not force_validate:
             return
         for run in config.runs:
             if run.name in names:
                 raise ValueError("Duplicate job name not allowed! Job name: {}".format(run.name))
             names.add(run.name)
 
-    def _resolve_vars(self, config):
-        fields_to_resolve = self.DEFAULT_VARIABLE_SUBSTITUTION_FIELDS
-        if self.runs_defined_as_callable:
-            fields_to_resolve = self.FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG
-        FieldSpecReplacer.substitute_regular_variables_in_fields(
-            config,
-            self._field_spec_resolver,
-            fields_to_resolve,
-        )
-
     def _generate_runs_if_required(self, config):
-        if self.runs_defined_as_callable:
+        if config.resolver.runs_defined_as_callable:
             run_dicts = config.runs(config)
             runs = []
             for run_dict in run_dicts:
@@ -433,7 +359,7 @@ class CdswJobConfigReader:
             FieldSpecReplacer.substitute_regular_variables_in_fields(
                 config,
                 self._field_spec_resolver,
-                self.FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG,
+                Resolver.FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG,
             )
 
     def _finalize_yarn_dev_tools_arguments(self, config):
@@ -465,6 +391,98 @@ class CdswJobConfigReader:
 
     def __repr__(self):
         return self.__str__()
+
+
+class Resolver:
+    _FIELD_SUBSTITIONS_RUN_FIELDS = [
+        FieldSpec("runs[].email_settings.subject"),
+        FieldSpec("runs[].email_settings.sender"),
+        FieldSpec("runs[].email_settings.attachment_file_name"),
+        FieldSpec("runs[].email_settings.email_body_file_from_command_data"),
+        FieldSpec("runs[].drive_api_upload_settings.file_name"),
+        FieldSpec("runs[].yarn_dev_tools_arguments"),
+        FieldSpec("runs[].variables"),
+    ]
+
+    _DEFAULT_VARIABLE_SUBSTITUTION_FIELDS = [
+        FieldSpec("global_variables"),
+        *_FIELD_SUBSTITIONS_RUN_FIELDS,
+        FieldSpec("yarn_dev_tools_arguments"),
+    ]
+
+    _FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG = [
+        FieldSpec("global_variables"),
+        FieldSpec("yarn_dev_tools_arguments"),
+    ]
+
+    FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG = [*_FIELD_SUBSTITIONS_RUN_FIELDS]
+
+    def __init__(self, global_vars, config):
+        self.config = config
+        self._current_rfs = None
+        self.global_variables = global_vars
+        self.env_sanitize_exceptions = config.env_sanitize_exceptions
+
+        # Dynamic
+        self.runs_defined_as_callable: bool = isinstance(config.runs, Callable)
+        self._field_spec_resolver = FieldSpecResolver(config)
+
+    def resolve_vars(self):
+        fields_to_resolve = self._DEFAULT_VARIABLE_SUBSTITUTION_FIELDS
+        if self.runs_defined_as_callable:
+            fields_to_resolve = self._FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG
+        FieldSpecReplacer.substitute_regular_variables_in_fields(
+            self.config,
+            self._field_spec_resolver,
+            fields_to_resolve,
+        )
+
+    def var(self, var_name):
+        resolution_context = self._current_rfs.name
+        if resolution_context == "global_variables":
+            val = self._resolve_from_global(var_name, resolution_context)
+            if isinstance(val, Callable):
+                return self.resolve_lambda(val, self._current_rfs)
+            if val is not None:
+                return val
+        elif resolution_context == "variables" and type(self._current_rfs.parent == CdswRun):
+            return self._resolve_from_global(var_name, resolution_context)
+        elif resolution_context == "yarn_dev_tools_arguments" and type(self._current_rfs.parent == CdswRun):
+            cdsw_run = self._current_rfs.parent
+            val = self._resolve_from_variables(cdsw_run, var_name, resolution_context)
+            if isinstance(val, Callable):
+                return self.resolve_lambda(val, self._current_rfs)
+            if val:
+                return val
+            return self._resolve_from_global(var_name, resolution_context)
+        else:
+            return self._resolve_from_global(var_name, resolution_context)
+
+    def _resolve_from_global(self, var_name, resolution_context: str):
+        LOG.debug("Resolving variable '%s' from '%s'", var_name, resolution_context)
+        if var_name in self.global_variables.vars:
+            return self.global_variables.vars[var_name]
+        raise ValueError("Cannot resolve variable '{}' in: {}".format(var_name, resolution_context))
+
+    def _resolve_from_variables(self, cdsw_run, var_name, resolution_context: str):
+        LOG.debug("Resolving variable '%s' from '%s'", var_name, resolution_context)
+        if not hasattr(cdsw_run, "variables"):
+            return None
+        if var_name in cdsw_run.variables:
+            return cdsw_run.variables[var_name]
+        # TODO raise exception if not found?
+
+    def resolve_lambda(self, callable, rfs):
+        self._current_rfs = rfs
+        if not isinstance(callable, Callable):
+            return callable
+        return callable(self.config)
+
+    def env(self, env_name):
+        env_value = os.getenv(env_name)
+        if not env_value:
+            raise ValueError("The following env var is not set: {}".format(env_name))
+        return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
 
 
 class GlobalVariables:
