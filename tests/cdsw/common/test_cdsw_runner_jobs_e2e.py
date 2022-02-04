@@ -7,6 +7,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 from pythoncommons.string_utils import StringUtils
 
+from tests.cdsw.common.test_cdsw_runner import FakeCdswRunner
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
 from tests.test_utilities import Object
 from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GenericCdswConfigUtils
@@ -112,7 +113,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
 
         args = self._create_args_for_specified_file(config_file, CommandType.REVIEWSYNC, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
         exp_command_1 = (
@@ -189,7 +190,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             config_file, CommandType.REVIEW_SHEET_BACKPORT_UPDATER, dry_run=True
         )
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
         exp_command_1 = (
@@ -267,7 +268,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         wrap_d = StringUtils.wrap_to_quotes
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_FETCHER, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
         exp_command_1 = (
@@ -333,7 +334,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
 
         args = self._create_args_for_specified_file(config_file, CommandType.JIRA_UMBRELLA_DATA_FETCHER, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
         job_start_date = cdsw_runner.job_config.job_start_date()
@@ -416,7 +417,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
 
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
         job_start_date = cdsw_runner.job_config.job_start_date()
@@ -482,7 +483,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
 
         args = self._create_args_for_specified_file(config_file, CommandType.BRANCH_COMPARATOR, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = CdswRunner(cdsw_runner_config)
+        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
         job_start_date = cdsw_runner.job_config.job_start_date()

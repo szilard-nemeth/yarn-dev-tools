@@ -156,6 +156,7 @@ class TestBackporter(unittest.TestCase):
         self.downstream_utils.verify_if_branch_is_moved_to_latest_commit(self.full_ds_branch)
 
     @pytest.mark.skip(reason="Investigate failure later")
+    # TODO
     def test_backport_relation_chain(self):
         self.cleanup_and_checkout_branch_in_upstream_repo(branch=BRANCH_3_1, checkout_from=ORIGIN + "/" + BRANCH_3_1)
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
