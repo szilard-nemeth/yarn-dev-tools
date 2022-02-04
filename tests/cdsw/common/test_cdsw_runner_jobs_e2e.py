@@ -295,9 +295,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--cache-type", param="google_drive")
         )
 
-        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_FETCHER)
-
-        expectations = [exp_command_1, exp_command_2]
+        expectations = [exp_command_1]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def _get_expected_zip_latest_command_data_command(self, cmd_type: CommandType):
