@@ -358,7 +358,7 @@ class CdswJobConfigReader:
 
             FieldSpecReplacer.substitute_regular_variables_in_fields(
                 config,
-                self._field_spec_resolver,
+                config.resolver._field_spec_resolver,
                 Resolver.FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG,
             )
 
