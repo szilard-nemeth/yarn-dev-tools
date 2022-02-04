@@ -174,13 +174,7 @@ class CommonMailConfig:
 
 class GoogleDriveCdswHelper:
     def __init__(self):
-        self.authorizer = GoogleApiAuthorizer(
-            ServiceType.DRIVE,
-            project_name=CDSW_PROJECT,
-            secret_basedir=SECRET_PROJECTS_DIR,
-            account_email="snemeth@cloudera.com",
-            scopes=[DriveApiScope.DRIVE_PER_FILE_ACCESS.value],
-        )
+        self.authorizer = self.create_authorizer()
         session_settings = DriveApiWrapperSessionSettings(
             FileFindMode.JUST_UNTRASHED, DuplicateFileWriteResolutionMode.FAIL_FAST, enable_path_cache=True
         )
@@ -193,6 +187,15 @@ class GoogleDriveCdswHelper:
         drive_path = FileUtils.join_path(self.drive_command_data_basedir, cmd_type.real_name, drive_filename)
         drive_api_file: DriveApiFile = self.drive_wrapper.upload_file(local_file_path, drive_path)
         return drive_api_file
+
+    def create_authorizer(self):
+        return GoogleApiAuthorizer(
+            ServiceType.DRIVE,
+            project_name=CDSW_PROJECT,
+            secret_basedir=SECRET_PROJECTS_DIR,
+            account_email="snemeth@cloudera.com",
+            scopes=[DriveApiScope.DRIVE_PER_FILE_ACCESS.value],
+        )
 
 
 class GenericCdswConfigUtils:

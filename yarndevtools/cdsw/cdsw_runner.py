@@ -303,9 +303,12 @@ class CdswRunner:
 
     def _setup_google_drive(self):
         if OsUtils.is_env_var_true(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value, default_val=True):
-            self.drive_cdsw_helper = GoogleDriveCdswHelper()
+            self.drive_cdsw_helper = self.create_google_drive_cdsw_helper()
         else:
             self.drive_cdsw_helper = None
+
+    def create_google_drive_cdsw_helper(self):
+        return GoogleDriveCdswHelper()
 
     def execute_clone_downstream_repos_script(self, basedir):
         script = os.path.join(basedir, "clone_downstream_repos.sh")

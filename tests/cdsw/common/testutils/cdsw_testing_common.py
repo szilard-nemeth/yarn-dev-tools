@@ -1,8 +1,15 @@
 import unittest
 from dataclasses import dataclass, field
 from typing import List, Set
-from unittest.mock import _CallList, patch
+from unittest.mock import _CallList, patch, Mock
 
+from googleapiwrapper.google_auth import GoogleApiAuthorizer
+from googleapiwrapper.google_drive import (
+    DuplicateFileWriteResolutionMode,
+    DriveApiWrapperSessionSettings,
+    FileFindMode,
+    DriveApiWrapper,
+)
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.github_utils import GitHubUtils
 import logging
@@ -10,6 +17,8 @@ import logging
 from pythoncommons.object_utils import ObjUtils
 from pythoncommons.project_utils import SimpleProjectUtils
 
+from tests.test_utilities import Object
+from yarndevtools.cdsw.cdsw_common import GoogleDriveCdswHelper, CDSW_PROJECT
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -31,6 +40,33 @@ TESTS_DIR_NAME = "tests"
 CDSW_DIRNAME = "cdsw"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 LOG = logging.getLogger(__name__)
+
+
+class FakeGoogleDriveCdswHelper(GoogleDriveCdswHelper):
+    def __init__(self):
+        with patch("googleapiwrapper.google_drive.DriveApiWrapper._build_service") as mock_build_service:
+            mock_service = Mock()
+            mock_service.files.return_value = ["file1", "file2"]
+            mock_build_service.return_value = mock_service
+            self.authorizer = self.create_authorizer()
+            session_settings = DriveApiWrapperSessionSettings(
+                FileFindMode.JUST_UNTRASHED, DuplicateFileWriteResolutionMode.FAIL_FAST, enable_path_cache=True
+            )
+            self.drive_wrapper = DriveApiWrapper(self.authorizer, session_settings=session_settings)
+            self.drive_command_data_basedir = FileUtils.join_path(
+                "/tmp", YARNDEVTOOLS_MODULE_NAME, CDSW_PROJECT, "command-data"
+            )
+
+    def create_authorizer(self):
+        mock_auth = Mock(spec=GoogleApiAuthorizer)
+        authed_session = Object()
+        authed_session.authed_creds = "creds"
+        mock_auth.authorize.return_value = authed_session
+        service_type = Object()
+        service_type.default_api_version = "1.0"
+        service_type.service_name = "fakeService"
+        mock_auth.service_type = service_type
+        return mock_auth
 
 
 class LocalDirs:
