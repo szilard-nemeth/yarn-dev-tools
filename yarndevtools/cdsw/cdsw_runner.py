@@ -303,7 +303,7 @@ class CdswRunner:
                 # Currently, yarndevtools requires both repos to be present when initializing.
                 # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
                 # Git init the other repository so everything will be alright
-                FileUtils.create_new_dir(self.cdsw_runner_config.hadoop_cloudera_basedir)
+                FileUtils.create_new_dir(self.cdsw_runner_config.hadoop_cloudera_basedir, fail_if_created=False)
                 FileUtils.change_cwd(self.cdsw_runner_config.hadoop_cloudera_basedir)
                 os.system("git init")
                 self.execute_clone_upstream_repos_script(setup_result.basedir)
