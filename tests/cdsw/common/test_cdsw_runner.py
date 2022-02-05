@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 import logging
+from os.path import expanduser
 from typing import List
 from unittest.mock import patch, Mock, call as mock_call
 
@@ -277,7 +278,9 @@ class TestCdswRunner(unittest.TestCase):
             [
                 mock_call(
                     CommandType.REVIEWSYNC,
-                    "/Users/snemeth/snemeth-dev-projects/yarndevtools/latest-command-data-zip-reviewsync",
+                    FileUtils.join_path(
+                        expanduser("~"), "snemeth-dev-projects", "yarndevtools", "latest-command-data-zip-reviewsync"
+                    ),
                     "testGoogleDriveApiFilename",
                 )
             ],
