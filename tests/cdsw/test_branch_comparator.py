@@ -39,15 +39,14 @@ DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"
 
 BASH = "bash"
 CDSW_RUNNER_PY = "cdsw_runner.py"
+START_JOB_PY = "start_job.py"
 LOG = logging.getLogger(__name__)
 CMD_LOG = logging.getLogger(__name__)
 INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"
 
 
 class ContainerFiles:
-    BRANCH_DIFF_SCRIPT = FileUtils.join_path(
-        CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR, CommandType.BRANCH_COMPARATOR.output_dir_name, CDSW_RUNNER_PY
-    )
+    START_JOB_SCRIPT = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, START_JOB_PY)
     INITIAL_CDSW_SETUP_SCRIPT = FileUtils.join_path(
         CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, INITIAL_CDSW_SETUP_SCRIPT
     )
@@ -167,10 +166,10 @@ class DockerBasedTestConfig:
                 get_str(BranchComparatorEnvVar.BRANCH_COMP_MASTER_BRANCH): ORIGIN_TRUNK,
             },
             make_key(p_module_mode, get_str(PythonModuleMode.GLOBAL)): {
-                get_str(CdswEnvVar.PYTHON_MODULE_MODE): PythonModuleMode.GLOBAL.value
+                get_str(CdswEnvVar.PYTHON_MODULE_MODE): get_str(PythonModuleMode.GLOBAL)
             },
             make_key(p_module_mode, get_str(PythonModuleMode.USER)): {
-                get_str(CdswEnvVar.PYTHON_MODULE_MODE): PythonModuleMode.USER.value
+                get_str(CdswEnvVar.PYTHON_MODULE_MODE): get_str(PythonModuleMode.USER)
             },
             make_key(p_github_ci_execution, str(True)): {
                 get_str(CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value): str(False)
@@ -228,7 +227,7 @@ class DockerBasedTestConfig:
         if self.mount_cdsw_dirs_from_local:
             # Mounting ContainerDirs.CDSW_BASEDIR is not a good idea in read-write mode as
             # files are being created to /home/cdsw inside the container.
-            # Mounting it with readonly mode also does not make sense as writing files would be prevented.
+            # Mounting it with read-only mode also does not make sense as writing files would be prevented.
             # So, the only option left is to mount dirs one by one.
             dirs_to_mount = FileUtils.find_files(
                 LocalDirs.CDSW_ROOT_DIR,
@@ -255,7 +254,7 @@ class DockerBasedTestConfig:
                 )
             )
 
-        # Mount results dir so all output files will be available on the host
+        # Mount results dir so all output files will be available on the host machine
         mounts.append(
             DockerMount(
                 host_dir=LocalDirs.YARNDEVTOOLS_RESULT_DIR,
@@ -288,21 +287,21 @@ PROD_CONFIG = DockerBasedTestConfig(
     create_image=True,
     mount_cdsw_dirs_from_local=False,
     run_cdsw_initial_setup_script=True,
-    container_sleep_seconds=200,
+    container_sleep_seconds=400,
     install_requirements=True,
 )
 DEV_CONFIG = DockerBasedTestConfig(
     create_image=False,
     mount_cdsw_dirs_from_local=True,
     run_cdsw_initial_setup_script=False,
-    container_sleep_seconds=500,
+    container_sleep_seconds=1000,
     install_requirements=False,
 )
 QUICK_DEV_CONFIG = DockerBasedTestConfig(
     create_image=False,
     mount_cdsw_dirs_from_local=True,
     run_cdsw_initial_setup_script=False,
-    container_sleep_seconds=500,
+    container_sleep_seconds=1000,
     install_requirements=False,
 )
 ACTIVE_CONFIG = PROD_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
@@ -349,9 +348,10 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         CMD_LOG.addHandler(loggging_setup.console_handler)
 
     @classmethod
-    def exec_branch_diff_script(cls, args="", env: Dict[str, str] = None):
+    def execute_branch_comparator(cls, args="", env: Dict[str, str] = None):
+        args = f"branch-comparator {args}"
         return cls.docker_test_setup.exec_cmd_in_container(
-            f"{PYTHON3} {ContainerFiles.BRANCH_DIFF_SCRIPT} {args}", stdin=False, tty=False, env=env, stream=True
+            f"{PYTHON3} {ContainerFiles.START_JOB_SCRIPT} {args}", stdin=False, tty=False, env=env, stream=True
         )
 
     @classmethod
@@ -426,7 +426,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             double_check_with_ls=True,
         )
 
-        exit_code, _ = self.exec_branch_diff_script(env=self.config.env_dict)
+        exit_code, _ = self.execute_branch_comparator(env=self.config.env_dict)
         self.assertEqual(exit_code, 0)
         self.save_latest_zip_from_container()
 
