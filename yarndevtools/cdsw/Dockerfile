@@ -1,12 +1,15 @@
 # set base image (host OS)
 FROM python:3.8
 
-WORKDIR /home/repos/snemeth/yarn-dev-tools/yarndevtools/cdsw
+WORKDIR /home/cdsw
 COPY requirements.txt .
-RUN mkdir unit-test-result-fetcher
-RUN mkdir branch-comparator
-COPY unit-test-result-fetcher unit-test-result-fetcher/
-COPY branch-comparator branch-comparator/
+RUN mkdir job_configs
+RUN mkdir scripts
+COPY job_configs job_configs/
+COPY scripts/install-requirements.sh install-requirements.sh
+COPY start_job.py scripts/start_job.py
+COPY scripts/clone_downstream_repos.sh scripts/clone_downstream_repos.sh
+COPY scripts/clone_upstream_repos.sh scripts/clone-upstream_repos.sh
 RUN pip install -r requirements.txt
 RUN apt-get update && apt-get install -y --no-install-recommends \
         rsync
