@@ -93,7 +93,13 @@ class CdswConfigReaderAdapter:
 
 
 class CdswRunnerConfig:
-    def __init__(self, parser, args, config_reader: CdswConfigReaderAdapter = None):
+    def __init__(
+        self,
+        parser,
+        args,
+        config_reader: CdswConfigReaderAdapter = None,
+        hadoop_cloudera_basedir=CommonDirs.HADOOP_CLOUDERA_BASEDIR,
+    ):
         self._validate_args(parser, args)
         self.command_type = self._parse_command_type(args)
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
@@ -101,6 +107,7 @@ class CdswRunnerConfig:
         self.job_config_file = self._determine_job_config_file_location(args)
         self.dry_run = args.dry_run
         self.config_reader = config_reader
+        self.hadoop_cloudera_basedir = hadoop_cloudera_basedir
 
     def _determine_job_config_file_location(self, args):
         if self.execution_mode == ConfigMode.SPECIFIED_CONFIG_FILE:
@@ -296,8 +303,8 @@ class CdswRunner:
                 # Currently, yarndevtools requires both repos to be present when initializing.
                 # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
                 # Git init the other repository so everything will be alright
-                FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
-                FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
+                FileUtils.create_new_dir(self.cdsw_runner_config.hadoop_cloudera_basedir)
+                FileUtils.change_cwd(self.cdsw_runner_config.hadoop_cloudera_basedir)
                 os.system("git init")
                 self.execute_clone_upstream_repos_script(setup_result.basedir)
 

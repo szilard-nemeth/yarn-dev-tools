@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from typing import Dict
 
@@ -482,7 +483,11 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         args = self._create_args_for_specified_file(config_file, CommandType.BRANCH_COMPARATOR, dry_run=True)
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
+        tmp_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
+        tmp_dir_path = tmp_dir.name
+        cdsw_runner_config = CdswRunnerConfig(
+            PARSER, args, config_reader=CdswConfigReaderAdapter(), hadoop_cloudera_basedir=tmp_dir_path
+        )
         cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
 
