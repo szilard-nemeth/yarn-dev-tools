@@ -16,7 +16,7 @@ import time
 from yarndevtools.commands.reviewsync.common import ReviewsyncData
 from yarndevtools.commands.reviewsync.jira_wrapper import HadoopJiraWrapper
 from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputManager
-from yarndevtools.constants import TRUNK
+from yarndevtools.constants import TRUNK, ORIGIN_TRUNK
 
 DEFAULT_BRANCH = "trunk"
 JIRA_URL = "https://issues.apache.org/jira"
@@ -254,6 +254,6 @@ class ReviewSync:
         return status_per_jira
 
     def get_remote_branches_committed_for_issue(self, issue_id):
-        commit_hashes = self.upstream_repo.get_commit_hashes(issue_id)
+        commit_hashes = self.upstream_repo.get_commit_hashes(issue_id, branch=ORIGIN_TRUNK)
         remote_branches = self.upstream_repo.get_remote_branches_for_commits(commit_hashes)
         return set(remote_branches)
