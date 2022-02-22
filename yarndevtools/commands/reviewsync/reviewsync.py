@@ -6,7 +6,8 @@ from typing import Dict
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
-from pythoncommons.github_utils import GitHubUtils
+from pythoncommons.github_utils import GitHubUtils, GitHubRepoIdentifier
+
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.jira_wrapper import JiraFetchMode, PatchOverallStatus, PatchApply, JiraPatchStatus
@@ -21,6 +22,7 @@ from yarndevtools.constants import TRUNK, ORIGIN_TRUNK
 DEFAULT_BRANCH = "trunk"
 JIRA_URL = "https://issues.apache.org/jira"
 BRANCH_PREFIX = "reviewsync"
+APACHE_HADOOP_REPO_IDENTIFIER = GitHubRepoIdentifier("apache", "hadoop")
 LOG = logging.getLogger(__name__)
 
 __author__ = "Szilard Nemeth"
@@ -169,7 +171,9 @@ class ReviewSync:
                 issue_id, self.data.commit_branches_for_issues[issue_id]
             )
             if len(self.data.patches_for_issues[issue_id]) == 0:
-                gh_pr_status = GitHubUtils.is_pull_request_of_jira_mergeable(issue_id)
+                gh_pr_status = GitHubUtils.is_pull_request_of_jira_mergeable(
+                    APACHE_HADOOP_REPO_IDENTIFIER, issue_id, use_cache=True
+                )
                 jira_patch_status = JiraPatchStatus.translate_from_github_pr_merge_status(gh_pr_status)
                 self.data.patch_applies_for_issues[issue_id] = []
                 for branch in self.branches:
