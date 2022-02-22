@@ -60,6 +60,7 @@ class SharedCommandUtils:
             if len(jira_ids) > 100:
                 for jira_ids_chunk in ListUtils.split_to_chunks(jira_ids, 100):
                     piped_jira_ids = "|".join(jira_ids_chunk)
+                    piped_jira_ids = piped_jira_ids.replace("\n", "")
                     # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
                     cmd, output = SharedCommandUtils._run_egrep(
                         git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=False
