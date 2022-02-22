@@ -222,6 +222,7 @@ class UpstreamJiraUmbrellaFetcher:
         if curr_branch != self.config.upstream_base_branch:
             if force_switch_branch:
                 self.upstream_repo.checkout_branch(self.config.upstream_base_branch)
+                return
             raise ValueError(f"Current branch is not {self.config.upstream_base_branch}. Exiting!")
 
     def fetch_jira_ids(self):
