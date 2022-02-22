@@ -110,6 +110,7 @@ class ReviewSync:
         LOG.info("Execution of script took %d seconds", end_time - start_time)
 
         # Check out trunk when finished execution
+        self.upstream_repo.cleanup()
         self.upstream_repo.checkout_branch(TRUNK)
 
     def get_or_fetch_issues(self):
