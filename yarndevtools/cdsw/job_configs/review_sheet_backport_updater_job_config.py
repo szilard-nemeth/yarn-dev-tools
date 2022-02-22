@@ -43,7 +43,7 @@ config = {
                 "enabled": True,
                 "send_attachment": False,
                 "attachment_file_name": lambda conf: f"{conf.var('commandDataFileName')}",
-                "email_body_file_from_command_data": "report-short.html",
+                "email_body_file_from_command_data": "summary.html",
                 "sender": lambda conf: f"{conf.var('sender')}",
                 "subject": lambda conf: f"{conf.var('subject')}",
             },
