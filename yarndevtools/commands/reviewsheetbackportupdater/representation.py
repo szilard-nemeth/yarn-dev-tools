@@ -18,27 +18,24 @@ from pythoncommons.result_printer import (
 )
 from pythoncommons.string_utils import StringUtils
 
-from yarndevtools.commands.reviewsync.common import ReviewsyncData
+from yarndevtools.commands.reviewsheetbackportupdater.common import ReviewSheetBackportUpdaterData
+from yarndevtools.commands_common import CommitData
 from yarndevtools.common.shared_command_utils import HtmlHelper
-from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
+from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML, CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX
 
 LOG = logging.getLogger(__name__)
 
 
-class ReviewsyncUpstreamCommitsHeader(Enum):
-    ROW = "Row"
+class ReviewSheetBackportUpdaterUpstreamCommitsHeader(Enum):
+    ISSUE_NUMBER = "Issue #"
     ISSUE = "Issue"
-    PATCH_APPLY = "Patch apply"
-    OWNER = "Owner"
-    PATCH_FILE = "Patch file"
-    BRANCH = "Branch"
-    EXPLICIT = "Explicit"
-    RESULT = "Result"
-    NUMBER_OF_CONFLICTED_FILES = "Number of conflicted files"
-    OVERALL_RESULT = "Overall result"
+    BRANCHES = "Branches"
+    COMMIT_LINK = "Commit link"
+    COMMIT_DATE = "Commit date"
+    COMMIT_MESSAGE = "Commit message"
 
 
-class ReviewsyncTable(GenericTableWithHeader):
+class ReviewSheetBackportUpdaterTable(GenericTableWithHeader):
     def __init__(
         self,
         header_title,
@@ -51,16 +48,16 @@ class ReviewsyncTable(GenericTableWithHeader):
         super().__init__(header_title, header, source_data, rendered_table, table_fmt=table_fmt, colorized=colorized)
 
 
-class ReviewsyncTableStyle(Enum):
+class ReviewSheetBackportUpdaterTableStyle(Enum):
     REGULAR = "regular"
     REGULAR_WITH_COLORS = "regular_colorized"
 
 
-class ReviewsyncTableType(Enum):
+class ReviewSheetBackportUpdaterTableType(Enum):
     REVIEW_STATUSES = (
         "review_statuses",
         "UPSTREAM REVIEW STATUSES",
-        ReviewsyncTableStyle.REGULAR_WITH_COLORS,
+        ReviewSheetBackportUpdaterTableStyle.REGULAR_WITH_COLORS,
     )
 
     def __init__(self, key, header_value, table_type):
@@ -69,16 +66,16 @@ class ReviewsyncTableType(Enum):
         self.table_type = table_type
 
 
-class ReviewSyncOutputManager:
+class ReviewSheetBackportUpdaterOutputManager:
     LINE_SEPARATOR = "=" * 80
 
     def __init__(self, config):
         self.config = config
 
-    def print_summary(self, data: ReviewsyncData):
+    def print_summary(self, data: ReviewSheetBackportUpdaterData):
         table_data = TableDataPreparator.prepare(data)
-        summary_data: ReviewsyncSummaryData = ReviewsyncSummaryData(self.config, data)
-        self.rendered_summary = ReviewsyncRenderedSummary(summary_data, table_data, self.config)
+        summary_data: ReviewSheetBackportUpdaterSummaryData = ReviewSheetBackportUpdaterSummaryData(self.config, data)
+        self.rendered_summary = ReviewSheetBackportUpdaterRenderedSummary(summary_data, table_data, self.config)
         self.print_and_save_summary(self.rendered_summary)
 
     def print_and_save_summary(self, rendered_summary):
@@ -95,42 +92,35 @@ class ReviewSyncOutputManager:
 
 class TableDataPreparator:
     @staticmethod
+    def convert_to_hyperlink(link_name, link_value):
+        return f'<a href="{link_value}">{link_name}</a>'
+
+    @staticmethod
     def prepare(data):
         rows: List[Any] = []
-        row_number = 0
-        for issue_id, patch_applies in data.patch_applies_for_issues.items():
-            for idx, patch_apply in enumerate(patch_applies):
-                row_number += 1
-                patch = patch_apply.patch
-                explicit = "Yes" if patch_apply.explicit else "No"
-                conflicts = "N/A" if patch_apply.conflicts == 0 else str(patch_apply.conflicts)
-                if patch:
-                    owner = patch.owner_display_name
-                    filename = patch.filename
-                    status = patch.overall_status.status
-                else:
-                    owner = "N/A"
-                    filename = "N/A"
-                    status = "N/A"
+        for jira_no, backported_jira in enumerate(data.backported_jiras.values()):
+            issue_id = backported_jira.jira_id
+            for backported_commit in backported_jira.commits:
+                commit_data: CommitData = backported_commit.commit_obj
+                c_hash = commit_data.hash
+                c_msg = commit_data.message
+                c_date = commit_data.date
+                c_link = CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX + commit_data.hash
+                branches = backported_commit.branches
                 rows.append(
                     [
-                        row_number,
+                        jira_no + 1,
                         issue_id,
-                        idx + 1,
-                        owner,
-                        filename,
-                        patch_apply.branch,
-                        explicit,
-                        patch_apply.result,
-                        conflicts,
-                        status,
+                        branches,
+                        TableDataPreparator.convert_to_hyperlink(c_hash, c_link),
+                        c_date,
+                        c_msg,
                     ]
                 )
-
         return rows
 
 
-class ReviewsyncRenderedSummary:
+class ReviewSheetBackportUpdaterRenderedSummary:
     """
     Properties of tables: Table format, RenderedTableType, Branch, Colorized or not.
     - Table format: Normal (regular) / HTML / Any future formats.
@@ -141,29 +131,25 @@ class ReviewsyncRenderedSummary:
 
     def __init__(self, summary_data, table_data, config):
         self.config = config
-        self.summary_data: ReviewsyncSummaryData = summary_data
+        self.summary_data: ReviewSheetBackportUpdaterSummaryData = summary_data
         self.table_data = table_data
-        self.table_order: List[ReviewsyncTableType] = [
-            ReviewsyncTableType.REVIEW_STATUSES,
+        self.table_order: List[ReviewSheetBackportUpdaterTableType] = [
+            ReviewSheetBackportUpdaterTableType.REVIEW_STATUSES,
         ]
-        self._tables: Dict[ReviewsyncTableType, List[ReviewsyncTable]] = {}
+        self._tables: Dict[ReviewSheetBackportUpdaterTableType, List[ReviewSheetBackportUpdaterTable]] = {}
         self.add_upstream_backports_tables()
         self.printable_summary_str, self.writable_summary_str, self.html_summary = self.generate_summary_msgs()
         LOG.info("Finished rendering all tables")
 
     def add_upstream_backports_tables(self):
-        h = ReviewsyncUpstreamCommitsHeader
+        h = ReviewSheetBackportUpdaterUpstreamCommitsHeader
         header = [
-            h.ROW.value,
+            h.ISSUE_NUMBER.value,
             h.ISSUE.value,
-            h.PATCH_APPLY.value,
-            h.OWNER.value,
-            h.PATCH_FILE.value,
-            h.BRANCH.value,
-            h.EXPLICIT.value,
-            h.RESULT.value,
-            h.NUMBER_OF_CONFLICTED_FILES.value,
-            h.OVERALL_RESULT.value,
+            h.BRANCHES.value,
+            h.COMMIT_LINK.value,
+            h.COMMIT_DATE.value,
+            h.COMMIT_MESSAGE.value,
         ]
 
         # TODO Fix color conf
@@ -195,11 +181,11 @@ class ReviewsyncRenderedSummary:
             header=header,
             render_conf=render_conf,
         )
-        table_type = ReviewsyncTableType.REVIEW_STATUSES
+        table_type = ReviewSheetBackportUpdaterTableType.REVIEW_STATUSES
         for table_fmt, table in gen_tables.items():
             self._add_single_table(
                 table_type,
-                ReviewsyncTable(
+                ReviewSheetBackportUpdaterTable(
                     table_type.header,
                     header,
                     self.table_data,
@@ -209,7 +195,7 @@ class ReviewsyncRenderedSummary:
                 ),
             )
 
-    def _add_single_table(self, ttype: ReviewsyncTableType, table: ReviewsyncTable):
+    def _add_single_table(self, ttype: ReviewSheetBackportUpdaterTableType, table: ReviewSheetBackportUpdaterTable):
         if ttype not in self._tables:
             self._tables[ttype] = []
         self._tables[ttype].append(table)
@@ -217,24 +203,24 @@ class ReviewsyncRenderedSummary:
     def generate_summary_msgs(self):
         self.summary_str = self.generate_summary_string()
 
-        def regular_table(table_type: ReviewsyncTableType):
+        def regular_table(table_type: ReviewSheetBackportUpdaterTableType):
             return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.GRID)
 
-        def html_table(table_type: ReviewsyncTableType):
+        def html_table(table_type: ReviewSheetBackportUpdaterTableType):
             return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.HTML)
 
-        def regular_colorized_table(table_type: ReviewsyncTableType, colorized=False):
+        def regular_colorized_table(table_type: ReviewSheetBackportUpdaterTableType, colorized=False):
             return self.get_tables(table_type, table_fmt=TabulateTableFormat.GRID, colorized=colorized)
 
-        printable_tables: List[ReviewsyncTable] = []
-        writable_tables: List[ReviewsyncTable] = []
-        html_tables: List[ReviewsyncTable] = []
+        printable_tables: List[ReviewSheetBackportUpdaterTable] = []
+        writable_tables: List[ReviewSheetBackportUpdaterTable] = []
+        html_tables: List[ReviewSheetBackportUpdaterTable] = []
         for rtt in self.table_order:
-            if rtt.table_type == ReviewsyncTableStyle.REGULAR:
+            if rtt.table_type == ReviewSheetBackportUpdaterTableStyle.REGULAR:
                 printable_tables.extend(regular_table(rtt))
                 writable_tables.extend(regular_table(rtt))
                 html_tables.extend(html_table(rtt))
-            elif rtt.table_type == ReviewsyncTableStyle.REGULAR_WITH_COLORS:
+            elif rtt.table_type == ReviewSheetBackportUpdaterTableStyle.REGULAR_WITH_COLORS:
                 printable_tables.extend(regular_colorized_table(rtt, colorized=True))
                 writable_tables.extend(regular_colorized_table(rtt, colorized=False))
                 html_tables.extend(html_table(rtt))
@@ -256,7 +242,7 @@ class ReviewsyncRenderedSummary:
 
     def get_tables(
         self,
-        ttype: ReviewsyncTableType,
+        ttype: ReviewSheetBackportUpdaterTableType,
         colorized: bool = False,
         table_fmt: TabulateTableFormat = TabulateTableFormat.GRID,
     ):
@@ -270,20 +256,13 @@ class ReviewsyncRenderedSummary:
         return found_tables
 
 
-class ReviewsyncSummaryData:
-    def __init__(self, config, reviewsync_data: ReviewsyncData):
+class ReviewSheetBackportUpdaterSummaryData:
+    def __init__(self, config, data: ReviewSheetBackportUpdaterData):
         self.config = config
         self.output_dir: str = config.output_dir
-        self.reviewsync_data = reviewsync_data
+        self.data = data
 
     def __str__(self):
         # TODO fix
         res = ""
-        # res += f"Output dir: {self.output_dir}\n"
-        # res += f"Config: {str(self.config)}\n"
-        # res += "\n\n=====Stats=====\n"
-        # res += f"Number of jiras: {self.umbrella_data.no_of_jiras}\n"
-        # res += f"Number of files changed: {self.umbrella_data.no_of_files}\n"
-        # for commits_by_branch in self.umbrella_data.upstream_commits_by_branch.values():
-        #     res += f"Number of commits on branch {commits_by_branch.branch}: {commits_by_branch.no_of_commits}\n"
         return res

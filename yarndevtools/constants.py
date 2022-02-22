@@ -42,3 +42,6 @@ YARN_PATCH_FILENAME_REGEX = ".*(YARN-[0-9]+).*\\.patch"
 PATCH_FILE_REGEX = "\\.\\d.*\\.patch$"
 PATCH_EXTENSION = ".patch"
 FIRST_PATCH_NUMBER = "001"
+
+# Other constants
+CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX = "https://github.infra.cloudera.com/CDH/hadoop/commit/"

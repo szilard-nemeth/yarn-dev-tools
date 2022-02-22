@@ -6,6 +6,8 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.commands.reviewsheetbackportupdater.common import ReviewSheetBackportUpdaterData
+from yarndevtools.commands.reviewsheetbackportupdater.representation import ReviewSheetBackportUpdaterOutputManager
 from yarndevtools.commands_common import BackportedJira
 from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN
@@ -59,15 +61,16 @@ class ReviewSheetBackportUpdater:
         self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
         self.downstream_repo = downstream_repo
         self.downstream_repo.fetch(all=True)
+        self.data: ReviewSheetBackportUpdaterData = ReviewSheetBackportUpdaterData()
 
     def run(self):
         LOG.info(f"Starting Review sheet backport updater. Config: \n{str(self.config)}")
         jira_ids = self._load_data_from_sheet()
-        jira_ids = self._sanitize_jira_ids(jira_ids)
-        backported_jiras: Dict[str, BackportedJira] = SharedCommandUtils.find_commits_on_branches(
+        self.data.jira_ids = self._sanitize_jira_ids(jira_ids)
+        self.data.backported_jiras = SharedCommandUtils.find_commits_on_branches(
             self.config.downstream_branches, self.intermediate_results_file, self.downstream_repo, jira_ids
         )
-        self._process_results(backported_jiras)
+        self._process_results()
 
     @staticmethod
     def _sanitize_jira_ids(jira_ids):
@@ -127,9 +130,13 @@ class ReviewSheetBackportUpdater:
     def get_file_path_from_basedir(self, file_name):
         return FileUtils.join_path(self.config.output_dir, file_name)
 
-    def _process_results(self, backported_jiras: Dict[str, BackportedJira]):
+    def _process_results(self):
         # update_date_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        status_per_jira = self._get_status_for_jira_ids(backported_jiras)
+        status_per_jira = self._get_status_for_jira_ids(self.data.backported_jiras)
+
+        output_manager = ReviewSheetBackportUpdaterOutputManager(self.config)
+        output_manager.print_summary(self.data)
+
         cell_updates = [GenericCellUpdate(jira_id, {"status": status}) for jira_id, status in status_per_jira.items()]
         self.gsheet_wrapper.update_issues_with_results(cell_updates)
 
