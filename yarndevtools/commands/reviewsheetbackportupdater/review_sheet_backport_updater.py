@@ -132,7 +132,7 @@ class ReviewSheetBackportUpdater:
 
     def _process_results(self):
         # update_date_str = datetime.datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        status_per_jira = self._get_status_for_jira_ids(self.data.backported_jiras)
+        status_per_jira = self._get_status_for_jira_ids()
 
         output_manager = ReviewSheetBackportUpdaterOutputManager(self.config)
         output_manager.print_summary(self.data)
@@ -140,18 +140,21 @@ class ReviewSheetBackportUpdater:
         cell_updates = [GenericCellUpdate(jira_id, {"status": status}) for jira_id, status in status_per_jira.items()]
         self.gsheet_wrapper.update_issues_with_results(cell_updates)
 
-    @staticmethod
-    def _get_status_for_jira_ids(backported_jiras: Dict[str, BackportedJira]):
+    def _get_status_for_jira_ids(self):
         # TODO Handle revert commits
         result = {}
-        for jira_id, backported_jira in backported_jiras.items():
+        for jira_id, backported_jira in self.data.backported_jiras.items():
             if not backported_jira.commits:
                 result[jira_id] = "NOT BACKPORTED TO ANY BRANCHES"
             else:
                 branches = set()
+                commits = set()
                 for c in backported_jira.commits:
+                    commits.add(c.commit_obj)
                     for br in c.branches:
                         branches.add(br)
+                self.data.backported_to_branches[jira_id] = branches
+                self.data.commits_of_jira[jira_id] = commits
                 if branches:
                     result[jira_id] = "BACKPORTED TO: {}".format(branches)
                 else:
