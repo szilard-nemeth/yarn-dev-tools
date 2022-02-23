@@ -416,16 +416,49 @@ class CommitData:
         result_str += f"{self.hash} {self.message}"
         return result_str
 
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, CommitData):
+            return self.hash == other.hash and self.jira_id == other.jira_id
+        return False
+
+    def __hash__(self) -> int:
+        return hash(self.hash)
+
 
 @auto_str
 class BackportedJira:
     def __init__(self, jira_id, commits):
         self.jira_id: str = jira_id
         self.commits: List[BackportedCommit] = commits
+        self.commitdata_by_hash: Dict[str, BackportedCommit] = self._commitdata_by_hashes(commits)
+
+    @staticmethod
+    def _commitdata_by_hashes(backported_commits):
+        res = {}
+        for backported_commit in backported_commits:
+            commit = backported_commit.commit_obj
+            if commit.hash not in res:
+                res[commit.hash] = backported_commit
+        return res
+
+    def add_backported_commit(self, backported_commit):
+        self.commits.append(backported_commit)
+        self.commitdata_by_hash[backported_commit.commit_obj.hash] = backported_commit
+
+    def extend_branches_by_hash(self, hash, backported_commit):
+        self.commitdata_by_hash[hash].branches.extend(backported_commit.branches)
 
 
-@auto_str
+@dataclass
 class BackportedCommit:
     def __init__(self, commit_obj, branches):
         self.commit_obj = commit_obj
         self.branches = branches
+
+    def __eq__(self, other):
+        if isinstance(other, BackportedCommit):
+            return self.commit_obj == other.commit_obj
+        return False
+
+    def __hash__(self) -> int:
+        return hash(hash(self.commit_obj) + hash(self.branches))

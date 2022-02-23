@@ -105,11 +105,16 @@ class SharedCommandUtils:
             )
 
             for backported_commit in backported_commits:
-                jira_id = backported_commit.commit_obj.jira_id
+                commit_obj = backported_commit.commit_obj
+                jira_id = commit_obj.jira_id
                 if jira_id not in backported_jiras:
                     backported_jiras[jira_id] = BackportedJira(jira_id, [backported_commit])
                 else:
-                    backported_jiras[jira_id].commits.append(backported_commit)
+                    # TODO Consider using set data structure instead
+                    if backported_commit not in backported_jiras[jira_id].commits:
+                        backported_jiras[jira_id].add_backported_commit(backported_commit)
+                    else:
+                        backported_jiras[jira_id].extend_branches_by_hash(commit_obj.hash, backported_commit)
 
     @staticmethod
     def _run_egrep(git_log_result: List[str], file: str, grep_for: str, fail_on_error=False):

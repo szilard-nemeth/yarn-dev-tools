@@ -101,45 +101,37 @@ class TableDataPreparator:
         for jira_no, backported_jira in enumerate(data.backported_jiras.values()):
             issue_id = backported_jira.jira_id
             single_commit = False
-            branches = {}
+            all_branches = {}
             if issue_id in data.commits_of_jira:
                 single_commit = len(data.commits_of_jira[issue_id]) == 1
-                branches = data.backported_to_branches[issue_id]
+                all_branches = data.backported_to_branches[issue_id]
 
             if single_commit:
                 commit_data = list(data.commits_of_jira[issue_id])[0]
-                c_hash = commit_data.hash
-                c_link = CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX + commit_data.hash
-                c_msg = commit_data.message
-                c_date = commit_data.date
-                rows.append(
-                    [
-                        jira_no + 1,
-                        issue_id,
-                        branches,
-                        TableDataPreparator.convert_to_hyperlink(c_hash, c_link),
-                        c_date,
-                        c_msg,
-                    ]
-                )
+                rows.append(TableDataPreparator._create_row_list(all_branches, commit_data, issue_id, jira_no))
+                continue
 
+            no_of_commits = len(backported_jira.commits)
             for backported_commit in backported_jira.commits:
+                branches = backported_commit.branches
+                if no_of_commits == 1:
+                    branches = all_branches
                 commit_data: CommitData = backported_commit.commit_obj
-                c_hash = commit_data.hash
-                c_msg = commit_data.message
-                c_date = commit_data.date
-                c_link = CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX + commit_data.hash
-                rows.append(
-                    [
-                        jira_no + 1,
-                        issue_id,
-                        branches,
-                        TableDataPreparator.convert_to_hyperlink(c_hash, c_link),
-                        c_date,
-                        c_msg,
-                    ]
-                )
+                rows.append(TableDataPreparator._create_row_list(branches, commit_data, issue_id, jira_no))
         return rows
+
+    @staticmethod
+    def _create_row_list(branches, commit_data, issue_id, jira_no):
+        return [
+            jira_no + 1,
+            issue_id,
+            branches,
+            TableDataPreparator.convert_to_hyperlink(
+                commit_data.hash, CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX + commit_data.hash
+            ),
+            commit_data.date,
+            commit_data.message,
+        ]
 
 
 class ReviewSheetBackportUpdaterRenderedSummary:

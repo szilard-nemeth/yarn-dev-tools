@@ -363,7 +363,7 @@ class UpstreamJiraUmbrellaFetcher:
                     "\n".join([f"{bc.commit_obj.hash} {bc.commit_obj.message}" for bc in backported_commits]),
                 )
 
-                backported_jira = BackportedJira(jira_id, backported_commits)
+                backported_jira: BackportedJira = BackportedJira(jira_id, backported_commits)
 
                 for backported_commit in backported_jira.commits:
                     commit_hash = backported_commit.commit_obj.hash

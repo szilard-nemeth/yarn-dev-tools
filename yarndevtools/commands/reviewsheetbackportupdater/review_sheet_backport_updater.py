@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Set
 
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
@@ -8,7 +8,7 @@ from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.reviewsheetbackportupdater.common import ReviewSheetBackportUpdaterData
 from yarndevtools.commands.reviewsheetbackportupdater.representation import ReviewSheetBackportUpdaterOutputManager
-from yarndevtools.commands_common import BackportedJira
+from yarndevtools.commands_common import CommitData
 from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN
 
@@ -147,12 +147,13 @@ class ReviewSheetBackportUpdater:
             if not backported_jira.commits:
                 result[jira_id] = "NOT BACKPORTED TO ANY BRANCHES"
             else:
-                branches = set()
-                commits = set()
+                branches: Set[str] = set()
+                commits: Set[CommitData] = set()
                 for c in backported_jira.commits:
                     commits.add(c.commit_obj)
                     for br in c.branches:
                         branches.add(br)
+                        self.data.add_commit(c.commit_obj, br)
                 self.data.backported_to_branches[jira_id] = branches
                 self.data.commits_of_jira[jira_id] = commits
                 if branches:
