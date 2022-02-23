@@ -103,11 +103,11 @@ class TableDataPreparator:
             single_commit = False
             all_branches = {}
             if issue_id in data.commits_of_jira:
-                single_commit = len(data.commits_of_jira[issue_id]) == 1
+                single_commit = data.is_single_commit(issue_id)
                 all_branches = data.backported_to_branches[issue_id]
 
             if single_commit:
-                commit_data = list(data.commits_of_jira[issue_id])[0]
+                commit_data = data.get_single_commit()
                 rows.append(TableDataPreparator._create_row_list(all_branches, commit_data, issue_id, jira_no))
                 continue
 
