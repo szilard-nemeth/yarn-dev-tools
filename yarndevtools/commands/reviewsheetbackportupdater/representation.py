@@ -7,7 +7,6 @@ from pythoncommons.result_printer import (
     TabulateTableFormat,
     GenericTableWithHeader,
     ResultPrinter,
-    DEFAULT_TABLE_FORMATS,
     TableRenderingConfig,
     BoolConversionConfig,
     Color,
@@ -15,6 +14,7 @@ from pythoncommons.result_printer import (
     ColorDescriptor,
     ColorizeConfig,
     EvaluationMethod,
+    TableCellLink,
 )
 from pythoncommons.string_utils import StringUtils
 
@@ -24,6 +24,8 @@ from yarndevtools.common.shared_command_utils import HtmlHelper
 from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML, CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX
 
 LOG = logging.getLogger(__name__)
+
+TABLE_FORMATS = [TabulateTableFormat.GRID, TabulateTableFormat.UNSAFE_HTML]
 
 
 class ReviewSheetBackportUpdaterUpstreamCommitsHeader(Enum):
@@ -92,10 +94,6 @@ class ReviewSheetBackportUpdaterOutputManager:
 
 class TableDataPreparator:
     @staticmethod
-    def convert_to_hyperlink(link_name, link_value):
-        return f'<a href="{link_value}">{link_name}</a>'
-
-    @staticmethod
     def prepare(data):
         rows: List[Any] = []
         for jira_no, backported_jira in enumerate(data.backported_jiras.values()):
@@ -126,9 +124,7 @@ class TableDataPreparator:
             jira_no + 1,
             issue_id,
             branches,
-            TableDataPreparator.convert_to_hyperlink(
-                commit_data.hash, CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX + commit_data.hash
-            ),
+            TableCellLink(commit_data.hash, CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX + commit_data.hash),
             commit_data.date,
             commit_data.message,
         ]
@@ -186,7 +182,7 @@ class ReviewSheetBackportUpdaterRenderedSummary:
             print_result=False,
             max_width=80,
             max_width_separator=" ",
-            tabulate_formats=DEFAULT_TABLE_FORMATS,
+            tabulate_formats=TABLE_FORMATS,
             colorize_config=colorize_conf,
             bool_conversion_config=BoolConversionConfig(),
         )
@@ -221,7 +217,7 @@ class ReviewSheetBackportUpdaterRenderedSummary:
             return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.GRID)
 
         def html_table(table_type: ReviewSheetBackportUpdaterTableType):
-            return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.HTML)
+            return self.get_tables(table_type, colorized=False, table_fmt=TabulateTableFormat.UNSAFE_HTML)
 
         def regular_colorized_table(table_type: ReviewSheetBackportUpdaterTableType, colorized=False):
             return self.get_tables(table_type, table_fmt=TabulateTableFormat.GRID, colorized=colorized)
