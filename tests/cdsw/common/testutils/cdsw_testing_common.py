@@ -141,9 +141,6 @@ class CommandExpectations:
             if arg.startswith(DO_NOT_SPLIT_ARG_PARAMS_TUPLE):
                 split = arg.split(" ")
                 joined_args = " ".join(split[1:])
-                # TODO
-                # if arg.startswith(ESCAPED_ARGS_TUPLE):
-                #     joined_args = "\"" + joined_args + "\""
                 new_list = [split[0], joined_args]
                 lists.append(new_list)
             else:
@@ -167,9 +164,6 @@ class CommandExpectations:
             if inside_special_arg and arg.startswith("--"):
                 # New argument starts, close special_arg and add it to set
                 inside_special_arg = False
-                # Remove first extra space
-                # TODO
-                # special_arg = special_arg[1:]
                 args_set.add(special_arg)
                 args_set.add(arg)
                 special_arg = ""
