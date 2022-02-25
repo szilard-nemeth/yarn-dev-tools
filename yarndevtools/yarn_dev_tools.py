@@ -28,8 +28,6 @@ from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetche
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
 from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar, CommandType
 from yarndevtools.constants import (
-    ENV_HADOOP_DEV_DIR,
-    ENV_CLOUDERA_HADOOP_ROOT,
     LOADED_ENV_DOWNSTREAM_DIR,
     LOADED_ENV_UPSTREAM_DIR,
     TRUNK,
@@ -72,12 +70,16 @@ class YarnDevTools:
         self.project_out_root = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
 
     def ensure_required_env_vars_are_present(self):
-        upstream_hadoop_dir = OsUtils.get_env_value(ENV_HADOOP_DEV_DIR, None)
-        downstream_hadoop_dir = OsUtils.get_env_value(ENV_CLOUDERA_HADOOP_ROOT, None)
+        upstream_hadoop_dir = OsUtils.get_env_value(YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value, None)
+        downstream_hadoop_dir = OsUtils.get_env_value(YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value, None)
         if not upstream_hadoop_dir:
-            raise ValueError(f"Upstream Hadoop dir (env var: {ENV_HADOOP_DEV_DIR}) is not set!")
+            raise ValueError(
+                f"Upstream Hadoop dir (env var: {YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value}) is not set!"
+            )
         if not downstream_hadoop_dir:
-            raise ValueError(f"Downstream Hadoop dir (env var: {ENV_CLOUDERA_HADOOP_ROOT}) is not set!")
+            raise ValueError(
+                f"Downstream Hadoop dir (env var: {YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value}) is not set!"
+            )
 
         # Verify if dirs are created
         FileUtils.verify_if_dir_is_created(downstream_hadoop_dir)
