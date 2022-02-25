@@ -1,4 +1,5 @@
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import ReportFile
 
 config = {
     "job_name": "Reviewsync",
@@ -13,7 +14,7 @@ config = {
             "email_settings": {
                 "enabled": False,
                 "send_attachment": True,
-                "email_body_file_from_command_data": "report-short.html",
+                "email_body_file_from_command_data": ReportFile.SHORT_HTML.value,
                 "attachment_file_name": lambda conf: f"attachmentFileName+{conf.var('testVar3')}+{conf.var('testVar4')}",
                 "subject": lambda conf: f"testSubject+{conf.var('testVar2')}+{conf.var('testVar1')}_1",
                 "sender": "testSender",
@@ -27,7 +28,7 @@ config = {
             "email_settings": {
                 "enabled": False,
                 "send_attachment": True,
-                "email_body_file_from_command_data": "report-short.html",
+                "email_body_file_from_command_data": ReportFile.SHORT_HTML.value,
                 "attachment_file_name": lambda conf: f"attachmentFileName+{conf.var('testVar1')}",
                 "subject": lambda conf: f"testSubject+{conf.var('testVar2')}+{conf.var('testVar1')}_2",
                 "sender": "testSender",

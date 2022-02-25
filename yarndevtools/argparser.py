@@ -12,7 +12,7 @@ from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator 
     DEFAULT_LINE_SEP,
 )
 from yarndevtools.common.shared_command_utils import RepoType, CommandType
-from yarndevtools.constants import TRUNK, SUMMARY_FILE_HTML
+from yarndevtools.constants import TRUNK, SummaryFile
 
 LOG = logging.getLogger(__name__)
 
@@ -265,7 +265,7 @@ class ArgParser:
             required=False,
             type=str,
             help="The specified file from the latest command data zip will be added to the email body.",
-            default=SUMMARY_FILE_HTML,
+            default=SummaryFile.HTML.value,
         )
 
         parser.add_argument(
@@ -274,7 +274,7 @@ class ArgParser:
             required=False,
             type=str,
             help="Prepend the specified text to the email's body.",
-            default=SUMMARY_FILE_HTML,
+            default=SummaryFile.HTML.value,
         )
 
         parser.add_argument(

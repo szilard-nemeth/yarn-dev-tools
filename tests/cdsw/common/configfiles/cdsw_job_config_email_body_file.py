@@ -1,5 +1,5 @@
 from yarndevtools.common.shared_command_utils import CommandType
-
+from yarndevtools.constants import ReportFile
 
 config = {
     "job_name": "Reviewsync",
@@ -25,7 +25,7 @@ config = {
                 "enabled": False,
                 "send_attachment": True,
                 "attachment_file_name": "attachment_file_name",
-                "email_body_file_from_command_data": "report-short.html",
+                "email_body_file_from_command_data": ReportFile.SHORT_HTML.value,
                 "subject": "testSubject",
                 "sender": "testSender",
             },

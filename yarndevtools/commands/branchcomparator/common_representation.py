@@ -17,7 +17,7 @@ from pythoncommons.string_utils import StringUtils
 from yarndevtools.commands.branchcomparator.common import BranchType, BranchData, MatchingResultBase, CommonUtils
 from yarndevtools.commands_common import CommitData
 from yarndevtools.common.shared_command_utils import HtmlHelper
-from yarndevtools.constants import SUMMARY_FILE_TXT, SUMMARY_FILE_HTML
+from yarndevtools.constants import SummaryFile
 
 LOG = LoggerFactory.get_logger(__name__)
 
@@ -372,11 +372,11 @@ class OutputManagerAbs(ABC):
     def print_and_save_summary(self, rendered_summary):
         LOG.info(rendered_summary.printable_summary_str)
 
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_TXT)
+        filename = FileUtils.join_path(self.config.output_dir, SummaryFile.TXT.value)
         LOG.info(f"Saving summary to text file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary.writable_summary_str)
 
-        filename = FileUtils.join_path(self.config.output_dir, SUMMARY_FILE_HTML)
+        filename = FileUtils.join_path(self.config.output_dir, SummaryFile.HTML.value)
         LOG.info(f"Saving summary to html file: {filename}")
         FileUtils.save_to_file(filename, rendered_summary.html_summary)
 

@@ -7,12 +7,12 @@ from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, ORIGIN_BRANCH_3_3, ORIGIN_BRANCH_3_2
+from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, ORIGIN_BRANCH_3_3, ORIGIN_BRANCH_3_2, SummaryFile
 from tests.test_utilities import TestUtilities, Object
 
 FILE_JIRA_HTML = "jira.html"
-FILE_SUMMARY_TXT = "summary.txt"
-FILE_SUMMARY_HTML = "summary.html"
+FILE_SUMMARY_TXT = SummaryFile.TXT.value
+FILE_SUMMARY_HTML = SummaryFile.HTML.value
 FILE_JIRA_LIST = "jira-list.txt"
 FILE_INTERMEDIATE_RESULTS = "intermediate-results.txt"
 FILE_COMMIT_HASHES_TEMPLATE = "commit-hashes_$BRANCH.txt"

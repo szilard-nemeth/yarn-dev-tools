@@ -2,6 +2,7 @@ from yarndevtools.cdsw.cdsw_common import JiraUmbrellaDataFetcherCdswUtils, Gene
 from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import SummaryFile
 
 
 def generate_runs(conf):
@@ -13,7 +14,7 @@ def generate_runs(conf):
                 "enabled": True,
                 "send_attachment": True,
                 "attachment_file_name": f"{conf.var('commandDataFileName')}",
-                "email_body_file_from_command_data": "summary.html",
+                "email_body_file_from_command_data": SummaryFile.HTML.value,
                 "sender": f"{conf.var('sender')}",
                 "subject": f"YARN Upstream umbrella checker report: [UMBRELLA: {umbrella_id} ({title}), start date: {conf.job_start_date()}]",
             },
