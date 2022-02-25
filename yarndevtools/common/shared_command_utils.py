@@ -59,8 +59,7 @@ class SharedCommandUtils:
             )
             if len(jira_ids) > 100:
                 for jira_ids_chunk in ListUtils.split_to_chunks(jira_ids, 100):
-                    piped_jira_ids = "|".join(jira_ids_chunk)
-                    piped_jira_ids = piped_jira_ids.replace("\n", "")
+                    piped_jira_ids = SharedCommandUtils._prepare_jira_ids(jira_ids_chunk)
                     # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
                     cmd, output = SharedCommandUtils._run_egrep(
                         git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=False
@@ -76,6 +75,19 @@ class SharedCommandUtils:
                 LOG.debug("%s is not backported to any of the provided branches", jira_id)
                 backported_jiras[jira_id] = BackportedJira(jira_id, [])
         return backported_jiras
+
+    @staticmethod
+    def _prepare_jira_ids(jira_ids):
+        # Do not allow partial matches, for example:
+        # If Jira ID is 'YARN-1015' and there are commit messages like:
+        # YARN-10157..., YARN-1015..., YARN-101...,
+        # then all of the following will be matched instead of just finding 'YARN-10157':
+        # YARN-10157
+        # YARN-1015
+        # YARN-101
+        mod_jira_ids = [jid + "[^0-9]" for jid in jira_ids]
+        piped_jira_ids = "|".join(mod_jira_ids)
+        return piped_jira_ids.replace("\n", "")
 
     @staticmethod
     def _process_output(backported_jiras, branch, output):
