@@ -241,7 +241,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--sender", wrap_d("YARN review sheet backport updater"))
             .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
             .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
-            .add_expected_arg("--file-as-email-body-from-zip", "report-short.html")
+            .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
         )
