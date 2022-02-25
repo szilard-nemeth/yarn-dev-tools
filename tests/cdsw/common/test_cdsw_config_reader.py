@@ -99,7 +99,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         with self.assertRaises(WrongTypeError) as ve:
             CdswJobConfigReader.read_from_file(file)
         LOG.info(ve.exception)
-        # TODO Add assertion for exception message
+        self.assert_wrong_value_type(str(ve.exception), "command_type", "CommandType", "rrr", "str")
 
     def test_config_reader_valid_mandatory_env_vars(self):
         self._set_mandatory_env_vars()
@@ -115,7 +115,10 @@ class CdswConfigReaderTest(unittest.TestCase):
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
-        # TODO Add assertion for exception message
+        self.assertTrue(
+            "Invalid mandatory env var specified as 'GSHEET_CLIENT_S'. Valid env vars for Command 'CommandType.REVIEWSYNC'"
+            in str(exc_msg)
+        )
 
     def test_config_reader_check_if_mandatory_env_vars_are_provided_at_runtime_positive_case(self):
         file = self._get_config_file(VALID_CONFIG_FILE)
@@ -135,7 +138,6 @@ class CdswConfigReaderTest(unittest.TestCase):
         self.assertIn("'GSHEET_CLIENT_SECRET'", exc_msg)
         self.assertNotIn("GSHEET_SPREADSHEET", exc_msg)
 
-    # TODO Add negative testcase for this
     def test_config_reader_mandatory_env_vars_are_of_correct_command_type(self):
         self._set_mandatory_env_vars()
         file = self._get_config_file(VALID_CONFIG_FILE)
@@ -158,7 +160,10 @@ class CdswConfigReaderTest(unittest.TestCase):
             CdswJobConfigReader.read_from_file(file)
         exc_msg = ve.exception.args[0]
         LOG.info(exc_msg)
-        # TODO Add assertion for exception message
+        self.assertTrue(
+            "Invalid mandatory env var specified as 'GSHEET_CLIENT_S'. Valid env vars for Command 'CommandType.REVIEWSYNC'"
+            in str(exc_msg)
+        )
 
     def test_config_reader_if_optional_arg_is_mapped_to_yarndevtools_args_it_becomes_mandatory(self):
         self._set_mandatory_env_vars()
@@ -592,3 +597,9 @@ class CdswConfigReaderTest(unittest.TestCase):
             datetime.datetime.strptime(date_text, "%Y%m%d_%H%M%S")
         except ValueError:
             raise ValueError("Incorrect data format, should be YYYY-MM-DD")
+
+    def assert_wrong_value_type(self, exception_msg, field_name, expected_type, actual_value, actual_type):
+        self.assertEqual(
+            exception_msg,
+            f'wrong value type for field "{field_name}" - should be "{expected_type}" instead of value "{actual_value}" of type "{actual_type}"',
+        )
