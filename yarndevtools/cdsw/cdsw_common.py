@@ -230,7 +230,6 @@ class JiraUmbrellaDataFetcherCdswUtils:
 class UnitTestResultAggregatorCdswUtils:
     DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "Failed testcases (", "FILTER:", "Filter expression: "]
 
-    # TODO Refactor this method
     @classmethod
     def determine_lines_to_skip(cls) -> List[str]:
         skip_lines_starting_with: List[str] = cls.DEFAULT_SKIP_LINES_STARTING_WITH
@@ -248,33 +247,38 @@ class UnitTestResultAggregatorCdswUtils:
             skip_aggregation_res_file_auto_discovery,
         )
 
-        found_with_auto_discovery: str or None = None
         if skip_aggregation_res_file_auto_discovery:
-            search_basedir = CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
-            LOG.info("Looking for file '%s' in basedir: %s", SKIP_AGGREGATION_DEFAULTS_FILENAME, search_basedir)
-            results = FileUtils.search_files(search_basedir, SKIP_AGGREGATION_DEFAULTS_FILENAME)
-            if not results:
-                LOG.warning(
-                    "Skip aggregation resource file auto-discovery is enabled, "
-                    "but failed to find file '%s' from base directory '%s'.",
-                    SKIP_AGGREGATION_DEFAULTS_FILENAME,
-                    search_basedir,
-                )
-            elif len(results) > 1:
-                LOG.warning(
-                    "Skip aggregation resource file auto-discovery is enabled, "
-                    "but multiple files found from base directory '%s'. Found files: %s",
-                    SKIP_AGGREGATION_DEFAULTS_FILENAME,
-                    search_basedir,
-                    results,
-                )
-            else:
-                found_with_auto_discovery = results[0]
-        if found_with_auto_discovery:
-            LOG.info("Found Skip aggregation resource file with auto-discovery: %s", found_with_auto_discovery)
-            return FileUtils.read_file_to_list(found_with_auto_discovery)
+            found_with_auto_discovery = cls._auto_discover_skip_aggregation_result_file()
+            if found_with_auto_discovery:
+                LOG.info("Found Skip aggregation resource file with auto-discovery: %s", found_with_auto_discovery)
+                return FileUtils.read_file_to_list(found_with_auto_discovery)
         elif skip_aggregation_res_file:
             LOG.info("Trying to check specified skip aggregation resource file: %s", skip_aggregation_res_file)
             FileUtils.ensure_is_file(skip_aggregation_res_file)
             return FileUtils.read_file_to_list(skip_aggregation_res_file)
         return skip_lines_starting_with
+
+    @classmethod
+    def _auto_discover_skip_aggregation_result_file(cls):
+        found_with_auto_discovery: str or None = None
+        search_basedir = CommonDirs.YARN_DEV_TOOLS_MODULE_ROOT
+        LOG.info("Looking for file '%s' in basedir: %s", SKIP_AGGREGATION_DEFAULTS_FILENAME, search_basedir)
+        results = FileUtils.search_files(search_basedir, SKIP_AGGREGATION_DEFAULTS_FILENAME)
+        if not results:
+            LOG.warning(
+                "Skip aggregation resource file auto-discovery is enabled, "
+                "but failed to find file '%s' from base directory '%s'.",
+                SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                search_basedir,
+            )
+        elif len(results) > 1:
+            LOG.warning(
+                "Skip aggregation resource file auto-discovery is enabled, "
+                "but multiple files found from base directory '%s'. Found files: %s",
+                SKIP_AGGREGATION_DEFAULTS_FILENAME,
+                search_basedir,
+                results,
+            )
+        else:
+            found_with_auto_discovery = results[0]
+        return found_with_auto_discovery
