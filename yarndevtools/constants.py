@@ -21,14 +21,18 @@ ANY_JIRA_ID_PATTERN = re.compile(r"([A-Z]+-\d+)")
 # Symlink names
 LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
 
-# TODO Migrate these summary / report filenames to a new enum
-# File names
-SUMMARY_FILE_TXT = "summary.txt"
-SUMMARY_FILE_HTML = "summary.html"
-REPORT_FILE_SHORT_TXT = "report-short.txt"
-REPORT_FILE_DETAILED_TXT = "report-detailed.txt"
-REPORT_FILE_SHORT_HTML = "report-short.html"
-REPORT_FILE_DETAILED_HTML = "report-detailed.html"
+
+class SummaryFile:
+    TXT = "summary.txt"
+    HTML = "summary.html"
+
+
+class ReportFile:
+    SHORT_TXT = "report-short.txt"
+    DETAILED_TXT = "report-detailed.txt"
+    SHORT_HTML = "report-short.html"
+    DETAILED_HTML = "report-detailed.html"
+
 
 # Do not leak bad ENV variable namings into the python code
 LOADED_ENV_UPSTREAM_DIR = "upstream-hadoop-dir"

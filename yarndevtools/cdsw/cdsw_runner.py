@@ -264,13 +264,6 @@ class CdswRunner:
             LOG.info("Email sending is disabled for run: %s", run.name)
             return
 
-        # TODO make 'email_body_file' accept only enum values of these + Commands should also use this enum
-        # SUMMARY_FILE_TXT = "summary.txt"
-        # SUMMARY_FILE_HTML = "summary.html"
-        # REPORT_FILE_SHORT_TXT = "report-short.txt"
-        # REPORT_FILE_DETAILED_TXT = "report-detailed.txt"
-        # REPORT_FILE_SHORT_HTML = "report-short.html"
-        # REPORT_FILE_DETAILED_HTML = "report-detailed.html"
         kwargs = {
             "attachment_filename": run.email_settings.attachment_file_name,
             "email_body_file": run.email_settings.email_body_file_from_command_data,

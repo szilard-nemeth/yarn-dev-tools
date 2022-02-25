@@ -1,6 +1,7 @@
 from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import SummaryFile
 
 config = {
     "job_name": "Reviewsync",
@@ -44,7 +45,7 @@ config = {
                 "enabled": True,
                 "send_attachment": True,
                 "attachment_file_name": lambda conf: f"{conf.var('commandDataFileName')}",
-                "email_body_file_from_command_data": "summary.html",
+                "email_body_file_from_command_data": SummaryFile.HTML.value,
                 "sender": lambda conf: f"{conf.var('sender')}",
                 "subject": lambda conf: f"{conf.var('subject')}",
             },

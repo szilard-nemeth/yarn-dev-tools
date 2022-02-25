@@ -6,6 +6,7 @@ from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.commands.unittestresultaggregator.common import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import ReportFile
 
 config = {
     "job_name": "Unit test result aggregator",
@@ -77,7 +78,7 @@ config = {
                 "enabled": True,
                 "send_attachment": False,
                 "attachment_file_name": lambda conf: f"{conf.var('commandDataFileName')}",
-                "email_body_file_from_command_data": "report-short.html",
+                "email_body_file_from_command_data": ReportFile.SHORT_HTML.value,
                 "sender": lambda conf: f"{conf.var('sender')}",
                 "subject": lambda conf: f"{conf.var('subject')}",
             },

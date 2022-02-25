@@ -27,10 +27,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     BuildComparisonResult,
 )
 from yarndevtools.constants import (
-    REPORT_FILE_DETAILED_HTML,
-    REPORT_FILE_DETAILED_TXT,
-    REPORT_FILE_SHORT_HTML,
-    REPORT_FILE_SHORT_TXT,
+    ReportFile,
 )
 
 LOG = logging.getLogger(__name__)
@@ -179,12 +176,12 @@ class SummaryGenerator:
             detailed_render_confs = cls.detailed_render_confs(config, truncate)
             short_render_confs = cls.short_render_confs(config, truncate)
             detailed_report_files: Dict[SummaryMode, str] = {
-                SummaryMode.HTML: REPORT_FILE_DETAILED_HTML,
-                SummaryMode.TEXT: REPORT_FILE_DETAILED_TXT,
+                SummaryMode.HTML: ReportFile.DETAILED_HTML.value,
+                SummaryMode.TEXT: ReportFile.DETAILED_TXT.value,
             }
             short_report_files: Dict[SummaryMode, str] = {
-                SummaryMode.HTML: REPORT_FILE_SHORT_HTML,
-                SummaryMode.TEXT: REPORT_FILE_SHORT_TXT,
+                SummaryMode.HTML: ReportFile.SHORT_HTML.value,
+                SummaryMode.TEXT: ReportFile.SHORT_TXT.value,
             }
 
             cls._render_reports(config, data_dict, output_manager, short_render_confs, short_report_files)

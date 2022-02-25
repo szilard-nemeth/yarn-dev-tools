@@ -1,6 +1,7 @@
 from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
+from yarndevtools.constants import SummaryFile
 
 algorithms = ["simple", "grouped"]
 
@@ -18,7 +19,7 @@ def generate_runs(conf):
                 "enabled": True,
                 "send_attachment": True,
                 "attachment_file_name": f"{conf.var('commandDataFileName' + str(idx + 1))}",
-                "email_body_file_from_command_data": "summary.html",
+                "email_body_file_from_command_data": SummaryFile.HTML.value,
                 "sender": f"{conf.var('sender')}",
                 "subject": f"YARN branch diff report [{algorithm} algorithm, start date: {conf.job_start_date()}]",
             },

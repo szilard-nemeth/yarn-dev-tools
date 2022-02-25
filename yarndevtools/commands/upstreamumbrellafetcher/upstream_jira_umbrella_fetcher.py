@@ -35,7 +35,7 @@ from yarndevtools.commands_common import CommitData, BackportedJira, BackportedC
 from yarndevtools.common.shared_command_utils import SharedCommandUtils
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
-    SUMMARY_FILE_TXT,
+    SummaryFile,
 )
 
 LOG = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class UpstreamJiraUmbrellaFetcher:
 
     @property
     def summary_file(self):
-        return self.get_file_path_from_basedir(SUMMARY_FILE_TXT)
+        return self.get_file_path_from_basedir(SummaryFile.TXT.value)
 
     @property
     def intermediate_results_file(self):
