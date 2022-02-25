@@ -403,7 +403,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         # 4. OUTCOME: the content of the source directory is copied into this directory
         return path + os.sep + "."
 
-    # TODO Start to use start_job.py + librealoader as new CDSW-based setup uses it!
+    # TODO Start to use start_job.py + libreloader as new CDSW-based setup uses it!
     def test_basic_cdsw_runner(self):
         def _callback(cmd, cmd_output, docker_setup):
             self.config.python_module_root = cmd_output
