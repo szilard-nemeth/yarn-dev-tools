@@ -1,4 +1,3 @@
-import inspect
 import logging
 import os
 import time
@@ -26,7 +25,6 @@ from yarndevtools.cdsw.cdsw_common import (
 )
 from yarndevtools.cdsw.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
 from yarndevtools.cdsw.constants import CdswEnvVar, BranchComparatorEnvVar
-from yarndevtools.cdsw.restarter import Restarter
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
 
 LOG = logging.getLogger(__name__)

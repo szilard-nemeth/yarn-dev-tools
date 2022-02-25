@@ -20,7 +20,7 @@ from pythoncommons.string_utils import StringUtils
 
 from yarndevtools.commands.reviewsync.common import ReviewsyncData
 from yarndevtools.common.shared_command_utils import HtmlHelper
-from yarndevtools.constants import SUMMARY_FILE_HTML, SummaryFile
+from yarndevtools.constants import SummaryFile
 
 LOG = logging.getLogger(__name__)
 
