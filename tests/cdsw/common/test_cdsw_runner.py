@@ -1,8 +1,8 @@
 import argparse
+import logging
 import os
 import tempfile
 import unittest
-import logging
 from os.path import expanduser
 from typing import List
 from unittest.mock import patch, Mock, call as mock_call
@@ -19,7 +19,7 @@ from tests.cdsw.common.testutils.cdsw_testing_common import (
     FakeGoogleDriveCdswHelper,
 )
 from tests.test_utilities import Object
-from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GoogleDriveCdswHelper
+from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup
 from yarndevtools.cdsw.cdsw_config import (
     CdswRun,
     CdswJobConfig,
