@@ -12,14 +12,12 @@ from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy, PROJECTS_BASEDIR
 from pythoncommons.zip_utils import ZipFileUtils
 
-from yarndevtools.common.shared_command_utils import YarnDevToolsTestEnvVar, CommandType
+from yarndevtools.common.shared_command_utils import YarnDevToolsTestEnvVar, CommandType, YarnDevToolsEnvVar
 from yarndevtools.constants import (
     HADOOP_REPO_APACHE,
     TRUNK,
     ORIGIN_TRUNK,
     YARNDEVTOOLS_MODULE_NAME,
-    ENV_HADOOP_DEV_DIR,
-    ENV_CLOUDERA_HADOOP_ROOT,
 )
 from pythoncommons.git_constants import HEAD, ORIGIN
 from pythoncommons.git_wrapper import GitWrapper, ProgressPrinter
@@ -71,8 +69,8 @@ class TestUtilities:
         return ProjectUtils.get_test_output_child_dir(CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name)
 
     def set_env_vars(self, upstream_repo, downstream_repo):
-        OsUtils.set_env_value(ENV_HADOOP_DEV_DIR, upstream_repo)
-        OsUtils.set_env_value(ENV_CLOUDERA_HADOOP_ROOT, downstream_repo)
+        OsUtils.set_env_value(YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value, upstream_repo)
+        OsUtils.set_env_value(YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value, downstream_repo)
 
     def setUpClass(self, command_type: CommandType, repo_postfix=None, init_logging=True, console_debug=False):
         if repo_postfix:

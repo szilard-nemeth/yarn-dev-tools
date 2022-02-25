@@ -394,8 +394,8 @@ class ArgParser:
         )
 
         # TODO Rationalize this vs. request-limit:
-        # Num builds is intended to be used for determining to process the builds that are not yet processed / sent in mail
-        # Request limit is to limit the number of builds processed for each Jenkins job
+        #  Num builds is intended to be used for determining to process the builds that are not yet processed / sent in mail
+        #  Request limit is to limit the number of builds processed for each Jenkins job
         parser.add_argument(
             "-n",
             "--num-builds",

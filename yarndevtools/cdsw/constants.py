@@ -3,6 +3,8 @@ from os.path import expanduser
 
 from pythoncommons.file_utils import FileUtils
 
+from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar
+
 PROJECT_NAME = "cdsw"
 INSTALL_REQUIREMENTS_SCRIPT = "install-requirements.sh"
 SECRET_PROJECTS_DIR = FileUtils.join_path(expanduser("~"), ".secret", "projects", "cloudera")
@@ -14,8 +16,8 @@ class CdswEnvVar(Enum):
     MAIL_ACC_PASSWORD = "MAIL_ACC_PASSWORD"
     MAIL_ACC_USER = "MAIL_ACC_USER"
     MAIL_RECIPIENTS = "MAIL_RECIPIENTS"
-    CLOUDERA_HADOOP_ROOT = "CLOUDERA_HADOOP_ROOT"
-    HADOOP_DEV_DIR = "HADOOP_DEV_DIR"
+    CLOUDERA_HADOOP_ROOT = YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value
+    HADOOP_DEV_DIR = YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value
     PYTHONPATH = "PYTHONPATH"
     TEST_EXECUTION_MODE = "TEST_EXEC_MODE"
     PYTHON_MODULE_MODE = "PYTHON_MODULE_MODE"
