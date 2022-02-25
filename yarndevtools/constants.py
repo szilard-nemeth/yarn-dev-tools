@@ -1,5 +1,5 @@
 import re
-
+from enum import Enum
 
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
@@ -19,12 +19,12 @@ ANY_JIRA_ID_PATTERN = re.compile(r"([A-Z]+-\d+)")
 LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
 
 
-class SummaryFile:
+class SummaryFile(Enum):
     TXT = "summary.txt"
     HTML = "summary.html"
 
 
-class ReportFile:
+class ReportFile(Enum):
     SHORT_TXT = "report-short.txt"
     DETAILED_TXT = "report-detailed.txt"
     SHORT_HTML = "report-short.html"
