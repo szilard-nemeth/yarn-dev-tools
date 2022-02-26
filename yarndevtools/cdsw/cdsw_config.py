@@ -258,6 +258,9 @@ class CdswJobConfig:
     global_variables: Dict[str, Union[str, bool, int, Callable]] = field(default_factory=dict)
     env_sanitize_exceptions: List[str] = field(default_factory=list)
 
+    # Dynamic
+    runs_defined_as_callable: bool = False
+
     def __post_init__(self):
         self.resolver: Resolver = None
 
@@ -296,7 +299,7 @@ class CdswJobConfigReader:
         config_reader = CdswJobConfigReader()
         conf_dict = config_reader._read_from_python_conf(file)
         config = from_dict(data_class=CdswJobConfig, data=conf_dict)
-        config_reader._validate(config)
+        config_reader.process_config(config)
         return config
 
     def _read_from_python_conf(self, file):
@@ -314,30 +317,33 @@ class CdswJobConfigReader:
         spec.loader.exec_module(cdswconfig_module)
         return cdswconfig_module
 
-    # TODO Rename to more descriptive name?
-    def _validate(self, config):
+    def process_config(self, config: CdswJobConfig):
+        # Pre-initialize
+        config.runs_defined_as_callable = isinstance(config.runs, Callable)
+        config.resolver = Resolver(config)
+
+        # Validatation
         LOG.info("Validating config: %s", config)
         if not config.runs:
             raise ValueError("Section 'runs' must be defined and cannot be empty!")
+        self._validate_run_names(config)
 
+        # Post-initialize
         enum_type = self.command_to_env_var_class[config.command_type]
-        self._environment_variables = EnvironmentVariables(
+        EnvironmentVariables(
             config.mandatory_env_vars,
             config.optional_env_vars,
             config.command_type,
             enum_type,
         )
-        global_vars = GlobalVariables(config.global_variables)
-        config.resolver = Resolver(global_vars, config)
-
-        self._validate_run_names(config)
         config.resolver.resolve_vars()
         self._generate_runs_if_required(config)
         self._finalize_yarn_dev_tools_arguments(config)
 
-    def _validate_run_names(self, config, force_validate=False):
+    @staticmethod
+    def _validate_run_names(config, force_validate=False):
         names = set()
-        if config.resolver.runs_defined_as_callable and not force_validate:
+        if config.runs_defined_as_callable and not force_validate:
             return
         for run in config.runs:
             if run.name in names:
@@ -345,7 +351,7 @@ class CdswJobConfigReader:
             names.add(run.name)
 
     def _generate_runs_if_required(self, config):
-        if config.resolver.runs_defined_as_callable:
+        if config.runs_defined_as_callable:
             run_dicts = config.runs(config)
             runs = []
             for run_dict in run_dicts:
@@ -414,19 +420,18 @@ class Resolver:
 
     FIELD_SUBSTITUTION_PHASE2_DYNAMIC_RUN_CONFIG = [*_FIELD_SUBSTITIONS_RUN_FIELDS]
 
-    def __init__(self, global_vars, config):
-        self.config = config
+    def __init__(self, config):
         self._current_rfs = None
-        self.global_variables = global_vars
+        self.config = config
+        self.global_variables = GlobalVariables(config.global_variables)
         self.env_sanitize_exceptions = config.env_sanitize_exceptions
 
         # Dynamic
-        self.runs_defined_as_callable: bool = isinstance(config.runs, Callable)
         self._field_spec_resolver = FieldSpecResolver(config)
 
     def resolve_vars(self):
         fields_to_resolve = self._DEFAULT_VARIABLE_SUBSTITUTION_FIELDS
-        if self.runs_defined_as_callable:
+        if self.config.runs_defined_as_callable:
             fields_to_resolve = self._FIELD_SUBSTITUTION_PHASE1_DYNAMIC_RUN_CONFIG
         FieldSpecReplacer.substitute_regular_variables_in_fields(
             self.config,
