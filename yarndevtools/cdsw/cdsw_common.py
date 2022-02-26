@@ -37,7 +37,7 @@ from yarndevtools.cdsw.constants import (
 )
 
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, UPSTREAM_JIRA_BASE_URL
 
 # MAKE SURE THIS PRECEDES IMPORT TO pythoncommons
 
@@ -222,7 +222,7 @@ class JiraUmbrellaDataFetcherCdswUtils:
     def _fetch_umbrella_title(jira_id: str):
         jira_html_file = f"/tmp/jira_{jira_id}.html"
         LOG.info("Fetching HTML of jira: %s", jira_id)
-        jira_html = JiraUtils.download_jira_html("https://issues.apache.org/jira/browse/", jira_id, jira_html_file)
+        jira_html = JiraUtils.download_jira_html(UPSTREAM_JIRA_BASE_URL, jira_id, jira_html_file)
         return JiraUtils.parse_jira_title(jira_html)
 
 

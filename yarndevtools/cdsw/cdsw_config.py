@@ -10,7 +10,7 @@ from pythoncommons.date_utils import DateUtils
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.cdsw.constants import (
-    JiraUmbrellaCheckerEnvVar,
+    JiraUmbrellaFetcherEnvVar,
     BranchComparatorEnvVar,
     UnitTestResultFetcherEnvVar,
     UnitTestResultAggregatorEnvVar,
@@ -284,7 +284,7 @@ class CdswJobConfig:
 @auto_str
 class CdswJobConfigReader:
     command_to_env_var_class = {
-        CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaCheckerEnvVar,
+        CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaFetcherEnvVar,
         CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
         CommandType.UNIT_TEST_RESULT_FETCHER: UnitTestResultFetcherEnvVar,
         CommandType.UNIT_TEST_RESULT_AGGREGATOR: UnitTestResultAggregatorEnvVar,
