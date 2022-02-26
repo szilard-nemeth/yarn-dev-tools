@@ -17,10 +17,9 @@ import time
 from yarndevtools.commands.reviewsync.common import ReviewsyncData
 from yarndevtools.commands.reviewsync.jira_wrapper import HadoopJiraWrapper
 from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputManager
-from yarndevtools.constants import TRUNK, ORIGIN_TRUNK
+from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, UPSTREAM_JIRA_BASE_URL
 
 DEFAULT_BRANCH = "trunk"
-JIRA_URL = "https://issues.apache.org/jira"
 BRANCH_PREFIX = "reviewsync"
 APACHE_HADOOP_REPO_IDENTIFIER = GitHubRepoIdentifier("apache", "hadoop")
 LOG = logging.getLogger(__name__)
@@ -93,7 +92,9 @@ class ReviewSync:
         self.output_dir = output_dir
         self.branches = self.get_branches(args)
         self.upstream_repo: GitWrapper = upstream_repo
-        self.jira_wrapper = HadoopJiraWrapper(JIRA_URL, DEFAULT_BRANCH, self.config.patches_dir, self.upstream_repo)
+        self.jira_wrapper = HadoopJiraWrapper(
+            UPSTREAM_JIRA_BASE_URL, DEFAULT_BRANCH, self.config.patches_dir, self.upstream_repo
+        )
         self.issue_fetch_mode = args.fetch_mode
         if self.issue_fetch_mode == JiraFetchMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(args.gsheet_options)

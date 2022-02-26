@@ -34,7 +34,7 @@ class BranchComparatorEnvVar(Enum):
     BRANCH_COMP_REPO_TYPE = "BRANCH_COMP_REPO_TYPE"
 
 
-class JiraUmbrellaCheckerEnvVar(Enum):
+class JiraUmbrellaFetcherEnvVar(Enum):
     UMBRELLA_IDS = "UMBRELLA_IDS"
 
 

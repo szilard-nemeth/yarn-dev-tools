@@ -1,8 +1,10 @@
 import os
+import re
 import tempfile
 import unittest
 from typing import Dict
 
+from httpretty import httpretty
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
@@ -15,11 +17,15 @@ from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GenericCdswCon
 from yarndevtools.cdsw.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, UPSTREAM_JIRA_BASE_URL
+import logging
 
+USE_LIVE_JIRA_SERVER = False
 PARSER = None
 SETUP_RESULT = None
 CDSW_RUNNER_SCRIPT_PATH = None
+LOG = logging.getLogger(__name__)
+JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS = ["YARN-10496", "YARN-6223"]
 
 
 # TODO Extract code as much as possible
@@ -61,10 +67,33 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_ordered_arg("bash -x")
             .add_expected_ordered_arg("/home/cdsw/scripts/clone_upstream_repos.sh")
         )
+        if not USE_LIVE_JIRA_SERVER:
+            httpretty.enable()
+            self._setup_mock_responses_for_upstream_jira()
 
     def tearDown(self) -> None:
         self._clear_env_vars()
         CdswTestingCommons.mock_google_drive()
+
+        if not USE_LIVE_JIRA_SERVER:
+            # disable afterwards, so that you will have no problems in code that uses that socket module
+            httpretty.disable()
+            # reset HTTPretty state (clean up registered urls and request history)
+            httpretty.reset()
+
+    def _setup_mock_responses_for_upstream_jira(self):
+        for umbrella_id in JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS:
+            html_file_path = FileUtils.find_files(
+                self.cdsw_testing_commons.cdsw_tests_root_dir,
+                find_type=FindResultType.FILES,
+                regex=f"jira_{umbrella_id}.html",
+                single_level=False,
+                full_path_result=True,
+                ensure_number_of_results=1,
+            )[0]
+            url = UPSTREAM_JIRA_BASE_URL + umbrella_id
+            LOG.info("Mocked URL: %s with file contents of file: %s", url, html_file_path)
+            httpretty.register_uri(httpretty.GET, re.compile(url), body=FileUtils.read_file(html_file_path))
 
     @classmethod
     def _clear_env_vars(cls):
@@ -88,9 +117,8 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             os.environ[k] = str(v)
 
     def test_reviewsync_e2e(self):
-        cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
         config_file = FileUtils.find_files(
-            cdsw_root_dir,
+            self.cdsw_testing_commons.cdsw_root_dir,
             find_type=FindResultType.FILES,
             regex="reviewsync_.*",
             single_level=False,
@@ -324,12 +352,13 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             exclude_dirs=["yarndevtools-results"],
         )[0]
 
+        umbrella_ids = " ".join(JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS)
         self._set_env_vars_from_dict(
             {
                 "BRANCHES": "branch-3.2 branch-3.3",
                 "MAIL_ACC_USER": "testMailUser",
                 "MAIL_ACC_PASSWORD": "testMailPassword",
-                "UMBRELLA_IDS": '"YARN-10496 YARN-6223"',
+                "UMBRELLA_IDS": f'"{umbrella_ids}"',
             }
         )
 
@@ -343,24 +372,26 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         sender = wrap_d("YARN upstream umbrella checker")
         subject1 = wrap_d(
             f"YARN Upstream umbrella checker report: "
-            f"[UMBRELLA: YARN-10496 ([Umbrella] Support Flexible Auto Queue Creation in Capacity Scheduler), "
+            f"[UMBRELLA: {JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS[0]} ([Umbrella] Support Flexible Auto Queue Creation in Capacity Scheduler), "
             f"start date: {job_start_date}]"
         )
 
         subject2 = wrap_d(
             f"YARN Upstream umbrella checker report: "
-            f"[UMBRELLA: YARN-6223 ([Umbrella] Natively support GPU configuration/discovery/scheduling/isolation on YARN), "
+            f"[UMBRELLA: {JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS[1]} ([Umbrella] Natively support GPU configuration/discovery/scheduling/isolation on YARN), "
             f"start date: {job_start_date}]"
         )
 
-        # TODO Mock jira request / response
-        exp_command_1 = self._get_expected_jira_umbrella_data_fetcher_main_command("YARN-10496")
+        exp_command_1 = self._get_expected_jira_umbrella_data_fetcher_main_command(
+            JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS[0]
+        )
         exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
-
         exp_command_3 = self._get_expected_send_latest_command_data_command(
             job_start_date, subject=subject1, sender=sender
         )
-        exp_command_4 = self._get_expected_jira_umbrella_data_fetcher_main_command("YARN-6223")
+        exp_command_4 = self._get_expected_jira_umbrella_data_fetcher_main_command(
+            JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS[1]
+        )
         exp_command_5 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
         exp_command_6 = self._get_expected_send_latest_command_data_command(
             job_start_date, subject=subject2, sender=sender
