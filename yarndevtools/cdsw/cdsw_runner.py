@@ -192,7 +192,6 @@ class CdswRunner:
 
         # Dynamic fields
         self.job_config = None
-        self.start_date_str = None
         self.command_type = None
         self.output_basedir = None
 
@@ -216,9 +215,6 @@ class CdswRunner:
         self.output_basedir = setup_result.output_basedir
         LOG.info("Setup result: %s", setup_result)
         self._execute_preparation_steps(setup_result)
-        self.start_date_str = (
-            self.current_date_formatted()
-        )  # TODO Is this date the same as in RegularVariables.BUILT_IN_VARIABLES?
 
         for run in self.job_config.runs:
             self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))

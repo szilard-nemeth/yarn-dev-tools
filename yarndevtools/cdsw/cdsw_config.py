@@ -263,7 +263,7 @@ class CdswJobConfig:
 
     @staticmethod
     def job_start_date():
-        return GlobalVariables.BUILT_IN_VARIABLES[JOB_START_DATE_KEY]
+        return GlobalVariables.job_start_date()
 
     # TODO Move these methods from this and below to resolver
     def var(self, var_name):
@@ -318,6 +318,7 @@ class CdswJobConfigReader:
         spec.loader.exec_module(cdswconfig_module)
         return cdswconfig_module
 
+    # TODO Rename to more descriptive name?
     def _validate(self, config):
         LOG.info("Validating config: %s", config)
         if not config.runs:
@@ -502,6 +503,10 @@ class GlobalVariables:
                     "Built-ins: {}"
                     "Current var: {}".format(builtins, var_name)
                 )
+
+    @staticmethod
+    def job_start_date():
+        return GlobalVariables.BUILT_IN_VARIABLES[JOB_START_DATE_KEY]
 
 
 class EnvironmentVariables:
