@@ -265,7 +265,6 @@ class CdswJobConfig:
     def job_start_date():
         return GlobalVariables.job_start_date()
 
-    # TODO Move these methods from this and below to resolver
     def var(self, var_name):
         return self.resolver.var(var_name)
 
@@ -273,10 +272,7 @@ class CdswJobConfig:
         return self.resolver.env(env_name)
 
     def env_or_default(self, env_name: str, default: str):
-        env_value = os.getenv(env_name)
-        if env_value:
-            return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
-        return default
+        return self.resolver.env_or_default(env_name, default)
 
     def resolve_lambda(self, callable, rfs: ResolvedFieldSpec):
         return self.resolver.resolve_lambda(callable, rfs)
@@ -484,6 +480,12 @@ class Resolver:
         if not env_value:
             raise ValueError("The following env var is not set: {}".format(env_name))
         return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
+
+    def env_or_default(self, env_name, default):
+        env_value = os.getenv(env_name)
+        if env_value:
+            return EnvironmentVariables.sanitize_env_value(env_name, env_value, self.env_sanitize_exceptions)
+        return default
 
 
 class GlobalVariables:
