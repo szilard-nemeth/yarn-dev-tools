@@ -17,8 +17,6 @@ from yarndevtools.constants import (
 
 LOG = logging.getLogger(__name__)
 
-# TODO THIS class is mostly about branchcomparator, move all related stuff to there
-
 
 class JiraIdTypePreference(Enum):
     UPSTREAM = "upstream"
@@ -55,7 +53,6 @@ class JiraIdData:
             jira_id_dict[JiraIdData.POS_KEY][match] = idx
         return jira_id_dict
 
-    # TODO Move this property to CommitData
     @property
     def all_matched_jira_ids(self) -> List[Any]:
         if self.DOWNSTREAM_KEY not in self._all_matched and self.UPSTREAM_KEY not in self._all_matched:
