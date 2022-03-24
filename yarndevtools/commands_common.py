@@ -1,9 +1,11 @@
+import argparse
 import logging
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from re import Pattern
-from typing import List, Any, Set, Dict
+from typing import List, Any, Set, Dict, Callable
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
     REVERT,
@@ -11,6 +13,7 @@ from pythoncommons.git_constants import (
 from pythoncommons.git_wrapper import GitLogLineFormat
 from pythoncommons.string_utils import auto_str
 
+from yarndevtools.commands.unittestresultaggregator.common import MATCH_EXPRESSION_PATTERN
 from yarndevtools.constants import (
     YARN_JIRA_ID_PATTERN,
 )
@@ -26,6 +29,71 @@ class JiraIdTypePreference(Enum):
 class JiraIdChoosePreference(Enum):
     FIRST = "first"
     LAST = "last"
+
+
+class CommandAbs(ABC):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        pass
+
+
+class GSheetArguments:
+    @staticmethod
+    def add_gsheet_arguments(parser):
+        # Arguments for Google sheet integration
+        gsheet_group = parser.add_argument_group("google-sheet", "Arguments for Google sheet integration")
+
+        gsheet_group.add_argument(
+            "--gsheet-client-secret",
+            dest="gsheet_client_secret",
+            required=False,
+            help="Client credentials for accessing Google Sheet API",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-spreadsheet",
+            dest="gsheet_spreadsheet",
+            required=False,
+            help="Name of the Google Sheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-worksheet",
+            dest="gsheet_worksheet",
+            required=False,
+            help="Name of the worksheet in the Google Sheet spreadsheet",
+        )
+        return gsheet_group
+
+
+class EmailArguments:
+    @staticmethod
+    def add_email_arguments(parser, add_subject=True, add_attachment_filename=True):
+        # TODO Use dash notation instead of underscore
+        parser.add_argument("--smtp_server", required=True, type=str, help="SMPT server")
+        parser.add_argument("--smtp_port", required=True, type=str, help="SMTP port")
+        parser.add_argument("--account_user", required=True, type=str, help="Email account's user")
+        parser.add_argument("--account_password", required=True, type=str, help="Email account's password")
+        if add_subject:
+            parser.add_argument("--subject", required=True, type=str, help="Subject of the email")
+        parser.add_argument("--sender", required=True, type=str, help="Sender of the email [From]")
+        parser.add_argument("--recipients", required=True, type=str, nargs="+", help="List of email recipients [To]")
+        if add_attachment_filename:
+            parser.add_argument("--attachment-filename", required=False, type=str, help="Override attachment filename")
+
+
+class ArgumentParserUtils:
+    @staticmethod
+    def matches_match_expression_pattern(value):
+        if not re.match(MATCH_EXPRESSION_PATTERN, value):
+            raise argparse.ArgumentTypeError(
+                f"Must conform to this format: <alias>::<pattern>. Provided value: {value}"
+            )
+        return value
 
 
 @dataclass

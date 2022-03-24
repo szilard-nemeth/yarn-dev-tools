@@ -1,15 +1,19 @@
 import logging
 from os.path import expanduser
+from typing import Callable
 
 from git import InvalidGitRepositoryError
 from pythoncommons.file_utils import FileUtils
 
 from pythoncommons.git_wrapper import GitWrapper
 
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
+
 LOG = logging.getLogger(__name__)
 
 
-class FormatPatchSaver:
+class FormatPatchSaver(CommandAbs):
     """
     A class used to export git-format-patch files from a git repository to a specified target directory.
 
@@ -60,6 +64,20 @@ class FormatPatchSaver:
         # Dynamic attributes
         self.repo = None
         self.patch_file_dest_dir = None
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.SAVE_DIFF_AS_PATCHES.name,
+            help="Diffs branches and creates patch files with "
+            "git format-patch and saves them to a directory."
+            "Example: <command> master gpu",
+        )
+        parser.add_argument("base_refspec", type=str, help="Git base refspec to diff with.")
+        parser.add_argument("other_refspec", type=str, help="Git other refspec to diff with.")
+        parser.add_argument("dest_basedir", type=str, help="Destination basedir.")
+        parser.add_argument("dest_dir_prefix", type=str, help="Directory as prefix to export the patch files to.")
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         # TODO check if git is clean (no modified, unstaged files, etc)

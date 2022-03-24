@@ -1,7 +1,12 @@
 import logging
+from typing import Callable
 
 from pythoncommons.git_constants import ORIGIN, HEAD
 from pythoncommons.git_wrapper import GitWrapper
+
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import TRUNK
 
 GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke,r=tdomok"
 DEFAULT_MAVEN_COMMAND = "mvn clean install -Pdist -DskipTests -Pnoshade  -Dmaven.javadoc.skip=true"
@@ -14,7 +19,7 @@ DEFAULT_REMOTE = "cauldron"
 LOG = logging.getLogger(__name__)
 
 
-class Backporter:
+class Backporter(CommandAbs):
     """
     A class used to backport changes from an upstream repository to a downstream repository, having an assumption
     that the specified upstream commit is committed on the specified upstream branch.
@@ -76,6 +81,27 @@ class Backporter:
         # Dynamic attributes
         self.commit_hash = None
         self.found_commit_at_head = None
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.BACKPORT_C6.name,
+            help="Backports upstream commit to C6 branch, " "Example usage: <command> YARN-7948 CDH-64201 cdh6.x",
+        )
+        parser.add_argument("upstream_jira_id", type=str, help="Upstream jira id. Example: YARN-4567")
+        parser.add_argument("downstream_jira_id", type=str, help="Downstream jira id. Example: CDH-4111")
+        parser.add_argument("downstream_branch", type=str, help="Downstream branch name")
+        parser.add_argument("--upstream_branch", type=str, required=False, default=TRUNK, help="Upstream branch name")
+        parser.add_argument(
+            "--downstream_base_ref",
+            type=str,
+            required=False,
+            help="Downstream commit to base the new downstream branch on",
+        )
+        parser.add_argument(
+            "--no-fetch", action="store_true", required=False, default=False, help="Whether to fetch repositories"
+        )
+        parser.set_defaults(func=func_to_call)
 
     @staticmethod
     def _determine_downstream_base_ref(args):

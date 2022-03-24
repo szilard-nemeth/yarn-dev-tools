@@ -1,10 +1,14 @@
 import logging
+from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.string_utils import auto_str
 
 from pythoncommons.git_wrapper import GitWrapper
+
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
 
 LOG = logging.getLogger(__name__)
 
@@ -32,12 +36,23 @@ class BranchResults:
         return self.commit_hashes[0]
 
 
-class UpstreamJiraPatchDiffer:
+class UpstreamJiraPatchDiffer(CommandAbs):
     def __init__(self, args, upstream_repo, basedir):
         self.jira_id = args.jira_id
         self.branches = args.branches
         self.upstream_repo = upstream_repo
         self.basedir = basedir
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.DIFF_PATCHES_OF_JIRA.name,
+            help="Diffs patches of a particular jira, for the provided branches."
+            "Example: YARN-7913 trunk branch-3.2 branch-3.1",
+        )
+        parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
+        parser.add_argument("branches", type=str, nargs="+", help="Check all patches on theese branches.")
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         branch_results = {}

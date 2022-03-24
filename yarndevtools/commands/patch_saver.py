@@ -1,15 +1,19 @@
 import logging
+from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 
 from pythoncommons.git_constants import ORIGIN
+
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import PATCH_FILE_REGEX, PATCH_EXTENSION, FIRST_PATCH_NUMBER
 
 LOG = logging.getLogger(__name__)
 
 
-class PatchSaver:
+class PatchSaver(CommandAbs):
     """
     A class used to save a patch file based on the current branch and the specified base branch.
 
@@ -51,6 +55,13 @@ class PatchSaver:
         # Dynamic attributes
         self.patch_branch = None
         self.new_patch_filename = None
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.SAVE_PATCH.name, help="Saves patch from upstream repository to yarn patches dir"
+        )
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         # TODO add force mode: ignore whitespace issues and make backup of patch!

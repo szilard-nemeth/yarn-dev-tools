@@ -1,13 +1,16 @@
 import logging
 import os
 from smtplib import SMTPAuthenticationError
+from typing import Callable
 
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
-from yarndevtools.common.shared_command_utils import FullEmailConfig, EnvVar
+from yarndevtools.commands_common import CommandAbs, EmailArguments
+from yarndevtools.common.shared_command_utils import FullEmailConfig, EnvVar, CommandType
+from yarndevtools.constants import SummaryFile
 
 LOG = logging.getLogger(__name__)
 
@@ -27,9 +30,44 @@ class SendLatestCommandDataInEmailConfig:
         )
 
 
-class SendLatestCommandDataInEmail:
+class SendLatestCommandDataInEmail(CommandAbs):
     def __init__(self, args, attachment_file: str):
         self.config = SendLatestCommandDataInEmailConfig(args, attachment_file)
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.SEND_LATEST_COMMAND_DATA.name,
+            help="Sends latest command data in email." "Example: --dest_dir /tmp",
+        )
+        parser.add_argument(
+            "--file-as-email-body-from-zip",
+            dest="email_body_file",
+            required=False,
+            type=str,
+            help="The specified file from the latest command data zip will be added to the email body.",
+            default=SummaryFile.HTML.value,
+        )
+
+        parser.add_argument(
+            "--prepend_email_body_with_text",
+            dest="prepend_email_body_with_text",
+            required=False,
+            type=str,
+            help="Prepend the specified text to the email's body.",
+            default=SummaryFile.HTML.value,
+        )
+
+        parser.add_argument(
+            "-s",
+            "--send-attachment",
+            dest="send_attachment",
+            action="store_true",
+            default=False,
+            help="Send command data as email attachment",
+        )
+        EmailArguments.add_email_arguments(parser)
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         LOG.info(f"Starting sending latest command data in email.\n Config: {str(self.config)}")

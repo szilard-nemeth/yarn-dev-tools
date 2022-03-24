@@ -30,9 +30,11 @@ from yarndevtools.commands_common import (
     MatchAllJiraIdStrategy,
     JiraIdTypePreference,
     JiraIdChoosePreference,
+    CommandAbs,
 )
-from yarndevtools.common.shared_command_utils import RepoType
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.common.shared_command_utils import CommandType, RepoType
+
 
 LOG = logging.getLogger(__name__)
 
@@ -259,7 +261,7 @@ class Branches:
 
 
 # TODO Add generic documentation
-class BranchComparator:
+class BranchComparator(CommandAbs):
     def __init__(self, args, downstream_repo, upstream_repo, output_dir: str):
         branch_names: Dict[BranchType, str] = {
             BranchType.FEATURE: args.feature_branch,
@@ -272,6 +274,51 @@ class BranchComparator:
             self.repo = upstream_repo
         self.branches: Branches = Branches(self.config, self.repo, branch_names)
         self.matching_result = None
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call):
+        parser = subparsers.add_parser(
+            CommandType.BRANCH_COMPARATOR.name,
+            help="Branch comparator."
+            "Usage: <algorithm> <feature branch> <master branch>"
+            "Example: simple CDH-7.1-maint cdpd-master"
+            "Example: grouped CDH-7.1-maint cdpd-master",
+        )
+
+        parser.add_argument(
+            "algorithm",
+            type=CommitMatchingAlgorithm.argparse,
+            choices=list(CommitMatchingAlgorithm),
+            help="Matcher algorithm",
+        )
+        parser.add_argument("feature_branch", type=str, help="Feature branch")
+        parser.add_argument("master_branch", type=str, help="Master branch")
+        parser.add_argument(
+            "--commit_author_exceptions",
+            type=str,
+            nargs="+",
+            help="Commits with these authors will be ignored while comparing branches",
+        )
+        parser.add_argument(
+            "--console-mode",
+            action="store_true",
+            help="Console mode: Instead of writing output files, print everything to the console",
+        )
+        parser.add_argument(
+            "--run-legacy-script",
+            action="store_true",
+            default=False,
+            help="Console mode: Instead of writing output files, print everything to the console",
+        )
+
+        repo_types = [rt.value for rt in RepoType]
+        parser.add_argument(
+            "--repo-type",
+            default=RepoType.DOWNSTREAM.value,
+            choices=repo_types,
+            help=f"Repo type, can be one of: {repo_types}",
+        )
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()
