@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from typing import List, Any, Collection, Set, Dict
+from typing import List, Any, Collection, Set, Dict, Callable
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper, GitLogLineFormat
@@ -31,8 +31,8 @@ from yarndevtools.commands.upstreamumbrellafetcher.representation import (
     UmbrellaFetcherRenderedSummary,
     UmbrellaFetcherSummaryData,
 )
-from yarndevtools.commands_common import CommitData, BackportedJira, BackportedCommit
-from yarndevtools.common.shared_command_utils import SharedCommandUtils
+from yarndevtools.commands_common import CommitData, BackportedJira, BackportedCommit, CommandAbs
+from yarndevtools.common.shared_command_utils import SharedCommandUtils, CommandType
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SummaryFile,
@@ -113,7 +113,7 @@ class UpstreamJiraUmbrellaFetcherConfig:
 
 
 # TODO Add documentation
-class UpstreamJiraUmbrellaFetcher:
+class UpstreamJiraUmbrellaFetcher(CommandAbs):
     def __init__(
         self, args, upstream_repo: GitWrapper, downstream_repo: GitWrapper, output_dir: str, upstream_base_branch: str
     ):
@@ -126,6 +126,36 @@ class UpstreamJiraUmbrellaFetcher:
         # These fields will be assigned when data is fetched
         self.data: JiraUmbrellaData
         self.output_manager = UmbrellaFetcherOutputManager(self.config)
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.JIRA_UMBRELLA_DATA_FETCHER.name,
+            help="Fetches jira umbrella data for a provided Jira ID." "Example: fetch_jira_umbrella_data YARN-5734",
+        )
+        parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
+        parser.add_argument(
+            "--force-mode",
+            action="store_true",
+            dest="force_mode",
+            help="Force fetching data from jira and use git log commands to find all changes.",
+        )
+        parser.add_argument(
+            "--ignore-changes",
+            dest="ignore_changes",
+            action="store_true",
+            help="If specified, changes of individual files won't be tracked and written to file.",
+        )
+        parser.add_argument(
+            "--add-common-upstream-branches",
+            dest="add_common_upstream_branches",
+            action="store_true",
+            help="If specified, add common upstream branches to result table.",
+        )
+        parser.add_argument(
+            "--branches", required=False, type=str, nargs="+", help="Check backports against these branches"
+        )
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import logging
-from typing import Dict
+from typing import Dict, Callable
 
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
@@ -17,6 +17,8 @@ import time
 from yarndevtools.commands.reviewsync.common import ReviewsyncData
 from yarndevtools.commands.reviewsync.jira_wrapper import HadoopJiraWrapper
 from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputManager
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, UPSTREAM_JIRA_BASE_URL
 
 DEFAULT_BRANCH = "trunk"
@@ -86,7 +88,7 @@ class ReviewSyncConfig:
         return self.get_file_path_from_basedir("patches")
 
 
-class ReviewSync:
+class ReviewSync(CommandAbs):
     def __init__(self, args, parser, output_dir: str, upstream_repo):
         self.config = ReviewSyncConfig(parser, args, output_dir)
         self.output_dir = output_dir
@@ -99,6 +101,94 @@ class ReviewSync:
         if self.issue_fetch_mode == JiraFetchMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(args.gsheet_options)
         self.data = ReviewsyncData()
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.REVIEWSYNC.name,
+            help="This script retrieves patches for specified jiras and generates input file for conflict checker script"
+            "Example: "
+            "--gsheet "
+            "--gsheet-client-secret /Users/snemeth/.secret/dummy.json "
+            "--gsheet-spreadsheet 'YARN/MR Reviews' "
+            "--gsheet-worksheet 'Incoming'",
+        )
+
+        parser.add_argument(
+            "-b",
+            "--branches",
+            nargs="+",
+            type=str,
+            help="List of branches to apply patches that are targeted to trunk (default is trunk only)",
+            required=False,
+        )
+        parser.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            dest="verbose",
+            default=None,
+            required=False,
+            help="More verbose log",
+        )
+
+        exclusive_group = parser.add_mutually_exclusive_group()
+        exclusive_group.add_argument(
+            "-i", "--issues", nargs="+", type=str, help="List of Jira issues to check", required=False
+        )
+        exclusive_group.add_argument(
+            "-g",
+            "--gsheet",
+            action="store_true",
+            dest="gsheet_enable",
+            default=False,
+            required=False,
+            help="Enable reading values from Google Sheet API. " "Additional gsheet arguments need to be specified!",
+        )
+
+        # Arguments for Google sheet integration
+        gsheet_group = parser.add_argument_group("google-sheet", "Arguments for Google sheet integration")
+
+        gsheet_group.add_argument(
+            "--gsheet-client-secret",
+            dest="gsheet_client_secret",
+            required=False,
+            help="Client credentials for accessing Google Sheet API",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-spreadsheet", dest="gsheet_spreadsheet", required=False, help="Name of the GSheet spreadsheet"
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-worksheet",
+            dest="gsheet_worksheet",
+            required=False,
+            help="Name of the worksheet in the GSheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-jira-column",
+            dest="gsheet_jira_column",
+            required=False,
+            help="Name of the column that contains jira issue IDs in the GSheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-update-date-column",
+            dest="gsheet_update_date_column",
+            required=False,
+            help="Name of the column where this script will store last updated date in the GSheet spreadsheet",
+        )
+
+        gsheet_group.add_argument(
+            "--gsheet-status-info-column",
+            dest="gsheet_status_info_column",
+            required=False,
+            help="Name of the column where this script will store patch status info in the GSheet spreadsheet",
+        )
+
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         start_time = time.time()

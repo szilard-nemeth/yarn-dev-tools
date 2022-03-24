@@ -1,10 +1,14 @@
 import logging
+from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.string_utils import RegexUtils
 
 from pythoncommons.git_constants import ORIGIN
+
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARN_PATCH_FILENAME_REGEX
 
 BRANCH_PREFIX = "review-"
@@ -12,12 +16,20 @@ BRANCH_PREFIX = "review-"
 LOG = logging.getLogger(__name__)
 
 
-class ReviewBranchCreator:
+class ReviewBranchCreator(CommandAbs):
     def __init__(self, args, upstream_repo, base_branch, remote_base_branch):
         self.args = args
         self.upstream_repo = upstream_repo
         self.base_branch = base_branch
         self.remote_base_branch = remote_base_branch
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.CREATE_REVIEW_BRANCH.name, help="Creates review branch from upstream patch file"
+        )
+        parser.add_argument("patch_file", type=str, help="Path to patch file")
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         patch_file = self.args.patch_file

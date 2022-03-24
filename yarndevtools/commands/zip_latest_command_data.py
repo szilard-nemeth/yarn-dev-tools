@@ -1,8 +1,9 @@
 import logging
-from typing import List
+from typing import List, Callable
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
+from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import (
     LATEST_DATA_ZIP_LINK_NAME,
@@ -33,7 +34,7 @@ class Config:
         return f"command_data_{cmd_type.real_name}.zip"
 
 
-class ZipLatestCommandData:
+class ZipLatestCommandData(CommandAbs):
     def __init__(self, args, project_basedir: str):
         self.cmd_type: CommandType = CommandType.from_str(args.cmd_type)
 
@@ -44,6 +45,29 @@ class ZipLatestCommandData:
             [self.cmd_type.log_link_name + "*", self.cmd_type.session_link_name], project_basedir
         )
         self.config = Config(args, self.input_files, project_basedir, self.cmd_type)
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.ZIP_LATEST_COMMAND_DATA.name,
+            help="Zip latest command data." "Example: --dest_dir /tmp",
+        )
+        parser.add_argument(
+            "cmd_type",
+            type=str,
+            choices=[e.name for e in CommandType if e.session_based],
+            help="Type of command. The Command itself should be session-based.",
+        )
+        parser.add_argument("--dest_dir", required=False, type=str, help="Directory to create the zip file into")
+        parser.add_argument("--dest_filename", required=False, type=str, help="Zip filename")
+        parser.add_argument(
+            "--ignore-filetypes",
+            required=False,
+            type=str,
+            nargs="+",
+            help="Filetype to ignore so they won't be added to the resulted zip file.",
+        )
+        parser.set_defaults(func=func_to_call)
 
     def _check_input_files(self, input_files: List[str], project_basedir: str):
         LOG.info(f"Checking provided input files. Command: {self.cmd_type}, Files: {input_files}")

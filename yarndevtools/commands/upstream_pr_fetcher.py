@@ -1,12 +1,16 @@
 import logging
+from typing import Callable
 
 from pythoncommons.git_constants import FETCH_HEAD
 from pythoncommons.string_utils import StringUtils
 
+from yarndevtools.commands_common import CommandAbs
+from yarndevtools.common.shared_command_utils import CommandType
+
 LOG = logging.getLogger(__name__)
 
 
-class UpstreamPRFetcher:
+class UpstreamPRFetcher(CommandAbs):
     """
     A class used to fetch upstream Pull requests and cherry-pick N number of commits onto the specified base branch.
 
@@ -44,6 +48,17 @@ class UpstreamPRFetcher:
         self.base_branch = base_branch
         self.print_n_commits = print_n_commits
         self.cherry_pick_n_commits = cherry_pick_n_commits
+
+    @staticmethod
+    def create_parser(subparsers, func_to_call: Callable):
+        parser = subparsers.add_parser(
+            CommandType.UPSTREAM_PR_FETCH.name,
+            help="Fetches upstream changes from a repo then cherry-picks single commit."
+            "Example usage: <command> szilard-nemeth YARN-9999",
+        )
+        parser.add_argument("github_username", type=str, help="Github username")
+        parser.add_argument("remote_branch", type=str, help="Name of the remote branch.")
+        parser.set_defaults(func=func_to_call)
 
     def run(self):
         self.log_current_branch()
