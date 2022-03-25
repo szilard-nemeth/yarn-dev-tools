@@ -276,7 +276,7 @@ class BranchComparator(CommandAbs):
         self.matching_result = None
 
     @staticmethod
-    def create_parser(subparsers, func_to_call):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.BRANCH_COMPARATOR.name,
             help="Branch comparator."
@@ -318,7 +318,7 @@ class BranchComparator(CommandAbs):
             choices=repo_types,
             help=f"Repo type, can be one of: {repo_types}",
         )
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=BranchComparator.execute)
 
     @staticmethod
     def execute(args, parser=None):

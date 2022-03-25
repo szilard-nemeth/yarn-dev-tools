@@ -63,7 +63,7 @@ class UpstreamJiraPatchDiffer(CommandAbs):
         self.basedir = basedir
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.DIFF_PATCHES_OF_JIRA.name,
             help="Diffs patches of a particular jira, for the provided branches."
@@ -71,7 +71,7 @@ class UpstreamJiraPatchDiffer(CommandAbs):
         )
         parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
         parser.add_argument("branches", type=str, nargs="+", help="Check all patches on theese branches.")
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=UpstreamJiraPatchDiffer.execute)
 
     @staticmethod
     def execute(args, parser=None):

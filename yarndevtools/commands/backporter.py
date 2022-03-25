@@ -84,7 +84,7 @@ class Backporter(CommandAbs):
         self.found_commit_at_head = None
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.BACKPORT_C6.name,
             help="Backports upstream commit to C6 branch, " "Example usage: <command> YARN-7948 CDH-64201 cdh6.x",
@@ -102,7 +102,7 @@ class Backporter(CommandAbs):
         parser.add_argument(
             "--no-fetch", action="store_true", required=False, default=False, help="Whether to fetch repositories"
         )
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=Backporter.execute)
 
     @staticmethod
     def execute(args, parser=None):

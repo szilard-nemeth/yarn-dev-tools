@@ -58,11 +58,11 @@ class PatchSaver(CommandAbs):
         self.new_patch_filename = None
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.SAVE_PATCH.name, help="Saves patch from upstream repository to yarn patches dir"
         )
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=PatchSaver.execute)
 
     @staticmethod
     def execute(args, parser=None):

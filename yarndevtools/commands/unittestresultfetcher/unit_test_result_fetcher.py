@@ -843,7 +843,7 @@ class UnitTestResultFetcher(CommandAbs):
         self.sent_requests: int = 0
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.UNIT_TEST_RESULT_FETCHER.name,
             help="Fetches, parses and sends unit test result reports from Jenkins in email."
@@ -1001,7 +1001,7 @@ class UnitTestResultFetcher(CommandAbs):
             help="The type of the cache. Either file or google_drive",
         )
 
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=UnitTestResultFetcher.execute)
 
     @staticmethod
     def execute(args, parser=None):

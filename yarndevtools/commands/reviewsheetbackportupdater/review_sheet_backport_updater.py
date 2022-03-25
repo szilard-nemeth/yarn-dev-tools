@@ -65,7 +65,7 @@ class ReviewSheetBackportUpdater(CommandAbs):
         self.data: ReviewSheetBackportUpdaterData = ReviewSheetBackportUpdaterData()
 
     @staticmethod
-    def create_parser(subparsers, func_to_call):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.REVIEW_SHEET_BACKPORT_UPDATER.name,
             help="Writes backport status to the Review sheet."
@@ -111,7 +111,7 @@ class ReviewSheetBackportUpdater(CommandAbs):
             "--branches", required=True, type=str, nargs="+", help="Check backports against these branches"
         )
 
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=ReviewSheetBackportUpdater.execute)
 
     @staticmethod
     def execute(args, parser=None):

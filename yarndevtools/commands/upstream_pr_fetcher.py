@@ -52,7 +52,7 @@ class UpstreamPRFetcher(CommandAbs):
         self.cherry_pick_n_commits = cherry_pick_n_commits
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.UPSTREAM_PR_FETCH.name,
             help="Fetches upstream changes from a repo then cherry-picks single commit."
@@ -60,7 +60,7 @@ class UpstreamPRFetcher(CommandAbs):
         )
         parser.add_argument("github_username", type=str, help="Github username")
         parser.add_argument("remote_branch", type=str, help="Name of the remote branch.")
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=UpstreamPRFetcher.execute)
 
     @staticmethod
     def execute(args, parser=None):
