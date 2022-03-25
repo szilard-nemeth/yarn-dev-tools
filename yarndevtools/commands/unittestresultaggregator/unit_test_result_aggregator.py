@@ -37,6 +37,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
 from yarndevtools.commands.unittestresultaggregator.representation import SummaryGenerator, UnitTestResultOutputManager
 from yarndevtools.commands_common import CommandAbs, GSheetArguments, ArgumentParserUtils
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 VALID_OPERATION_MODES = [OperationMode.PRINT, OperationMode.GSHEET]
 
@@ -877,6 +878,17 @@ class UnitTestResultAggregator(CommandAbs):
         )
 
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name)
+        ut_results_aggregator = UnitTestResultAggregator(args, parser, output_dir)
+        FileUtils.create_symlink_path_dir(
+            CommandType.UNIT_TEST_RESULT_AGGREGATOR.session_link_name,
+            ut_results_aggregator.config.session_dir,
+            YarnDevToolsConfig.PROJECT_OUT_ROOT,
+        )
+        ut_results_aggregator.run()
 
     def _load_and_convert_known_test_failures_in_jira(self):
         raw_data_from_gsheet = self.gsheet_wrapper.read_data(self.config.gsheet_jira_table, "A1:E150")

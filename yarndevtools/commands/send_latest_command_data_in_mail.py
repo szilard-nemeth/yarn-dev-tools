@@ -10,7 +10,8 @@ from pythoncommons.zip_utils import ZipFileUtils
 
 from yarndevtools.commands_common import CommandAbs, EmailArguments
 from yarndevtools.common.shared_command_utils import FullEmailConfig, EnvVar, CommandType
-from yarndevtools.constants import SummaryFile
+from yarndevtools.constants import SummaryFile, LATEST_DATA_ZIP_LINK_NAME
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -68,6 +69,12 @@ class SendLatestCommandDataInEmail(CommandAbs):
         )
         EmailArguments.add_email_arguments(parser)
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        file_to_send = FileUtils.join_path(YarnDevToolsConfig.PROJECT_OUT_ROOT, LATEST_DATA_ZIP_LINK_NAME)
+        send_latest_cmd_data = SendLatestCommandDataInEmail(args, file_to_send)
+        send_latest_cmd_data.run()
 
     def run(self):
         LOG.info(f"Starting sending latest command data in email.\n Config: {str(self.config)}")

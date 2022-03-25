@@ -29,7 +29,7 @@ from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.network_utils import NetworkUtils
 from pythoncommons.object_utils import PickleUtils
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
+from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, ProjectUtils
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
@@ -1002,6 +1002,12 @@ class UnitTestResultFetcher(CommandAbs):
         )
 
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name)
+        jenkins_test_reporter = UnitTestResultFetcher(args, output_dir)
+        jenkins_test_reporter.run()
 
     @staticmethod
     def _convert_to_cache_build_key(failed_build: FailedJenkinsBuild):

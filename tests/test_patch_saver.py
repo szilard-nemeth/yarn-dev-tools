@@ -75,7 +75,7 @@ class TestPatchSaver(unittest.TestCase):
         yarn_dev_tools.upstream_repo = self.repo_wrapper
         yarn_dev_tools.yarn_patch_dir = self.saved_patches_dir
         args = object()
-        new_patch_file = yarn_dev_tools.save_patch(args)
+        new_patch_file = PatchSaver.execute(args)
 
         # Verify file
         self.utils.assert_file_contains(new_patch_file, "+dummyfile1")

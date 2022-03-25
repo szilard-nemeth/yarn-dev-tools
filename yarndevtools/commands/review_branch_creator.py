@@ -2,14 +2,14 @@ import logging
 from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.git_constants import ORIGIN
 from pythoncommons.patch_utils import PatchUtils
 from pythoncommons.string_utils import RegexUtils
 
-from pythoncommons.git_constants import ORIGIN
-
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import YARN_PATCH_FILENAME_REGEX
+from yarndevtools.constants import YARN_PATCH_FILENAME_REGEX, ORIGIN_TRUNK
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_BRANCH
 
 BRANCH_PREFIX = "review-"
 
@@ -30,6 +30,13 @@ class ReviewBranchCreator(CommandAbs):
         )
         parser.add_argument("patch_file", type=str, help="Path to patch file")
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        review_branch_creator = ReviewBranchCreator(
+            args, YarnDevToolsConfig.UPSTREAM_REPO, DEFAULT_BASE_BRANCH, ORIGIN_TRUNK
+        )
+        review_branch_creator.run()
 
     def run(self):
         patch_file = self.args.patch_file

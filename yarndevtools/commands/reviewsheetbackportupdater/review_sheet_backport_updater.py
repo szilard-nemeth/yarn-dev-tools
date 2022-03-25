@@ -11,6 +11,7 @@ from yarndevtools.commands.reviewsheetbackportupdater.representation import Revi
 from yarndevtools.commands_common import CommitData, CommandAbs, GSheetArguments
 from yarndevtools.common.shared_command_utils import SharedCommandUtils, CommandType
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -111,6 +112,17 @@ class ReviewSheetBackportUpdater(CommandAbs):
         )
 
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.REVIEW_SHEET_BACKPORT_UPDATER.output_dir_name)
+        backport_updater = ReviewSheetBackportUpdater(args, parser, output_dir, YarnDevToolsConfig.DOWNSTREAM_REPO)
+        FileUtils.create_symlink_path_dir(
+            CommandType.REVIEW_SHEET_BACKPORT_UPDATER.session_link_name,
+            backport_updater.config.session_dir,
+            YarnDevToolsConfig.PROJECT_OUT_ROOT,
+        )
+        backport_updater.run()
 
     def run(self):
         LOG.info(f"Starting Review sheet backport updater. Config: \n{str(self.config)}")

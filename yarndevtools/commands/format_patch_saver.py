@@ -1,8 +1,10 @@
 import logging
+import os
 from os.path import expanduser
 from typing import Callable
 
 from git import InvalidGitRepositoryError
+from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 
 from pythoncommons.git_wrapper import GitWrapper
@@ -78,6 +80,11 @@ class FormatPatchSaver(CommandAbs):
         parser.add_argument("dest_basedir", type=str, help="Destination basedir.")
         parser.add_argument("dest_dir_prefix", type=str, help="Directory as prefix to export the patch files to.")
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        format_patch_saver = FormatPatchSaver(args, os.getcwd(), DateUtils.get_current_datetime())
+        format_patch_saver.run()
 
     def run(self):
         # TODO check if git is clean (no modified, unstaged files, etc)

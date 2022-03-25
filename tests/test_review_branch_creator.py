@@ -110,8 +110,7 @@ class TestReviewBranchCreator(unittest.TestCase):
         patch_file = FileUtils.join_path(self.dummy_patches_dir, PATCH_FILENAME)
         self.utils.add_file_changes_and_save_to_patch(patch_file)
         args.patch_file = patch_file
-
-        yarn_dev_tools.create_review_branch(args)
+        ReviewBranchCreator.execute(args)
 
         self.assertTrue(REVIEW_BRANCH in self.repo.heads, f"Review branch does not exist: {REVIEW_BRANCH}")
         self.utils.verify_commit_message_of_branch(REVIEW_BRANCH, COMMIT_MSG_TEMPLATE.format(file=patch_file))

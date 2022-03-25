@@ -20,6 +20,7 @@ from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputMana
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, UPSTREAM_JIRA_BASE_URL
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 DEFAULT_BRANCH = "trunk"
 BRANCH_PREFIX = "reviewsync"
@@ -189,6 +190,17 @@ class ReviewSync(CommandAbs):
         )
 
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.REVIEWSYNC.output_dir_name)
+        reviewsync = ReviewSync(args, parser, output_dir, YarnDevToolsConfig.UPSTREAM_REPO)
+        FileUtils.create_symlink_path_dir(
+            CommandType.REVIEWSYNC.session_link_name,
+            reviewsync.config.session_dir,
+            YarnDevToolsConfig.PROJECT_OUT_ROOT,
+        )
+        reviewsync.run()
 
     def run(self):
         start_time = time.time()

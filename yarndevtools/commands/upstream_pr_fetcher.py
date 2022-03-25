@@ -6,6 +6,8 @@ from pythoncommons.string_utils import StringUtils
 
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.constants import HADOOP_REPO_TEMPLATE
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_BRANCH
 
 LOG = logging.getLogger(__name__)
 
@@ -59,6 +61,14 @@ class UpstreamPRFetcher(CommandAbs):
         parser.add_argument("github_username", type=str, help="Github username")
         parser.add_argument("remote_branch", type=str, help="Name of the remote branch.")
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        remote_repo_url = HADOOP_REPO_TEMPLATE.format(user=args.github_username)
+        upstream_pr_fetcher = UpstreamPRFetcher(
+            args, remote_repo_url, YarnDevToolsConfig.UPSTREAM_REPO, DEFAULT_BASE_BRANCH
+        )
+        upstream_pr_fetcher.run()
 
     def run(self):
         self.log_current_branch()
