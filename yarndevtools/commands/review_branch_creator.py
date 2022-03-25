@@ -24,12 +24,12 @@ class ReviewBranchCreator(CommandAbs):
         self.remote_base_branch = remote_base_branch
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.CREATE_REVIEW_BRANCH.name, help="Creates review branch from upstream patch file"
         )
         parser.add_argument("patch_file", type=str, help="Path to patch file")
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=ReviewBranchCreator.execute)
 
     @staticmethod
     def execute(args, parser=None):

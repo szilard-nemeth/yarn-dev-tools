@@ -68,7 +68,7 @@ class FormatPatchSaver(CommandAbs):
         self.patch_file_dest_dir = None
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.SAVE_DIFF_AS_PATCHES.name,
             help="Diffs branches and creates patch files with "
@@ -79,7 +79,7 @@ class FormatPatchSaver(CommandAbs):
         parser.add_argument("other_refspec", type=str, help="Git other refspec to diff with.")
         parser.add_argument("dest_basedir", type=str, help="Destination basedir.")
         parser.add_argument("dest_dir_prefix", type=str, help="Directory as prefix to export the patch files to.")
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=FormatPatchSaver.execute)
 
     @staticmethod
     def execute(args, parser=None):

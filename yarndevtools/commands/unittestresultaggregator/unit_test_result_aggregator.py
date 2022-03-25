@@ -740,7 +740,7 @@ class UnitTestResultAggregator(CommandAbs):
         self.gmail_wrapper = GmailWrapper(self.authorizer, output_basedir=self.config.email_cache_dir)
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.UNIT_TEST_RESULT_AGGREGATOR.name,
             help="Aggregates unit test results from a gmail account."
@@ -877,7 +877,7 @@ class UnitTestResultAggregator(CommandAbs):
             help="Export values to Google sheet. Additional gsheet arguments need to be specified!",
         )
 
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=UnitTestResultAggregator.execute)
 
     @staticmethod
     def execute(args, parser=None):

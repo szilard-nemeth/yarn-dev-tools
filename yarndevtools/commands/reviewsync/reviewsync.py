@@ -104,7 +104,7 @@ class ReviewSync(CommandAbs):
         self.data = ReviewsyncData()
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.REVIEWSYNC.name,
             help="This script retrieves patches for specified jiras and generates input file for conflict checker script"
@@ -189,7 +189,7 @@ class ReviewSync(CommandAbs):
             help="Name of the column where this script will store patch status info in the GSheet spreadsheet",
         )
 
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=ReviewSync.execute)
 
     @staticmethod
     def execute(args, parser=None):

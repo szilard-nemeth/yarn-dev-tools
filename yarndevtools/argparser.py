@@ -46,21 +46,20 @@ class ArgParser:
             required=True,
             dest="command",
         )
-        # TODO Move execute calls to create_parser?
-        PatchSaver.create_parser(subparsers, PatchSaver.execute)
-        ReviewBranchCreator.create_parser(subparsers, ReviewBranchCreator.execute)
-        Backporter.create_parser(subparsers, Backporter.execute)
-        UpstreamPRFetcher.create_parser(subparsers, UpstreamPRFetcher.execute)
-        FormatPatchSaver.create_parser(subparsers, FormatPatchSaver.execute)
-        UpstreamJiraPatchDiffer.create_parser(subparsers, UpstreamJiraPatchDiffer.execute)
-        UpstreamJiraUmbrellaFetcher.create_parser(subparsers, UpstreamJiraUmbrellaFetcher.execute)
-        BranchComparator.create_parser(subparsers, BranchComparator.execute)
-        ZipLatestCommandData.create_parser(subparsers, ZipLatestCommandData.execute)
-        SendLatestCommandDataInEmail.create_parser(subparsers, SendLatestCommandDataInEmail.execute)
-        UnitTestResultFetcher.create_parser(subparsers, UnitTestResultFetcher.execute)
-        ReviewSheetBackportUpdater.create_parser(subparsers, ReviewSheetBackportUpdater.execute)
-        ReviewSync.create_parser(subparsers, ReviewSync.execute)
-        UnitTestResultAggregator.create_parser(subparsers, UnitTestResultAggregator.execute)
+        PatchSaver.create_parser(subparsers)
+        ReviewBranchCreator.create_parser(subparsers)
+        Backporter.create_parser(subparsers)
+        UpstreamPRFetcher.create_parser(subparsers)
+        FormatPatchSaver.create_parser(subparsers)
+        UpstreamJiraPatchDiffer.create_parser(subparsers)
+        UpstreamJiraUmbrellaFetcher.create_parser(subparsers)
+        BranchComparator.create_parser(subparsers)
+        ZipLatestCommandData.create_parser(subparsers)
+        SendLatestCommandDataInEmail.create_parser(subparsers)
+        UnitTestResultFetcher.create_parser(subparsers)
+        ReviewSheetBackportUpdater.create_parser(subparsers)
+        ReviewSync.create_parser(subparsers)
+        UnitTestResultAggregator.create_parser(subparsers)
 
         # Normal arguments
         parser.add_argument(

@@ -129,7 +129,7 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
         self.output_manager = UmbrellaFetcherOutputManager(self.config)
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.JIRA_UMBRELLA_DATA_FETCHER.name,
             help="Fetches jira umbrella data for a provided Jira ID." "Example: fetch_jira_umbrella_data YARN-5734",
@@ -156,7 +156,7 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
         parser.add_argument(
             "--branches", required=False, type=str, nargs="+", help="Check backports against these branches"
         )
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=UpstreamJiraUmbrellaFetcher.execute)
 
     @staticmethod
     def execute(args, parser=None):

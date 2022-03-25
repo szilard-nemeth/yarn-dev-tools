@@ -48,7 +48,7 @@ class ZipLatestCommandData(CommandAbs):
         self.config = Config(args, self.input_files, project_basedir, self.cmd_type)
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.ZIP_LATEST_COMMAND_DATA.name,
             help="Zip latest command data." "Example: --dest_dir /tmp",
@@ -68,7 +68,7 @@ class ZipLatestCommandData(CommandAbs):
             nargs="+",
             help="Filetype to ignore so they won't be added to the resulted zip file.",
         )
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=ZipLatestCommandData.execute)
 
     @staticmethod
     def execute(args, parser=None):

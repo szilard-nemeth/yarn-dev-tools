@@ -37,7 +37,7 @@ class CommandAbs(ABC):
 
     @staticmethod
     @abstractmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         pass
 
     @staticmethod

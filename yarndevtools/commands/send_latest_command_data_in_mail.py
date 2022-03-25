@@ -36,7 +36,7 @@ class SendLatestCommandDataInEmail(CommandAbs):
         self.config = SendLatestCommandDataInEmailConfig(args, attachment_file)
 
     @staticmethod
-    def create_parser(subparsers, func_to_call: Callable):
+    def create_parser(subparsers):
         parser = subparsers.add_parser(
             CommandType.SEND_LATEST_COMMAND_DATA.name,
             help="Sends latest command data in email." "Example: --dest_dir /tmp",
@@ -68,7 +68,7 @@ class SendLatestCommandDataInEmail(CommandAbs):
             help="Send command data as email attachment",
         )
         EmailArguments.add_email_arguments(parser)
-        parser.set_defaults(func=func_to_call)
+        parser.set_defaults(func=SendLatestCommandDataInEmail.execute)
 
     @staticmethod
     def execute(args, parser=None):
