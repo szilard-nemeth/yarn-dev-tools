@@ -2,13 +2,14 @@ import logging
 from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.patch_utils import PatchUtils
-
 from pythoncommons.git_constants import ORIGIN
+from pythoncommons.patch_utils import PatchUtils
+from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import PATCH_FILE_REGEX, PATCH_EXTENSION, FIRST_PATCH_NUMBER
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_BRANCH
 
 LOG = logging.getLogger(__name__)
 
@@ -62,6 +63,12 @@ class PatchSaver(CommandAbs):
             CommandType.SAVE_PATCH.name, help="Saves patch from upstream repository to yarn patches dir"
         )
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_patch_dir = ProjectUtils.get_output_child_dir(CommandType.SAVE_PATCH.output_dir_name)
+        patch_saver = PatchSaver(args, YarnDevToolsConfig.UPSTREAM_REPO, output_patch_dir, DEFAULT_BASE_BRANCH)
+        return patch_saver.run()
 
     def run(self):
         # TODO add force mode: ignore whitespace issues and make backup of patch!

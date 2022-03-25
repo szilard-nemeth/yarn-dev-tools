@@ -32,7 +32,7 @@ else:
 
 class ArgParser:
     @staticmethod
-    def parse_args(yarn_dev_tools):
+    def parse_args():
         """This function parses and return arguments passed in"""
 
         # Top-level parser
@@ -46,21 +46,21 @@ class ArgParser:
             required=True,
             dest="command",
         )
-        # TODO Move yarn_dev_tools methods to CommandAbs
-        PatchSaver.create_parser(subparsers, yarn_dev_tools.save_patch)
-        ReviewBranchCreator.create_parser(subparsers, yarn_dev_tools.create_review_branch)
-        Backporter.create_parser(subparsers, yarn_dev_tools.backport_c6)
-        UpstreamPRFetcher.create_parser(subparsers, yarn_dev_tools.upstream_pr_fetch)
-        FormatPatchSaver.create_parser(subparsers, yarn_dev_tools.save_patches)
-        UpstreamJiraPatchDiffer.create_parser(subparsers, yarn_dev_tools.diff_patches_of_jira)
-        UpstreamJiraUmbrellaFetcher.create_parser(subparsers, yarn_dev_tools.fetch_jira_umbrella_data)
-        BranchComparator.create_parser(subparsers, yarn_dev_tools.branch_comparator)
-        ZipLatestCommandData.create_parser(subparsers, yarn_dev_tools.zip_latest_command_data)
-        SendLatestCommandDataInEmail.create_parser(subparsers, yarn_dev_tools.send_latest_command_data)
-        UnitTestResultFetcher.create_parser(subparsers, yarn_dev_tools.fetch_send_jenkins_test_report)
-        ReviewSheetBackportUpdater.create_parser(subparsers, yarn_dev_tools.review_sheet_backport_updater)
-        ReviewSync.create_parser(subparsers, yarn_dev_tools.reviewsync)
-        UnitTestResultAggregator.create_parser(subparsers, yarn_dev_tools.unit_test_result_aggregator)
+        # TODO Move execute calls to create_parser?
+        PatchSaver.create_parser(subparsers, PatchSaver.execute)
+        ReviewBranchCreator.create_parser(subparsers, ReviewBranchCreator.execute)
+        Backporter.create_parser(subparsers, Backporter.execute)
+        UpstreamPRFetcher.create_parser(subparsers, UpstreamPRFetcher.execute)
+        FormatPatchSaver.create_parser(subparsers, FormatPatchSaver.execute)
+        UpstreamJiraPatchDiffer.create_parser(subparsers, UpstreamJiraPatchDiffer.execute)
+        UpstreamJiraUmbrellaFetcher.create_parser(subparsers, UpstreamJiraUmbrellaFetcher.execute)
+        BranchComparator.create_parser(subparsers, BranchComparator.execute)
+        ZipLatestCommandData.create_parser(subparsers, ZipLatestCommandData.execute)
+        SendLatestCommandDataInEmail.create_parser(subparsers, SendLatestCommandDataInEmail.execute)
+        UnitTestResultFetcher.create_parser(subparsers, UnitTestResultFetcher.execute)
+        ReviewSheetBackportUpdater.create_parser(subparsers, ReviewSheetBackportUpdater.execute)
+        ReviewSync.create_parser(subparsers, ReviewSync.execute)
+        UnitTestResultAggregator.create_parser(subparsers, UnitTestResultAggregator.execute)
 
         # Normal arguments
         parser.add_argument(

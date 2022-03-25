@@ -3,12 +3,14 @@ from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils
+from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import auto_str
 
 from pythoncommons.git_wrapper import GitWrapper
 
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -36,6 +38,23 @@ class BranchResults:
         return self.commit_hashes[0]
 
 
+"""
+THIS SCRIPT ASSUMES EACH PROVIDED BRANCH WITH PARAMETERS (e.g. trunk, 3.2, 3.1) has the given commit committed
+Example workflow:
+1. git log --oneline trunk | grep YARN-10028
+* 13cea0412c1 - YARN-10028. Integrate the new abstract log servlet to the JobHistory server.
+Contributed by Adam Antal 24 hours ago) <Szilard Nemeth>
+
+2. git diff 13cea0412c1..13cea0412c1^ > /tmp/YARN-10028-trunk.diff
+3. git checkout branch-3.2
+4. git apply ~/Downloads/YARN-10028.branch-3.2.001.patch
+5. git diff > /tmp/YARN-10028-branch-32.diff
+6. diff -Bibw /tmp/YARN-10028-trunk.diff /tmp/YARN-10028-branch-32.diff
+:param args:
+:return:
+"""
+
+
 class UpstreamJiraPatchDiffer(CommandAbs):
     def __init__(self, args, upstream_repo, basedir):
         self.jira_id = args.jira_id
@@ -53,6 +72,12 @@ class UpstreamJiraPatchDiffer(CommandAbs):
         parser.add_argument("jira_id", type=str, help="Upstream Jira ID.")
         parser.add_argument("branches", type=str, nargs="+", help="Check all patches on theese branches.")
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.DIFF_PATCHES_OF_JIRA.output_dir_name)
+        patch_differ = UpstreamJiraPatchDiffer(args, YarnDevToolsConfig.UPSTREAM_REPO, output_dir)
+        patch_differ.run()
 
     def run(self):
         branch_results = {}

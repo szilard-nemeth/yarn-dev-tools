@@ -40,6 +40,11 @@ class CommandAbs(ABC):
     def create_parser(subparsers, func_to_call: Callable):
         pass
 
+    @staticmethod
+    @abstractmethod
+    def execute(args, parser=None):
+        pass
+
 
 class GSheetArguments:
     @staticmethod

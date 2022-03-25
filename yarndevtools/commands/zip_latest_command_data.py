@@ -8,6 +8,7 @@ from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import (
     LATEST_DATA_ZIP_LINK_NAME,
 )
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -68,6 +69,11 @@ class ZipLatestCommandData(CommandAbs):
             help="Filetype to ignore so they won't be added to the resulted zip file.",
         )
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        zip_latest_cmd_data = ZipLatestCommandData(args, YarnDevToolsConfig.PROJECT_OUT_ROOT)
+        zip_latest_cmd_data.run()
 
     def _check_input_files(self, input_files: List[str], project_basedir: str):
         LOG.info(f"Checking provided input files. Command: {self.cmd_type}, Files: {input_files}")

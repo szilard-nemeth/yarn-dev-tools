@@ -34,7 +34,7 @@ from yarndevtools.commands_common import (
 )
 from yarndevtools.constants import ANY_JIRA_ID_PATTERN, REPO_ROOT_DIRNAME, YARNDEVTOOLS_MODULE_NAME
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
-
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
 
@@ -319,6 +319,19 @@ class BranchComparator(CommandAbs):
             help=f"Repo type, can be one of: {repo_types}",
         )
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.BRANCH_COMPARATOR.output_dir_name)
+        branch_comparator = BranchComparator(
+            args, YarnDevToolsConfig.DOWNSTREAM_REPO, YarnDevToolsConfig.UPSTREAM_REPO, output_dir
+        )
+        FileUtils.create_symlink_path_dir(
+            CommandType.BRANCH_COMPARATOR.session_link_name,
+            branch_comparator.config.output_dir,
+            YarnDevToolsConfig.PROJECT_OUT_ROOT,
+        )
+        branch_comparator.run()
 
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()

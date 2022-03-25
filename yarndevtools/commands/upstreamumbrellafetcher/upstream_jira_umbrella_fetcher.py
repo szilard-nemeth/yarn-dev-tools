@@ -38,6 +38,7 @@ from yarndevtools.constants import (
     SummaryFile,
     UPSTREAM_JIRA_BASE_URL,
 )
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
 PICKLED_DATA_FILENAME = "pickled_umbrella_data.obj"
@@ -156,6 +157,19 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
             "--branches", required=False, type=str, nargs="+", help="Check backports against these branches"
         )
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        output_dir = ProjectUtils.get_output_child_dir(CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name)
+        jira_umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
+            args, YarnDevToolsConfig.UPSTREAM_REPO, YarnDevToolsConfig.DOWNSTREAM_REPO, output_dir
+        )
+        FileUtils.create_symlink_path_dir(
+            CommandType.JIRA_UMBRELLA_DATA_FETCHER.session_link_name,
+            jira_umbrella_fetcher.config.umbrella_result_basedir,
+            YarnDevToolsConfig.PROJECT_OUT_ROOT,
+        )
+        jira_umbrella_fetcher.run()
 
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()

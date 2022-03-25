@@ -7,6 +7,7 @@ from pythoncommons.git_wrapper import GitWrapper
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import TRUNK
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke,r=tdomok"
 DEFAULT_MAVEN_COMMAND = "mvn clean install -Pdist -DskipTests -Pnoshade  -Dmaven.javadoc.skip=true"
@@ -102,6 +103,15 @@ class Backporter(CommandAbs):
             "--no-fetch", action="store_true", required=False, default=False, help="Whether to fetch repositories"
         )
         parser.set_defaults(func=func_to_call)
+
+    @staticmethod
+    def execute(args, parser=None):
+        backporter = Backporter(
+            args,
+            YarnDevToolsConfig.UPSTREAM_REPO,
+            YarnDevToolsConfig.DOWNSTREAM_REPO,
+        )
+        backporter.run()
 
     @staticmethod
     def _determine_downstream_base_ref(args):
