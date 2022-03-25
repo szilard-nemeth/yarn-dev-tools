@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import logging
-from typing import Dict, Callable
+from typing import Dict
 
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils

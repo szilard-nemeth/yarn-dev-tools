@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from typing import List, Any, Collection, Set, Dict, Callable
+from typing import List, Any, Collection, Set, Dict
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper, GitLogLineFormat
@@ -38,7 +38,7 @@ from yarndevtools.constants import (
     SummaryFile,
     UPSTREAM_JIRA_BASE_URL,
 )
-from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
+from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_BRANCH
 
 LOG = logging.getLogger(__name__)
 PICKLED_DATA_FILENAME = "pickled_umbrella_data.obj"
@@ -162,7 +162,7 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
     def execute(args, parser=None):
         output_dir = ProjectUtils.get_output_child_dir(CommandType.JIRA_UMBRELLA_DATA_FETCHER.output_dir_name)
         jira_umbrella_fetcher = UpstreamJiraUmbrellaFetcher(
-            args, YarnDevToolsConfig.UPSTREAM_REPO, YarnDevToolsConfig.DOWNSTREAM_REPO, output_dir
+            args, YarnDevToolsConfig.UPSTREAM_REPO, YarnDevToolsConfig.DOWNSTREAM_REPO, output_dir, DEFAULT_BASE_BRANCH
         )
         FileUtils.create_symlink_path_dir(
             CommandType.JIRA_UMBRELLA_DATA_FETCHER.session_link_name,

@@ -5,7 +5,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from re import Pattern
-from typing import List, Any, Set, Dict, Callable
+from typing import List, Any, Set, Dict
+
 from pythoncommons.git_constants import (
     COMMIT_FIELD_SEPARATOR,
     REVERT,

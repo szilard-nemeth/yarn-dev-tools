@@ -8,7 +8,7 @@ from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_
 from yarndevtools.commands.backporter import Backporter
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import TRUNK, BRANCH_3_1
-from yarndevtools.yarn_dev_tools import DEFAULT_BASE_BRANCH
+from yarndevtools.yarn_dev_tools_config import DEFAULT_BASE_BRANCH
 
 UPSTREAM_JIRA_ID = "YARN-123456: "
 DOWNSTREAM_BRANCH = "cdh6x"

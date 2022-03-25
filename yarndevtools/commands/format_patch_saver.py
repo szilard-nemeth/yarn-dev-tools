@@ -1,7 +1,6 @@
 import logging
 import os
 from os.path import expanduser
-from typing import Callable
 
 from git import InvalidGitRepositoryError
 from pythoncommons.date_utils import DateUtils

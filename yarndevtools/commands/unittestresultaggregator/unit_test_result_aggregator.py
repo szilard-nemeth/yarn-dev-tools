@@ -2,7 +2,7 @@ import datetime
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Set, Callable
+from typing import List, Dict, Tuple, Set
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults

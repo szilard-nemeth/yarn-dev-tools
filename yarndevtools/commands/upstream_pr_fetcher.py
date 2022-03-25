@@ -1,5 +1,4 @@
 import logging
-from typing import Callable
 
 from pythoncommons.git_constants import FETCH_HEAD
 from pythoncommons.string_utils import StringUtils

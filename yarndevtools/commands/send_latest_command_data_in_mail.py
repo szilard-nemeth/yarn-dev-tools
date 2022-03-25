@@ -1,7 +1,6 @@
 import logging
 import os
 from smtplib import SMTPAuthenticationError
-from typing import Callable
 
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils

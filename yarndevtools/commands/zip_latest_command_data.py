@@ -1,5 +1,6 @@
 import logging
-from typing import List, Callable
+from typing import List
+
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.zip_utils import ZipFileUtils
 
