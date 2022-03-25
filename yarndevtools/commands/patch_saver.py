@@ -68,7 +68,7 @@ class PatchSaver(CommandAbs):
     def execute(args, parser=None):
         output_patch_dir = ProjectUtils.get_output_child_dir(CommandType.SAVE_PATCH.output_dir_name)
         patch_saver = PatchSaver(args, YarnDevToolsConfig.UPSTREAM_REPO, output_patch_dir, DEFAULT_BASE_BRANCH)
-        return patch_saver.run()
+        patch_saver.run()
 
     def run(self):
         # TODO add force mode: ignore whitespace issues and make backup of patch!
