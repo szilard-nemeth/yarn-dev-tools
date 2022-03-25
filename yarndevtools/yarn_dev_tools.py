@@ -16,7 +16,6 @@ from yarndevtools.common.shared_command_utils import YarnDevToolsEnvVar, Command
 from yarndevtools.constants import (
     LOADED_ENV_DOWNSTREAM_DIR,
     LOADED_ENV_UPSTREAM_DIR,
-    TRUNK,
     YARNDEVTOOLS_MODULE_NAME,
 )
 

@@ -1,5 +1,4 @@
 import logging
-from typing import Callable
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.patch_utils import PatchUtils

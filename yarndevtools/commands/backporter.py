@@ -1,5 +1,4 @@
 import logging
-from typing import Callable
 
 from pythoncommons.git_constants import ORIGIN, HEAD
 from pythoncommons.git_wrapper import GitWrapper

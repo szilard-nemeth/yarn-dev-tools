@@ -1,13 +1,13 @@
 #!/usr/local/bin/python3
+import logging
 import os
 import sys
-import traceback
-import logging
 import time
+import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict, Set, Tuple, Any, Callable
+from typing import List, Dict, Set, Tuple, Any
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
@@ -35,7 +35,6 @@ from pythoncommons.string_utils import auto_str
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands_common import CommandAbs, EmailArguments
 from yarndevtools.common.shared_command_utils import FullEmailConfig, CommandType
-
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CACHED_DATA_DIRNAME = "cached_data"
