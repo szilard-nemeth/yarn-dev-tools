@@ -271,7 +271,7 @@ class JenkinsApiConverter:
         url = urls.list_builds
         try:
             LOG.info("Fetching builds from Jenkins in url: %s", url)
-            return NetworkUtils.fetch_json(url)["builds"]
+            return JenkinsApiConverter.safe_fetch_json(url)["builds"]
         except Exception:
             LOG.error(f"Could not fetch: {url}")
             raise
@@ -326,10 +326,19 @@ class JenkinsApiConverter:
     def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
         url = failed_build.urls.test_report_api_json_url
         LOG.info(f"Loading test report from URL: {url}. Download progress: {download_progress.short_str()}")
+        return JenkinsApiConverter.safe_fetch_json(url)
+
+    @staticmethod
+    def safe_fetch_json(url):
+        # HTTP 404 should be logged
+        # HTTP Error 502: Proxy Error is just calls this function again (retry) with the same args, indefinitely
         data = NetworkUtils.fetch_json(
             url,
-            do_not_raise_http_statuses={404},
-            http_callbacks={404: lambda: LOG.error(f"Test report cannot be found for build URL (HTTP 404): {url}")},
+            do_not_raise_http_statuses={404, 502},
+            http_callbacks={
+                404: lambda: LOG.error("URL '%s' cannot be fetched (HTTP 404):", url),
+                502: lambda: JenkinsApiConverter.safe_fetch_json(url),
+            },
         )
         return data
 
