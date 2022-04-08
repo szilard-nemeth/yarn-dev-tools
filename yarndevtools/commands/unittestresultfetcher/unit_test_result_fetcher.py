@@ -330,6 +330,10 @@ class JenkinsApiConverter:
 
     @staticmethod
     def safe_fetch_json(url):
+        def retry_fetch(url):
+            LOG.error("URL '%s' cannot be fetched (HTTP 502 Proxy Error):", url)
+            JenkinsApiConverter.safe_fetch_json(url)
+
         # HTTP 404 should be logged
         # HTTP Error 502: Proxy Error is just calls this function again (retry) with the same args, indefinitely
         data = NetworkUtils.fetch_json(
@@ -337,7 +341,7 @@ class JenkinsApiConverter:
             do_not_raise_http_statuses={404, 502},
             http_callbacks={
                 404: lambda: LOG.error("URL '%s' cannot be fetched (HTTP 404):", url),
-                502: lambda: JenkinsApiConverter.safe_fetch_json(url),
+                502: lambda: retry_fetch(url),
             },
         )
         return data
