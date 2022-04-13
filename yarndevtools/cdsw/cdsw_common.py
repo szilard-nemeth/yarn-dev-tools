@@ -92,8 +92,8 @@ class CdswSetupResult:
 class CdswSetup:
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None):
-        enable_handler_sanity_check = OsUtils.get_env_value(
-            CdswEnvVar.ENABLE_LOGGER_HANDLER_SANITY_CHECK.value, default_value=True
+        enable_handler_sanity_check = OsUtils.is_env_var_true(
+            CdswEnvVar.ENABLE_LOGGER_HANDLER_SANITY_CHECK.value, default_val=True
         )
 
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH, allow_overwrite=False)
