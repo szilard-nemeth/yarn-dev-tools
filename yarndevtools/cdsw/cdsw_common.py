@@ -92,6 +92,10 @@ class CdswSetupResult:
 class CdswSetup:
     @staticmethod
     def initial_setup(env_var_dict: Dict[str, str] = None):
+        enable_handler_sanity_check = OsUtils.get_env_value(
+            CdswEnvVar.ENABLE_LOGGER_HANDLER_SANITY_CHECK.value, default_value=True
+        )
+
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH, allow_overwrite=False)
         output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
@@ -99,7 +103,7 @@ class CdswSetup:
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
             console_debug=True,
-            sanity_check_number_of_handlers=True,
+            sanity_check_number_of_handlers=enable_handler_sanity_check,
         )
         LOG.info("Logging to files: %s", logging_config.log_file_paths)
         LOG.info(f"Python version info: {sys.version}")
