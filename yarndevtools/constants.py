@@ -47,3 +47,4 @@ FIRST_PATCH_NUMBER = "001"
 # Other constants
 CLOUDERA_CDH_HADOOP_COMMIT_LINK_PREFIX = "https://github.infra.cloudera.com/CDH/hadoop/commit/"
 UPSTREAM_JIRA_BASE_URL = "https://issues.apache.org/jira/browse/"
+UPSTREAM_JIRA_SERVER_URL = "https://issues.apache.org/jira/"

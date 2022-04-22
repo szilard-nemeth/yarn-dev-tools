@@ -19,7 +19,7 @@ from yarndevtools.commands.reviewsync.jira_wrapper import HadoopJiraWrapper
 from yarndevtools.commands.reviewsync.representation import ReviewSyncOutputManager
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, UPSTREAM_JIRA_BASE_URL
+from yarndevtools.constants import TRUNK, ORIGIN_TRUNK, UPSTREAM_JIRA_SERVER_URL
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 DEFAULT_BRANCH = "trunk"
@@ -96,7 +96,7 @@ class ReviewSync(CommandAbs):
         self.branches = self.get_branches(args)
         self.upstream_repo: GitWrapper = upstream_repo
         self.jira_wrapper = HadoopJiraWrapper(
-            UPSTREAM_JIRA_BASE_URL, DEFAULT_BRANCH, self.config.patches_dir, self.upstream_repo
+            UPSTREAM_JIRA_SERVER_URL, DEFAULT_BRANCH, self.config.patches_dir, self.upstream_repo
         )
         self.issue_fetch_mode = args.fetch_mode
         if self.issue_fetch_mode == JiraFetchMode.GSHEET:

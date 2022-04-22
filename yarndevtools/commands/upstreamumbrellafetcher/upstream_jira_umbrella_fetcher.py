@@ -36,7 +36,7 @@ from yarndevtools.common.shared_command_utils import SharedCommandUtils, Command
 from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SummaryFile,
-    UPSTREAM_JIRA_BASE_URL,
+    UPSTREAM_JIRA_SERVER_URL,
 )
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_BRANCH
 
@@ -608,7 +608,7 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
         return list(branches)
 
     def cross_check_subjira_statuses_with_commits(self):
-        jira_wrapper = JiraWrapper(UPSTREAM_JIRA_BASE_URL, DEFAULT_BRANCH, self.patches_basedir)
+        jira_wrapper = JiraWrapper(UPSTREAM_JIRA_SERVER_URL, DEFAULT_BRANCH, self.patches_basedir)
         subjira_statuses: Dict[str, JiraStatus] = jira_wrapper.get_subjira_statuses_of_umbrella(self.config.jira_id)
 
         # diff_jira_ids1 = set(self.data.subjira_ids).difference(subjira_statuses.keys())
