@@ -266,12 +266,16 @@ class JenkinsApiConverter:
         return failed_builds, total_no_of_builds
 
     @staticmethod
-    def _list_builds(urls: JenkinsJobUrls):
+    def _list_builds(urls: JenkinsJobUrls) -> List[Any]:
         """ List all builds of the target project. """
         url = urls.list_builds
         try:
             LOG.info("Fetching builds from Jenkins in url: %s", url)
-            return JenkinsApiConverter.safe_fetch_json(url)["builds"]
+            data = JenkinsApiConverter.safe_fetch_json(url)
+            # In case job does not exist (HTTP 404), data will be None
+            if data:
+                return data["builds"]
+            return []
         except Exception:
             LOG.error(f"Could not fetch: {url}")
             raise
