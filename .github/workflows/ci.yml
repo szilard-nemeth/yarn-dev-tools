@@ -45,6 +45,7 @@ jobs:
           TEST_EXEC_MODE: upstream
           IGNORE_SMTP_AUTH_ERROR: 1
           PROJECT_DETERMINATION_STRATEGY: common_file
+          ENABLE_LOGGER_HANDLER_SANITY_CHECK: False
       - name: Upload coverage
         uses: codecov/codecov-action@v1
       - name: Upload pytest test results
