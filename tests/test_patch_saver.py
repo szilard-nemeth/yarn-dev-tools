@@ -40,31 +40,30 @@ class TestPatchSaver(unittest.TestCase):
     def test_save_patch_on_trunk_fails(self):
         self.repo.heads.trunk.checkout()
         self.assertEqual("trunk", str(self.repo.head.ref))
-        patch_saver = PatchSaver(object(), self.repo_wrapper, self.saved_patches_dir, self.base_branch)
+        patch_saver = self.create_patch_saver()
         self.assertRaises(ValueError, patch_saver.run)
 
     def test_save_patch_on_testbranch_fails_without_changes(self):
         self.cleanup_and_checkout_branch(YARN_TEST_BRANCH)
-        patch_saver = PatchSaver(object(), self.repo_wrapper, self.saved_patches_dir, self.base_branch)
+        patch_saver = self.create_patch_saver()
         self.assertRaises(ValueError, patch_saver.run)
 
     def test_save_patch_on_testbranch_fails_with_uncommitted_changes(self):
         self.cleanup_and_checkout_branch(YARN_TEST_BRANCH)
         self.utils.add_some_file_changes(commit=False)
-        patch_saver = PatchSaver(object(), self.repo_wrapper, self.saved_patches_dir, self.base_branch)
+        patch_saver = self.create_patch_saver()
         self.assertRaises(ValueError, patch_saver.run)
 
     def test_save_patch_on_testbranch_runs_with_committed_changes(self):
         self.cleanup_and_checkout_branch(YARN_TEST_BRANCH)
         self.utils.add_some_file_changes(commit=True)
-        patch_saver = PatchSaver(object(), self.repo_wrapper, self.saved_patches_dir, self.base_branch)
-        new_patch_file = patch_saver.run()
+        new_patch_file = self.create_and_run_patch_saver()
 
         # Verify file
-        self.utils.assert_file_contains(new_patch_file, "+dummyfile1")
-        self.utils.assert_file_contains(new_patch_file, "+dummyfile2")
-        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_1")
-        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_2")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummyfile1")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummyfile2")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummy_changes_to_conf_1")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummy_changes_to_conf_2")
 
     def test_save_patch_started_from_yarn_dev_tools(self):
         self.cleanup_and_checkout_branch(YARN_TEST_BRANCH)
@@ -74,14 +73,21 @@ class TestPatchSaver(unittest.TestCase):
         yarn_dev_tools = YarnDevTools(execution_mode=ExecutionMode.TEST)
         yarn_dev_tools.upstream_repo = self.repo_wrapper
         yarn_dev_tools.yarn_patch_dir = self.saved_patches_dir
-        args = object()
-        new_patch_file = PatchSaver.execute(args)
+        new_patch_file = self.create_and_run_patch_saver()
 
         # Verify file
-        self.utils.assert_file_contains(new_patch_file, "+dummyfile1")
-        self.utils.assert_file_contains(new_patch_file, "+dummyfile2")
-        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_1")
-        self.utils.assert_file_contains(new_patch_file, "+dummy_changes_to_conf_2")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummyfile1")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummyfile2")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummy_changes_to_conf_1")
+        self.utils.assert_file_contains(self, new_patch_file, "+dummy_changes_to_conf_2")
+
+    def create_and_run_patch_saver(self):
+        patch_saver = self.create_patch_saver()
+        return patch_saver.run()
+
+    def create_patch_saver(self):
+        patch_saver = PatchSaver(object(), self.repo_wrapper, self.saved_patches_dir, self.base_branch)
+        return patch_saver
 
 
 if __name__ == "__main__":

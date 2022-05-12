@@ -207,7 +207,8 @@ class TestUtilities:
         self.repo_wrapper.reset_changes(reset_to=ORIGIN_TRUNK, reset_index=True, reset_working_tree=True, clean=True)
 
     @staticmethod
-    def assert_file_contains(file, string):
+    def assert_file_contains(tc_instance, file, string):
+        tc_instance.assertIsNotNone(file, "File should not be None!")
         if not FileUtils.does_file_contain_str(file, string):
             TESTCASE.fail(f"File '{file}' does not contain expected string: '{string}'")
 
@@ -229,7 +230,7 @@ class TestUtilities:
                 add_files_to_index=[DUMMYFILE_1, DUMMYFILE_2, yarn_config_java],
             )
 
-    def add_file_changes_and_save_to_patch(self, patch_file):
+    def add_file_changes_and_save_to_patch(self, tc_instance, patch_file):
         self.add_some_file_changes()
         yarn_config_java = FileUtils.join_path(self.sandbox_repo_path, YARNCONFIGURATION_PATH)
         self.repo_wrapper.add_to_index([DUMMYFILE_1, DUMMYFILE_2, yarn_config_java])
@@ -239,10 +240,10 @@ class TestUtilities:
         self.reset_changes()
 
         # Verify file
-        self.assert_file_contains(patch_file, "+dummyfile1")
-        self.assert_file_contains(patch_file, "+dummyfile2")
-        self.assert_file_contains(patch_file, "+dummy_changes_to_conf_1")
-        self.assert_file_contains(patch_file, "+dummy_changes_to_conf_2")
+        self.assert_file_contains(tc_instance, patch_file, "+dummyfile1")
+        self.assert_file_contains(tc_instance, patch_file, "+dummyfile2")
+        self.assert_file_contains(tc_instance, patch_file, "+dummy_changes_to_conf_1")
+        self.assert_file_contains(tc_instance, patch_file, "+dummy_changes_to_conf_2")
 
     def verify_commit_message_of_branch(self, branch, expected_commit_message, verify_cherry_picked_from=False):
         commit_msg = self.repo_wrapper.get_commit_message_of_branch(branch)

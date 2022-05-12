@@ -72,7 +72,7 @@ class TestReviewBranchCreator(unittest.TestCase):
 
     def test_with_normal_patch(self):
         patch_file = FileUtils.join_path(self.dummy_patches_dir, PATCH_FILENAME)
-        self.utils.add_file_changes_and_save_to_patch(patch_file)
+        self.utils.add_file_changes_and_save_to_patch(self, patch_file)
         args = Object()
         args.patch_file = patch_file
 
@@ -84,7 +84,7 @@ class TestReviewBranchCreator(unittest.TestCase):
 
     def test_with_normal_patch_two_consecutive_branches(self):
         patch_file = FileUtils.join_path(self.dummy_patches_dir, PATCH_FILENAME)
-        self.utils.add_file_changes_and_save_to_patch(patch_file)
+        self.utils.add_file_changes_and_save_to_patch(self, patch_file)
         args = Object()
         args.patch_file = patch_file
 
@@ -108,7 +108,7 @@ class TestReviewBranchCreator(unittest.TestCase):
 
         args = Object()
         patch_file = FileUtils.join_path(self.dummy_patches_dir, PATCH_FILENAME)
-        self.utils.add_file_changes_and_save_to_patch(patch_file)
+        self.utils.add_file_changes_and_save_to_patch(self, patch_file)
         args.patch_file = patch_file
         ReviewBranchCreator.execute(args)
 
