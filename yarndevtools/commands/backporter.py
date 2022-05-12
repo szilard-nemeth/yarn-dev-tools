@@ -8,7 +8,7 @@ from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import TRUNK
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
-GERRIT_REVIEWER_LIST = "r=shuzirra,r=pbacsko,r=gandras,r=bteke,r=tdomok"
+GERRIT_REVIEWER_LIST = "r=gandras,r=bteke,r=tdomok"
 DEFAULT_MAVEN_COMMAND = "mvn clean install -Pdist -DskipTests -Pnoshade  -Dmaven.javadoc.skip=true"
 WARNING_MESSAGE = (
     "!! Remember to build project to verify the backported commit compiles !!"
