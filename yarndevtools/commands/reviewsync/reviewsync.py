@@ -46,7 +46,6 @@ class ReviewSyncConfig:
                 "Either list of jira issues (--issues) or Google Sheet integration (--gsheet) need to be provided!"
             )
 
-        # TODO check existence + readability on secret file!!
         if args.gsheet_enable and (
             args.gsheet_client_secret is None
             or args.gsheet_spreadsheet is None
