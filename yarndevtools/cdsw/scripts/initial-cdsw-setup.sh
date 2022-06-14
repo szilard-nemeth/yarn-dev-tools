@@ -45,7 +45,8 @@ mkdir -p $REPOS_ROOT
 cd $REPOS_ROOT
 
 set +e
-git clone https://github.com/szilard-nemeth/yarn-dev-tools.git
+YARNDEVTOOLS_REPO_NAME="yarn-dev-tools"
+git -C $YARNDEVTOOLS_REPO_NAME pull || git clone https://github.com/szilard-nemeth/yarn-dev-tools.git $YARNDEVTOOLS_REPO_NAME
 
 CDSW_ROOT="/home/cdsw/"
 SCRIPTS_ROOT="$CDSW_ROOT/scripts"
