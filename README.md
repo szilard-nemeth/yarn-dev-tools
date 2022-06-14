@@ -155,7 +155,7 @@ Please note that the files will be downloaded from the internal Cloudera mirror 
 This can take some time, especially cloning Hadoop.
 Note: The individual CDSW jobs should make sure for themselves to clone the repositories.
 
-4. Copies the cdsw_runner.py scripts for all jobs to `/home/cdsw/jobs`
+4. Copies the [python-based job configs](yarndevtools/cdsw/job_configs) for all jobs to `/home/cdsw/jobs`
 
 5. All you have to do in CDSW is to set up the projects and their starter scripts like this:
 
