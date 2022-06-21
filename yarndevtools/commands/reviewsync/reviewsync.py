@@ -6,7 +6,7 @@ from typing import Dict
 from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions, GenericCellUpdate
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_wrapper import GitWrapper
-from pythoncommons.github_utils import GitHubUtils, GitHubRepoIdentifier
+from pythoncommons.github_utils import GitHubUtils, GitHubRepoIdentifier, GithubPRMergeStatus
 
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
@@ -272,27 +272,31 @@ class ReviewSync(CommandAbs):
             self.data.patches_for_issues[issue_id] = self.download_latest_patches(
                 issue_id, self.data.commit_branches_for_issues[issue_id]
             )
+            self._add_patch_apply_objs_based_on_patches(issue_id)
+
             if self.no_patch_available_for_issue(issue_id):
                 LOG.warning("No patch file found for Jira issue %s!", issue_id)
-                gh_pr_status = GitHubUtils.is_pull_request_of_jira_mergeable(
-                    APACHE_HADOOP_REPO_IDENTIFIER, issue_id, use_cache=True
-                )
-                jira_patch_status = JiraPatchStatus.translate_from_github_pr_merge_status(gh_pr_status)
-                self._add_patch_apply_objs_for_each_branch(issue_id, jira_patch_status)
-                continue
-
-            for patch in self.data.patches_for_issues[issue_id]:
-                patch_applies = self.upstream_repo.apply_patch_advanced(patch, branch_prefix=BRANCH_PREFIX)
-                if patch.issue_id not in self.data.patch_applies_for_issues:
-                    self.data.patch_applies_for_issues[patch.issue_id] = []
-                self.data.patch_applies_for_issues[patch.issue_id] += patch_applies
+            gh_pr_statuses: Dict[str, GithubPRMergeStatus] = GitHubUtils.is_pull_request_of_jira_mergeable(
+                APACHE_HADOOP_REPO_IDENTIFIER, issue_id, self.branches, use_cache=True
+            )
+            jira_patch_statuses = JiraPatchStatus.translate_from_github_pr_merge_statuses(gh_pr_statuses)
+            self._add_patch_apply_objs_for_each_branch(issue_id, jira_patch_statuses)
 
         self.set_overall_status_for_results()
         LOG.info("List of Patch applies: %s", str(self.data.patch_applies_for_issues))
 
-    def _add_patch_apply_objs_for_each_branch(self, issue_id, jira_patch_status):
-        self.data.patch_applies_for_issues[issue_id] = []
+    def _add_patch_apply_objs_based_on_patches(self, issue_id):
+        for patch in self.data.patches_for_issues[issue_id]:
+            patch_applies = self.upstream_repo.apply_patch_advanced(patch, branch_prefix=BRANCH_PREFIX)
+            if patch.issue_id not in self.data.patch_applies_for_issues:
+                self.data.patch_applies_for_issues[patch.issue_id] = []
+            self.data.patch_applies_for_issues[patch.issue_id] += patch_applies
+
+    def _add_patch_apply_objs_for_each_branch(self, issue_id, jira_patch_statuses):
+        if issue_id not in self.data.patch_applies_for_issues:
+            self.data.patch_applies_for_issues[issue_id] = []
         for branch in self.branches:
+            jira_patch_status = jira_patch_statuses[branch]
             self.data.patch_applies_for_issues[issue_id].append(PatchApply(None, branch, jira_patch_status))
 
     def set_overall_status_for_results(self):
