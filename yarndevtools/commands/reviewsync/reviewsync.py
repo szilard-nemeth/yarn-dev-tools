@@ -272,15 +272,13 @@ class ReviewSync(CommandAbs):
             self.data.patches_for_issues[issue_id] = self.download_latest_patches(
                 issue_id, self.data.commit_branches_for_issues[issue_id]
             )
-            if len(self.data.patches_for_issues[issue_id]) == 0:
+            if self.no_patch_available_for_issue(issue_id):
+                LOG.warning("No patch file found for Jira issue %s!", issue_id)
                 gh_pr_status = GitHubUtils.is_pull_request_of_jira_mergeable(
                     APACHE_HADOOP_REPO_IDENTIFIER, issue_id, use_cache=True
                 )
                 jira_patch_status = JiraPatchStatus.translate_from_github_pr_merge_status(gh_pr_status)
-                self.data.patch_applies_for_issues[issue_id] = []
-                for branch in self.branches:
-                    self.data.patch_applies_for_issues[issue_id].append(PatchApply(None, branch, jira_patch_status))
-                LOG.warning("No patch found for Jira issue %s!", issue_id)
+                self._add_patch_apply_objs_for_each_branch(issue_id, jira_patch_status)
                 continue
 
             for patch in self.data.patches_for_issues[issue_id]:
@@ -291,6 +289,11 @@ class ReviewSync(CommandAbs):
 
         self.set_overall_status_for_results()
         LOG.info("List of Patch applies: %s", str(self.data.patch_applies_for_issues))
+
+    def _add_patch_apply_objs_for_each_branch(self, issue_id, jira_patch_status):
+        self.data.patch_applies_for_issues[issue_id] = []
+        for branch in self.branches:
+            self.data.patch_applies_for_issues[issue_id].append(PatchApply(None, branch, jira_patch_status))
 
     def set_overall_status_for_results(self):
         for issue_id, patch_applies in self.data.patch_applies_for_issues.items():
@@ -363,3 +366,6 @@ class ReviewSync(CommandAbs):
         commit_hashes = self.upstream_repo.get_commit_hashes(issue_id, branch=ORIGIN_TRUNK)
         remote_branches = self.upstream_repo.get_remote_branches_for_commits(commit_hashes)
         return set(remote_branches)
+
+    def no_patch_available_for_issue(self, issue_id: str):
+        return len(self.data.patches_for_issues[issue_id]) == 0
