@@ -1,5 +1,6 @@
 flake8
 pytest>=3.6
+pytest-html
 pytest-cov
 setuptools
 pre-commit
