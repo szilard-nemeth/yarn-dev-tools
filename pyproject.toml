@@ -47,8 +47,10 @@ dacite = "*"
 
 
 [tool.poetry.group.dev.dependencies]
+requests = "*"
 flake8 = "*"
 pytest = "*"
+pytest-html = "*"
 pytest-cov = "*"
 pre-commit = "*"
 coolname = "*"
