@@ -190,7 +190,7 @@ class Backporter(CommandAbs):
                 )
 
         found_commit = self.downstream_repo.log(
-            HEAD, oneline=True, grep=self.upstream_jira_id, n=1, as_string_message=True
+            HEAD, oneline=True, grep=self.upstream_jira_id, grep_first_line_only=True, n=1, as_string_message=True
         )
         latest_commit = self.downstream_repo.log(HEAD, oneline=True, n=1, as_string_message=True)
         self.found_commit_at_head = True if latest_commit == found_commit else False
