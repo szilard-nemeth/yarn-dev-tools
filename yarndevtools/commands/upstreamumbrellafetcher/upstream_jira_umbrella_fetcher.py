@@ -37,6 +37,7 @@ from yarndevtools.constants import (
     ORIGIN_TRUNK,
     SummaryFile,
     UPSTREAM_JIRA_SERVER_URL,
+    UPSTREAM_JIRA_BASE_URL,
 )
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_BRANCH
 
@@ -272,7 +273,7 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
     def fetch_jira_ids(self):
         LOG.info("Fetching HTML of jira: %s", self.config.jira_id)
         self.data.jira_html = JiraUtils.download_jira_html(
-            "https://issues.apache.org/jira/browse/", self.config.jira_id, self.jira_html_file
+            UPSTREAM_JIRA_BASE_URL, self.config.jira_id, self.jira_html_file
         )
         self.data.jira_ids_and_titles = JiraUtils.parse_subjiras_and_jira_titles_from_umbrella_html(
             self.data.jira_html, self.jira_list_file, filter_ids=[self.config.jira_id], find_all_links=False
