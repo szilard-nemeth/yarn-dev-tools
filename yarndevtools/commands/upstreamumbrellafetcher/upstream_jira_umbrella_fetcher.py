@@ -42,7 +42,7 @@ from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig, DEFAULT_BASE_
 
 LOG = logging.getLogger(__name__)
 PICKLED_DATA_FILENAME = "pickled_umbrella_data.obj"
-COMMON_UPSTREAM_BRANCHES = ["trunk", "branch-3.3", "branch-3.2", "branch-3.1"]
+COMMON_UPSTREAM_BRANCHES = [ORIGIN_TRUNK, "branch-3.3", "branch-3.2", "branch-3.1"]
 DEFAULT_BRANCH = "trunk"
 
 
@@ -285,8 +285,8 @@ class UpstreamJiraUmbrellaFetcher(CommandAbs):
 
     def find_upstream_commits_and_save_to_file(self):
         # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-        upsream_branches = self._get_branches()
-        for upstream_branch in upsream_branches:
+        upstream_branches = self._get_branches()
+        for upstream_branch in upstream_branches:
             git_log_result = self.upstream_repo.log(
                 SharedCommandUtils.ensure_remote_specified(upstream_branch), oneline_with_date=True
             )
