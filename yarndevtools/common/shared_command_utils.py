@@ -61,14 +61,17 @@ class SharedCommandUtils:
             )
             if len(jira_ids) > 100:
                 for jira_ids_chunk in ListUtils.split_to_chunks(jira_ids, 100):
-                    piped_jira_ids = SharedCommandUtils._prepare_jira_ids(jira_ids_chunk)
-                    # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
-                    cmd, output = SharedCommandUtils._run_egrep(
-                        git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=False
+                    ret = SharedCommandUtils._run_git_egrep(
+                        jira_ids_chunk, branch, backported_jiras, git_log_result, grep_intermediate_results_file
                     )
-                    if not output or len(output) == 0:
+                    if ret == -1:
                         continue
-                    SharedCommandUtils._process_output(backported_jiras, branch, output)
+            else:
+                ret = SharedCommandUtils._run_git_egrep(
+                    jira_ids, branch, backported_jiras, git_log_result, grep_intermediate_results_file
+                )
+                if ret == -1:
+                    continue
 
         LOG.info("Found %d backported commits out of %d", len(backported_jiras), len(jira_ids))
         # Make sure that missing backports are added as BackportedJira objects
@@ -77,6 +80,19 @@ class SharedCommandUtils:
                 LOG.debug("%s is not backported to any of the provided branches", jira_id)
                 backported_jiras[jira_id] = BackportedJira(jira_id, [])
         return backported_jiras
+
+    @staticmethod
+    def _run_git_egrep(jira_ids, branch, backported_jiras, git_log_result, grep_intermediate_results_file):
+        piped_jira_ids = SharedCommandUtils._prepare_jira_ids(jira_ids)
+        # It's quite complex to grep for multiple jira IDs with gitpython, so let's rather call an external command
+        cmd, output = SharedCommandUtils._run_egrep(
+            git_log_result, grep_intermediate_results_file, piped_jira_ids, fail_on_error=False
+        )
+        if not output or len(output) == 0:
+            return -1
+
+        SharedCommandUtils._process_output(backported_jiras, branch, output)
+        return 0
 
     @staticmethod
     def _prepare_jira_ids(jira_ids):
