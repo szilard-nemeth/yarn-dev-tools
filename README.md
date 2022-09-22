@@ -10,8 +10,9 @@ This project contains various developer helper scripts in order to simplify ever
 
 ### Getting started / Setup
 
-You need to have python 3.8 and pip installed.
-Run make from this directory and all python dependencies will be installed required by the project.
+You need to have Python 3.8 and [poetry](https://python-poetry.org/docs/#installation) installed.
+
+Run `make` from this directory and all python dependencies will be installed required by the project.
 
 
 ## Running the tests
@@ -66,15 +67,15 @@ More info here: https://github.com/pre-commit/pre-commit/issues/577
 
 ## Setting up handy aliases to use YARN-dev tools
 
-There's only 1 prerequisite step to install python-commons which is a dependency of yarn-dev-tools.
-The project root contains a requirements.txt file that has all the dependencies listed, including this.
+There's only 1 prerequisite step to install all dependencies of yarn-dev-tools.
+The project root contains a pyproject.toml file that has all the dependencies listed that will understood by Poetry.
 Simply go to the root of this project and execute: 
 ```
-pip3 install .
+poetry install
 ```
 
-After this, you are ready to set up some aliases. In my system, I have these: 
-https://github.com/szilard-nemeth/linux-env/blob/badf82f11f08d77cafbdbb19a1e2da83f392b1e4/workplace-specific/cloudera/scripts/yarn/yarn-dev-tools.sh#L73-L101
+After this, you are ready to set up some aliases. In my system, I have [these aliases](
+https://github.com/szilard-nemeth/linux-env/blob/badf82f11f08d77cafbdbb19a1e2da83f392b1e4/workplace-specific/cloudera/scripts/yarn/yarn-dev-tools.sh#L73-L101).
 
 where: 
 - SYSTEM_PYTHON_EXECUTABLE should be set to "/usr/local/bin/python3": 

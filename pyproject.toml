@@ -14,3 +14,46 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.poetry]
+name = "yarn-dev-tools"
+version = "0.1.0"
+description = ""
+authors = ["Szilard Nemeth <szilard.nemeth88@gmail.com>"]
+readme = "README.md"
+packages = [{include = "yarndevtools"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+python-commons = { git = "https://github.com/szilard-nemeth/python-commons.git" }
+google-api-wrapper = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
+gitpython = "*"
+humanize = "*"
+bs4 = "*"
+jira = "*"
+dataclasses-json = "*"
+dacite = "*"
+#setuptools~=54.1.2
+
+# TODO Sort out dev dependencies, should not be an overlap between prod vs. dev
+[tool.poetry.group.dev.dependencies]
+python-commons = { git = "https://github.com/szilard-nemeth/python-commons.git" }
+google-api-wrapper = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
+flake8 = "*"
+pytest = "^3.6"
+pytest-cov = "*"
+#setuptools = "*"
+pre-commit = "*"
+bs4 = "~0.0.1"
+coolname = "*"
+httpretty = "*"
+jira = "*"
+dataclasses-json = "*"
+dacite = "*"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+exec-yarndevtools = "yarndevtools.yarn_dev_tools:run"

@@ -1,5 +1,5 @@
 init:
-	pip install -r requirements.txt
+	poetry install
 
 test:
 	nosetests tests
