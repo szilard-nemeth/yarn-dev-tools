@@ -47,7 +47,9 @@ class YarnDevTools:
             raise ValueError("Unknown project root determination strategy!")
         LOG.info("Project root determination strategy is: %s", strategy)
         ProjectUtils.project_root_determine_strategy = strategy
-        YarnDevToolsConfig.PROJECT_OUT_ROOT = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME)
+        YarnDevToolsConfig.PROJECT_OUT_ROOT = ProjectUtils.get_output_basedir(
+            YARNDEVTOOLS_MODULE_NAME, project_name_hint=YARNDEVTOOLS_MODULE_NAME
+        )
 
     def ensure_required_env_vars_are_present(self):
         upstream_hadoop_dir = OsUtils.get_env_value(YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value, None)
@@ -73,13 +75,12 @@ class YarnDevTools:
         YarnDevToolsConfig.UPSTREAM_REPO = GitWrapper(self.env[LOADED_ENV_UPSTREAM_DIR])
 
 
-if __name__ == "__main__":
+def run():
+    global args, cmd_type
     start_time = time.time()
-
     # TODO Revisit all exception handling: ValueError vs. exit() calls
     # Methods should throw exceptions, exit should be handled in this method
-    yarn_dev_tools = YarnDevTools()
-
+    YarnDevTools()
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args()
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
@@ -91,9 +92,7 @@ if __name__ == "__main__":
         repos=[YarnDevToolsConfig.UPSTREAM_REPO.repo, YarnDevToolsConfig.DOWNSTREAM_REPO.repo],
         verbose_git_log=args.verbose,
     )
-
     LOG.info("Logging to files: %s", logging_config.log_file_paths)
-
     cmd_type = CommandType.from_str(args.command)
     if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
         for log_level, log_file_path in logging_config.log_file_paths.items():
@@ -102,9 +101,11 @@ if __name__ == "__main__":
             FileUtils.create_symlink_path_dir(link_name, log_file_path, YarnDevToolsConfig.PROJECT_OUT_ROOT)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
-
     # Call the handler function
     args.func(args, parser=parser)
-
     end_time = time.time()
     LOG.info("Execution of script took %d seconds", end_time - start_time)
+
+
+if __name__ == "__main__":
+    run()
