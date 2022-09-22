@@ -35,7 +35,7 @@ from yarndevtools.cdsw.cdsw_runner import (
 )
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, PYTHON3
 
 FAKE_CONFIG_FILE = "fake-config-file.py"
 REVIEWSYNC_CONFIG_FILE_NAME = "reviewsync_job_config.py"
@@ -262,15 +262,15 @@ class TestCdswRunner(unittest.TestCase):
         calls_of_yarndevtools = mock_subprocess_runner.call_args_list
         calls_of_google_drive_uploader = mock_google_drive_cdsw_helper_upload.call_args_list
         self.assertIn(
-            f"python3 {self.yarn_dev_tools_script_path} --arg1 --arg2 bla --arg3 bla3",
+            f"{PYTHON3} {self.yarn_dev_tools_script_path} --arg1 --arg2 bla --arg3 bla3",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 0),
         )
         self.assertIn(
-            f"python3 {self.yarn_dev_tools_script_path} --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
+            f"{PYTHON3} {self.yarn_dev_tools_script_path} --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 1),
         )
         self.assertIn(
-            f"python3 {self.yarn_dev_tools_script_path} --debug SEND_LATEST_COMMAND_DATA",
+            f"{PYTHON3} {self.yarn_dev_tools_script_path} --debug SEND_LATEST_COMMAND_DATA",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 2),
         )
         self.assertEqual(
@@ -287,11 +287,11 @@ class TestCdswRunner(unittest.TestCase):
         )
 
         self.assertIn(
-            f"python3 {self.yarn_dev_tools_script_path} --arg1 --arg2 bla --arg3 bla3",
+            f"{PYTHON3} {self.yarn_dev_tools_script_path} --arg1 --arg2 bla --arg3 bla3",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 3),
         )
         self.assertIn(
-            f"python3 {self.yarn_dev_tools_script_path} --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
+            f"{PYTHON3} {self.yarn_dev_tools_script_path} --debug ZIP_LATEST_COMMAND_DATA REVIEWSYNC",
             self._get_call_arguments_as_str(calls_of_yarndevtools, 4),
         )
 

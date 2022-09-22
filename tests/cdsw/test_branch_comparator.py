@@ -30,9 +30,16 @@ from yarndevtools.cdsw.constants import (
     BranchComparatorEnvVar,
 )
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar, CommandType
-from yarndevtools.constants import ORIGIN_BRANCH_3_3, ORIGIN_TRUNK, YARNDEVTOOLS_MODULE_NAME, APACHE, HADOOP, CLOUDERA
+from yarndevtools.constants import (
+    ORIGIN_BRANCH_3_3,
+    ORIGIN_TRUNK,
+    YARNDEVTOOLS_MODULE_NAME,
+    APACHE,
+    HADOOP,
+    CLOUDERA,
+    PYTHON3,
+)
 
-PYTHON3 = "python3"
 PROJECT_NAME = "branch-comparator"
 PROJECT_VERSION = "1.0"
 DOCKER_IMAGE = f"szyszy/{PROJECT_NAME}:{PROJECT_VERSION}"

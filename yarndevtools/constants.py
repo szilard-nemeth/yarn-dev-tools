@@ -1,6 +1,7 @@
 import re
 from enum import Enum
 
+PYTHON3 = "python3"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 APACHE = "apache"
