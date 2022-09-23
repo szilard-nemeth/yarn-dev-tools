@@ -10,6 +10,6 @@ logs/
 /junit/
 /.pytest_cache/
 /yarn_dev_tools.egg-info/
-/dist
+dist
 yarndevtools/cdsw/yarndevtools-results
 /yarndevtools/cdsw/scripts/libreloader/

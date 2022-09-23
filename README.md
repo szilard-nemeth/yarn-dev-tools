@@ -65,28 +65,36 @@ Check the log at /<userhome>/.cache/pre-commit/pre-commit.log
 , please run: `pre-commit autoupdate`
 More info here: https://github.com/pre-commit/pre-commit/issues/577
 
-## Setting up handy aliases to use YARN-dev tools
-
-There's only 1 prerequisite step to install all dependencies of yarn-dev-tools.
-The project root contains a pyproject.toml file that has all the dependencies listed that will understood by Poetry.
-Simply go to the root of this project and execute: 
+## Use yarn-dev-tools from source
+If you want to use yarn-dev-tools from source, first you need to install its dependencies.
+The project root contains a pyproject.toml file that has all the dependencies listed.
+The project uses Poetry to resolve the dependencies.
+Simply go to the root of this project and execute:
 ```
 poetry install
 ```
 
-After this, you are ready to set up some aliases. In my system, I have [these aliases](
-https://github.com/szilard-nemeth/linux-env/blob/badf82f11f08d77cafbdbb19a1e2da83f392b1e4/workplace-specific/cloudera/scripts/yarn/yarn-dev-tools.sh#L73-L101).
+## Use yarn-dev-tools from package
+If you don't want to tinker with the source code, you can download [yarn-dev-tools](https://pypi.org/project/yarn-dev-tools/#history) from PyPi as well.
+This is probably the easiest way to use it.
 
-where: 
-- SYSTEM_PYTHON_EXECUTABLE should be set to "/usr/local/bin/python3": 
-```
-➜ ls -la /usr/local/bin/python3
-lrwxr-xr-x  1 snemeth  admin  38 Jun 14 23:43 /usr/local/bin/python3 -> ../Cellar/python@3.9/3.9.5/bin/python3
-```
-- VENV should be set to a virtualenv where yarndevtools is installed to. On my system it is set to "/Users/snemeth/development/my-repos/linux-env/venv"
-- HADOOP_DEV_DIR should be set to the upstream Hadoop repo root, e.g.: "/Users/snemeth/development/apache/hadoop/"
-- CLOUDERA_HADOOP_ROOT should be set to the downstream Hadoop repo root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
+
+Please check the [initial_setup.sh](initial_setup.sh) script.
+It has a `setup-vars` function at the beginning that define some environment variables:
+
+These are the following:
+- `YARNDEVTOOLS_ROOT`: specifies the directory where the Python virtualenv will be created and yarn-dev-tools will be installed to this virtualenv.
+- HADOOP_DEV_DIR should be set to the upstream Hadoop repository root, e.g.: "/Users/snemeth/development/apache/hadoop/"
+- CLOUDERA_HADOOP_ROOT should be set to the downstream Hadoop repository root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
 The latter 2 environment variables is better to be added to your bashrc file to keep them between the shells.
+
+## Setting up handy aliases to use yarn-dev tools
+If you completed the installation (either by source or by package), you may want to define some shell aliases to use the tool more easily.
+
+
+After this, you are ready to set up some aliases. In my system, I have [these aliases](
+https://github.com/szilard-nemeth/linux-env/blob/94748d92ef32689805e89724948dd024a9936d59/workplace-specific/cloudera/scripts/yarn/setup-yarn-dev-tools-aliases.sh).
+If you run this script (with `HADOOP_DEV_DIR` and `CLOUDERA_HADOOP_ROOT` specified as mentioned above), you will have a basic set of aliases that is enough to get you started.
 
 
 ### Examples for YARN backporter
