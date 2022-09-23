@@ -23,8 +23,17 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install Poetry
         uses: snok/install-poetry@v1
+      - name: Clone dev packages to make Poetry happy (to avoid 'does not seem to be a Python package' error)
+        run: |
+          R_PC="python-commons"
+          R_GAW="google-api-wrapper"
+          mkdir ../$R_PC/
+          mkdir ../$R_GAW
+          ls -la ../
+          git -C $R_PC pull || git clone https://github.com/szilard-nemeth/python-commons.git ../$R_PC
+          git -C $R_GAW pull || git clone https://github.com/szilard-nemeth/google-api-wrapper.git ../$R_GAW
       - name: Install dependencies with Poetry
-        run: poetry install --without=localdev
+        run: poetry install --without localdev
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
