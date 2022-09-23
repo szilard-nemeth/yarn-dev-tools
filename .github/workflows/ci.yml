@@ -21,24 +21,19 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-          # install black if available (Python 3.6 and above), and autopep8 for testing the pipe mode
-          pip install black || true
-          pip install autopep8 || true
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      - name: Install dependencies with Poetry
+        run: poetry install
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          poetry run -vvv flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
           # exit-zero treats all errors as warnings.  The GitHub editor is 127 chars wide
-          flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - name: Install from source (required for the pre-commit tests)
-        run: pip install .
-      - name: Test with pytest
-        run: pytest --doctest-ignore-import-errors --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml --cov=./ --cov-report=xml --cov-report=html
+          poetry run -vvv flake8 . --count --exit-zero --max-complexity=10 --statistics
+      - name: Run tests
+        run: |
+          poetry run python -m pytest --doctest-ignore-import-errors --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml --cov=./ --cov-report=xml --cov-report=html
         env:
           MAIL_ACC_USER: test_mail_acc_user
           MAIL_ACC_PASSWORD: test_mail_acc_pass
