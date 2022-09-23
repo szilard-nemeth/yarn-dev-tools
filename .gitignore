@@ -12,3 +12,4 @@ logs/
 /yarn_dev_tools.egg-info/
 /dist
 yarndevtools/cdsw/yarndevtools-results
+/yarndevtools/cdsw/scripts/libreloader/
