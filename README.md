@@ -39,16 +39,7 @@ In order to use this tool, you need to have Python 3.8 and [poetry](https://pyth
 
 Run `make` from this directory and all python dependencies will be installed required by the project.
 
-## Use yarn-dev-tools from source
-If you want to use yarn-dev-tools from source, first you need to install its dependencies.
-The project root contains a pyproject.toml file that has all the dependencies listed.
-The project uses Poetry to resolve the dependencies.
-Simply go to the root of this project and execute:
-```
-poetry install
-```
-
-## Use yarn-dev-tools from package
+## Use yarn-dev-tools from package (recommended)
 If you don't want to tinker with the source code, you can download [yarn-dev-tools](https://pypi.org/project/yarn-dev-tools/#history) from PyPi as well.
 This is probably the easiest way to use it.
 
@@ -62,6 +53,15 @@ These are the following:
 - `CLOUDERA_HADOOP_ROOT` should be set to the downstream Hadoop repository root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
 
 The latter 2 environment variables is better to be added to your bashrc file to keep them between the shells.
+
+## Use yarn-dev-tools from source
+If you want to use yarn-dev-tools from source, first you need to install its dependencies.
+The project root contains a pyproject.toml file that has all the dependencies listed.
+The project uses Poetry to resolve the dependencies.
+Simply go to the root of this project and execute:
+```
+poetry install
+```
 
 ## Setting up handy aliases to use yarn-dev-tools
 If you completed the installation (either by source or by package), you may want to define some shell aliases to use the tool more easily.
