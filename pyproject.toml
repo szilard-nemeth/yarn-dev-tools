@@ -44,25 +44,18 @@ bs4 = "*"
 jira = "*"
 dataclasses-json = "*"
 dacite = "*"
-#setuptools~=54.1.2
 
-# TODO Sort out dev dependencies, should not be an overlap between prod vs. dev
-# TODO Turn back on dev dependencies for python-common-lib + google-api-wrapper2
+
 [tool.poetry.group.dev.dependencies]
-#python-common-lib = { git = "https://github.com/szilard-nemeth/python-commons.git" }
-#google-api-wrapper2 = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
 python-common-lib = { path = "../python-commons/", develop = false }
+google-api-wrapper2 = { path = "../google-api-wrapper", develop = false }
 flake8 = "*"
 pytest = "*"
 pytest-cov = "*"
-#setuptools = "*"
 pre-commit = "*"
-bs4 = "~0.0.1"
 coolname = "*"
 httpretty = "*"
-jira = "*"
-dataclasses-json = "*"
-dacite = "*"
+
 
 [build-system]
 requires = ["poetry-core"]
