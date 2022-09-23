@@ -72,6 +72,7 @@ class FakeGoogleDriveCdswHelper(GoogleDriveCdswHelper):
 class LocalDirs:
     REPO_ROOT_DIR = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME)
     CDSW_ROOT_DIR = None
+    CDSW_TESTS_DIR = None
     SCRIPTS_DIR = None
     YARNDEVTOOLS_RESULT_DIR = None
     CDSW_SECRET_DIR = FileUtils.join_path(SECRET_PROJECTS_DIR, CDSW_DIRNAME)
@@ -192,6 +193,13 @@ class CdswTestingCommons:
 
     def setup_local_dirs(self):
         LocalDirs.CDSW_ROOT_DIR = self.cdsw_root_dir
+        LocalDirs.CDSW_TESTS_DIR = SimpleProjectUtils.get_project_dir(
+            basedir=LocalDirs.REPO_ROOT_DIR,
+            parent_dir="tests",
+            dir_to_find=CDSW_DIRNAME,
+            find_result_type=FindResultType.DIRS,
+            exclude_dirs=["venv", "build"],
+        )
         LocalDirs.SCRIPTS_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "scripts")
         LocalDirs.YARNDEVTOOLS_RESULT_DIR = FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "yarndevtools-results")
         LOG.info("Local dirs: %s", ObjUtils.get_static_fields_with_values(LocalDirs))

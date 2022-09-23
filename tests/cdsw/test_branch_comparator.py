@@ -103,7 +103,7 @@ class DockerBasedTestConfig:
         if self.github_ci_execution:
             self.mount_cdsw_dirs_from_local = False
         self.env_dict = self.setup_env_vars()
-        self.dockerfile = self.determine_dockerfile()
+        self.dockerfile = "Dockerfile"
         self.docker_mounts: List[DockerMount] = self.setup_docker_mounts()
 
         self.validate()
@@ -223,12 +223,6 @@ class DockerBasedTestConfig:
         if CdswEnvVar.MAIL_ACC_PASSWORD.value not in os.environ:
             raise ValueError(f"Please set '{CdswEnvVar.MAIL_ACC_PASSWORD.value}' env var and re-run the test!")
 
-    def determine_dockerfile(self):
-        if self.github_ci_execution:
-            return FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile-github")
-        else:
-            return FileUtils.join_path(LocalDirs.CDSW_ROOT_DIR, "Dockerfile")
-
     def setup_docker_mounts(self):
         mounts = []
         if self.mount_cdsw_dirs_from_local:
@@ -328,6 +322,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         cls._setup_logging()
+        cwd = os.getcwd()
+        if cwd != LocalDirs.CDSW_ROOT_DIR:
+            os.chdir(LocalDirs.CDSW_ROOT_DIR)
         cls.docker_test_setup = DockerTestSetup(
             DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=cls.config.dockerfile, logger=CMD_LOG
         )

@@ -1,13 +1,11 @@
 #!/bin/bash
 set -x
 
-#echo "Uninstalling package: 'yarn-dev-tools'"
+echo "Uninstalling package: yarn-dev-tools"
 set +e
 pip3 -V
 pip3 show yarn-dev-tools
 pip3 uninstall -y yarn-dev-tools
-pip3 uninstall -y python-commons
-pip3 uninstall -y google-api-wrapper
 
 set -e
 echo $@
@@ -19,11 +17,5 @@ if [ $# -ne 1 ]; then
 fi
 
 EXEC_MODE="$1"
-
-if [[ "$EXEC_MODE" == "cloudera" ]]; then
-  curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements.txt
-else
-  curl -o /tmp/requirements-cdsw.txt https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/yarndevtools/cdsw/requirements-github.txt
-fi
-echo "Installing python requirements..."
-pip3 install -r /tmp/requirements-cdsw.txt --upgrade --force-reinstall
+echo "Installing package: yarn-dev-tools"
+pip3 install yarn-dev-tools --force-reinstall
