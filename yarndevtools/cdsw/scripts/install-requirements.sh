@@ -19,3 +19,4 @@ fi
 EXEC_MODE="$1"
 echo "Installing package: yarn-dev-tools"
 pip3 install yarn-dev-tools --force-reinstall
+pip3 show yarn-dev-tools
