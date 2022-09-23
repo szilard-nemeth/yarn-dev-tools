@@ -17,11 +17,22 @@ exclude = '''
 
 [tool.poetry]
 name = "yarn-dev-tools"
-version = "0.1.0"
+version = "1.0.0"
 description = ""
 authors = ["Szilard Nemeth <szilard.nemeth88@gmail.com>"]
+keywords = ["YARN", "development", "dev environment"]
 readme = "README.md"
+homepage = "https://github.com/szilard-nemeth/yarn-dev-tools"
+repository = "https://github.com/szilard-nemeth/yarn-dev-tools"
 packages = [{include = "yarndevtools"}]
+include = [
+"LICENSE"
+]
+
+# TODO Verify if this is required
+[tool.setuptools.package-data]
+yarndevtools = ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]
+
 
 [tool.poetry.dependencies]
 python = "^3.8"
