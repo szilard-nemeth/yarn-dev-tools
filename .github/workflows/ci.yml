@@ -42,7 +42,7 @@ jobs:
           poetry run -vvv flake8 . --count --exit-zero --max-complexity=10 --statistics
       - name: Run tests
         run: |
-          poetry run python -m pytest --html=report.html --self-contained-html --doctest-ignore-import-errors --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml --cov=./ --cov-report=xml --cov-report=html
+          poetry run python -m pytest --html=report.html --self-contained-html --doctest-ignore-import-errors --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml --cov=./ --cov-report=html --cov-report=html
         env:
           MAIL_ACC_USER: test_mail_acc_user
           MAIL_ACC_PASSWORD: test_mail_acc_pass
