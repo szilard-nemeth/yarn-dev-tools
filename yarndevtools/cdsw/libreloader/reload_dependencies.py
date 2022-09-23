@@ -143,6 +143,7 @@ class Reloader:
 
     @classmethod
     def _run_script(cls, script, args: List[str], exit_on_nonzero_exitcode=True):
+        LOG.info("Running script: %s", script)
         proc = subprocess.Popen(["/bin/bash", "-x", script, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         _ = proc.communicate()
         if proc.returncode != 0 and exit_on_nonzero_exitcode:
