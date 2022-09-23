@@ -24,7 +24,7 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
       - name: Install dependencies with Poetry
-        run: poetry install
+        run: poetry install --without=localdev
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
