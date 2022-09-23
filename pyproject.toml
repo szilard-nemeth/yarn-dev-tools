@@ -36,8 +36,8 @@ yarndevtools = ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-python-commons = { git = "https://github.com/szilard-nemeth/python-commons.git" }
-google-api-wrapper = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
+python-common-lib = "1.0.2"
+google-api-wrapper2 = "1.0.2"
 gitpython = "*"
 humanize = "*"
 bs4 = "*"
@@ -47,9 +47,10 @@ dacite = "*"
 #setuptools~=54.1.2
 
 # TODO Sort out dev dependencies, should not be an overlap between prod vs. dev
+# TODO Turn back on dev dependencies for python-common-lib + google-api-wrapper2
 [tool.poetry.group.dev.dependencies]
-python-commons = { git = "https://github.com/szilard-nemeth/python-commons.git" }
-google-api-wrapper = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
+#python-common-lib = { git = "https://github.com/szilard-nemeth/python-commons.git" }
+#google-api-wrapper2 = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
 flake8 = "*"
 pytest = "^3.6"
 pytest-cov = "*"
