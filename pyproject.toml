@@ -52,7 +52,7 @@ dacite = "*"
 #python-common-lib = { git = "https://github.com/szilard-nemeth/python-commons.git" }
 #google-api-wrapper2 = { git = "https://github.com/szilard-nemeth/google-api-wrapper.git" }
 flake8 = "*"
-pytest = "^3.6"
+pytest = "*"
 pytest-cov = "*"
 #setuptools = "*"
 pre-commit = "*"
