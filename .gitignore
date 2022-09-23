@@ -10,3 +10,5 @@ logs/
 /junit/
 /.pytest_cache/
 /yarn_dev_tools.egg-info/
+/dist
+yarndevtools/cdsw/yarndevtools-results
