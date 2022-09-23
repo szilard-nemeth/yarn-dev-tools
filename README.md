@@ -148,17 +148,17 @@ Wait for the session to be launched and open up a terminal by Clicking "Terminal
 The script performs the following actions: 
 1. Downloads the scripts that are cloning the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module.
 The download location is: `/home/cdsw/scripts`<br>
-Please note that the files will be downloaded from the internal Cloudera mirror of this repository!
+Please note that the files will be downloaded from the GitHub master branch of this repository!
 - [clone_downstream_repos.sh](yarndevtools/cdsw/scripts/clone_downstream_repos.sh)
 - [clone_upstream_repos.sh](yarndevtools/cdsw/scripts/clone_upstream_repos.sh)
 
-3. Executes the script described in step 2. 
+2. Executes the script described in step 2. 
 This can take some time, especially cloning Hadoop.
 Note: The individual CDSW jobs should make sure for themselves to clone the repositories.
 
-4. Copies the [python-based job configs](yarndevtools/cdsw/job_configs) for all jobs to `/home/cdsw/jobs`
+3. Copies the [python-based job configs](yarndevtools/cdsw/job_configs) for all jobs to `/home/cdsw/jobs`
 
-5. All you have to do in CDSW is to set up the projects and their starter scripts like this:
+4. All you have to do in CDSW is to set up the projects and their starter scripts like this:
 
 | Project                                                                | Starter script location         | Arguments for script          |
 |------------------------------------------------------------------------|---------------------------------|-------------------------------|
