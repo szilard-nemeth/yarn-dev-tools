@@ -55,6 +55,8 @@ pytest-cov = "*"
 pre-commit = "*"
 coolname = "*"
 httpretty = "*"
+black = "*"
+autopep8 = "*"
 
 
 [build-system]
