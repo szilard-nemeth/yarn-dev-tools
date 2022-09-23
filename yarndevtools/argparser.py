@@ -30,6 +30,7 @@ else:
     from cdsw_compat import DelegatedArgumentParser as ArgumentParser
 
 
+# TODO Migrate to click
 class ArgParser:
     @staticmethod
     def parse_args():
