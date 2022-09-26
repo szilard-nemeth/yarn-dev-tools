@@ -85,7 +85,7 @@ class Backporter(CommandAbs):
     @staticmethod
     def create_parser(subparsers):
         parser = subparsers.add_parser(
-            CommandType.BACKPORT_C6.name,
+            CommandType.BACKPORT.name,
             help="Backports upstream commit to C6 branch, " "Example usage: <command> YARN-7948 CDH-64201 cdh6.x",
         )
         parser.add_argument("upstream_jira_id", type=str, help="Upstream jira id. Example: YARN-4567")

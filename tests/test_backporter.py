@@ -34,14 +34,14 @@ class TestBackporter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.upstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
-        cls.upstream_utils.setUpClass(CommandType.BACKPORT_C6, init_logging=True, console_debug=True)
+        cls.upstream_utils.setUpClass(CommandType.BACKPORT, init_logging=True, console_debug=True)
         cls.upstream_utils.pull_to_trunk(ff_only=True)
         cls.upstream_repo = cls.upstream_utils.repo
         cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
 
         cls.downstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
         cls.downstream_utils.setUpClass(
-            CommandType.BACKPORT_C6, repo_postfix=SANDBOX_REPO_DOWNSTREAM_HOTFIX, init_logging=False
+            CommandType.BACKPORT, repo_postfix=SANDBOX_REPO_DOWNSTREAM_HOTFIX, init_logging=False
         )
         cls.downstream_utils.pull_to_trunk(ff_only=True)
         cls.downstream_repo = cls.downstream_utils.repo
@@ -54,7 +54,7 @@ class TestBackporter(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.BACKPORT_C6)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.BACKPORT)
 
     def setUp(self):
         self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)

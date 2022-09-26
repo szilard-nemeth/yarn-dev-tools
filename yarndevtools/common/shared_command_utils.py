@@ -207,7 +207,7 @@ class FullEmailConfig:
 class CommandType(Enum):
     SAVE_PATCH = ("save_patch", "yarn-tasks", False)
     CREATE_REVIEW_BRANCH = ("create_review_branch", "create-review-branch", False)
-    BACKPORT_C6 = ("backport_c6", "backport-c6", False)
+    BACKPORT = ("backport", "backport", False)
     UPSTREAM_PR_FETCH = ("upstream_pr_fetch", "upstream-pr-fetch", False)
     SAVE_DIFF_AS_PATCHES = ("save_diff_as_patches", "save-diff-as-patches", False)
     DIFF_PATCHES_OF_JIRA = ("diff_patches_of_jira", "jira-patch-differ", False)
