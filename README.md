@@ -135,7 +135,7 @@ git checkout -b my-relation-chain
 
 3. Run backporter with: 
 ```
-yarn-backport-c6 YARN-10314 COMPX-7855 CDH-7.1.7.1000 --no-fetch --downstream_base_ref my-relation-chain
+yarn-backport YARN-10314 COMPX-7855 CDH-7.1.7.1000 --no-fetch --downstream_base_ref my-relation-chain
 ```
 where:<br>
 The first argument is the upstream Jira ID<br>
