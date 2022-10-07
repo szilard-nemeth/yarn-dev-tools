@@ -57,7 +57,10 @@ jobs:
         with:
           name: pytest-results-${{ matrix.python-version }}
           # Apparently, default working directory is only used by 'run' actions, see: https://stackoverflow.com/a/58231340/1106893
-          path: ./junit/test-results-${{ matrix.python-version }}.xml
+          path: | 
+            ./junit/test-results-${{ matrix.python-version }}.xml
+            ./htmlcov
+            ./report.html
           if-no-files-found: error # 'warn' or 'ignore' are also available, defaults to `warn`
         # Use always() to always run this step to publish test results when there are test failures
         if: ${{ always() }}
