@@ -6,7 +6,7 @@ from pythoncommons.git_constants import ORIGIN
 
 from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_HOTFIX
 from yarndevtools.commands.backporter import Backporter
-from yarndevtools.common.shared_command_utils import CommandType
+from yarndevtools.common.shared_command_utils import CommandType, RepoType
 from yarndevtools.constants import TRUNK, BRANCH_3_1
 from yarndevtools.yarn_dev_tools_config import DEFAULT_BASE_BRANCH
 
@@ -77,20 +77,35 @@ class TestBackporter(unittest.TestCase):
         return args
 
     def cleanup_and_checkout_branch_in_upstream_repo(self, branch=None, checkout_from=None, remove=True):
-        self._cleanup_and_checkout_branch_internal(self.upstream_utils, branch, checkout_from, remove)
+        self._cleanup_and_checkout_branch_internal(
+            self.upstream_utils, RepoType.UPSTREAM, branch, checkout_from, remove
+        )
 
     def cleanup_and_checkout_branch_in_downstream_repo(self, branch=None, checkout_from=None, remove=True):
-        self._cleanup_and_checkout_branch_internal(self.downstream_utils, branch, checkout_from, remove)
+        self._cleanup_and_checkout_branch_internal(
+            self.downstream_utils, RepoType.DOWNSTREAM, branch, checkout_from, remove
+        )
 
-    def _cleanup_and_checkout_branch_internal(self, utils: TestUtilities, branch=None, checkout_from=None, remove=True):
+    def _cleanup_and_checkout_branch_internal(
+        self, utils: TestUtilities, repo_type: RepoType, branch=None, checkout_from=None, remove=True
+    ):
+        if repo_type == RepoType.UPSTREAM:
+            repo = self.upstream_repo
+        elif repo_type == RepoType.DOWNSTREAM:
+            repo = self.downstream_repo
+        else:
+            raise ValueError(
+                "Unknown repo type '{}'. Only known repo types are: {}".format(repo_type, [e.value for e in RepoType])
+            )
+
         if branch:
             utils.cleanup_and_checkout_test_branch(
                 pull=False, branch=branch, checkout_from=checkout_from, remove=remove
             )
-            self.assertEqual(branch, str(self.upstream_repo.head.ref))
+            self.assertEqual(branch, str(repo.head.ref))
         else:
             utils.cleanup_and_checkout_test_branch(pull=False, checkout_from=checkout_from)
-            self.assertEqual(YARN_TEST_BRANCH, str(self.upstream_repo.head.ref))
+            self.assertEqual(YARN_TEST_BRANCH, str(repo.head.ref))
 
     def test_with_uncommitted_should_raise_error(self):
         self.upstream_utils.add_some_file_changes(commit=False)
@@ -121,8 +136,8 @@ class TestBackporter(unittest.TestCase):
     def test_with_committed_with_good_message(self):
         self.cleanup_and_checkout_branch_in_upstream_repo()
         self.upstream_utils.add_some_file_changes(commit=True, commit_message_prefix=UPSTREAM_JIRA_ID)
+        self.cleanup_and_checkout_branch_in_downstream_repo(branch=DOWNSTREAM_BRANCH)
         args = self.setup_args(cherry_pick_base_ref=CHERRY_PICK_BASE_REF)
-
         backporter = Backporter(args, self.upstream_repo_wrapper, self.downstream_repo_wrapper)
         backporter.run()
 
