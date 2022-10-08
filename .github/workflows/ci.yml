@@ -2,7 +2,7 @@ name: CI for YARN dev tools (pip)
 on: [push]
 # TODO Remove this later --> Caused test failures
 env:
-  ENABLE_LOGGER_HANDLER_SANITY_CHECK=False
+  ENABLE_LOGGER_HANDLER_SANITY_CHECK: False
 
 defaults:
   run:
