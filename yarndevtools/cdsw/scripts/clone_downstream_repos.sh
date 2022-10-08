@@ -13,8 +13,17 @@ function clone-fetch-hadoop-downstream() {
   curr_ref=$(git rev-parse HEAD)
   orig_cdpdmaster_ref=$(git rev-parse $CDPD_MASTER_BRANCH)
   if [ "$curr_ref" != "$orig_cdpdmaster_ref" ]; then
-    echo "Resetting to $CDPD_MASTER_BRANCH..."
+    if [ -z ${TEST_EXEC_MODE+x} ]; then
+      echo "Test exec mode not set, resetting to $CDPD_MASTER_BRANCH with git reset --hard..."
     git reset --hard $CDPD_MASTER_BRANCH
+    else
+      echo "Test exec mode set, resetting to $CDPD_MASTER_BRANCH with git reset..."
+      if [[ -z $(git status -s) ]]; then
+        echo "There are unstaged changes in repo `pwd`. Exiting"
+        return 1
+      fi
+      git reset $CDPD_MASTER_BRANCH
+    fi
   fi
 
   set +e
