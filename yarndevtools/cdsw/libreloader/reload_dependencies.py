@@ -74,7 +74,7 @@ class Reloader:
         python_module_mode = MODULE_MODE_USER
         if PYTHON_MODULE_MODE_ENV_VAR in os.environ:
             python_module_mode = os.environ[PYTHON_MODULE_MODE_ENV_VAR]
-            LOG.info("Found python module mode from env var '%': %s", PYTHON_MODULE_MODE_ENV_VAR, python_module_mode)
+            LOG.info("Found python module mode from env var '%s': %s", PYTHON_MODULE_MODE_ENV_VAR, python_module_mode)
 
         if python_module_mode not in ACCEPTED_PYTHON_MODULE_MODES:
             raise ValueError(
