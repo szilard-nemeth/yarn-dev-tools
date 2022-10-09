@@ -36,8 +36,8 @@ yarndevtools = ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-python-common-lib = "1.0.2"
-google-api-wrapper2 = "1.0.2"
+python-common-lib = "1.0.3"
+google-api-wrapper2 = "1.0.3"
 gitpython = "*"
 humanize = "*"
 bs4 = "*"
