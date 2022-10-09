@@ -252,6 +252,10 @@ class Backporter(CommandAbs):
             LOG.info("Rewriting commit message. Current commit message: %s", head_commit_msg)
             self.downstream_repo.rewrite_head_commit_message(prefix=f"{self.downstream_jira_id}: ")
 
+            # If self.downstream_base_ref is specified, move that branch as well
+            if self.cherry_pick_base_ref:
+                self.downstream_repo.move_branch(self.cherry_pick_base_ref)
+
     def print_post_commit_guidance(self):
         LOG.info("Backport was successful!")
         if self.post_commit_messages:

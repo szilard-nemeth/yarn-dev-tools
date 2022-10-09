@@ -212,12 +212,17 @@ class TestUtilities:
         if not FileUtils.does_file_contain_str(file, string):
             TESTCASE.fail(f"File '{file}' does not contain expected string: '{string}'")
 
-    def add_some_file_changes(self, commit=False, commit_message_prefix=None):
+    def add_some_file_changes(self, commit=False, commit_message_prefix=None, to_beginning=False):
         FileUtils.save_to_file(FileUtils.join_path(self.sandbox_repo_path, DUMMYFILE_1), DUMMYFILE_1)
         FileUtils.save_to_file(FileUtils.join_path(self.sandbox_repo_path, DUMMYFILE_2), DUMMYFILE_2)
         yarn_config_java = FileUtils.join_path(self.sandbox_repo_path, YARNCONFIGURATION_PATH)
-        FileUtils.append_to_file(yarn_config_java, "dummy_changes_to_conf_1\n")
-        FileUtils.append_to_file(yarn_config_java, "dummy_changes_to_conf_2\n")
+
+        if to_beginning:
+            FileUtils.prepend_to_file(yarn_config_java, "dummy_changes_to_conf_1\n")
+            FileUtils.prepend_to_file(yarn_config_java, "dummy_changes_to_conf_2\n")
+        else:
+            FileUtils.append_to_file(yarn_config_java, "dummy_changes_to_conf_1\n")
+            FileUtils.append_to_file(yarn_config_java, "dummy_changes_to_conf_2\n")
 
         if commit:
             commit_msg = "test_commit"
