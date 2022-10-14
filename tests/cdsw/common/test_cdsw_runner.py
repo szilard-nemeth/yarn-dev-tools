@@ -215,6 +215,7 @@ class TestCdswRunner(unittest.TestCase):
             .add_expected_arg("--debug")
             .add_expected_arg("--dest_dir", "/tmp")
             .add_expected_arg("--ignore-filetypes", "java js")
+            .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
         )
         wrap_d = StringUtils.wrap_to_quotes
         wrap_s = StringUtils.wrap_to_single_quotes
@@ -236,10 +237,13 @@ class TestCdswRunner(unittest.TestCase):
             .add_expected_arg("--file-as-email-body-from-zip", "test")
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
+            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
-        CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
+        CdswTestingCommons.verify_commands(
+            self, expectations, cdsw_runner.executed_commands
+        )
 
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(CDSW_RUNNER_DRIVE_CDSW_HELPER_UPLOAD_PATH)

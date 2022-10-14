@@ -241,14 +241,27 @@ class UnitTestResultAggregatorCdswUtils:
         skip_aggregation_res_file = OsUtils.get_env_value(
             UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
         )
-        skip_aggregation_res_file_auto_discovery = OsUtils.get_env_value(
+        skip_aggregation_res_file_auto_discovery_str = OsUtils.get_env_value(
             UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
         )
         LOG.info(
             "Value of env var '%s': %s",
             UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
-            skip_aggregation_res_file_auto_discovery,
+            skip_aggregation_res_file_auto_discovery_str,
         )
+
+        # TODO Bool parsing should be done in get_env_value
+        if skip_aggregation_res_file_auto_discovery_str in ("True", "true", "1"):
+            skip_aggregation_res_file_auto_discovery = True
+        elif skip_aggregation_res_file_auto_discovery_str in ("False", "false", "0"):
+            skip_aggregation_res_file_auto_discovery = False
+        else:
+            raise ValueError(
+                "Invalid value for environment variable '{}': {}".format(
+                    UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
+                    skip_aggregation_res_file_auto_discovery_str,
+                )
+            )
 
         if skip_aggregation_res_file_auto_discovery:
             found_with_auto_discovery = cls._auto_discover_skip_aggregation_result_file()

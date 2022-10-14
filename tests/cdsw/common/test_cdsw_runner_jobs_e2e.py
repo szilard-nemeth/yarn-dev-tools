@@ -11,13 +11,17 @@ from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationSt
 from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.test_cdsw_runner import FakeCdswRunner
-from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CommandExpectations
+from tests.cdsw.common.testutils.cdsw_testing_common import (
+    CdswTestingCommons,
+    CommandExpectations,
+    COMMAND_ARGUMENTS_COMMON,
+)
 from tests.test_utilities import Object
-from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GenericCdswConfigUtils
+from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GenericCdswConfigUtils, BASHX
 from yarndevtools.cdsw.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter
 from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, UPSTREAM_JIRA_BASE_URL
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, UPSTREAM_JIRA_BASE_URL, PYTHON3
 import logging
 
 USE_LIVE_JIRA_SERVER = False
@@ -30,6 +34,8 @@ JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS = ["YARN-10496", "YARN-6223"]
 
 # TODO Extract code as much as possible
 class TestCdswRunnerJobsE2E(unittest.TestCase):
+    yarn_dev_tools_script_path = None
+
     ENV_VARS = [
         "GSHEET_CLIENT_SECRET",
         "GSHEET_WORKSHEET",
@@ -45,6 +51,9 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         OsUtils.clear_env_vars([CdswEnvVar.MAIL_RECIPIENTS.name])
+
+        # TODO Investigate this later to check why number of loggers are not correct
+        OsUtils.set_env_value("ENABLE_LOGGER_HANDLER_SANITY_CHECK", "False")
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
 
@@ -52,20 +61,20 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
         cls.yarn_dev_tools_script_path = CommonFiles.YARN_DEV_TOOLS_SCRIPT
 
+        COMMAND_ARGUMENTS_COMMON[cls.yarn_dev_tools_script_path] = 0
+
     def setUp(self) -> None:
         self.cdsw_testing_commons = CdswTestingCommons()
         CdswTestingCommons.mock_google_drive()
 
         self.exp_command_clone_downstream_repos = (
             CommandExpectations(self)
-            .add_expected_ordered_arg("bash -x")
-            .add_expected_ordered_arg("/home/cdsw/scripts/clone_downstream_repos.sh")
+            .with_exact_command_expectation(f"{BASHX} /home/cdsw/scripts/clone_downstream_repos.sh")
         )
 
         self.exp_command_clone_upstream_repos = (
             CommandExpectations(self)
-            .add_expected_ordered_arg("bash -x")
-            .add_expected_ordered_arg("/home/cdsw/scripts/clone_upstream_repos.sh")
+            .with_exact_command_expectation(f"{BASHX} /home/cdsw/scripts/clone_upstream_repos.sh")
         )
         if not USE_LIVE_JIRA_SERVER:
             httpretty.enable()
@@ -159,6 +168,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--gsheet-update-date-column", "testGsheetUpdateDateColumn")
             .add_expected_arg("--gsheet-status-info-column", "testGsheetStatusInfoColumn")
             .add_expected_arg("--branches", "branch-3.2 branch-3.3")
+            .with_command_type(CommandType.REVIEWSYNC)
         )
 
         exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.REVIEWSYNC)
@@ -185,6 +195,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
+            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
@@ -235,6 +246,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--gsheet-update-date-column", "testGsheetUpdateDateColumn")
             .add_expected_arg("--gsheet-status-info-column", "testGsheetStatusInfoColumn")
             .add_expected_arg("--branches", "branch-3.2 branch-3.3")
+            .with_command_type(CommandType.REVIEW_SHEET_BACKPORT_UPDATER)
         )
 
         exp_command_2 = (
@@ -246,6 +258,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--debug")
             .add_expected_arg("--dest_dir", "/tmp")
             .add_expected_arg("--ignore-filetypes", "java js")
+            .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
         )
 
         job_start_date = cdsw_runner.job_config.job_start_date()
@@ -272,6 +285,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
+            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
         )
 
         expectations = [exp_command_1, exp_command_2, exp_command_3]
@@ -323,6 +337,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--request-limit", param="999")
             .add_expected_arg("--num-builds", param="jenkins_examine_unlimited_builds")
             .add_expected_arg("--cache-type", param="google_drive")
+            .with_command_type(CommandType.UNIT_TEST_RESULT_FETCHER)
         )
 
         expectations = [exp_command_1]
@@ -338,6 +353,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--debug")
             .add_expected_arg("--dest_dir", "/tmp")
             .add_expected_arg("--ignore-filetypes", "java js")
+            .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
         )
         return exp_command_2
 
@@ -400,12 +416,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         expectations = [
             self.exp_command_clone_downstream_repos,
             self.exp_command_clone_upstream_repos,
-            exp_command_1,
-            exp_command_2,
-            exp_command_3,
-            exp_command_4,
-            exp_command_5,
-            exp_command_6,
+            exp_command_1,exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
@@ -441,7 +452,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
                 "AGGREGATE_FILTERS": "CDPD-7.1.x CDPD-7.x",
                 "GSHEET_COMPARE_WITH_JIRA_TABLE": GenericCdswConfigUtils.quote("testcases with jiras"),
                 "SKIP_AGGREGATION_RESOURCE_FILE": skip_aggregation_defaults_file,
-                "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY": "1",
+                "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY": "0",
                 "REQUEST_LIMIT": "3000",
                 "DEBUG_ENABLED": False,
             }
@@ -459,7 +470,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
 
         exp_command_1 = (
             CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
+            .add_expected_ordered_arg(PYTHON3)
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR")
             .add_expected_arg("--gsheet")
@@ -469,7 +480,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--account-email", "testMailUser")
             .add_expected_arg("--request-limit", "3000")
             .add_expected_arg("--gmail-query", 'subject:"YARN Daily unit test report"')
-            .add_expected_arg("--match-expression", "YARN::org.apache.hadoop.yarn MR::org.apache.hadoop.mapreduce")
+            .add_expected_args("--match-expression", "YARN::org.apache.hadoop.yarn", "MR::org.apache.hadoop.mapreduce")
             .add_expected_arg(
                 "--skip-lines-starting-with",
                 '"Failed testcases:" '
@@ -483,8 +494,9 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--summary-mode", "html")
             .add_expected_arg("--smart-subject-query")
             .add_expected_arg("--abbreviate-testcase-package", "org.apache.hadoop.yarn.server")
-            .add_expected_arg("--aggregate-filters", "CDPD-7.1.x CDPD-7.x")
+            .add_expected_args("--aggregate-filters", "CDPD-7.1.x", "CDPD-7.x")
             .add_expected_arg("--gsheet-compare-with-jira-table", '"testcases with jiras"')
+            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
         )
         exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
         exp_command_3 = self._get_expected_send_latest_command_data_command(
@@ -533,24 +545,26 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_ordered_arg("python3")
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("BRANCH_COMPARATOR")
-            .add_expected_arg("simple")
+            .add_expected_ordered_arg("simple")
+            .add_expected_ordered_arg("someFeatureBranch")
+            .add_expected_ordered_arg("someMasterBranch")
             .add_expected_arg("--debug")
             .add_expected_arg("--repo-type", "downstream")
-            .add_expected_arg("someFeatureBranch")
-            .add_expected_arg("someMasterBranch")
             .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
+            .with_command_type(CommandType.BRANCH_COMPARATOR)
         )
         exp_command_2_1 = (
             CommandExpectations(self)
             .add_expected_ordered_arg("python3")
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
             .add_expected_ordered_arg("BRANCH_COMPARATOR")
-            .add_expected_arg("grouped")
+            .add_expected_ordered_arg("grouped")
+            .add_expected_ordered_arg("someFeatureBranch")
+            .add_expected_ordered_arg("someMasterBranch")
             .add_expected_arg("--debug")
             .add_expected_arg("--repo-type", "downstream")
-            .add_expected_arg("someFeatureBranch")
-            .add_expected_arg("someMasterBranch")
             .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
+            .with_command_type(CommandType.BRANCH_COMPARATOR)
         )
         exp_command_1_2 = exp_command_2_2 = self._get_expected_zip_latest_command_data_command(
             CommandType.BRANCH_COMPARATOR
@@ -577,7 +591,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             exp_command_1_3,
             exp_command_2_1,
             exp_command_2_2,
-            exp_command_2_3,
+            exp_command_2_3
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
@@ -606,6 +620,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--file-as-email-body-from-zip", email_file_from_zip)
             .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
             .add_expected_arg("--send-attachment")
+            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
         )
         return exp_command_3
 
@@ -617,8 +632,9 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_ordered_arg("JIRA_UMBRELLA_DATA_FETCHER")
             .add_expected_arg("--debug")
             .add_expected_arg("--branches", "origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x")
-            .add_expected_arg("--force")
+            .add_expected_arg("--force-mode")
             .add_expected_arg("--ignore-changes")
             .add_expected_arg(umbrella_id)
+            .with_command_type(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
         )
         return exp_command_1
