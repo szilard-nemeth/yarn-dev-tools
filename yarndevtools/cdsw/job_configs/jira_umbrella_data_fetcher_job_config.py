@@ -47,7 +47,7 @@ config = {
         lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.JIRA_UMBRELLA_DATA_FETCHER.name}",
         lambda conf: f"--branches {conf.var('branches')}",
-        lambda conf: f"{Include.when(conf.var('forceMode'), '--force', '')}",
+        lambda conf: f"{Include.when(conf.var('forceMode'), '--force-mode', '')}",
         lambda conf: f"{Include.when(conf.var('ignoreChanges'), '--ignore-changes', '')}",
     ],
     "global_variables": {
