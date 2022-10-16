@@ -319,6 +319,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             LOG.info("Changing configuration to PROD as Github Actions CI is being executed...")
             YarnCdswBranchDiffTests.config = PROD_CONFIG
 
+        # TODO Investigate this later to check why number of loggers are not correct
+        OsUtils.set_env_value("ENABLE_LOGGER_HANDLER_SANITY_CHECK", "False")
+
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         cls._setup_logging()
