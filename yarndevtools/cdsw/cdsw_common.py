@@ -97,7 +97,9 @@ class CdswSetup:
         )
 
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.SYS_PATH, allow_overwrite=False)
-        output_basedir = ProjectUtils.get_output_basedir(YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR)
+        output_basedir = ProjectUtils.get_output_basedir(
+            YARNDEVTOOLS_MODULE_NAME, basedir=PROJECTS_BASEDIR, project_name_hint=YARNDEVTOOLS_MODULE_NAME
+        )
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=PROJECT_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,

@@ -53,7 +53,7 @@ GSHEET_ARGUMENTS_ADDITIONAL = {
     "--gsheet-spreadsheet": SINGLE_NORMAL_ARG,
     "--gsheet-worksheet": SINGLE_NORMAL_ARG,
     "--gsheet-update-date-column": SINGLE_NORMAL_ARG,
-    "--gsheet-status-info-column": SINGLE_NORMAL_ARG
+    "--gsheet-status-info-column": SINGLE_NORMAL_ARG,
 }
 
 COMMAND_ARGUMENTS_COMMON = {
@@ -80,7 +80,7 @@ COMMAND_ARGUMENTS = {
         **COMMAND_ARGUMENTS_EMAIL,
         "--file-as-email-body-from-zip": SINGLE_NORMAL_ARG,
         "--prepend_email_body_with_text": SINGLE_NORMAL_ARG,
-        "--send-attachment": NO_ARG
+        "--send-attachment": NO_ARG,
     },
     CommandType.UNIT_TEST_RESULT_AGGREGATOR: {
         **GSHEET_ARGUMENTS,
@@ -111,27 +111,27 @@ COMMAND_ARGUMENTS = {
         "--commit_author_exceptions": MANY_NORMAL_ARGS,
         "--console-mode": NO_ARG,
         "--run-legacy-script": NO_ARG,
-        "--repo-type": SINGLE_NORMAL_ARG
+        "--repo-type": SINGLE_NORMAL_ARG,
     },
     CommandType.JIRA_UMBRELLA_DATA_FETCHER: {
         "--ignore-changes": NO_ARG,
         "--add-common-upstream-branches": NO_ARG,
         "--branches": MANY_NORMAL_ARGS,
-        "--force-mode": NO_ARG
+        "--force-mode": NO_ARG,
     },
     CommandType.REVIEW_SHEET_BACKPORT_UPDATER: {
         **GSHEET_ARGUMENTS,
         **GSHEET_ARGUMENTS_ADDITIONAL,
         "--verbose": NO_ARG,
-        "--branches": MANY_NORMAL_ARGS
+        "--branches": MANY_NORMAL_ARGS,
     },
     CommandType.REVIEWSYNC: {
         **GSHEET_ARGUMENTS,
         **GSHEET_ARGUMENTS_ADDITIONAL,
         "--branches": MANY_NORMAL_ARGS,
         "--verbose": NO_ARG,
-        "--issues": MANY_NORMAL_ARGS
-    }
+        "--issues": MANY_NORMAL_ARGS,
+    },
 }
 
 
@@ -185,6 +185,7 @@ class CommandExpectations:
     arguments_in_order: List[str] = field(default_factory=list)
     command_type = None
     exact_command_expectation = None
+    fake_command = None
 
     @staticmethod
     def _extract_param_count_for_arg_from_dict(d, arg):
@@ -197,35 +198,36 @@ class CommandExpectations:
                 return MANY_PARAMS
             return value
 
-    @staticmethod
-    def _extract_param_count_for_arg(command_type: CommandType, arg: str):
+    def _extract_param_count_for_arg(self, command_type: CommandType, arg: str):
         if arg in COMMAND_ARGUMENTS_COMMON:
             return CommandExpectations._extract_param_count_for_arg_from_dict(COMMAND_ARGUMENTS_COMMON, arg)
         elif command_type in COMMAND_ARGUMENTS and arg in COMMAND_ARGUMENTS[command_type]:
             return CommandExpectations._extract_param_count_for_arg_from_dict(COMMAND_ARGUMENTS[command_type], arg)
+        elif self.fake_command and command_type is None:
+            # Assuming one paramter per arg
+            return 1
         else:
             raise ValueError("Unknown argument '{}' of command type {}".format(arg, command_type))
 
-    @staticmethod
-    def does_arg_has_one_param(command_type: CommandType, arg: str):
-        count = CommandExpectations._extract_param_count_for_arg(command_type, arg)
+    def does_arg_has_one_param(self, command_type: CommandType, arg: str):
+        count = self._extract_param_count_for_arg(command_type, arg)
         if count == 1:
             return True
         return False
 
-    @staticmethod
-    def does_arg_has_many_params(command_type: CommandType, arg: str):
-        count = CommandExpectations._extract_param_count_for_arg(command_type, arg)
+    def does_arg_has_many_params(self, command_type: CommandType, arg: str):
+        count = self._extract_param_count_for_arg(command_type, arg)
         if count == MANY_PARAMS:
             return True
         return False
 
-    @staticmethod
-    def is_arg_quote_based(command_type: CommandType, arg: str):
+    def is_arg_quote_based(self, command_type: CommandType, arg: str):
         if arg in COMMAND_ARGUMENTS_COMMON:
             return COMMAND_ARGUMENTS_COMMON[arg][1] == ArgumentType.QUOTE_BASED
         elif command_type in COMMAND_ARGUMENTS and arg in COMMAND_ARGUMENTS[command_type]:
             return COMMAND_ARGUMENTS[command_type][arg][1] == ArgumentType.QUOTE_BASED
+        elif self.fake_command:
+            return False
         else:
             raise ValueError("Unknown argument '{}' of command type {}".format(arg, command_type))
 
@@ -260,22 +262,28 @@ class CommandExpectations:
         self.command_type = cmd_type
         return self
 
-    def verify_command(self, command, command_type: CommandType):
+    def with_fake_command(self):
+        self.fake_command = True
+        return self
+
+    def verify_command(self, command):
         LOG.info("Verifying command: %s", command)
 
         if self.exact_command_expectation:
             if self.arguments_with_any_order or self.arguments_in_order:
-                raise ValueError("Invalid expectation! Exact command expectation is set to True, but found argument expectations as well. "
-                                 "Current expectation object: {}".format(self))
+                raise ValueError(
+                    "Invalid expectation! Exact command expectation is set to True, but found argument expectations as well. "
+                    "Current expectation object: {}".format(self)
+                )
             self.testcase.assertEqual(self.exact_command_expectation, command)
         else:
             if not self.arguments_in_order and not self.arguments_with_any_order:
                 raise ValueError("Expectation argument lists are both empty!")
             expected_args: Dict[str, Set[str]] = {
-                **self._split_by(self.arguments_with_any_order, command_type),
-                **self._split_by(self.arguments_in_order, command_type),
+                **self._split_by(self.arguments_with_any_order),
+                **self._split_by(self.arguments_in_order),
             }
-            actual_args: Dict[str, Set[str]] = self.extract_args_from_command(command, command_type)
+            actual_args: Dict[str, Set[str]] = self.extract_args_from_command(command, self.command_type)
 
             # Check set of args first
             self.testcase.assertEqual(expected_args, actual_args)
@@ -301,8 +309,7 @@ class CommandExpectations:
                 msg="The following arguments are not found: {}, " "command: {}".format(arguments_not_found, command),
             )
 
-    @staticmethod
-    def _split_by(lst: List[str], command_type: CommandType) -> Dict[str, Set[str]]:
+    def _split_by(self, lst: List[str]) -> Dict[str, Set[str]]:
         LOG.debug("Splitting arguments: %s", lst)
         result: Dict[str, Set[str]] = {}
         for arg in lst:
@@ -315,10 +322,12 @@ class CommandExpectations:
                     # Format: --arg <arguments>
                     split = arg.split(" ")
                     arg_name = split[0]
-                    if not CommandExpectations.does_arg_has_one_param(command_type, arg_name) and len(split[1:]) > 1:
+                    if not self.does_arg_has_one_param(self.command_type, arg_name) and len(split[1:]) > 1:
                         raise ValueError(
                             "Argument '{}' for commandType '{}' was expected to have 1 argument. Found: {}".format(
-                                arg, command_type, CommandExpectations._extract_param_count_for_arg(command_type, arg)
+                                arg,
+                                self.command_type,
+                                CommandExpectations._extract_param_count_for_arg(self.command_type, arg),
                             )
                         )
                     result[arg_name] = set(split[1:])
@@ -327,7 +336,7 @@ class CommandExpectations:
                     split = arg.split(" ")
                     arg_name = split[0]
                     joined_args = " ".join(split[1:])
-                    if CommandExpectations.does_arg_has_many_params(command_type, arg_name):
+                    if self.does_arg_has_many_params(self.command_type, arg_name):
                         wrap_to_quotes = True if '"' in joined_args else False
                         split_by_quotes = joined_args.split('"')
                         # Drop empty lines
@@ -347,9 +356,8 @@ class CommandExpectations:
             raise ValueError("Empty results!")
         return result
 
-    @staticmethod
     # TODO this should be a new class with stored state
-    def extract_args_from_command(command, command_type: CommandType):
+    def extract_args_from_command(self, command, command_type: CommandType):
         result = {}
         arg_with_param = None
         params_for_arg = set()
@@ -360,9 +368,9 @@ class CommandExpectations:
 
         for arg in command_parts:
             if arg.startswith("--"):
-                one_param = CommandExpectations.does_arg_has_one_param(command_type, arg)
-                many_params = CommandExpectations.does_arg_has_many_params(command_type, arg)
-                quoted_param_handler.set_inside_param(CommandExpectations.is_arg_quote_based(command_type, arg))
+                one_param = self.does_arg_has_one_param(command_type, arg)
+                many_params = self.does_arg_has_many_params(command_type, arg)
+                quoted_param_handler.set_inside_param(self.is_arg_quote_based(command_type, arg))
 
                 if arg_with_param:
                     # New argument starts, close multi_param_arg
@@ -383,9 +391,7 @@ class CommandExpectations:
                     params_for_arg = set()
             elif one_param or many_params:
                 # Save current arg as multi parameter argument if it has 1 or more params
-                # TODO If param is quote-based, here we need to add params to the set if quote is closed
-                # TODO Also need to track opening quotes
-                quote_based = CommandExpectations.is_arg_quote_based(command_type, arg_with_param)
+                quote_based = self.is_arg_quote_based(command_type, arg_with_param)
                 if not quoted_param_handler.is_inside_param and quote_based:
                     quoted_param_handler.set_inside_param(True)
                 if quoted_param_handler.is_inside_param:
@@ -440,8 +446,10 @@ class QuotedParamHandler:
 
     def set_inside_param(self, inside: bool):
         if self.inside_param and inside:
-            raise ValueError("Invalid state of {}. inside_param was already True "
-                             "and inside is set to True again!".format(self.__class__.__name__))
+            raise ValueError(
+                "Invalid state of {}. inside_param was already True "
+                "and inside is set to True again!".format(self.__class__.__name__)
+            )
         self.inside_param = inside
 
     def handle(self, arg) -> str or None:
@@ -460,7 +468,7 @@ class QuotedParamHandler:
         else:
             if self._is_param_with_quote_inside(arg):
                 # param with quote inside, e.g. subject:"YARN
-                self.param_quote_type = "'" if "'" in arg else "\""
+                self.param_quote_type = "'" if "'" in arg else '"'
                 self.param_string = arg
             else:
                 # Continuation of quoted param
@@ -474,7 +482,7 @@ class QuotedParamHandler:
         return None
 
     def _is_param_with_quote_inside(self, arg):
-        return not self.param_string and ("'" in arg or "\"" in arg)
+        return not self.param_string and ("'" in arg or '"' in arg)
 
     def _is_param_closed(self, arg):
         return self.param_string and (arg == self.param_quote_type or arg.endswith(self.param_quote_type))
@@ -565,7 +573,7 @@ class CdswTestingCommons:
         for i in range(len(actual_commands)):
             actual_command = actual_commands[i]
             expectation = expectations[i]
-            expectation.verify_command(actual_command, expectation.command_type)
+            expectation.verify_command(actual_command)
 
     @staticmethod
     def assert_no_calls_with_arg(tc, call_list: _CallList, arg: str):
