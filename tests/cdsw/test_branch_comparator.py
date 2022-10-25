@@ -157,6 +157,8 @@ class DockerBasedTestConfig:
                 get_str(CdswEnvVar.INSTALL_REQUIREMENTS): self.install_requirements,
                 # Always disable restarts when running tests
                 get_str(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED): False,
+                # TODO Investigate this later to check why number of loggers are not correct
+                get_str(CdswEnvVar.ENABLE_LOGGER_HANDLER_SANITY_CHECK): False,
             },
             # !! WARNING: User-specific settings below !!
             make_key(p_exec_mode, get_str(TestExecMode.CLOUDERA)): {
@@ -318,9 +320,6 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             # Always use PROD config when GitHub CI is executed
             LOG.info("Changing configuration to PROD as Github Actions CI is being executed...")
             YarnCdswBranchDiffTests.config = PROD_CONFIG
-
-        # TODO Investigate this later to check why number of loggers are not correct
-        OsUtils.set_env_value("ENABLE_LOGGER_HANDLER_SANITY_CHECK", "False")
 
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
