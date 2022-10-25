@@ -14,15 +14,15 @@ function clone-fetch-hadoop() {
   origin_trunk_curr_ref=$(git rev-parse $TRUNK_BRANCH)
   if [ "$curr_ref" != "$origin_trunk_curr_ref" ]; then
     if [ -z ${TEST_EXEC_MODE+x} ]; then
-      echo "Test exec mode not set, resetting to $CDPD_MASTER_BRANCH with git reset --hard..."
-      git reset --hard $CDPD_MASTER_BRANCH
+      echo "Test exec mode not set, resetting to $TRUNK_BRANCH with git reset --hard..."
+      git reset --hard $TRUNK_BRANCH
     else
-      echo "Test exec mode set, resetting to $CDPD_MASTER_BRANCH with git reset..."
+      echo "Test exec mode set, resetting to $TRUNK_BRANCH with git reset..."
       if [[ -z $(git status -s) ]]; then
         echo "There are unstaged changes in repo `pwd`. Exiting"
         return 1
       fi
-      git reset $CDPD_MASTER_BRANCH
+      git reset $TRUNK_BRANCH
     fi
   fi
 
