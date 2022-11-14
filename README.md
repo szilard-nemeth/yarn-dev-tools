@@ -55,7 +55,7 @@ The latter 2 environment variables is better to be added to your bashrc file to 
 If you want to use yarn-dev-tools from source, first you need to install its dependencies.
 The project root contains a pyproject.toml file that has all the dependencies listed.
 The project uses Poetry to resolve the dependencies so you need to [install poetry](https://python-poetry.org/docs/#installation) as well.
-Simply go to the root of this project and execute `poetry install`.
+Simply go to the root of this project and execute `poetry install --without localdev`.
 Alternatively, you can run `make` from the root of the project.
 
 ## Setting up handy aliases to use yarn-dev-tools
