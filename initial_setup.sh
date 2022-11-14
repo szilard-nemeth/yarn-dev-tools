@@ -11,7 +11,7 @@ function setup-vars() {
 
 function setup-yarndevtools-package {
     set -x
-    YARNDEVTOOLS_VERSION="1.1.1"
+    YARNDEVTOOLS_VERSION="1.1.2"
     ORIG_PYTHONPATH=$PYTHONPATH
     unset PYTHONPATH
 
