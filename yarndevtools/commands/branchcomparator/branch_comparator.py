@@ -336,6 +336,11 @@ class BranchComparator(CommandAbs):
     def run(self):
         self.config.full_cmd = OsUtils.determine_full_command()
         LOG.info(f"Starting Branch comparator... \n{str(self.config)}")
+
+        # TODO The following command fails:
+        # Details: Misaligned table, missing column
+        #  /Users/snemeth/Library/Caches/pypoetry/virtualenvs/yarn-dev-tools-iXlDyBPC-py3.8/bin/python /Users/snemeth/development/my-repos/yarn-dev-tools/yarndevtools/yarn_dev_tools.py --debug BRANCH_COMPARATOR simple origin/CDH-7.2.15.x origin/CDH-7.1.8.x --commit_author_exceptions rel-eng@cloudera.com --repo-type downstream
+        # TODO fetch here before doing validation
         self.validate_branches()
         # TODO Make fetching optional, argparse argument
         # self.repo.fetch(all=True)
