@@ -470,6 +470,14 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
             bool_conversion_config=BoolConversionConfig(),
             colorize_config=colorize_conf,
         )
+
+        first_row = all_commits[0]
+        if len(header) != len(first_row):
+            raise ValueError(
+                "Header is misaligned! \nlen(header): {}, len(first row): {}, \nHeader: {}, \nFirst row: {}".format(
+                    len(header), len(first_row), header, first_row
+                )
+            )
         gen_tables = ResultPrinter.print_tables(data=all_commits, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
             self.add_table(
