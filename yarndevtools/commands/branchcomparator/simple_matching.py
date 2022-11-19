@@ -465,7 +465,7 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
             print_result=False,
             max_width=100,
             max_width_separator=" ",
-            add_row_numbers=False,
+            add_row_numbers=True,
             tabulate_formats=DEFAULT_TABLE_FORMATS,
             bool_conversion_config=BoolConversionConfig(),
             colorize_config=colorize_conf,
