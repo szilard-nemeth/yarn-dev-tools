@@ -36,20 +36,18 @@ TODO
 
 In order to use this tool, you need to have at least Python 3.8 installed.
 
-## Use yarn-dev-tools from package (recommended)
+## Use yarn-dev-tools from package (Recommended)
 If you don't want to tinker with the source code, you can download [yarn-dev-tools](https://pypi.org/project/yarn-dev-tools/#history) from PyPi as well.
 This is probably the easiest way to use it.
-
-
-Please check the [initial_setup.sh](initial_setup.sh) script.
-It has a `setup-vars` function at the beginning that define some environment variables:
+You don't need to install anything manually as I created a [script](initial_setup.sh) that performs the installation automatically.
+The script has a `setup-vars` function at the beginning that defines some environment variables:
 
 These are the following:
-- `YARNDEVTOOLS_ROOT`: specifies the directory where the Python virtualenv will be created and yarn-dev-tools will be installed to this virtualenv.
-- `HADOOP_DEV_DIR` should be set to the upstream Hadoop repository root, e.g.: "/Users/snemeth/development/apache/hadoop/"
-- `CLOUDERA_HADOOP_ROOT` should be set to the downstream Hadoop repository root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
+- `YARNDEVTOOLS_ROOT`: Specifies the directory where the Python virtualenv will be created and yarn-dev-tools will be installed to this virtualenv.
+- `HADOOP_DEV_DIR` Should be set to the upstream Hadoop repository root, e.g.: "/Users/snemeth/development/apache/hadoop/"
+- `CLOUDERA_HADOOP_ROOT` Should be set to the downstream Hadoop repository root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
 
-The latter 2 environment variables is better to be added to your bashrc file to keep them between the shells.
+The latter two environment variables is better to be added to your bashrc / zshrc file (depending on what shell you are using) to keep them between the shells.
 
 ## Use yarn-dev-tools from source
 If you want to use yarn-dev-tools from source, first you need to install its dependencies.
