@@ -44,8 +44,8 @@ The script has a `setup-vars` function at the beginning that defines some enviro
 
 These are the following:
 - `YARNDEVTOOLS_ROOT`: Specifies the directory where the Python virtualenv will be created and yarn-dev-tools will be installed to this virtualenv.
-- `HADOOP_DEV_DIR` Should be set to the upstream Hadoop repository root, e.g.: "/Users/snemeth/development/apache/hadoop/"
-- `CLOUDERA_HADOOP_ROOT` Should be set to the downstream Hadoop repository root, e.g.: "/Users/snemeth/development/cloudera/hadoop/"
+- `HADOOP_DEV_DIR` Should be set to the upstream Hadoop repository root, e.g.: "~/development/apache/hadoop/"
+- `CLOUDERA_HADOOP_ROOT` Should be set to the downstream Hadoop repository root, e.g.: "~/development/cloudera/hadoop/"
 
 The latter two environment variables is better to be added to your bashrc / zshrc file (depending on what shell you are using) to keep them between the shells.
 
@@ -58,12 +58,13 @@ Alternatively, you can run `make` from the root of the project.
 
 ## Setting up handy aliases to use yarn-dev-tools
 If you completed the installation (either by source or by package), you may want to define some shell aliases to use the tool more easily.
+In my system, I have [these](
+https://github.com/szilard-nemeth/linux-env/blob/master/workplace-specific/cloudera/scripts/yarn/setup-yarn-dev-tools-aliases.sh).
+Please make sure to source this script so that the command 'yarndevtools' will be available since it's defined as a function.
+It is important to specify `HADOOP_DEV_DIR` and `CLOUDERA_HADOOP_ROOT` as mentioned above, before sourcing the script.
 
+After these steps, you will have a basic set of aliases that is enough to get you started.
 
-So, you are ready to set up some aliases. 
-In my system, I have [these aliases](
-https://github.com/szilard-nemeth/linux-env/blob/94748d92ef32689805e89724948dd024a9936d59/workplace-specific/cloudera/scripts/yarn/setup-yarn-dev-tools-aliases.sh).
-If you run this script (with `HADOOP_DEV_DIR` and `CLOUDERA_HADOOP_ROOT` specified as mentioned above), you will have a basic set of aliases that is enough to get you started.
 
 # Setting up yarn-dev-tools with Cloudera CDSW
 
@@ -155,7 +156,8 @@ where REVIEWER_LIST is in this format: "r=user1,r=user2,r=user3,..."
 
 ## Setup of pre-commit
 
-Configure precommit as described in this blogpost: https://ljvmiranda921.github.io/notebook/2018/06/21/precommits-using-black-and-flake8/
+Configure precommit as described in [this blogpost](https://ljvmiranda921.github.io/notebook/2018/06/21/precommits-using-black-and-flake8/).
+
 Commands:
 1. Install precommit: `pip install pre-commit`
 2. Make sure to add pre-commit to your path. For example, on a Mac system, pre-commit is installed here: 
@@ -176,4 +178,5 @@ An error has occurred: InvalidManifestError:
 Check the log at /<userhome>/.cache/pre-commit/pre-commit.log
 ```
 , please run: `pre-commit autoupdate`
-More info here: https://github.com/pre-commit/pre-commit/issues/577
+
+More info can be found [here](https://github.com/pre-commit/pre-commit/issues/577).
