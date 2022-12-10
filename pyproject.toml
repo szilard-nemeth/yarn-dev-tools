@@ -44,6 +44,8 @@ bs4 = "*"
 jira = "*"
 dataclasses-json = "*"
 dacite = "*"
+pymongo = "*"
+marshmallow = "*"
 
 
 [tool.poetry.group.dev.dependencies]
