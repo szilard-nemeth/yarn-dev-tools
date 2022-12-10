@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict, Set, Tuple, Any
+from marshmallow import Schema, fields
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
@@ -21,6 +22,7 @@ from googleapiwrapper.google_drive import (
     SearchResultHandlingMode,
     DriveApiFile,
 )
+from pymongo import MongoClient
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService, EmailMimeType
@@ -138,6 +140,11 @@ class JobBuildData:
         self.mail_sent = False
         self.sent_date = None
 
+    def serialize(self):
+        schema = JobBuildDataSchema()
+        output = schema.dump(self)
+        return output
+
     def has_failed_testcases(self):
         return len(self.testcases) > 0
 
@@ -152,6 +159,18 @@ class JobBuildData:
             matched_testcases.update(matched_for_filter)
         self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
         self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
+
+    @property
+    def failed_count(self):
+        return self.counters.failed
+
+    @property
+    def passed_count(self):
+        return self.counters.passed
+
+    @property
+    def skipped_count(self):
+        return self.counters.skipped
 
     @property
     def build_number(self):
@@ -207,6 +226,26 @@ class JobBuildData:
             f"Unmatched testcases:\n{unmatched_testcases}\n"
             f"ALL Failed testcases:\n{all_failed_testcases}"
         )
+
+
+class JobBuildDataSchema(Schema):
+    build_number = fields.Int(required=True)
+    build_url = fields.Str(required=True)
+    status = fields.Enum(JobBuildDataStatus, required=True)
+    failed_testcases = fields.List(fields.Str, attribute="testcases")
+    filtered_testcases = fields.List(fields.Str, required=True)
+    filtered_testcases_by_expression = fields.List(fields.Str, required=True, attribute="filtered_testcases_by_expr")
+    unmatched_testcases = fields.List(fields.Str, required=True)
+    failed_count = fields.Int(required=True)
+    passed_count = fields.Int(required=True)
+    skipped_count = fields.Int(required=True)
+    no_of_failed_filtered_tc = fields.Int(required=True)
+    is_valid = fields.Boolean()
+    mail_sent = fields.Boolean()
+    # TODO Convert to DateTime?
+    # mail_sent_date = fields.DateTime(attribute="sent_date")
+    mail_sent_date = fields.Str(attribute="sent_date")
+    tc_filters = fields.List(fields.Str)
 
 
 class JenkinsJobUrls:
@@ -267,7 +306,7 @@ class JenkinsApiConverter:
 
     @staticmethod
     def _list_builds(urls: JenkinsJobUrls) -> List[Any]:
-        """ List all builds of the target project. """
+        """List all builds of the target project."""
         url = urls.list_builds
         try:
             LOG.info("Fetching builds from Jenkins in url: %s", url)
@@ -801,6 +840,22 @@ class UnitTestResultFetcherConfig:
         self.reset_job_build_data_for_jobs: List[str] = (
             args.reset_job_build_data_for_jobs if hasattr(args, "reset_job_build_data_for_jobs") else []
         )
+        self.mongo_hostname = args.mongo_hostname
+        self.mongo_port = args.mongo_port
+        self.mongo_user = args.mongo_user
+        self.mongo_password = args.mongo_password
+        self.mongo_db_name = args.mongo_db_name
+
+        if not self.mongo_hostname:
+            raise ValueError("Mongo hostname is not specified!")
+        if not self.mongo_port:
+            raise ValueError("Mongo port is not specified!")
+        if not self.mongo_user:
+            raise ValueError("Mongo user is not specified!")
+        if not self.mongo_password:
+            raise ValueError("Mongo password is not specified!")
+        if not self.mongo_db_name:
+            raise ValueError("Mongo DB name is not specified!")
 
         # Validation
         if not self.tc_filters:
@@ -857,6 +912,7 @@ class UnitTestResultFetcher(CommandAbs):
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
         self.sent_requests: int = 0
+        self._database = Database(self.config)
 
     @staticmethod
     def create_parser(subparsers):
@@ -983,6 +1039,44 @@ class UnitTestResultFetcher(CommandAbs):
             help="Request limit",
             default=999,
         )
+        parser.add_argument(
+            "-mhost",
+            "--mongo-hostname",
+            type=str,
+            dest="mongo_hostname",
+            help="MongoDB hostname",
+        )
+
+        parser.add_argument(
+            "-mport",
+            "--mongo-port",
+            type=str,
+            dest="mongo_port",
+            help="MongoDB port",
+        )
+        parser.add_argument(
+            "-muser",
+            "--mongo-user",
+            type=str,
+            dest="mongo_user",
+            help="MongoDB username",
+        )
+
+        parser.add_argument(
+            "-mpass",
+            "--mongo-password",
+            type=str,
+            dest="mongo_password",
+            help="MongoDB password",
+        )
+
+        parser.add_argument(
+            "-mdbname",
+            "--mongo-db-name",
+            type=str,
+            dest="mongo_db_name",
+            help="MongoDB DB name",
+        )
 
         def tc_filter_validator(value):
             strval = str(value)
@@ -1102,6 +1196,10 @@ class UnitTestResultFetcher(CommandAbs):
             self._process_build_data_from_report(build_data, report)
             self._print_report(build_data, report)
             self._invoke_report_processors(build_data, report)
+
+            key = list(report.jobs_by_url.keys())[0]
+            build_data = report.jobs_by_url[key]
+            self._database.save_build_data(build_data)
             # TODO fix
             # self._save_all_reports_to_cache(i, report)
 
@@ -1147,7 +1245,7 @@ class UnitTestResultFetcher(CommandAbs):
         self.cache.save_reports_meta(self.reports, log=log_report)
 
     def create_job_build_data(self, failed_build: FailedJenkinsBuild):
-        """ Find the names of any tests which failed in the given build output URL. """
+        """Find the names of any tests which failed in the given build output URL."""
         try:
             data = self.gather_raw_data_for_build(failed_build)
         except Exception:
@@ -1185,7 +1283,7 @@ class UnitTestResultFetcher(CommandAbs):
         return data
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
-        """ Iterate runs of specified job within num_builds and collect results """
+        """Iterate runs of specified job within num_builds and collect results"""
         # TODO Discrepancy: request limit vs. days parameter
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
         self.failed_builds, self.total_no_of_builds = JenkinsApiConverter.convert(
@@ -1245,3 +1343,20 @@ class UnitTestResultFetcher(CommandAbs):
             for failed_testcase in job_data.testcases:
                 LOG.info(f"Failed test: {failed_testcase}")
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
+
+
+class Database:
+    def __init__(self, config: UnitTestResultFetcherConfig):
+        url = f"mongodb://{config.mongo_user}:{config.mongo_password}@{config.mongo_hostname}:{config.mongo_port}/{config.mongo_db_name}?authSource=admin"
+        LOG.debug("Using connection URL '%s' for mongodb", url)
+        self._client = MongoClient(url)
+        self._db = self._client[config.mongo_db_name]
+
+    def save_build_data(self, build_data: JobBuildData):
+        serialized = build_data.serialize()
+
+        # Manually add _id field for MongoDB.
+        serialized["_id"] = serialized["build_url"]
+        LOG.debug("Serialized build data with _id:", serialized)
+        result = self._db.reports.insert_one(serialized)
+        return result
