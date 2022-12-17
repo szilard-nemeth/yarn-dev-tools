@@ -24,11 +24,12 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCaseAggregated,
     get_key_by_testcase_filter,
     EmailMetaData,
-    FailedTestCase,
     MATCH_ALL_LINES_EXPRESSION,
     MatchExpression,
     FailedTestCases,
     BuildComparisonResult,
+    FailedTestCaseFactory,
+    FailedTestCaseAbs,
 )
 from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailBasedUnitTestResultAggregatorConfig,
@@ -133,7 +134,7 @@ class TestcaseFilterResults:
             tcf: TestCaseFilter = self._str_key_to_testcase_filter[key]
             for matched_line in matched_lines:
                 email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
-                failed_testcase = FailedTestCase(matched_line, email_meta)
+                failed_testcase = FailedTestCaseFactory.create_from_email(matched_line, email_meta)
                 self._failed_testcases.add_failure(tcf, failed_testcase)
 
         self._failed_testcases.print_keys()
@@ -157,10 +158,10 @@ class TestcaseFilterResults:
             self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.testcases_to_jiras
         )
 
-    def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
+    def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
         return self._failed_testcases.get(tcf)
 
-    def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
+    def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
         return self._failed_testcases.get_latest_testcases(tcf)
 
     def get_build_comparison_result_by_filter(self, tcf: TestCaseFilter) -> BuildComparisonResult:

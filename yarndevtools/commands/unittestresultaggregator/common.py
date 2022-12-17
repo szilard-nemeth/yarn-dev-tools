@@ -1,5 +1,6 @@
 import datetime
 import logging
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
@@ -57,34 +58,98 @@ class EmailMetaData:
     date: datetime.datetime
 
 
-@dataclass
-class FailedTestCase:
-    full_name: str
-    # TODO yarndevtoolsv2: email specific property
-    email_meta: EmailMetaData
-    simple_name: str = None
-    parameterized: bool = False
-    parameter: str = None
+class FailedTestCaseAbs(ABC):
+    @abstractmethod
+    def date(self) -> datetime.datetime:
+        pass
+
+    @abstractmethod
+    def full_name(self):
+        pass
+
+    @abstractmethod
+    def simple_name(self):
+        pass
+
+    @abstractmethod
+    def subject(self):
+        # TODO yarndevtoolsv2: Email-specific abstractmethod
+        pass
+
+    @abstractmethod
+    def parameter(self) -> str:
+        pass
+
+    @abstractmethod
+    def parameterized(self) -> bool:
+        pass
+
+
+class FailedTestCase(FailedTestCaseAbs):
+    def __init__(self, full_name, simple_name=None, parameterized=False, parameter=None):
+        self._full_name = full_name
+        self._simple_name = simple_name
+        self._parameterized = parameterized
+        self._parameter = parameter
 
     def __post_init__(self):
-        self.simple_name = self.full_name
-        match = RegexUtils.ensure_matches_pattern(self.full_name, r"(.*)\[(.*)\]$")
+        self._simple_name = self._full_name
+        match = RegexUtils.ensure_matches_pattern(self._full_name, r"(.*)\[(.*)\]$")
         if match:
-            self.parameterized = True
-            self.simple_name = match.group(1)
-            self.parameter: str = match.group(2)
+            self._parameterized = True
+            self._simple_name = match.group(1)
+            self._parameter: str = match.group(2)
             LOG.info(
-                f"Found parameterized testcase failure: {self.full_name}. "
-                f"Simple testcase name: {self.simple_name}, "
-                f"Parameter: {self.parameter}"
+                f"Found parameterized testcase failure: {self._full_name}. "
+                f"Simple testcase name: {self._simple_name}, "
+                f"Parameter: {self._parameter}"
             )
+
+    def date(self) -> datetime.datetime:
+        # TODO implement
+        pass
+
+    def full_name(self):
+        return self._full_name
+
+    def simple_name(self):
+        return self._simple_name
+
+    def subject(self):
+        raise AttributeError("No subject for this testcase type!")
+
+    def parameter(self) -> str:
+        return self._parameter
+
+    def parameterized(self) -> bool:
+        return self._parameterized
+
+
+class FailedTestCaseFactory:
+    @staticmethod
+    def create_from_email(matched_line, email_meta):
+        return FailedTestCaseFromEmail(FailedTestCase(matched_line), email_meta)
+
+    # TODO Implement create_from_xxx
+
+
+class FailedTestCaseFromEmail(FailedTestCase):
+    def __init__(self, full_name, email_meta: EmailMetaData):
+        super().__init__(full_name)
+        self.email_meta: EmailMetaData = email_meta
+
+    def date(self) -> datetime.datetime:
+        return self.email_meta.date
+
+    def subject(self):
+        return self.email_meta.subject
 
 
 @dataclass
 class BuildComparisonResult:
-    fixed: List[FailedTestCase]
-    still_failing: List[FailedTestCase]
-    new_failures: List[FailedTestCase]
+    fixed: List[FailedTestCaseAbs]
+    still_failing: List[FailedTestCaseAbs]
+    new_failures: List[FailedTestCaseAbs]
 
     @staticmethod
     def create_empty():
@@ -141,17 +206,22 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
 class TestCaseKey:
     tc_filter: TestCaseFilter
     full_name: str
-    email_subject: str
+    email_subject: str or None = None
 
     @staticmethod
     def create_from(
-        tcf: TestCaseFilter, ftc: FailedTestCase, use_full_name=True, use_simple_name=False, include_email_subject=True
+        tcf: TestCaseFilter,
+        ftc: FailedTestCaseAbs,
+        use_full_name=True,
+        use_simple_name=False,
+        include_email_subject=True,
     ):
         if all([use_full_name, use_simple_name]) or not any([use_full_name, use_simple_name]):
             raise ValueError("Either 'use_simple_name' or 'use_full_name' should be set to True, but not both!")
-        tc_name = ftc.full_name if use_full_name else None
-        tc_name = ftc.simple_name if use_simple_name else tc_name
-        subject = ftc.email_meta.subject if include_email_subject else None
+        tc_name = ftc.full_name() if use_full_name else None
+        tc_name = ftc.simple_name() if use_simple_name else tc_name
+        # TODO yarndevtoolsv2 email specific stuff
+        subject = ftc.subject if include_email_subject else None
         return TestCaseKey(tcf, tc_name, subject)
 
 
@@ -282,12 +352,12 @@ class TestCaseFilters:
 # TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
 @dataclass
 class FailedTestCases:
-    _failed_tcs: Dict[TestCaseFilter, List[FailedTestCase]] = field(default_factory=dict)
+    _failed_tcs: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = field(default_factory=dict)
     _aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = field(default_factory=dict)
 
     def __post_init__(self):
-        self._tc_keys: Dict[TestCaseKey, FailedTestCase] = {}
-        self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCase]] = defaultdict(list)
+        self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
+        self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = defaultdict(list)
         self._build_comparison_results: Dict[TestCaseFilter, BuildComparisonResult] = {}
 
     def init_with_testcase_filters(self, testcase_filters: List[TestCaseFilter]):
@@ -295,18 +365,18 @@ class FailedTestCases:
             if tcf not in self._failed_tcs:
                 self._failed_tcs[tcf] = []
 
-    def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCase):
+    def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCaseAbs):
         self._tc_keys[tc_key] = ftc
 
-    def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCase):
+    def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
         tc_key = TestCaseKey.create_from(tcf, failed_testcase)
         if tc_key in self._tc_keys:
             stored_testcase = self._tc_keys[tc_key]
             LOG.debug(
                 f"Found already existing testcase key: {tc_key}. "
                 f"Value: {stored_testcase}, "
-                f"Email data (stored): {stored_testcase.email_meta.subject} "
-                f"Email data (new): {stored_testcase.email_meta.subject}"
+                f"Email data (stored): {stored_testcase.subject()} "
+                f"Email data (new): {stored_testcase.subject()}"
             )
             return
         else:
@@ -314,10 +384,10 @@ class FailedTestCases:
 
         self._failed_tcs[tcf].append(failed_testcase)
 
-    def get(self, tcf) -> List[FailedTestCase]:
+    def get(self, tcf) -> List[FailedTestCaseAbs]:
         return self._failed_tcs[tcf]
 
-    def get_latest_testcases(self, tcf) -> List[FailedTestCase]:
+    def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
         return self._latest_testcases[tcf]
 
     def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
@@ -333,7 +403,7 @@ class FailedTestCases:
         for tcf in testcase_filters:
             failure_freqs: Dict[TestCaseKey, int] = {}
             latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
-            tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCase]] = defaultdict(list)
+            tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
             aggregated_test_failures: List[FailedTestCaseAggregated] = []
             for testcase in self._failed_tcs[tcf]:
                 tc_key = TestCaseKey.create_from(
@@ -342,7 +412,7 @@ class FailedTestCases:
                 tc_key_to_testcases[tc_key].append(testcase)
                 if tc_key not in failure_freqs:
                     failure_freqs[tc_key] = 1
-                    latest_failures[tc_key] = testcase.email_meta.date
+                    latest_failures[tc_key] = testcase.date()
                 else:
                     LOG.debug(
                         "Found TC key in failure_freqs dict. "
@@ -350,8 +420,8 @@ class FailedTestCases:
                         f"Previously stored TC: {failure_freqs[tc_key]}, "
                     )
                     failure_freqs[tc_key] = failure_freqs[tc_key] + 1
-                    if testcase.email_meta.date > latest_failures[tc_key]:
-                        latest_failures[tc_key] = testcase.email_meta.date
+                    if testcase.date() > latest_failures[tc_key]:
+                        latest_failures[tc_key] = testcase.date()
 
             for tc_key, testcases in tc_key_to_testcases.items():
                 if len(testcases) > 1:
@@ -364,16 +434,16 @@ class FailedTestCases:
                 # If not parameterized, full names should be the same.
                 arbitrary_tc = testcases[0]
                 parameter = None
-                if arbitrary_tc.parameterized:
+                if arbitrary_tc.parameterized():
                     if len(testcases) > 1:
                         full_name = "N/A"
                     else:
-                        full_name = arbitrary_tc.full_name
-                        parameter = arbitrary_tc.parameter
+                        full_name = arbitrary_tc.full_name()
+                        parameter = arbitrary_tc.parameter()
                 else:
-                    full_name = arbitrary_tc.full_name
+                    full_name = arbitrary_tc.full_name()
                 # Simple names were also sanity checked that they are the same, choose the first.
-                simple_name = arbitrary_tc.simple_name
+                simple_name = arbitrary_tc.simple_name()
 
                 # TODO fill failure dates
                 failure_dates = []
@@ -394,7 +464,7 @@ class FailedTestCases:
             self._aggregated_test_failures[tcf] = aggregated_test_failures
 
     @staticmethod
-    def _sanity_check_testcases(testcases: List[FailedTestCase]):
+    def _sanity_check_testcases(testcases: List[FailedTestCaseAbs]):
         simple_names = set([tc.simple_name for tc in testcases])
         full_names = set()
         parameterized = set()
@@ -438,10 +508,10 @@ class FailedTestCases:
                 date_range_open = self._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
                 LOG.info(f"Using date range open date to filter dates: {date_range_open}")
             else:
-                date_range_open = sorted_testcases[0].email_meta.date
+                date_range_open = sorted_testcases[0].date()
 
             for testcase in sorted_testcases:
-                if testcase.email_meta.date >= date_range_open:
+                if testcase.date() >= date_range_open:
                     self._latest_testcases[tcf].append(testcase)
 
     @staticmethod
@@ -526,10 +596,10 @@ class FailedTestCases:
     @staticmethod
     def _get_comparable_testcase_lists(
         sorted_testcases, last_n_days
-    ) -> Tuple[Dict[str, FailedTestCase], Dict[str, FailedTestCase]]:
+    ) -> Tuple[Dict[str, FailedTestCaseAbs], Dict[str, FailedTestCaseAbs]]:
         # Result lists
-        latest_testcases: Dict[str, FailedTestCase] = {}
-        to_compare_testcases: Dict[str, FailedTestCase] = {}
+        latest_testcases: Dict[str, FailedTestCaseAbs] = {}
+        to_compare_testcases: Dict[str, FailedTestCaseAbs] = {}
 
         reference_date: datetime.datetime = sorted_testcases[0].email_meta.date
         # Find all testcases for latest build
