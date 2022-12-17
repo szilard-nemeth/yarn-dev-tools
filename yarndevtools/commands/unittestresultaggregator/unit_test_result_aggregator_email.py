@@ -50,6 +50,9 @@ class TestcaseFilterResults:
         self.match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
 
+        all_filters: List[TestCaseFilter] = self.testcase_filters.ALL_VALID_FILTERS
+        self._failed_testcases.init_with_testcase_filters(all_filters)
+
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
@@ -137,6 +140,9 @@ class TestcaseFilterResults:
         self._matched_lines_dict = None
 
     def finish_processing_all(self):
+        for tcf in self.testcase_filters.ALL_VALID_FILTERS:
+            self._failed_testcases.init_comparison_results(tcf)
+
         self._failed_testcases.aggregate(self.testcase_filters.get_aggregate_filters())
         self._failed_testcases.create_latest_failures(
             self.testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
@@ -511,6 +517,7 @@ class UnitTestResultAggregator(CommandAbs):
     ) -> TestcaseFilterResults:
         tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, testcases_to_jiras)
         for message in query_result.threads.messages:
+            LOG.debug("Processing message: %s", message.subject)
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
