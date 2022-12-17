@@ -7,7 +7,7 @@ from enum import Enum
 from typing import List, Dict, Set, Tuple
 
 from pythoncommons.date_utils import DateUtils
-from pythoncommons.string_utils import RegexUtils
+from pythoncommons.string_utils import RegexUtils, auto_str
 
 MATCH_EXPRESSION_SEPARATOR = "::"
 MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
@@ -85,6 +85,7 @@ class FailedTestCaseAbs(ABC):
         pass
 
 
+@auto_str
 class FailedTestCase(FailedTestCaseAbs):
     def __init__(self, full_name, simple_name=None, parameterized=False, parameter=None):
         self._full_name = full_name
@@ -128,11 +129,12 @@ class FailedTestCase(FailedTestCaseAbs):
 class FailedTestCaseFactory:
     @staticmethod
     def create_from_email(matched_line, email_meta):
-        return FailedTestCaseFromEmail(FailedTestCase(matched_line), email_meta)
+        return FailedTestCaseFromEmail(matched_line, email_meta)
 
     # TODO Implement create_from_xxx
 
 
+@auto_str
 class FailedTestCaseFromEmail(FailedTestCase):
     def __init__(self, full_name, email_meta: EmailMetaData):
         super().__init__(full_name)
@@ -465,7 +467,7 @@ class FailedTestCases:
 
     @staticmethod
     def _sanity_check_testcases(testcases: List[FailedTestCaseAbs]):
-        simple_names = set([tc.simple_name for tc in testcases])
+        simple_names = set([tc.simple_name() for tc in testcases])
         full_names = set()
         parameterized = set()
         for tc in testcases:
@@ -607,7 +609,7 @@ class FailedTestCases:
         while True:
             tc = sorted_testcases[start_idx]
             if tc.email_meta.date == reference_date:
-                latest_testcases[tc.simple_name] = tc
+                latest_testcases[tc.simple_name()] = tc
                 start_idx += 1
             else:
                 # We found a new date, will be processed with the next loop
@@ -626,7 +628,7 @@ class FailedTestCases:
             if delta_days <= last_n_days:
                 if not stored_delta:
                     stored_delta = delta_days
-                to_compare_testcases[tc.simple_name] = tc
+                to_compare_testcases[tc.simple_name()] = tc
 
         # If we haven't found any other testcase, it means delta_days haven't reached the given number of days.
         # Relax criteria
@@ -636,7 +638,7 @@ class FailedTestCases:
                 tc = sorted_testcases[i]
                 if not tc.email_meta.date == next_date:
                     break
-                to_compare_testcases[tc.simple_name] = tc
+                to_compare_testcases[tc.simple_name()] = tc
 
         return latest_testcases, to_compare_testcases
 
