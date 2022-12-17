@@ -9,7 +9,7 @@ from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.commands.reviewsheetbackportupdater.review_sheet_backport_updater import ReviewSheetBackportUpdater
 from yarndevtools.commands.reviewsync.reviewsync import ReviewSync
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
-from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import (
+from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator_email import (
     UnitTestResultAggregator,
 )
 from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
