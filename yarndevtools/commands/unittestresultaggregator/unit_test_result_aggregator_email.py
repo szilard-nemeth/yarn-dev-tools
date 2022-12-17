@@ -12,6 +12,7 @@ from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import RegexUtils
+from pprint import pformat
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common import (
@@ -504,7 +505,13 @@ class UnitTestResultAggregator(CommandAbs):
         query_result: ThreadQueryResults = self.gmail_wrapper.query_threads(
             query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
         )
-        LOG.info(f"Received thread query result: {query_result}")
+        LOG.info(
+            f"Received thread query result:\n"
+            f"Number of threads: {query_result.no_of_threads}\n"
+            f"Number of messages: {query_result.no_of_messages}\n"
+            f"Number of unique subjects: {len(query_result.unique_subjects)}\n"
+            f"Unique subjects: {pformat(query_result.unique_subjects)}"
+        )
         tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result, self.testcases_to_jiras)
 
         output_manager = UnitTestResultOutputManager(
