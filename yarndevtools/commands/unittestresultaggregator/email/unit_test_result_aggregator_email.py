@@ -220,7 +220,7 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
             self.gsheet_wrapper = None
         google_auth = GoogleApiAuthorizer(
             ServiceType.GMAIL,
-            project_name=f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL.output_dir_name}",
+            project_name=f"{CMD.output_dir_name}",
             secret_basedir=SECRET_PROJECTS_DIR,
             account_email=self.config.account_email,
         )
@@ -235,13 +235,13 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
     @staticmethod
     def execute(args, parser=None):
         output_dir = ProjectUtils.get_output_child_dir(CMD.output_dir_name)
-        ut_results_aggregator = EmailBasedUnitTestResultAggregator(args, parser, output_dir)
+        aggregator = EmailBasedUnitTestResultAggregator(args, parser, output_dir)
         FileUtils.create_symlink_path_dir(
             CMD.session_link_name,
-            ut_results_aggregator.config.session_dir,
+            aggregator.config.session_dir,
             YarnDevToolsConfig.PROJECT_OUT_ROOT,
         )
-        ut_results_aggregator.run()
+        aggregator.run()
 
     def _load_and_convert_known_test_failures_in_jira(self) -> List[KnownTestFailureInJira]:
         # TODO yarndevtoolsv2: Data should be written to mongoDB once
