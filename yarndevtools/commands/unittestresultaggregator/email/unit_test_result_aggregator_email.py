@@ -48,28 +48,28 @@ LOG = logging.getLogger(__name__)
 # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
 class TestcaseFilterResults:
     def __init__(self, testcase_filters: TestCaseFilters, testcases_to_jiras: List[KnownTestFailureInJira]):
-        self.testcases_to_jiras = testcases_to_jiras
-        self.testcase_filters: TestCaseFilters = testcase_filters
-        self.match_all_lines: bool = self._should_match_all_lines()
+        self.testcases_to_jiras: List[KnownTestFailureInJira] = testcases_to_jiras
+        self._testcase_filters: TestCaseFilters = testcase_filters
+        self._match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
-        self._failed_testcases.init_with_testcase_filters(self.testcase_filters.ALL_VALID_FILTERS)
+        self._failed_testcases.init_with_testcase_filters(self._testcase_filters.ALL_VALID_FILTERS)
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
 
     def _should_match_all_lines(self):
-        match_all_lines: bool = self.testcase_filters.match_all_lines()
+        match_all_lines: bool = self._testcase_filters.match_all_lines()
         LOG.info(
             "**Matching all lines"
             if match_all_lines
-            else f"**Matching lines with regex pattern: {self.testcase_filters.match_expressions}"
+            else f"**Matching lines with regex pattern: {self._testcase_filters.match_expressions}"
         )
         return match_all_lines
 
     def start_new_context(self):
         self._matched_lines_dict = defaultdict(list)
-        filters: List[TestCaseFilter] = self.testcase_filters.ALL_VALID_FILTERS
+        filters: List[TestCaseFilter] = self._testcase_filters.ALL_VALID_FILTERS
 
         # Do sanity check
         generated_keys = [self._get_matched_lines_key(tcf) for tcf in filters]
@@ -88,11 +88,11 @@ class TestcaseFilterResults:
 
     def match_line(self, line, mail_subject: str):
         matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
-        if self.match_all_lines or matches_any_pattern:
+        if self._match_all_lines or matches_any_pattern:
             self._matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
             self._add_match_to_matched_lines_dict(line, matched_expression, aggregate_values=[True, False])
 
-            for aggr_filter in self.testcase_filters.aggregate_filters:
+            for aggr_filter in self._testcase_filters.aggregate_filters:
                 if aggr_filter.val in mail_subject:
                     LOG.debug(
                         f"Found matching email subject for aggregation filter '{aggr_filter}': "
@@ -103,11 +103,11 @@ class TestcaseFilterResults:
 
     def _add_match_to_matched_lines_dict(self, line, matched_expression, aggregate_values: List[bool]):
         for aggr_value in aggregate_values:
-            tcf = TestCaseFilter(matched_expression, None, aggregate=aggr_value)
+            tcf = TestCaseFilter(matched_expression, aggr_filter=None, aggregate=aggr_value)
             self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
 
     def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
-        for match_expression in self.testcase_filters.match_expressions:
+        for match_expression in self._testcase_filters.match_expressions:
             if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
                 LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
                 return True, match_expression
@@ -143,18 +143,18 @@ class TestcaseFilterResults:
     def finish_processing_all(self):
         self.print_objects()
 
-        for tcf in self.testcase_filters.ALL_VALID_FILTERS:
+        for tcf in self._testcase_filters.ALL_VALID_FILTERS:
             self._failed_testcases.init_comparison_results(tcf)
 
-        self._failed_testcases.aggregate(self.testcase_filters.get_aggregate_filters())
+        self._failed_testcases.aggregate(self._testcase_filters.get_aggregate_filters())
         self._failed_testcases.create_latest_failures(
-            self.testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
+            self._testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
         )
         self._failed_testcases.create_changed_failures_comparison(
-            self.testcase_filters.LATEST_FAILURE_FILTERS, compare_with_last=True
+            self._testcase_filters.LATEST_FAILURE_FILTERS, compare_with_last=True
         )
         self._failed_testcases.cross_check_testcases_with_jiras(
-            self.testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.testcases_to_jiras
+            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.testcases_to_jiras
         )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCase]:
