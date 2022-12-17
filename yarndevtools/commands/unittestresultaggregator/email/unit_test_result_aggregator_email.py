@@ -30,6 +30,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     BuildComparisonResult,
     FailedTestCaseFactory,
     FailedTestCaseAbs,
+    KnownTestFailures,
 )
 from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailBasedUnitTestResultAggregatorConfig,
@@ -210,15 +211,10 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
         self.config = EmailBasedUnitTestResultAggregatorConfig(parser, args, output_dir)
         self.testcases_to_jiras = []
         if self.config.operation_mode == OperationMode.GSHEET:
-            self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
-            self.testcases_to_jiras: List[KnownTestFailureInJira] = []
-            if self.config.gsheet_jira_table:
-                self.testcases_to_jiras: List[
-                    KnownTestFailureInJira
-                ] = self._load_and_convert_known_test_failures_in_jira()
-        else:
-            # Avoid AttributeError
-            self.gsheet_wrapper = None
+            gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
+            self.known_test_failures = KnownTestFailures(
+                gsheet_wrapper=gsheet_wrapper, gsheet_jira_table=self.config.gsheet_jira_table
+            )
         google_auth = GoogleApiAuthorizer(
             ServiceType.GMAIL,
             project_name=f"{CMD.output_dir_name}",
@@ -244,44 +240,6 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
         )
         aggregator.run()
 
-    def _load_and_convert_known_test_failures_in_jira(self) -> List[KnownTestFailureInJira]:
-        # TODO yarndevtoolsv2: Data should be written to mongoDB once
-        raw_data_from_gsheet = self.gsheet_wrapper.read_data(self.config.gsheet_jira_table, "A1:E150")
-        LOG.info(f"Successfully loaded data from worksheet: {self.config.gsheet_jira_table}")
-
-        header: List[str] = raw_data_from_gsheet[0]
-        expected_header = ["Testcase", "Jira", "Resolution date"]
-        if header != expected_header:
-            raise ValueError(
-                "Detected suspicious known test failures table header. "
-                f"Expected header: {expected_header}, "
-                f"Current header: {header}"
-            )
-
-        raw_data_from_gsheet = raw_data_from_gsheet[1:]
-        known_tc_failures = []
-        for row in raw_data_from_gsheet:
-            self._preprocess_row(row)
-            t_name = row[0]
-            jira_link = row[1]
-            date_time = DateUtils.convert_to_datetime(row[2], "%m/%d/%Y") if row[2] else None
-            known_tc_failures.append(KnownTestFailureInJira(t_name, jira_link, date_time))
-
-        return known_tc_failures
-
-    @staticmethod
-    def _preprocess_row(row):
-        row_len = len(row)
-        if row_len < 2:
-            raise ValueError(
-                "Both 'Testcase' and 'Jira' are mandatory items but row does not contain them. "
-                f"Problematic row: {row}"
-            )
-        # In case of 'Resolution date' is missing, append an empty-string so that all rows will have
-        # an equal number of cells. This eases further processing.
-        if row_len == 2:
-            row.append("")
-
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         gmail_query: str = self._get_gmail_query()
@@ -298,7 +256,7 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
         tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result, self.testcases_to_jiras)
 
         output_manager = UnitTestResultOutputManager(
-            self.config.session_dir, self.config.console_mode, self.gsheet_wrapper
+            self.config.session_dir, self.config.console_mode, self.known_test_failures.gsheet_wrapper
         )
         SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
 
