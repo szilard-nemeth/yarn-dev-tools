@@ -22,9 +22,11 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     OperationMode,
     SummaryMode,
     TestCaseFilter,
-    FailedTestCase,
     FailedTestCaseAggregated,
     BuildComparisonResult,
+    FailedTestCaseAbs,
+    FailedTestCaseFromEmail,
+    EmailMetaData,
 )
 from yarndevtools.constants import (
     ReportFile,
@@ -597,7 +599,7 @@ class DataConverter:
     LINE_MAX_LENGTH = 80
 
     @staticmethod
-    def convert_data_to_rows(failed_testcases: List[FailedTestCase], out_fmt: OutputFormatRules) -> List[List[str]]:
+    def convert_data_to_rows(failed_testcases: List[FailedTestCaseAbs], out_fmt: OutputFormatRules) -> List[List[str]]:
         data_table: List[List[str]] = []
         truncate_subject_by_length: bool = out_fmt.truncate_length
         truncate_testcase_by_length: bool = out_fmt.truncate_length
@@ -606,13 +608,20 @@ class DataConverter:
             subject, testcase_name = DataConverter._apply_truncate_rules(
                 out_fmt, testcase, truncate_subject_by_length, truncate_testcase_by_length
             )
+
+            # TODO yarndevtoolsv2: dirty hack!
+            message_id, thread_id = "", ""
+            if isinstance(testcase, FailedTestCaseFromEmail):
+                email_meta: EmailMetaData = getattr(testcase, "email_meta")
+                message_id, thread_id = email_meta.message_id, email_meta.thread_id
+
             data_table.append(
                 [
-                    str(testcase.email_meta.date),
+                    str(testcase.date()),
                     subject,
                     testcase_name,
-                    testcase.email_meta.message_id,
-                    testcase.email_meta.thread_id,
+                    message_id,
+                    thread_id,
                 ]
             )
         return data_table
@@ -622,8 +631,8 @@ class DataConverter:
         # Don't touch the original MatchObject data.
         # It's not memory efficient to copy subject / TC name but we need the
         # untruncated / original fields later.
-        subject = copy.copy(testcase.email_meta.subject)
-        testcase_name = copy.copy(testcase.full_name)
+        subject = copy.copy(testcase.subject())
+        testcase_name = copy.copy(testcase.full_name())
         if out_fmt.truncate_subject_with:
             subject = DataConverter._truncate_subject(subject, out_fmt.truncate_subject_with)
         if out_fmt.abbrev_tc_package:
@@ -674,21 +683,21 @@ class DataConverter:
         return [tc_name, tc_param, testcase.failure_freq, str(testcase.latest_failure)]
 
     @staticmethod
-    def render_latest_failures_table(failed_testcases: List[FailedTestCase]) -> List[List[str]]:
+    def render_latest_failures_table(failed_testcases: List[FailedTestCaseAbs]) -> List[List[str]]:
         data_table: List[List[str]] = []
         for testcase in failed_testcases:
-            data_table.append([testcase.full_name, testcase.email_meta.date, testcase.email_meta.subject])
+            data_table.append([testcase.full_name, testcase.date(), testcase.subject()])
         return data_table
 
     @classmethod
     def render_build_comparison_table(cls, result: BuildComparisonResult):
         data_table: List[List[str]] = []
         for tc in result.still_failing:
-            data_table.append([tc.full_name, True, False, False])
+            data_table.append([tc.full_name(), True, False, False])
         for tc in result.fixed:
-            data_table.append([tc.full_name, False, True, False])
+            data_table.append([tc.full_name(), False, True, False])
         for tc in result.new_failures:
-            data_table.append([tc.full_name, False, False, True])
+            data_table.append([tc.full_name(), False, False, True])
         return data_table
 
     @staticmethod
