@@ -60,6 +60,7 @@ class EmailMetaData:
 @dataclass
 class FailedTestCase:
     full_name: str
+    # TODO yarndevtoolsv2: email specific property
     email_meta: EmailMetaData
     simple_name: str = None
     parameterized: bool = False
@@ -84,6 +85,10 @@ class BuildComparisonResult:
     fixed: List[FailedTestCase]
     still_failing: List[FailedTestCase]
     new_failures: List[FailedTestCase]
+
+    @staticmethod
+    def create_empty():
+        return BuildComparisonResult([], [], [])
 
 
 @dataclass
@@ -273,7 +278,8 @@ class TestCaseFilters:
         return self._aggregated_match_expr_filters
 
 
-# TODO yarndevtoolsv2: Revisit any email specific logic in this class?
+# TODO yarndevtoolsv2: Revisit any email specific logic in this class
+# TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
 @dataclass
 class FailedTestCases:
     _failed_tcs: Dict[TestCaseFilter, List[FailedTestCase]] = field(default_factory=dict)
@@ -284,12 +290,15 @@ class FailedTestCases:
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCase]] = defaultdict(list)
         self._build_comparison_results: Dict[TestCaseFilter, BuildComparisonResult] = {}
 
+    def init_with_testcase_filters(self, testcase_filters: List[TestCaseFilter]):
+        for tcf in testcase_filters:
+            if tcf not in self._failed_tcs:
+                self._failed_tcs[tcf] = []
+
     def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCase):
         self._tc_keys[tc_key] = ftc
 
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCase):
-        if tcf not in self._failed_tcs:
-            self._failed_tcs[tcf] = []
         tc_key = TestCaseKey.create_from(tcf, failed_testcase)
         if tc_key in self._tc_keys:
             stored_testcase = self._tc_keys[tc_key]
@@ -494,10 +503,12 @@ class FailedTestCases:
         last_n_days = 1 if compare_with_last else compare_with_n_days_old
 
         for tcf in testcase_filters:
+            LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
             failed_testcases = self._failed_tcs[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
             if not sorted_testcases:
-                return []
+                LOG.warning("No failed testcases found for testcase filter: %s", tcf)
+                return
 
             latest_tcs, old_build_tcs = self._get_comparable_testcase_lists(sorted_testcases, last_n_days)
             latest_tc_keys: Set[str] = set(latest_tcs.keys())
@@ -558,3 +569,6 @@ class FailedTestCases:
                 to_compare_testcases[tc.simple_name] = tc
 
         return latest_testcases, to_compare_testcases
+
+    def init_comparison_results(self, tcf):
+        self._build_comparison_results[tcf] = BuildComparisonResult.create_empty()
