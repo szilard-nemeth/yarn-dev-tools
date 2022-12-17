@@ -1,29 +1,26 @@
 import logging
 from collections import defaultdict
+from pprint import pformat
 from typing import List, Dict, Tuple
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import ThreadQueryResults, GmailWrapper
 from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
-from googleapiwrapper.google_sheet import GSheetOptions, GSheetWrapper
+from googleapiwrapper.google_sheet import GSheetWrapper
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
-from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import RegexUtils
-from pprint import pformat
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common import (
     OperationMode,
-    VALID_OPERATION_MODES,
     MATCHTYPE_ALL_POSTFIX,
     AGGREGATED_WS_POSTFIX,
     TestCaseFilter,
     TestCaseFilters,
     KnownTestFailureInJira,
-    SummaryMode,
     FailedTestCaseAggregated,
     get_key_by_testcase_filter,
     EmailMetaData,
@@ -33,14 +30,19 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCases,
     BuildComparisonResult,
 )
+from yarndevtools.commands.unittestresultaggregator.email.common import (
+    EmailBasedUnitTestResultAggregatorConfig,
+    UnitTestResultAggregatorEmailParserUtils,
+    SUBJECT,
+)
 from yarndevtools.commands.unittestresultaggregator.representation import UnitTestResultOutputManager, SummaryGenerator
-from yarndevtools.commands_common import CommandAbs, GSheetArguments, ArgumentParserUtils
+from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
+
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
+CMD = CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL
 LOG = logging.getLogger(__name__)
-SUBJECT = "subject:"
-DEFAULT_LINE_SEP = "\\r\\n"
 
 
 # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
@@ -50,9 +52,7 @@ class TestcaseFilterResults:
         self.testcase_filters: TestCaseFilters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
-
-        all_filters: List[TestCaseFilter] = self.testcase_filters.ALL_VALID_FILTERS
-        self._failed_testcases.init_with_testcase_filters(all_filters)
+        self._failed_testcases.init_with_testcase_filters(self.testcase_filters.ALL_VALID_FILTERS)
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
@@ -68,22 +68,22 @@ class TestcaseFilterResults:
         return match_all_lines
 
     def start_new_context(self):
-        # Prepare matched_lines dict with all required empty-lists for ALL filters
         self._matched_lines_dict = defaultdict(list)
-        all_filters: List[TestCaseFilter] = self.testcase_filters.ALL_VALID_FILTERS
+        filters: List[TestCaseFilter] = self.testcase_filters.ALL_VALID_FILTERS
 
         # Do sanity check
-        generated_keys = [self._get_matched_lines_key(tcf) for tcf in all_filters]
+        generated_keys = [self._get_matched_lines_key(tcf) for tcf in filters]
         unique_keys = set(generated_keys)
-        if len(all_filters) != len(unique_keys):
+        if len(filters) != len(unique_keys):
             raise ValueError(
                 "Mismatch in number of testcase filter objects and generated keys. "
-                f"Filters: {all_filters}, "
+                f"Filters: {filters}, "
                 f"Generated keys: {generated_keys}, "
                 f"Unique keys: {unique_keys}."
             )
 
-        for tcf in all_filters:
+        # Prepare matched_lines dict with all required empty-lists for ALL filters
+        for tcf in filters:
             self._matched_lines_dict[self._get_matched_lines_key(tcf)] = []
 
     def match_line(self, line, mail_subject: str):
@@ -141,6 +141,8 @@ class TestcaseFilterResults:
         self._matched_lines_dict = None
 
     def finish_processing_all(self):
+        self.print_objects()
+
         for tcf in self.testcase_filters.ALL_VALID_FILTERS:
             self._failed_testcases.init_comparison_results(tcf)
 
@@ -201,106 +203,10 @@ class TestcaseFilterResults:
         LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
 
 
-# TODO yarndevtoolsv2: Revisit any common logic / config for email+db based aggregator?
-class UnitTestResultAggregatorConfig:
-    def __init__(self, parser, args, output_dir: str):
-        self._validate_args(parser, args)
-        self.console_mode = getattr(args, "console mode", False)
-        self.gmail_query = args.gmail_query
-        self.smart_subject_query = args.smart_subject_query
-        self.request_limit = getattr(args, "request_limit", 1000000)
-        self.account_email: str = args.account_email
-        self.testcase_filters = TestCaseFilters(
-            TestCaseFilters.convert_raw_match_expressions_to_objs(getattr(args, "match_expression", None)),
-            self._get_attribute(args, "aggregate_filters", default=[]),
-        )
-        self.skip_lines_starting_with: List[str] = getattr(args, "skip_lines_starting_with", [])
-        self.email_content_line_sep = getattr(args, "email_content_line_separator", DEFAULT_LINE_SEP)
-        self.truncate_subject_with: str = getattr(args, "truncate_subject", None)
-        self.abbrev_tc_package: str = getattr(args, "abbrev_testcase_package", None)
-        self.summary_mode = args.summary_mode
-        self.output_dir = output_dir
-        self.email_cache_dir = FileUtils.join_path(output_dir, "email_cache")
-        self.session_dir = ProjectUtils.get_session_dir_under_child_dir(FileUtils.basename(output_dir))
-        self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
-
-        if self.operation_mode == OperationMode.GSHEET:
-            worksheet_names: List[str] = [
-                self.get_worksheet_name(tcf) for tcf in self.testcase_filters.ALL_VALID_FILTERS
-            ]
-            LOG.info(
-                f"Adding worksheets to {self.gsheet_options.__class__.__name__}. "
-                f"Generated worksheet names: {worksheet_names}"
-            )
-            for worksheet_name in worksheet_names:
-                self.gsheet_options.add_worksheet(worksheet_name)
-
-    @staticmethod
-    def _get_attribute(args, attr_name, default=None):
-        val = getattr(args, attr_name)
-        if not val:
-            return default
-        return val
-
-    def _validate_args(self, parser, args):
-        if args.gsheet and (
-            args.gsheet_client_secret is None or args.gsheet_spreadsheet is None or args.gsheet_worksheet is None
-        ):
-            parser.error(
-                "--gsheet requires the following arguments: "
-                "--gsheet-client-secret, --gsheet-spreadsheet and --gsheet-worksheet."
-            )
-
-        if args.do_print:
-            self.operation_mode = OperationMode.PRINT
-        elif args.gsheet:
-            self.operation_mode = OperationMode.GSHEET
-            self.gsheet_options = GSheetOptions(args.gsheet_client_secret, args.gsheet_spreadsheet, worksheet=None)
-            self.gsheet_jira_table = getattr(args, "gsheet_compare_with_jira_table", None)
-        if self.operation_mode not in VALID_OPERATION_MODES:
-            raise ValueError(
-                f"Unknown state! "
-                f"Operation mode should be any of {VALID_OPERATION_MODES}, but it is set to: {self.operation_mode}"
-            )
-        if hasattr(args, "gmail_credentials_file"):
-            FileUtils.ensure_file_exists(args.gmail_credentials_file)
-
-    def __str__(self):
-        return (
-            f"Full command was: {self.full_cmd}\n"
-            f"Output dir: {self.output_dir}\n"
-            f"Account email: {self.account_email}\n"
-            f"Email cache dir: {self.email_cache_dir}\n"
-            f"Session dir: {self.session_dir}\n"
-            f"Console mode: {self.console_mode}\n"
-            f"Gmail query: {self.gmail_query}\n"
-            f"Smart subject query: {self.smart_subject_query}\n"
-            f"Testcase filters: {self.testcase_filters}\n"
-            f"Email line separator: {self.email_content_line_sep}\n"
-            f"Request limit: {self.request_limit}\n"
-            f"Operation mode: {self.operation_mode}\n"
-            f"Skip lines starting with: {self.skip_lines_starting_with}\n"
-            f"Truncate subject with: {self.truncate_subject_with}\n"
-            f"Abbreviate testcase package: {self.abbrev_tc_package}\n"
-            f"Summary mode: {self.summary_mode}\n"
-        )
-
-    @staticmethod
-    def get_worksheet_name(tcf: TestCaseFilter):
-        ws_name: str = f"{tcf.match_expr.alias}"
-        if tcf.aggr_filter:
-            ws_name += f"_{tcf.aggr_filter.val}_{AGGREGATED_WS_POSTFIX}"
-        elif tcf.aggregate:
-            ws_name += f"_{AGGREGATED_WS_POSTFIX}"
-        else:
-            ws_name += f"_{MATCHTYPE_ALL_POSTFIX}"
-        return f"{ws_name}"
-
-
-# TODO yarndevtoolsv2: Revisit any common logic for email+db based aggregator?
-class UnitTestResultAggregator(CommandAbs):
+class EmailBasedUnitTestResultAggregator(CommandAbs):
+    # TODO yarndevtoolsv2: Revisit any common logic for email+db based aggregator?
     def __init__(self, args, parser, output_dir: str):
-        self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
+        self.config = EmailBasedUnitTestResultAggregatorConfig(parser, args, output_dir)
         self.testcases_to_jiras = []
         if self.config.operation_mode == OperationMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper or None = GSheetWrapper(self.config.gsheet_options)
@@ -312,7 +218,7 @@ class UnitTestResultAggregator(CommandAbs):
             self.gsheet_wrapper = None
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.GMAIL,
-            project_name=f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name}",
+            project_name=f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL.output_dir_name}",
             secret_basedir=SECRET_PROJECTS_DIR,
             account_email=self.config.account_email,
         )
@@ -320,150 +226,16 @@ class UnitTestResultAggregator(CommandAbs):
 
     @staticmethod
     def create_parser(subparsers):
-        parser = subparsers.add_parser(
-            CommandType.UNIT_TEST_RESULT_AGGREGATOR.name,
-            help="Aggregates unit test results from a gmail account."
-            "Example: "
-            "--gsheet "
-            "--gsheet-client-secret /Users/snemeth/.secret/dummy.json "
-            "--gsheet-spreadsheet 'Failed testcases parsed from emails [generated by script]' "
-            "--gsheet-worksheet 'Failed testcases'",
+        UnitTestResultAggregatorEmailParserUtils.create_parser(
+            subparsers, CMD, func_to_execute=EmailBasedUnitTestResultAggregator.execute, add_gsheet_args=True
         )
-        gsheet_group = GSheetArguments.add_gsheet_arguments(parser)
-
-        gsheet_group.add_argument(
-            "--gsheet-compare-with-jira-table",
-            dest="gsheet_compare_with_jira_table",
-            type=str,
-            help="This should be provided if comparison of failed testcases with reported jira table must be performed. "
-            "The value is a name to a worksheet, for example 'testcases with jiras'.",
-        )
-
-        parser.add_argument(
-            "--account-email",
-            required=True,
-            type=str,
-            help="Email address of Gmail account that will be used to Gmail API authentication and fetching data.",
-        )
-
-        parser.add_argument(
-            "-q",
-            "--gmail-query",
-            required=True,
-            type=str,
-            help="Gmail query string that will be used to get emails to parse.",
-        )
-
-        parser.add_argument(
-            "--smart-subject-query",
-            action="store_true",
-            default=False,
-            help="Whether to fix Gmail queries like: 'Subject: YARN Daily unit test report', "
-            "where the subject should have been between quotes.",
-        )
-
-        parser.add_argument(
-            "-v",
-            "--verbose",
-            action="store_true",
-            dest="verbose",
-            default=None,
-            required=False,
-            help="More verbose log",
-        )
-
-        parser.add_argument(
-            "-m",
-            "--match-expression",
-            required=False,
-            # TODO
-            type=ArgumentParserUtils.matches_match_expression_pattern,
-            nargs="+",
-            help="Line matcher expression, this will be converted to a regex. "
-            "For example, if expression is org.apache, the regex will be .*org\\.apache\\.* "
-            "Only lines in the mail content matching for this expression will be considered as a valid line.",
-        )
-
-        parser.add_argument(
-            "-s",
-            "--skip-lines-starting-with",
-            required=False,
-            type=str,
-            nargs="+",
-            help="If lines starting with these strings, they will not be considered as a line to parse",
-        )
-
-        parser.add_argument(
-            "-l",
-            "--request-limit",
-            dest="request_limit",
-            type=int,
-            help="Limit the number of API requests",
-        )
-
-        parser.add_argument("--email-content-line-separator", type=str, default=DEFAULT_LINE_SEP)
-
-        parser.add_argument(
-            "--truncate-subject",
-            dest="truncate_subject",
-            type=str,
-            help="Whether to truncate subject in outputs. The specified string will be cropped "
-            "from the full value of subject strings when printing them to any destination.",
-        )
-
-        parser.add_argument(
-            "--abbreviate-testcase-package",
-            dest="abbrev_testcase_package",
-            type=str,
-            help="Whether to abbreviate testcase package names in outputs in order to screen space. "
-            "The specified string will be abbreviated with the starting letters."
-            "For example, specifying 'org.apache.hadoop.yarn' will be converted to 'o.a.h.y' "
-            "when printing testcase names to any destination.",
-        )
-
-        parser.add_argument(
-            "--summary-mode",
-            dest="summary_mode",
-            type=str,
-            choices=[sm.value for sm in SummaryMode],
-            default=SummaryMode.HTML.value,
-            help="Summary file(s) will be written in this mode. Defaults to HTML.",
-        )
-
-        parser.add_argument(
-            "--aggregate-filters",
-            dest="aggregate_filters",
-            required=True,
-            type=str,
-            nargs="+",
-            help="Execute some post filters on the email results. "
-            "The resulted emails and testcases for each filter will be aggregated to "
-            "a separate worksheet with name <WS>_aggregated_<aggregate-filter> where WS is equal to the "
-            "value specified by the --gsheet-worksheet argument.",
-        )
-
-        exclusive_group = parser.add_mutually_exclusive_group(required=True)
-        exclusive_group.add_argument(
-            "-p", "--print", action="store_true", dest="do_print", help="Print results to console", required=False
-        )
-        exclusive_group.add_argument(
-            "-g",
-            "--gsheet",
-            action="store_true",
-            dest="gsheet",
-            default=False,
-            required=False,
-            help="Export values to Google sheet. Additional gsheet arguments need to be specified!",
-        )
-
-        parser.set_defaults(func=UnitTestResultAggregator.execute)
 
     @staticmethod
     def execute(args, parser=None):
-        output_dir = ProjectUtils.get_output_child_dir(CommandType.UNIT_TEST_RESULT_AGGREGATOR.output_dir_name)
-        ut_results_aggregator = UnitTestResultAggregator(args, parser, output_dir)
+        output_dir = ProjectUtils.get_output_child_dir(CMD.output_dir_name)
+        ut_results_aggregator = EmailBasedUnitTestResultAggregator(args, parser, output_dir)
         FileUtils.create_symlink_path_dir(
-            CommandType.UNIT_TEST_RESULT_AGGREGATOR.session_link_name,
+            CMD.session_link_name,
             ut_results_aggregator.config.session_dir,
             YarnDevToolsConfig.PROJECT_OUT_ROOT,
         )
@@ -537,7 +309,6 @@ class UnitTestResultAggregator(CommandAbs):
                         continue
                     tc_filter_results.match_line(line, message.subject)
                 tc_filter_results.finish_context(message)
-        tc_filter_results.print_objects()
         tc_filter_results.finish_processing_all()
         return tc_filter_results
 
