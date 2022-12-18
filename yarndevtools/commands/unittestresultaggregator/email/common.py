@@ -22,7 +22,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     MATCHTYPE_ALL_POSTFIX,
     SummaryMode,
     KnownTestFailures,
-    FailedTestCases,
+    FinalAggregationResults,
     MATCH_ALL_LINES_EXPRESSION,
     get_key_by_testcase_filter,
     TestFailureComparison,
@@ -54,8 +54,8 @@ class TestcaseFilterResults:
         self._match_all_lines: bool = TestcaseFilterResults._should_match_all_lines(testcase_filters)
         self._testcase_filters: TestCaseFilters = testcase_filters
         self._known_failures: KnownTestFailures = known_failures
-        self._failed_testcases: FailedTestCases = FailedTestCases()
-        self._failed_testcases.init_with_testcase_filters(self._testcase_filters.ALL_VALID_FILTERS)
+        self._aggregation_results: FinalAggregationResults = FinalAggregationResults()
+        self._aggregation_results.init_with_testcase_filters(self._testcase_filters.ALL_VALID_FILTERS)
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
@@ -139,9 +139,9 @@ class TestcaseFilterResults:
             for matched_line in matched_lines:
                 email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
                 failed_testcase = FailedTestCaseFactory.create_from_email(matched_line, email_meta)
-                self._failed_testcases.add_failure(tcf, failed_testcase)
+                self._aggregation_results.add_failure(tcf, failed_testcase)
 
-        self._failed_testcases.print_keys()
+        self._aggregation_results.print_keys()
         # Make sure temp dict is not used until next cycle
         self._matched_lines_dict = None
 
@@ -149,34 +149,34 @@ class TestcaseFilterResults:
         self.print_objects()
 
         # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
-        self._failed_testcases.aggregate(self._testcase_filters.get_aggregate_filters())
-        self._failed_testcases.create_latest_failures(
+        self._aggregation_results.aggregate(self._testcase_filters.get_aggregate_filters())
+        self._aggregation_results.create_latest_failures(
             self._testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
         )
-        self._failed_testcases.comparison = TestFailureComparison(
+        self._aggregation_results.comparison = TestFailureComparison(
             self._testcase_filters.LATEST_FAILURE_FILTERS,
-            self._failed_testcases._test_failures_by_tcf,
+            self._aggregation_results._test_failures_by_tcf,
             compare_with_last=True,
         )
-        self._failed_testcases.cross_check_testcases_with_jiras(
+        self._aggregation_results.cross_check_testcases_with_jiras(
             self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self._known_failures
         )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
-        return self._failed_testcases.get(tcf)
+        return self._aggregation_results.get(tcf)
 
     def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
-        return self._failed_testcases.get_latest_testcases(tcf)
+        return self._aggregation_results.get_latest_testcases(tcf)
 
     def get_build_comparison_result_by_filter(self, tcf: TestCaseFilter) -> BuildComparisonResult:
-        return self._failed_testcases.get_build_comparison_results(tcf)
+        return self._aggregation_results.get_build_comparison_results(tcf)
 
     def get_aggregated_testcases_by_filter(
         self, tcf: TestCaseFilter, filter_unknown=False, filter_reoccurred=False
     ) -> List[FailedTestCaseAggregated]:
         local_vars = locals()
         applied_filters = [name for name in local_vars if name.startswith("filter_") and local_vars[name]]
-        filtered_tcs = self._failed_testcases.get_aggregated_testcases(tcf)
+        filtered_tcs = self._aggregation_results.get_aggregated_testcases(tcf)
         original_length = len(filtered_tcs)
         prev_length = original_length
         if filter_unknown:
