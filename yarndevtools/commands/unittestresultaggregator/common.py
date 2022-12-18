@@ -224,7 +224,7 @@ class BuildComparisonResult:
 
 @dataclass
 class FailedTestCaseAggregated:
-    # TODO yarndevtoolsv2: this is very similar to FailedTestCase
+    # TODO yarndevtoolsv2: this is very similar to FailedTestCase, should use composition
     full_name: str
     simple_name: str
     parameterized: bool
