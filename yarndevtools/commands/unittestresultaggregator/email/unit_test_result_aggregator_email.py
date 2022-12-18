@@ -114,6 +114,7 @@ class TestcaseFilterResults:
                 LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
                 return True, match_expression
         LOG.debug(f"Line did not match for any pattern: {line}")
+        # TODO in strict mode, unmatching lines should not be allowed
         return False, None
 
     def _get_matched_lines_key(self, tcf: TestCaseFilter) -> str:
@@ -156,7 +157,7 @@ class TestcaseFilterResults:
             self._testcase_filters.LATEST_FAILURE_FILTERS, compare_with_last=True
         )
         self._failed_testcases.cross_check_testcases_with_jiras(
-            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.testcases_to_jiras
+            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.known_failures
         )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
@@ -202,14 +203,15 @@ class TestcaseFilterResults:
         return filtered_tcs
 
     def print_objects(self):
-        LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
+        pass
+        # TODO should be trace logged
+        # LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
 
 
 class EmailBasedUnitTestResultAggregator(CommandAbs):
     # TODO yarndevtoolsv2: Revisit any common logic for email+db based aggregator?
     def __init__(self, args, parser, output_dir: str):
         self.config = EmailBasedUnitTestResultAggregatorConfig(parser, args, output_dir)
-        self.testcases_to_jiras = []
         if self.config.operation_mode == OperationMode.GSHEET:
             gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
             self.known_test_failures = KnownTestFailures(
@@ -253,17 +255,15 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
             f"Number of unique subjects: {len(query_result.unique_subjects)}\n"
             f"Unique subjects: {pformat(query_result.unique_subjects)}"
         )
-        tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result, self.testcases_to_jiras)
+        tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result)
 
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self.known_test_failures.gsheet_wrapper
         )
         SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
 
-    def filter_query_result_data(
-        self, query_result: ThreadQueryResults, testcases_to_jiras: List[KnownTestFailureInJira]
-    ) -> TestcaseFilterResults:
-        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, testcases_to_jiras)
+    def filter_query_result_data(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
+        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, self.known_test_failures)
         for message in query_result.threads.messages:
             LOG.debug("Processing message: %s", message.subject)
             msg_parts = message.get_all_plain_text_parts()

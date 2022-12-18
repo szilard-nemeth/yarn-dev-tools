@@ -594,14 +594,16 @@ class FailedTestCases:
         return oldest_day
 
     def cross_check_testcases_with_jiras(
-        self, testcase_filters: List[TestCaseFilter], testcases_to_jiras: List[KnownTestFailureInJira]
+        self, testcase_filters: List[TestCaseFilter], known_failures: KnownTestFailures
     ):
+        if not any(True for _ in known_failures):
+            raise ValueError("Testcases to jira mappings is empty!")
         encountered_known_test_failures: Set[KnownTestFailureInJira] = set()
         for tcf in testcase_filters:
             LOG.debug(f"Cross-checking testcases with known test failures from jira for filter: {tcf.short_str()}")
             for testcase in self._aggregated_test_failures[tcf]:
                 known_tcf: KnownTestFailureInJira or None = None
-                for known_test_failure in testcases_to_jiras:
+                for known_test_failure in known_failures:
                     if known_test_failure.tc_name in testcase.simple_name:
                         encountered_known_test_failures.add(known_test_failure)
                         LOG.debug(
@@ -626,7 +628,7 @@ class FailedTestCases:
                     testcase.known_failure = False
                     testcase.reoccurred = False
 
-        all_known_test_failures = set(testcases_to_jiras)
+        all_known_test_failures = set(known_failures)
         not_encountered_known_test_failures = all_known_test_failures.difference(encountered_known_test_failures)
         if not_encountered_known_test_failures:
             LOG.warning(
