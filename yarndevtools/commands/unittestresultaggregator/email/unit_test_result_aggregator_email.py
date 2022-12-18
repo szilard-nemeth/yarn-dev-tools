@@ -23,8 +23,8 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
         super().__init__()
         self.config = EmailBasedUnitTestResultAggregatorConfig(parser, args, output_dir)
         self._email_utils = EmailUtilsForAggregators(self.config, CMD)
-        self.known_test_failures = self._email_utils.fetch_known_test_failures()
-        self.gmail_wrapper = self._email_utils.setup_gmail_wrapper()
+        self._email_utils.init_gmail()
+        self._known_test_failures = self._email_utils.fetch_known_test_failures()
 
     @staticmethod
     def create_parser(subparsers):
@@ -46,7 +46,7 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         gmail_query_result = self._email_utils.perform_gmail_query()
-        result = TestcaseFilterResults(self.config.testcase_filters, self.known_test_failures)
+        result = TestcaseFilterResults(self.config.testcase_filters, self._known_test_failures)
         self._email_utils.process_gmail_results(
             gmail_query_result,
             result,
@@ -57,6 +57,6 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
 
     def _post_process(self, query_result, tc_filter_results):
         output_manager = UnitTestResultOutputManager(
-            self.config.session_dir, self.config.console_mode, self.known_test_failures.gsheet_wrapper
+            self.config.session_dir, self.config.console_mode, self._known_test_failures.gsheet_wrapper
         )
         SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
