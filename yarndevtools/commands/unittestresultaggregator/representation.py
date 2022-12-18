@@ -697,7 +697,7 @@ class DataConverter:
             data_table.append([tc.full_name(), True, False, False])
         for tc in result.fixed:
             data_table.append([tc.full_name(), False, True, False])
-        for tc in result.new_failures:
+        for tc in result.new:
             data_table.append([tc.full_name(), False, False, True])
         return data_table
 

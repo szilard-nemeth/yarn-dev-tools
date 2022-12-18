@@ -60,7 +60,7 @@ class KnownTestFailureInJira:
 class BuildComparisonResult:
     fixed: List[FailedTestCaseAbs]
     still_failing: List[FailedTestCaseAbs]
-    new_failures: List[FailedTestCaseAbs]
+    new: List[FailedTestCaseAbs]
 
     @staticmethod
     def create_empty():

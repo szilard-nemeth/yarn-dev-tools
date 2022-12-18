@@ -43,6 +43,100 @@ MATCH_ALL_LINES_EXPRESSION: MatchExpression = MatchExpression("Failed testcases"
 MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
+class TestFailureComparison:
+    def __init__(
+        self,
+        filters: List[TestCaseFilter],
+        test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]],
+        compare_with_last: bool = True,
+    ):
+        self._testcase_filters = filters
+        self._test_failures_by_tcf = test_failures_by_tcf
+        self._compare_with_last = compare_with_last
+        self._results: Dict[TestCaseFilter, BuildComparisonResult] = self._compare()
+
+    def get(self, tcf: TestCaseFilter):
+        return self._results[tcf]
+
+    def _compare(self, compare_with_n_days_old=None):
+        if (self._compare_with_last and compare_with_n_days_old) or not any(
+            [self._compare_with_last, compare_with_n_days_old]
+        ):
+            raise ValueError(
+                "Either use 'compare_with_last' or 'compare_with_n_days_old' " "but not both at the same time."
+            )
+        last_n_days = 1 if self._compare_with_last else compare_with_n_days_old
+
+        result = {}
+        for tcf in self._testcase_filters:
+            LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
+            failed_testcases = self._test_failures_by_tcf[tcf]
+            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
+            if not sorted_testcases:
+                LOG.warning("No failed testcases found for testcase filter: %s", tcf)
+                return
+
+            latest_tcs, old_build_tcs = self._get_comparable_testcase_lists(sorted_testcases, last_n_days)
+            latest_tc_keys: Set[str] = set(latest_tcs.keys())
+            older_tc_keys: Set[str] = set(old_build_tcs.keys())
+
+            fixed: Set[str] = older_tc_keys.difference(latest_tc_keys)
+            still_failing: Set[str] = latest_tc_keys.intersection(older_tc_keys)
+            new_failures: Set[str] = latest_tc_keys.difference(older_tc_keys)
+            result[tcf] = BuildComparisonResult(
+                fixed=[old_build_tcs[k] for k in fixed],
+                still_failing=[latest_tcs[k] for k in still_failing],
+                new=[latest_tcs[k] for k in new_failures],
+            )
+        return result
+
+    @staticmethod
+    def _get_comparable_testcase_lists(
+        sorted_testcases, last_n_days
+    ) -> Tuple[Dict[str, FailedTestCaseAbs], Dict[str, FailedTestCaseAbs]]:
+        # Result lists
+        latest_testcases: Dict[str, FailedTestCaseAbs] = {}
+        to_compare_testcases: Dict[str, FailedTestCaseAbs] = {}
+
+        reference_date: datetime.datetime = sorted_testcases[0].date()
+        # Find all testcases for latest build
+        start_idx = 0
+        while True:
+            tc = sorted_testcases[start_idx]
+            if tc.date() == reference_date:
+                latest_testcases[tc.simple_name()] = tc
+                start_idx += 1
+            else:
+                # We found a new date, will be processed with the next loop
+                break
+
+        # Find all testcases for build to compare:
+        # Either build before last build or build with specified "distance" from the latest build
+        stored_delta: int or None = None
+        for i in range(len(sorted_testcases) - 1, start_idx, -1):
+            tc = sorted_testcases[i]
+            delta_days = (reference_date - tc.date()).days
+            if stored_delta and delta_days != stored_delta:
+                break
+
+            if delta_days <= last_n_days:
+                if not stored_delta:
+                    stored_delta = delta_days
+                to_compare_testcases[tc.simple_name()] = tc
+
+        # If we haven't found any other testcase, it means delta_days haven't reached the given number of days.
+        # Relax criteria
+        if not to_compare_testcases:
+            next_date = sorted_testcases[start_idx].date()
+            for i in range(start_idx, len(sorted_testcases)):
+                tc = sorted_testcases[i]
+                if not tc.date() == next_date:
+                    break
+                to_compare_testcases[tc.simple_name()] = tc
+
+        return latest_testcases, to_compare_testcases
+
+
 class KnownTestFailures:
     def __init__(self, gsheet_wrapper=None, gsheet_jira_table=None):
         self._testcases_to_jiras: List[KnownTestFailureInJira] = []
@@ -124,11 +218,11 @@ class FailedTestCases:
     def __init__(self):
         self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
         self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = {}
+        self.comparison: TestFailureComparison = None
 
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = defaultdict(list)
-        self._build_comparison_results: Dict[TestCaseFilter, BuildComparisonResult] = {}
 
     def init_with_testcase_filters(self, testcase_filters: List[TestCaseFilter]):
         for tcf in testcase_filters:
@@ -161,7 +255,7 @@ class FailedTestCases:
         return self._latest_testcases[tcf]
 
     def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
-        return self._build_comparison_results[tcf]
+        return self.comparison.get(tcf)
 
     def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
         return self._aggregated_test_failures[tcf]
@@ -340,82 +434,3 @@ class FailedTestCases:
                 f"Not encountered: {not_encountered_known_test_failures}"
                 f"Filters: {testcase_filters}"
             )
-
-    def create_changed_failures_comparison(
-        self, testcase_filters: List[TestCaseFilter], compare_with_last=True, compare_with_n_days_old=None
-    ):
-        if (compare_with_last and compare_with_n_days_old) or not any([compare_with_last, compare_with_n_days_old]):
-            raise ValueError(
-                "Either use 'compare_with_last' or 'compare_with_n_days_old' " "but not both at the same time."
-            )
-        last_n_days = 1 if compare_with_last else compare_with_n_days_old
-
-        for tcf in testcase_filters:
-            LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
-            failed_testcases = self._test_failures_by_tcf[tcf]
-            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
-            if not sorted_testcases:
-                LOG.warning("No failed testcases found for testcase filter: %s", tcf)
-                return
-
-            latest_tcs, old_build_tcs = self._get_comparable_testcase_lists(sorted_testcases, last_n_days)
-            latest_tc_keys: Set[str] = set(latest_tcs.keys())
-            older_tc_keys: Set[str] = set(old_build_tcs.keys())
-
-            fixed: Set[str] = older_tc_keys.difference(latest_tc_keys)
-            still_failing: Set[str] = latest_tc_keys.intersection(older_tc_keys)
-            new_failures: Set[str] = latest_tc_keys.difference(older_tc_keys)
-            self._build_comparison_results[tcf] = BuildComparisonResult(
-                fixed=[old_build_tcs[k] for k in fixed],
-                still_failing=[latest_tcs[k] for k in still_failing],
-                new_failures=[latest_tcs[k] for k in new_failures],
-            )
-
-    @staticmethod
-    def _get_comparable_testcase_lists(
-        sorted_testcases, last_n_days
-    ) -> Tuple[Dict[str, FailedTestCaseAbs], Dict[str, FailedTestCaseAbs]]:
-        # Result lists
-        latest_testcases: Dict[str, FailedTestCaseAbs] = {}
-        to_compare_testcases: Dict[str, FailedTestCaseAbs] = {}
-
-        reference_date: datetime.datetime = sorted_testcases[0].date()
-        # Find all testcases for latest build
-        start_idx = 0
-        while True:
-            tc = sorted_testcases[start_idx]
-            if tc.date() == reference_date:
-                latest_testcases[tc.simple_name()] = tc
-                start_idx += 1
-            else:
-                # We found a new date, will be processed with the next loop
-                break
-
-        # Find all testcases for build to compare:
-        # Either build before last build or build with specified "distance" from the latest build
-        stored_delta: int or None = None
-        for i in range(len(sorted_testcases) - 1, start_idx, -1):
-            tc = sorted_testcases[i]
-            delta_days = (reference_date - tc.date()).days
-            if stored_delta and delta_days != stored_delta:
-                break
-
-            if delta_days <= last_n_days:
-                if not stored_delta:
-                    stored_delta = delta_days
-                to_compare_testcases[tc.simple_name()] = tc
-
-        # If we haven't found any other testcase, it means delta_days haven't reached the given number of days.
-        # Relax criteria
-        if not to_compare_testcases:
-            next_date = sorted_testcases[start_idx].date()
-            for i in range(start_idx, len(sorted_testcases)):
-                tc = sorted_testcases[i]
-                if not tc.date() == next_date:
-                    break
-                to_compare_testcases[tc.simple_name()] = tc
-
-        return latest_testcases, to_compare_testcases
-
-    def init_comparison_results(self, tcf):
-        self._build_comparison_results[tcf] = BuildComparisonResult.create_empty()

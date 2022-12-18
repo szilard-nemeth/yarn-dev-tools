@@ -25,6 +25,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCases,
     MATCH_ALL_LINES_EXPRESSION,
     get_key_by_testcase_filter,
+    TestFailureComparison,
 )
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     MatchExpression,
@@ -147,16 +148,15 @@ class TestcaseFilterResults:
     def finish_processing_all(self):
         self.print_objects()
 
-        for tcf in self._testcase_filters.ALL_VALID_FILTERS:
-            self._failed_testcases.init_comparison_results(tcf)
-
         # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
         self._failed_testcases.aggregate(self._testcase_filters.get_aggregate_filters())
         self._failed_testcases.create_latest_failures(
             self._testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True
         )
-        self._failed_testcases.create_changed_failures_comparison(
-            self._testcase_filters.LATEST_FAILURE_FILTERS, compare_with_last=True
+        self._failed_testcases.comparison = TestFailureComparison(
+            self._testcase_filters.LATEST_FAILURE_FILTERS,
+            self._failed_testcases._test_failures_by_tcf,
+            compare_with_last=True,
         )
         self._failed_testcases.cross_check_testcases_with_jiras(
             self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self._known_failures
