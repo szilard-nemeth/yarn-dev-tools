@@ -221,6 +221,7 @@ class CommandType(Enum):
     ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", "zip-latest-command-data", False)
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", "send-latest-command-data", False)
     UNIT_TEST_RESULT_FETCHER = ("unit_test_result_fetcher", "unit-test-result-fetcher", False)
+
     UNIT_TEST_RESULT_AGGREGATOR_DB = (
         "unit_test_result_aggregator",
         "unit-test-result-aggregator",
@@ -232,13 +233,6 @@ class CommandType(Enum):
         "unit-test-result-aggregator",
         True,
         "latest-session-unit-test-result-aggregator-email",
-    )
-
-    UNIT_TEST_RESULT_AGGREGATOR_DB_CONNECTOR = (
-        "unit_test_result_aggregator",
-        "unit-test-result-aggregator",
-        True,
-        "latest-session-unit-test-result-aggregator-db-connector",
     )
 
     REVIEW_SHEET_BACKPORT_UPDATER = (
