@@ -52,12 +52,27 @@ class KnownTestFailureInJira:
 
 class KnownTestFailures:
     def __init__(self, gsheet_wrapper=None, gsheet_jira_table=None):
-        self.testcases_to_jiras: List[KnownTestFailureInJira] = []
+        self._testcases_to_jiras: List[KnownTestFailureInJira] = []
         self.gsheet_wrapper = gsheet_wrapper
         if gsheet_jira_table:
-            self.testcases_to_jiras: List[KnownTestFailureInJira] = self._load_and_convert_known_test_failures_in_jira(
+            self._testcases_to_jiras: List[KnownTestFailureInJira] = self._load_and_convert_known_test_failures_in_jira(
                 gsheet_jira_table
             )
+        self._index = 0
+        self._num_testcases = len(self._testcases_to_jiras)
+
+    def __len__(self):
+        return self._num_testcases
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._index == self._num_testcases:
+            raise StopIteration
+        result = self._testcases_to_jiras[self._index]
+        self._index += 1
+        return result
 
     def _load_and_convert_known_test_failures_in_jira(self, gsheet_jira_table) -> List[KnownTestFailureInJira]:
         # TODO yarndevtoolsv2: Data should be written to mongoDB once
