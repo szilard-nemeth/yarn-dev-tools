@@ -42,6 +42,56 @@ MATCH_ALL_LINES_EXPRESSION: MatchExpression = MatchExpression("Failed testcases"
 MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
+class LatestTestFailures:
+    def __init__(
+        self,
+        filters: List[TestCaseFilter],
+        test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]],
+        only_last_results=True,
+    ):
+        self._test_failures_by_tcf = test_failures_by_tcf
+        self._latest_testcases = self._create_latest_failures(filters, only_last_results=only_last_results)
+
+    def get(self, tcf):
+        return self._test_failures_by_tcf[tcf]
+
+    def _create_latest_failures(
+        self,
+        testcase_filters: List[TestCaseFilter],
+        last_n_days=None,
+        only_last_results=False,
+        reset_oldest_day_to_midnight=False,
+    ):
+        if sum([True if last_n_days else False, only_last_results]) != 1:
+            raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
+
+        result = {}
+        for tcf in testcase_filters:
+            failed_testcases = self._test_failures_by_tcf[tcf]
+            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
+            if not sorted_testcases:
+                return []
+
+            if last_n_days:
+                date_range_open = self._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
+                LOG.info(f"Using date range open date to filter dates: {date_range_open}")
+            else:
+                date_range_open = sorted_testcases[0].date()
+
+            for testcase in sorted_testcases:
+                if testcase.date() >= date_range_open:
+                    result[tcf].append(testcase)
+
+        return result
+
+    @staticmethod
+    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight=False):
+        oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
+        if reset_oldest_day_to_midnight:
+            oldest_day = DateUtils.reset_to_midnight(oldest_day)
+        return oldest_day
+
+
 class TestFailureComparison:
     def __init__(
         self,
@@ -217,9 +267,9 @@ class FinalAggregationResults:
     def __init__(self, all_filters: List[TestCaseFilter]):
         self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
         self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = {}
-        self.comparison: TestFailureComparison = None
+        self._comparison: TestFailureComparison = None
+        self._latest_failures: LatestTestFailures = None
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
-        self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = defaultdict(list)
 
         for tcf in all_filters:
             if tcf not in self._test_failures_by_tcf:
@@ -245,10 +295,10 @@ class FinalAggregationResults:
         return self._test_failures_by_tcf[tcf]
 
     def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
-        return self._latest_testcases[tcf]
+        return self._latest_failures.get(tcf)
 
     def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
-        return self.comparison.get(tcf)
+        return self._comparison.get(tcf)
 
     def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
         return self._aggregated_test_failures[tcf]
@@ -350,39 +400,6 @@ class FinalAggregationResults:
             #     "We have 2 different TC full names but testcases are not having the same parameterized flags. "
             #     f"Testcase objects: {testcases}"
             # )
-
-    def create_latest_failures(
-        self,
-        testcase_filters: List[TestCaseFilter],
-        last_n_days=None,
-        only_last_results=False,
-        reset_oldest_day_to_midnight=False,
-    ):
-        if sum([True if last_n_days else False, only_last_results]) != 1:
-            raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
-
-        for tcf in testcase_filters:
-            failed_testcases = self._test_failures_by_tcf[tcf]
-            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
-            if not sorted_testcases:
-                return []
-
-            if last_n_days:
-                date_range_open = self._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
-                LOG.info(f"Using date range open date to filter dates: {date_range_open}")
-            else:
-                date_range_open = sorted_testcases[0].date()
-
-            for testcase in sorted_testcases:
-                if testcase.date() >= date_range_open:
-                    self._latest_testcases[tcf].append(testcase)
-
-    @staticmethod
-    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight=False):
-        oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
-        if reset_oldest_day_to_midnight:
-            oldest_day = DateUtils.reset_to_midnight(oldest_day)
-        return oldest_day
 
     def cross_check_testcases_with_jiras(
         self, testcase_filters: List[TestCaseFilter], known_failures: KnownTestFailures
