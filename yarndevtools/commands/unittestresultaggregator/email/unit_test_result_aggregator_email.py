@@ -34,6 +34,7 @@ from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailBasedUnitTestResultAggregatorConfig,
     UnitTestResultAggregatorEmailParserUtils,
     SUBJECT,
+    EmailUtilsForAggregators,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import UnitTestResultOutputManager, SummaryGenerator
 from yarndevtools.commands_common import CommandAbs
@@ -47,9 +48,9 @@ LOG = logging.getLogger(__name__)
 # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
 class TestcaseFilterResults:
     def __init__(self, testcase_filters: TestCaseFilters, known_failures: KnownTestFailures):
-        self._known_failures: KnownTestFailures = known_failures
+        self._match_all_lines: bool = TestcaseFilterResults._should_match_all_lines(testcase_filters)
         self._testcase_filters: TestCaseFilters = testcase_filters
-        self._match_all_lines: bool = self._should_match_all_lines()
+        self._known_failures: KnownTestFailures = known_failures
         self._failed_testcases: FailedTestCases = FailedTestCases()
         self._failed_testcases.init_with_testcase_filters(self._testcase_filters.ALL_VALID_FILTERS)
 
@@ -57,18 +58,22 @@ class TestcaseFilterResults:
         self._matched_lines_dict: Dict[str, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
 
-    def _should_match_all_lines(self):
-        match_all_lines: bool = self._testcase_filters.match_all_lines()
+    @staticmethod
+    def _should_match_all_lines(testcase_filters):
+        match_all_lines: bool = testcase_filters.match_all_lines()
         LOG.info(
             "**Matching all lines"
             if match_all_lines
-            else f"**Matching lines with regex pattern: {self._testcase_filters.match_expressions}"
+            else f"**Matching lines with regex pattern: {testcase_filters.match_expressions}"
         )
         return match_all_lines
 
     def start_new_context(self):
+        # Prepare matched_lines dict with all required empty-lists for ALL filters
         self._matched_lines_dict = defaultdict(list)
         filters: List[TestCaseFilter] = self._testcase_filters.ALL_VALID_FILTERS
+        for tcf in filters:
+            self._matched_lines_dict[self._get_matched_lines_key(tcf)] = []
 
         # Do sanity check
         generated_keys = [self._get_matched_lines_key(tcf) for tcf in filters]
@@ -80,10 +85,6 @@ class TestcaseFilterResults:
                 f"Generated keys: {generated_keys}, "
                 f"Unique keys: {unique_keys}."
             )
-
-        # Prepare matched_lines dict with all required empty-lists for ALL filters
-        for tcf in filters:
-            self._matched_lines_dict[self._get_matched_lines_key(tcf)] = []
 
     def match_line(self, line, mail_subject: str):
         matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
@@ -126,7 +127,8 @@ class TestcaseFilterResults:
 
     def finish_context(self, message: GmailMessage):
         LOG.info("Finishing context...")
-        LOG.debug(f"Keys of _matched_lines_dict: {self._matched_lines_dict.keys()}")
+        LOG.debug(f"Keys of of matched lines: {self._matched_lines_dict.keys()}")
+
         for key, matched_lines in self._matched_lines_dict.items():
             if not matched_lines:
                 continue
@@ -206,27 +208,12 @@ class TestcaseFilterResults:
 
 
 class EmailBasedUnitTestResultAggregator(CommandAbs):
-    # TODO yarndevtoolsv2: Revisit any common logic for email+db based aggregator?
     def __init__(self, args, parser, output_dir: str):
+        super().__init__()
         self.config = EmailBasedUnitTestResultAggregatorConfig(parser, args, output_dir)
-        self._fetch_known_test_failures()
-        self._setup_gmail_wrapper()
-
-    def _fetch_known_test_failures(self):
-        if self.config.operation_mode == OperationMode.GSHEET:
-            gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
-            self.known_test_failures = KnownTestFailures(
-                gsheet_wrapper=gsheet_wrapper, gsheet_jira_table=self.config.gsheet_jira_table
-            )
-
-    def _setup_gmail_wrapper(self):
-        google_auth = GoogleApiAuthorizer(
-            ServiceType.GMAIL,
-            project_name=f"{CMD.output_dir_name}",
-            secret_basedir=SECRET_PROJECTS_DIR,
-            account_email=self.config.account_email,
-        )
-        self.gmail_wrapper = GmailWrapper(google_auth, output_basedir=self.config.email_cache_dir)
+        self._email_utils = EmailUtilsForAggregators(self.config, CMD)
+        self.known_test_failures = self._email_utils.fetch_known_test_failures()
+        self.gmail_wrapper = self._email_utils.setup_gmail_wrapper()
 
     @staticmethod
     def create_parser(subparsers):
@@ -247,26 +234,21 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
 
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
-        gmail_query: str = self._get_gmail_query()
-        query_result: ThreadQueryResults = self.gmail_wrapper.query_threads(
-            query=gmail_query, limit=self.config.request_limit, expect_one_message_per_thread=True
-        )
-        LOG.info(
-            f"Received thread query result:\n"
-            f"Number of threads: {query_result.no_of_threads}\n"
-            f"Number of messages: {query_result.no_of_messages}\n"
-            f"Number of unique subjects: {len(query_result.unique_subjects)}\n"
-            f"Unique subjects: {pformat(query_result.unique_subjects)}"
-        )
-        tc_filter_results: TestcaseFilterResults = self.filter_query_result_data(query_result)
+        query_result = self._email_utils.perform_gmail_query()
 
+        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, self.known_test_failures)
+        self.filter_query_result_data(query_result, tc_filter_results)
+
+        # TODO yarndevtoolsv2: Should invoke DB connector here to save data
+        self._post_process(query_result, tc_filter_results)
+
+    def _post_process(self, query_result, tc_filter_results):
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self.known_test_failures.gsheet_wrapper
         )
         SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
 
-    def filter_query_result_data(self, query_result: ThreadQueryResults) -> TestcaseFilterResults:
-        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, self.known_test_failures)
+    def filter_query_result_data(self, query_result: ThreadQueryResults, tc_filter_results: TestcaseFilterResults):
         for message in query_result.threads.messages:
             LOG.debug("Processing message: %s", message.subject)
             msg_parts = message.get_all_plain_text_parts()
@@ -276,38 +258,9 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
                 for line in lines:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
-                    if not self._check_if_line_is_valid(line, self.config.skip_lines_starting_with):
+                    if not self._email_utils.check_if_line_is_valid(line, self.config.skip_lines_starting_with):
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
                         continue
                     tc_filter_results.match_line(line, message.subject)
                 tc_filter_results.finish_context(message)
         tc_filter_results.finish_processing_all()
-        return tc_filter_results
-
-    @staticmethod
-    def _check_if_line_is_valid(line, skip_lines_starting_with):
-        valid_line = True
-        for skip_str in skip_lines_starting_with:
-            if line.startswith(skip_str):
-                valid_line = False
-                break
-        return valid_line
-
-    def _get_gmail_query(self):
-        original_query = self.config.gmail_query
-        if self.config.smart_subject_query and original_query.startswith(SUBJECT):
-            real_subject = original_query.split(SUBJECT)[1]
-            logical_expressions = [" and ", " or "]
-            if any(x in real_subject.lower() for x in logical_expressions):
-                LOG.warning(f"Detected logical expression in query, won't modify original query: {original_query}")
-                return original_query
-            if " " in real_subject and real_subject[0] != '"':
-                fixed_subject = f'"{real_subject}"'
-                new_query = SUBJECT + fixed_subject
-                LOG.info(
-                    f"Fixed Gmail query string.\n"
-                    f"Original query string: {original_query}\n"
-                    f"New query string: {new_query}"
-                )
-                return new_query
-        return original_query
