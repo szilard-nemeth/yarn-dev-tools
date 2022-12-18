@@ -120,11 +120,10 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
 
 # TODO yarndevtoolsv2: Revisit any email specific logic in this class
 # TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
-# TODO yarndevtoolsv2: This is not a dataclass!
-@dataclass
 class FailedTestCases:
-    _failed_tcs: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = field(default_factory=dict)
-    _aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = field(default_factory=dict)
+    def __init__(self):
+        self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
+        self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = {}
 
     def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
@@ -133,8 +132,8 @@ class FailedTestCases:
 
     def init_with_testcase_filters(self, testcase_filters: List[TestCaseFilter]):
         for tcf in testcase_filters:
-            if tcf not in self._failed_tcs:
-                self._failed_tcs[tcf] = []
+            if tcf not in self._test_failures_by_tcf:
+                self._test_failures_by_tcf[tcf] = []
 
     def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCaseAbs):
         self._tc_keys[tc_key] = ftc
@@ -153,10 +152,10 @@ class FailedTestCases:
         else:
             self._add_known_failed_testcase(tc_key, failed_testcase)
 
-        self._failed_tcs[tcf].append(failed_testcase)
+        self._test_failures_by_tcf[tcf].append(failed_testcase)
 
     def get(self, tcf) -> List[FailedTestCaseAbs]:
-        return self._failed_tcs[tcf]
+        return self._test_failures_by_tcf[tcf]
 
     def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
         return self._latest_testcases[tcf]
@@ -168,7 +167,7 @@ class FailedTestCases:
         return self._aggregated_test_failures[tcf]
 
     def print_keys(self):
-        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_tcs.keys()}")
+        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._test_failures_by_tcf.keys()}")
 
     def aggregate(self, testcase_filters: List[TestCaseFilter]):
         for tcf in testcase_filters:
@@ -176,7 +175,7 @@ class FailedTestCases:
             latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
             tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
             aggregated_test_failures: List[FailedTestCaseAggregated] = []
-            for testcase in self._failed_tcs[tcf]:
+            for testcase in self._test_failures_by_tcf[tcf]:
                 tc_key = TestCaseKey.create_from(
                     tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
                 )
@@ -276,7 +275,7 @@ class FailedTestCases:
             raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
 
         for tcf in testcase_filters:
-            failed_testcases = self._failed_tcs[tcf]
+            failed_testcases = self._test_failures_by_tcf[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 return []
@@ -353,7 +352,7 @@ class FailedTestCases:
 
         for tcf in testcase_filters:
             LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
-            failed_testcases = self._failed_tcs[tcf]
+            failed_testcases = self._test_failures_by_tcf[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 LOG.warning("No failed testcases found for testcase filter: %s", tcf)
