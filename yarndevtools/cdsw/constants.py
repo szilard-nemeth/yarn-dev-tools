@@ -59,7 +59,7 @@ class ReviewSyncEnvVar(Enum):
     BRANCHES = "BRANCHES"
 
 
-class UnitTestResultAggregatorEnvVar(Enum):
+class UnitTestResultAggregatorEmailEnvVar(Enum):
     GSHEET_CLIENT_SECRET = "GSHEET_CLIENT_SECRET"
     GSHEET_SPREADSHEET = "GSHEET_SPREADSHEET"
     GSHEET_WORKSHEET = "GSHEET_WORKSHEET"

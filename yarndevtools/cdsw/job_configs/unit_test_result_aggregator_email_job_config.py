@@ -8,9 +8,10 @@ from yarndevtools.commands.unittestresultaggregator.common import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import ReportFile
 
+# TODO yarndevtoolsv2: Create new file: unit_test_result_aggregator_db_job_config.py
 config = {
     "job_name": "Unit test result aggregator",
-    "command_type": CommandType.UNIT_TEST_RESULT_AGGREGATOR,
+    "command_type": CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL,
     "env_sanitize_exceptions": ["MATCH_EXPRESSION", "GSHEET_COMPARE_WITH_JIRA_TABLE", "AGGREGATE_FILTERS"],
     "mandatory_env_vars": [
         "GSHEET_CLIENT_SECRET",
@@ -30,7 +31,7 @@ config = {
     ],
     "yarn_dev_tools_arguments": [
         lambda conf: f"{Include.when('True' == conf.var('debugMode'), '--debug', '')}",
-        f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.name}",
+        f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL.name}",
         lambda conf: f"--{conf.var('execMode')}",
         lambda conf: f"--gsheet-client-secret {conf.env('GSHEET_CLIENT_SECRET')}",
         lambda conf: f"--gsheet-worksheet {conf.env('GSHEET_WORKSHEET')}",
