@@ -21,9 +21,11 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     get_key_by_testcase_filter,
     OperationMode,
     SummaryMode,
-    TestCaseFilter,
-    FailedTestCaseAggregated,
+)
+from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     BuildComparisonResult,
+    FailedTestCaseAggregated,
+    TestCaseFilter,
     FailedTestCaseAbs,
 )
 from yarndevtools.commands.unittestresultaggregator.email.common import EmailMetaData, FailedTestCaseFromEmail
