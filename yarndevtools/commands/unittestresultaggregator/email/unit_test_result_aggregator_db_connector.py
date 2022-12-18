@@ -7,7 +7,7 @@ from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailBasedUnitTestResultAggregatorConfig,
     UnitTestResultAggregatorEmailParserUtils,
     EmailUtilsForAggregators,
-    TestcaseFilterResults,
+    EmailBasedAggregationResults,
 )
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
@@ -45,7 +45,7 @@ class UnitTestResultAggregatorDBConnector(CommandAbs):
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         gmail_query_result = self._email_utils.perform_gmail_query()
-        result = TestcaseFilterResults(self.config.testcase_filters, self._known_test_failures)
+        result = EmailBasedAggregationResults(self.config.testcase_filters, self._known_test_failures)
         self._email_utils.process_gmail_results(
             gmail_query_result,
             result,

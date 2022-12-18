@@ -48,10 +48,10 @@ SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
 
 
-class TestcaseFilterResults:
+class EmailBasedAggregationResults:
     # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
     def __init__(self, testcase_filters: TestCaseFilters, known_failures: KnownTestFailures):
-        self._match_all_lines: bool = TestcaseFilterResults._should_match_all_lines(testcase_filters)
+        self._match_all_lines: bool = EmailBasedAggregationResults._should_match_all_lines(testcase_filters)
         self._testcase_filters: TestCaseFilters = testcase_filters
         self._known_failures: KnownTestFailures = known_failures
         self._aggregation_results: FinalAggregationResults = FinalAggregationResults()
@@ -517,7 +517,7 @@ class EmailUtilsForAggregators:
     @staticmethod
     def process_gmail_results(
         query_result: ThreadQueryResults,
-        result: TestcaseFilterResults,
+        result: EmailBasedAggregationResults,
         split_body_by: str,
         skip_lines_starting_with: List[str],
     ):
