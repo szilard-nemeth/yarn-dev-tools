@@ -42,6 +42,117 @@ MATCH_ALL_LINES_EXPRESSION: MatchExpression = MatchExpression("Failed testcases"
 MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
+class AggregatedTestFailures:
+    def __init__(
+        self,
+        filters: List[TestCaseFilter],
+        test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]],
+    ):
+        self._test_failures_by_tcf = test_failures_by_tcf
+        self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(filters)
+
+    def get(self, tcf: TestCaseFilter):
+        return self._aggregated_test_failures[tcf]
+
+    def _aggregate(self, filters: List[TestCaseFilter]):
+        result = {}
+        for tcf in filters:
+            failure_freqs: Dict[TestCaseKey, int] = {}
+            latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
+            tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
+            aggregated_test_failures: List[FailedTestCaseAggregated] = []
+            for testcase in self._test_failures_by_tcf[tcf]:
+                tc_key = TestCaseKey.create_from(
+                    tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
+                )
+                tc_key_to_testcases[tc_key].append(testcase)
+                if tc_key not in failure_freqs:
+                    failure_freqs[tc_key] = 1
+                    latest_failures[tc_key] = testcase.date()
+                else:
+                    LOG.debug(
+                        "Found TC key in failure_freqs dict. "
+                        f"Current TC: {testcase}, "
+                        f"Previously stored TC: {failure_freqs[tc_key]}, "
+                    )
+                    failure_freqs[tc_key] = failure_freqs[tc_key] + 1
+                    if testcase.date() > latest_failures[tc_key]:
+                        latest_failures[tc_key] = testcase.date()
+
+            for tc_key, testcases in tc_key_to_testcases.items():
+                if len(testcases) > 1:
+                    # TODO Should be trace logged
+                    # LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
+                    LOG.debug(
+                        "Found %d testcase objects that will be aggregated for TC key: %s", len(testcases), tc_key
+                    )
+                    self._sanity_check_testcases(testcases)
+
+                # Full name is N/A because it's ambiguous between testcases.
+                # We expect TCs to be having the same parameterized flags at this point, this was already sanity checked.
+                # If parameterized, we can't choose between full names.
+                # If not parameterized, full names should be the same.
+                arbitrary_tc = testcases[0]
+                parameter = None
+                if arbitrary_tc.parameterized():
+                    if len(testcases) > 1:
+                        full_name = "N/A"
+                    else:
+                        full_name = arbitrary_tc.full_name()
+                        parameter = arbitrary_tc.parameter()
+                else:
+                    full_name = arbitrary_tc.full_name()
+                # Simple names were also sanity checked that they are the same, choose the first.
+                simple_name = arbitrary_tc.simple_name()
+
+                # TODO fill failure dates
+                failure_dates = []
+                # Cannot fill known_failure / reoccurred at this point --> Jira check will be performed later!
+                aggregated_test_failures.append(
+                    FailedTestCaseAggregated(
+                        full_name=full_name,
+                        simple_name=simple_name,
+                        parameterized=True,
+                        parameter=parameter,
+                        latest_failure=latest_failures[tc_key],
+                        failure_freq=failure_freqs[tc_key],
+                        failure_dates=failure_dates,
+                        known_failure=None,
+                        reoccurred=None,
+                    )
+                )
+            result[tcf] = aggregated_test_failures
+
+        return result
+
+    @staticmethod
+    def _sanity_check_testcases(testcases: List[FailedTestCaseAbs]):
+        simple_names = set([tc.simple_name() for tc in testcases])
+        full_names = set()
+        parameterized = set()
+        for tc in testcases:
+            full_names.add(tc.full_name())
+            parameterized.add(tc.parameterized())
+
+        if len(simple_names) > 1:
+            raise ValueError(
+                "Invalid state. Aggregated testcases should have had the same simple name. "
+                f"Testcase objects: {testcases}\n"
+                f"Simple names: {simple_names}"
+            )
+
+        parameterized_lst = list(parameterized)
+        parameterized_had_same_value = True if (len(parameterized_lst) == 1 and parameterized_lst[0]) else False
+        # If we have more than 1 fullname, testcases should be all parameterized
+        if len(full_names) > 1 and not parameterized_had_same_value:
+            pass
+            # TODO yarndevtoolsv2: this check does not really makes sense now
+            # raise ValueError(
+            #     "We have 2 different TC full names but testcases are not having the same parameterized flags. "
+            #     f"Testcase objects: {testcases}"
+            # )
+
+
 class LatestTestFailures:
     def __init__(
         self,
@@ -266,7 +377,7 @@ class FinalAggregationResults:
     # TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
     def __init__(self, all_filters: List[TestCaseFilter]):
         self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
-        self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = {}
+        self._aggregated: AggregatedTestFailures = None
         self._comparison: TestFailureComparison = None
         self._latest_failures: LatestTestFailures = None
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
@@ -301,105 +412,10 @@ class FinalAggregationResults:
         return self._comparison.get(tcf)
 
     def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
-        return self._aggregated_test_failures[tcf]
+        return self._aggregated.get(tcf)
 
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self._test_failures_by_tcf.keys()}")
-
-    def aggregate(self, testcase_filters: List[TestCaseFilter]):
-        for tcf in testcase_filters:
-            failure_freqs: Dict[TestCaseKey, int] = {}
-            latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
-            tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
-            aggregated_test_failures: List[FailedTestCaseAggregated] = []
-            for testcase in self._test_failures_by_tcf[tcf]:
-                tc_key = TestCaseKey.create_from(
-                    tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
-                )
-                tc_key_to_testcases[tc_key].append(testcase)
-                if tc_key not in failure_freqs:
-                    failure_freqs[tc_key] = 1
-                    latest_failures[tc_key] = testcase.date()
-                else:
-                    LOG.debug(
-                        "Found TC key in failure_freqs dict. "
-                        f"Current TC: {testcase}, "
-                        f"Previously stored TC: {failure_freqs[tc_key]}, "
-                    )
-                    failure_freqs[tc_key] = failure_freqs[tc_key] + 1
-                    if testcase.date() > latest_failures[tc_key]:
-                        latest_failures[tc_key] = testcase.date()
-
-            for tc_key, testcases in tc_key_to_testcases.items():
-                if len(testcases) > 1:
-                    # TODO Should be trace logged
-                    # LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
-                    LOG.debug(
-                        "Found %d testcase objects that will be aggregated for TC key: %s", len(testcases), tc_key
-                    )
-                    self._sanity_check_testcases(testcases)
-
-                # Full name is N/A because it's ambiguous between testcases.
-                # We expect TCs to be having the same parameterized flags at this point, this was already sanity checked.
-                # If parameterized, we can't choose between full names.
-                # If not parameterized, full names should be the same.
-                arbitrary_tc = testcases[0]
-                parameter = None
-                if arbitrary_tc.parameterized():
-                    if len(testcases) > 1:
-                        full_name = "N/A"
-                    else:
-                        full_name = arbitrary_tc.full_name()
-                        parameter = arbitrary_tc.parameter()
-                else:
-                    full_name = arbitrary_tc.full_name()
-                # Simple names were also sanity checked that they are the same, choose the first.
-                simple_name = arbitrary_tc.simple_name()
-
-                # TODO fill failure dates
-                failure_dates = []
-                # Cannot fill known_failure / reoccurred at this point --> Jira check will be performed later!
-                aggregated_test_failures.append(
-                    FailedTestCaseAggregated(
-                        full_name=full_name,
-                        simple_name=simple_name,
-                        parameterized=True,
-                        parameter=parameter,
-                        latest_failure=latest_failures[tc_key],
-                        failure_freq=failure_freqs[tc_key],
-                        failure_dates=failure_dates,
-                        known_failure=None,
-                        reoccurred=None,
-                    )
-                )
-            self._aggregated_test_failures[tcf] = aggregated_test_failures
-
-    @staticmethod
-    def _sanity_check_testcases(testcases: List[FailedTestCaseAbs]):
-        simple_names = set([tc.simple_name() for tc in testcases])
-        full_names = set()
-        parameterized = set()
-        for tc in testcases:
-            full_names.add(tc.full_name())
-            parameterized.add(tc.parameterized())
-
-        if len(simple_names) > 1:
-            raise ValueError(
-                "Invalid state. Aggregated testcases should have had the same simple name. "
-                f"Testcase objects: {testcases}\n"
-                f"Simple names: {simple_names}"
-            )
-
-        parameterized_lst = list(parameterized)
-        parameterized_had_same_value = True if (len(parameterized_lst) == 1 and parameterized_lst[0]) else False
-        # If we have more than 1 fullname, testcases should be all parameterized
-        if len(full_names) > 1 and not parameterized_had_same_value:
-            pass
-            # TODO yarndevtoolsv2: this check does not really makes sense now
-            # raise ValueError(
-            #     "We have 2 different TC full names but testcases are not having the same parameterized flags. "
-            #     f"Testcase objects: {testcases}"
-            # )
 
     def cross_check_testcases_with_jiras(
         self, testcase_filters: List[TestCaseFilter], known_failures: KnownTestFailures
