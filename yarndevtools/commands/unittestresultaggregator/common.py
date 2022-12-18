@@ -539,8 +539,8 @@ class FailedTestCases:
         full_names = set()
         parameterized = set()
         for tc in testcases:
-            full_names.add(tc.full_name)
-            parameterized.add(tc.parameterized)
+            full_names.add(tc.full_name())
+            parameterized.add(tc.parameterized())
 
         if len(simple_names) > 1:
             raise ValueError(
