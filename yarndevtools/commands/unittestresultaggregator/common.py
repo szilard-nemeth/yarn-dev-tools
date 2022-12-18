@@ -1,7 +1,6 @@
 import datetime
 import logging
 from collections import defaultdict
-from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict, Set, Tuple
 
@@ -221,15 +220,10 @@ class FinalAggregationResults:
         self.comparison: TestFailureComparison = None
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = defaultdict(list)
-        self._init_with_testcase_filters(all_filters)
 
-    def _init_with_testcase_filters(self, filters: List[TestCaseFilter]):
-        for tcf in filters:
+        for tcf in all_filters:
             if tcf not in self._test_failures_by_tcf:
                 self._test_failures_by_tcf[tcf] = []
-
-    def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCaseAbs):
-        self._tc_keys[tc_key] = ftc
 
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
         tc_key = TestCaseKey.create_from(tcf, failed_testcase)
@@ -243,7 +237,7 @@ class FinalAggregationResults:
             )
             return
         else:
-            self._add_known_failed_testcase(tc_key, failed_testcase)
+            self._tc_keys[tc_key] = failed_testcase
 
         self._test_failures_by_tcf[tcf].append(failed_testcase)
 
