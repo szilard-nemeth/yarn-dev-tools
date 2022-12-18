@@ -27,6 +27,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     get_key_by_testcase_filter,
     TestFailureComparison,
     LatestTestFailures,
+    AggregatedTestFailures,
 )
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     MatchExpression,
@@ -151,16 +152,20 @@ class EmailBasedAggregationResults:
         self.print_objects()
 
         # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
-        self._aggregation_results.aggregate(self._testcase_filters.get_aggregate_filters())
+        self._aggregation_results._aggregated = AggregatedTestFailures(
+            self._testcase_filters.get_aggregate_filters(),
+            # TODO yarndevtoolsv2
+            self._aggregation_results._test_failures_by_tcf,
+        )
         self._aggregation_results._latest_failures = LatestTestFailures(
             self._testcase_filters.LATEST_FAILURE_FILTERS,
-            # TODO
+            # TODO yarndevtoolsv2
             self._aggregation_results._test_failures_by_tcf,
             only_last_results=True,
         )
         self._aggregation_results._comparison = TestFailureComparison(
             self._testcase_filters.LATEST_FAILURE_FILTERS,
-            # TODO
+            # TODO yarndevtoolsv2
             self._aggregation_results._test_failures_by_tcf,
             compare_with_last=True,
         )
