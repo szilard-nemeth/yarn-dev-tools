@@ -8,7 +8,6 @@ from googleapiwrapper.gmail_api import ThreadQueryResults, GmailWrapper
 from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetWrapper
-from pythoncommons.date_utils import DateUtils
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import RegexUtils
@@ -20,7 +19,6 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     AGGREGATED_WS_POSTFIX,
     TestCaseFilter,
     TestCaseFilters,
-    KnownTestFailureInJira,
     FailedTestCaseAggregated,
     get_key_by_testcase_filter,
     EmailMetaData,
@@ -40,7 +38,6 @@ from yarndevtools.commands.unittestresultaggregator.email.common import (
 from yarndevtools.commands.unittestresultaggregator.representation import UnitTestResultOutputManager, SummaryGenerator
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.shared_command_utils import CommandType
-
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 CMD = CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL
@@ -212,11 +209,17 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
     # TODO yarndevtoolsv2: Revisit any common logic for email+db based aggregator?
     def __init__(self, args, parser, output_dir: str):
         self.config = EmailBasedUnitTestResultAggregatorConfig(parser, args, output_dir)
+        self._fetch_known_test_failures()
+        self._setup_gmail_wrapper()
+
+    def _fetch_known_test_failures(self):
         if self.config.operation_mode == OperationMode.GSHEET:
             gsheet_wrapper = GSheetWrapper(self.config.gsheet_options)
             self.known_test_failures = KnownTestFailures(
                 gsheet_wrapper=gsheet_wrapper, gsheet_jira_table=self.config.gsheet_jira_table
             )
+
+    def _setup_gmail_wrapper(self):
         google_auth = GoogleApiAuthorizer(
             ServiceType.GMAIL,
             project_name=f"{CMD.output_dir_name}",
@@ -302,7 +305,7 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
                 fixed_subject = f'"{real_subject}"'
                 new_query = SUBJECT + fixed_subject
                 LOG.info(
-                    f"Fixed gmail query string.\n"
+                    f"Fixed Gmail query string.\n"
                     f"Original query string: {original_query}\n"
                     f"New query string: {new_query}"
                 )
