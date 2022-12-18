@@ -49,8 +49,8 @@ LOG = logging.getLogger(__name__)
 
 # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
 class TestcaseFilterResults:
-    def __init__(self, testcase_filters: TestCaseFilters, testcases_to_jiras: List[KnownTestFailureInJira]):
-        self.testcases_to_jiras: List[KnownTestFailureInJira] = testcases_to_jiras
+    def __init__(self, testcase_filters: TestCaseFilters, known_failures: KnownTestFailures):
+        self._known_failures: KnownTestFailures = known_failures
         self._testcase_filters: TestCaseFilters = testcase_filters
         self._match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
@@ -157,7 +157,7 @@ class TestcaseFilterResults:
             self._testcase_filters.LATEST_FAILURE_FILTERS, compare_with_last=True
         )
         self._failed_testcases.cross_check_testcases_with_jiras(
-            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self.known_failures
+            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self._known_failures
         )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
