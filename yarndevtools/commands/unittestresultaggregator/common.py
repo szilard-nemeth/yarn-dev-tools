@@ -271,6 +271,7 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
 class TestCaseKey:
     tc_filter: TestCaseFilter
     full_name: str
+    # TODO yarndevtoolsv2: Email-specific property
     email_subject: str or None = None
 
     @staticmethod
@@ -490,7 +491,11 @@ class FailedTestCases:
 
             for tc_key, testcases in tc_key_to_testcases.items():
                 if len(testcases) > 1:
-                    LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
+                    # TODO Should be trace logged
+                    # LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
+                    LOG.debug(
+                        "Found %d testcase objects that will be aggregated for TC key: %s", len(testcases), tc_key
+                    )
                     self._sanity_check_testcases(testcases)
 
                 # Full name is N/A because it's ambiguous between testcases.
@@ -548,10 +553,12 @@ class FailedTestCases:
         parameterized_had_same_value = True if (len(parameterized_lst) == 1 and parameterized_lst[0]) else False
         # If we have more than 1 fullname, testcases should be all parameterized
         if len(full_names) > 1 and not parameterized_had_same_value:
-            raise ValueError(
-                "We have 2 different TC full names but testcases are not having the same parameterized flags. "
-                f"Testcase objects: {testcases}"
-            )
+            pass
+            # TODO yarndevtoolsv2: this check does not really makes sense now
+            # raise ValueError(
+            #     "We have 2 different TC full names but testcases are not having the same parameterized flags. "
+            #     f"Testcase objects: {testcases}"
+            # )
 
     def create_latest_failures(
         self,
