@@ -262,6 +262,7 @@ class TestCaseKey:
         ftc: FailedTestCaseAbs,
         use_full_name=True,
         use_simple_name=False,
+        # TODO yarndevtoolsv2: Email-specific property
         include_email_subject=True,
     ):
         if all([use_full_name, use_simple_name]) or not any([use_full_name, use_simple_name]):
@@ -554,6 +555,7 @@ class FailedTestCases:
 
         for tcf in testcase_filters:
             failed_testcases = self._failed_tcs[tcf]
+            # TODO yarndevtoolsv2: Email-specific property
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
             if not sorted_testcases:
                 return []
@@ -631,6 +633,7 @@ class FailedTestCases:
         for tcf in testcase_filters:
             LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
             failed_testcases = self._failed_tcs[tcf]
+            # TODO yarndevtoolsv2: Email-specific property
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
             if not sorted_testcases:
                 LOG.warning("No failed testcases found for testcase filter: %s", tcf)
@@ -657,11 +660,13 @@ class FailedTestCases:
         latest_testcases: Dict[str, FailedTestCaseAbs] = {}
         to_compare_testcases: Dict[str, FailedTestCaseAbs] = {}
 
+        # TODO yarndevtoolsv2: Email-specific property
         reference_date: datetime.datetime = sorted_testcases[0].email_meta.date
         # Find all testcases for latest build
         start_idx = 0
         while True:
             tc = sorted_testcases[start_idx]
+            # TODO yarndevtoolsv2: Email-specific property
             if tc.email_meta.date == reference_date:
                 latest_testcases[tc.simple_name()] = tc
                 start_idx += 1
@@ -674,6 +679,7 @@ class FailedTestCases:
         stored_delta: int or None = None
         for i in range(len(sorted_testcases) - 1, start_idx, -1):
             tc = sorted_testcases[i]
+            # TODO yarndevtoolsv2: Email-specific property
             date = tc.email_meta.date
             delta_days = (reference_date - date).days
             if stored_delta and delta_days != stored_delta:
@@ -687,9 +693,11 @@ class FailedTestCases:
         # If we haven't found any other testcase, it means delta_days haven't reached the given number of days.
         # Relax criteria
         if not to_compare_testcases:
+            # TODO yarndevtoolsv2: Email-specific property
             next_date = sorted_testcases[start_idx].email_meta.date
             for i in range(start_idx, len(sorted_testcases)):
                 tc = sorted_testcases[i]
+                # TODO yarndevtoolsv2: Email-specific property
                 if not tc.email_meta.date == next_date:
                     break
                 to_compare_testcases[tc.simple_name()] = tc
