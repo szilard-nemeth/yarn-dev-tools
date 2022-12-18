@@ -13,7 +13,7 @@ from yarndevtools.cdsw.constants import (
     JiraUmbrellaFetcherEnvVar,
     BranchComparatorEnvVar,
     UnitTestResultFetcherEnvVar,
-    UnitTestResultAggregatorEnvVar,
+    UnitTestResultAggregatorEmailEnvVar,
     ReviewSheetBackportUpdaterEnvVar,
     ReviewSyncEnvVar,
     CdswEnvVar,
@@ -287,7 +287,9 @@ class CdswJobConfigReader:
         CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaFetcherEnvVar,
         CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
         CommandType.UNIT_TEST_RESULT_FETCHER: UnitTestResultFetcherEnvVar,
-        CommandType.UNIT_TEST_RESULT_AGGREGATOR: UnitTestResultAggregatorEnvVar,
+        CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL: UnitTestResultAggregatorEmailEnvVar,
+        # TODO yarndevtoolsv2
+        CommandType.UNIT_TEST_RESULT_AGGREGATOR_DB: UnitTestResultAggregatorEmailEnvVar,
         CommandType.REVIEW_SHEET_BACKPORT_UPDATER: ReviewSheetBackportUpdaterEnvVar,
         CommandType.REVIEWSYNC: ReviewSyncEnvVar,
     }

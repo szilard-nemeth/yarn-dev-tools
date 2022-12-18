@@ -67,14 +67,12 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         self.cdsw_testing_commons = CdswTestingCommons()
         CdswTestingCommons.mock_google_drive()
 
-        self.exp_command_clone_downstream_repos = (
-            CommandExpectations(self)
-            .with_exact_command_expectation(f"{BASHX} /home/cdsw/scripts/clone_downstream_repos.sh")
+        self.exp_command_clone_downstream_repos = CommandExpectations(self).with_exact_command_expectation(
+            f"{BASHX} /home/cdsw/scripts/clone_downstream_repos.sh"
         )
 
-        self.exp_command_clone_upstream_repos = (
-            CommandExpectations(self)
-            .with_exact_command_expectation(f"{BASHX} /home/cdsw/scripts/clone_upstream_repos.sh")
+        self.exp_command_clone_upstream_repos = CommandExpectations(self).with_exact_command_expectation(
+            f"{BASHX} /home/cdsw/scripts/clone_upstream_repos.sh"
         )
         if not USE_LIVE_JIRA_SERVER:
             httpretty.enable()
@@ -416,7 +414,12 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         expectations = [
             self.exp_command_clone_downstream_repos,
             self.exp_command_clone_upstream_repos,
-            exp_command_1,exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6
+            exp_command_1,
+            exp_command_2,
+            exp_command_3,
+            exp_command_4,
+            exp_command_5,
+            exp_command_6,
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
@@ -458,7 +461,10 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             }
         )
 
-        args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
+        # TODO yarndevtoolsv2: Add testcase for UNIT_TEST_RESULT_AGGREGATOR_DB
+        args = self._create_args_for_specified_file(
+            config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL, dry_run=True
+        )
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
@@ -472,7 +478,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             CommandExpectations(self)
             .add_expected_ordered_arg(PYTHON3)
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR")
+            .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR_EMAIL")
             .add_expected_arg("--gsheet")
             .add_expected_arg("--gsheet-client-secret", "testGsheetClientSecret")
             .add_expected_arg("--gsheet-worksheet", "testGsheetWorkSheet")
@@ -496,9 +502,11 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--abbreviate-testcase-package", "org.apache.hadoop.yarn.server")
             .add_expected_args("--aggregate-filters", "CDPD-7.1.x", "CDPD-7.x")
             .add_expected_arg("--gsheet-compare-with-jira-table", '"testcases with jiras"')
-            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
+            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL)
         )
-        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
+        exp_command_2 = self._get_expected_zip_latest_command_data_command(
+            CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL
+        )
         exp_command_3 = self._get_expected_send_latest_command_data_command(
             job_start_date, subject=subject, sender=sender, email_file_from_zip="report-short.html"
         )
@@ -591,7 +599,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             exp_command_1_3,
             exp_command_2_1,
             exp_command_2_2,
-            exp_command_2_3
+            exp_command_2_3,
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 

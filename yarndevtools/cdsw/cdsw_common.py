@@ -32,7 +32,7 @@ from pythoncommons.project_utils import (
 from yarndevtools.cdsw.constants import (
     CdswEnvVar,
     PROJECT_NAME,
-    UnitTestResultAggregatorEnvVar,
+    UnitTestResultAggregatorEmailEnvVar,
     SECRET_PROJECTS_DIR,
 )
 
@@ -241,14 +241,14 @@ class UnitTestResultAggregatorCdswUtils:
         # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
         # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
         skip_aggregation_res_file = OsUtils.get_env_value(
-            UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
+            UnitTestResultAggregatorEmailEnvVar.SKIP_AGGREGATION_RESOURCE_FILE.value
         )
         skip_aggregation_res_file_auto_discovery_str = OsUtils.get_env_value(
-            UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
+            UnitTestResultAggregatorEmailEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value
         )
         LOG.info(
             "Value of env var '%s': %s",
-            UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
+            UnitTestResultAggregatorEmailEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
             skip_aggregation_res_file_auto_discovery_str,
         )
 
@@ -260,7 +260,7 @@ class UnitTestResultAggregatorCdswUtils:
         else:
             raise ValueError(
                 "Invalid value for environment variable '{}': {}".format(
-                    UnitTestResultAggregatorEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
+                    UnitTestResultAggregatorEmailEnvVar.SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY.value,
                     skip_aggregation_res_file_auto_discovery_str,
                 )
             )
