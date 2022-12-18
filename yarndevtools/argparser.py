@@ -9,6 +9,12 @@ from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.commands.reviewsheetbackportupdater.review_sheet_backport_updater import ReviewSheetBackportUpdater
 from yarndevtools.commands.reviewsync.reviewsync import ReviewSync
 from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
+from yarndevtools.commands.unittestresultaggregator.db.unit_test_result_aggregator_db import (
+    DatabaseUnitTestResultAggregator,
+)
+from yarndevtools.commands.unittestresultaggregator.email.unit_test_result_aggregator_db_connector import (
+    UnitTestResultAggregatorDBConnector,
+)
 from yarndevtools.commands.unittestresultaggregator.email.unit_test_result_aggregator_email import (
     EmailBasedUnitTestResultAggregator,
 )
@@ -66,8 +72,8 @@ class ArgParser:
         ReviewSheetBackportUpdater.create_parser(subparsers)
         ReviewSync.create_parser(subparsers)
         EmailBasedUnitTestResultAggregator.create_parser(subparsers)
-        # TODO
-        # DatabaseUnitTestResultAggregator.create_parser(subparsers)
+        DatabaseUnitTestResultAggregator.create_parser(subparsers)
+        UnitTestResultAggregatorDBConnector.create_parser(subparsers)
 
         # Normal arguments
         parser.add_argument(
