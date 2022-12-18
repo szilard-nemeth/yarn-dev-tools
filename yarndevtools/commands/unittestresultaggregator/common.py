@@ -212,9 +212,9 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
     return key
 
 
-# TODO yarndevtoolsv2: Revisit any email specific logic in this class
-# TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
-class FailedTestCases:
+class FinalAggregationResults:
+    # TODO yarndevtoolsv2: Revisit any email specific logic in this class
+    # TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
     def __init__(self):
         self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
         self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = {}
