@@ -1,20 +1,13 @@
 import logging
 from collections import defaultdict
-from pprint import pformat
 from typing import List, Dict, Tuple
 
-from googleapiwrapper.common import ServiceType
-from googleapiwrapper.gmail_api import ThreadQueryResults, GmailWrapper
 from googleapiwrapper.gmail_domain import GmailMessage
-from googleapiwrapper.google_auth import GoogleApiAuthorizer
-from googleapiwrapper.google_sheet import GSheetWrapper
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import RegexUtils
 
-from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common import (
-    OperationMode,
     MATCHTYPE_ALL_POSTFIX,
     AGGREGATED_WS_POSTFIX,
     TestCaseFilter,
@@ -33,7 +26,6 @@ from yarndevtools.commands.unittestresultaggregator.common import (
 from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailBasedUnitTestResultAggregatorConfig,
     UnitTestResultAggregatorEmailParserUtils,
-    SUBJECT,
     EmailUtilsForAggregators,
 )
 from yarndevtools.commands.unittestresultaggregator.representation import UnitTestResultOutputManager, SummaryGenerator
@@ -234,33 +226,18 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
 
     def run(self):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
-        query_result = self._email_utils.perform_gmail_query()
-
-        tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, self.known_test_failures)
-        self.filter_query_result_data(query_result, tc_filter_results)
-
-        # TODO yarndevtoolsv2: Should invoke DB connector here to save data
-        self._post_process(query_result, tc_filter_results)
+        gmail_query_result = self._email_utils.perform_gmail_query()
+        result = TestcaseFilterResults(self.config.testcase_filters, self.known_test_failures)
+        self._email_utils.process_gmail_results(
+            gmail_query_result,
+            result,
+            split_body_by=self.config.email_content_line_sep,
+            skip_lines_starting_with=self.config.skip_lines_starting_with,
+        )
+        self._post_process(gmail_query_result, result)
 
     def _post_process(self, query_result, tc_filter_results):
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self.known_test_failures.gsheet_wrapper
         )
         SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
-
-    def filter_query_result_data(self, query_result: ThreadQueryResults, tc_filter_results: TestcaseFilterResults):
-        for message in query_result.threads.messages:
-            LOG.debug("Processing message: %s", message.subject)
-            msg_parts = message.get_all_plain_text_parts()
-            for msg_part in msg_parts:
-                lines = msg_part.body_data.split(self.config.email_content_line_sep)
-                tc_filter_results.start_new_context()
-                for line in lines:
-                    line = line.strip()
-                    # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
-                    if not self._email_utils.check_if_line_is_valid(line, self.config.skip_lines_starting_with):
-                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
-                        continue
-                    tc_filter_results.match_line(line, message.subject)
-                tc_filter_results.finish_context(message)
-        tc_filter_results.finish_processing_all()

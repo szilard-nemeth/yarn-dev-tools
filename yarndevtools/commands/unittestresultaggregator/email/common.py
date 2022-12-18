@@ -20,6 +20,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     SummaryMode,
     KnownTestFailures,
 )
+from yarndevtools.commands.unittestresultaggregator.email.unit_test_result_aggregator_email import TestcaseFilterResults
 from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
 from yarndevtools.common.shared_command_utils import CommandType
 
@@ -334,3 +335,26 @@ class EmailUtilsForAggregators:
                 valid_line = False
                 break
         return valid_line
+
+    @staticmethod
+    def process_gmail_results(
+        query_result: ThreadQueryResults,
+        result: TestcaseFilterResults,
+        split_body_by: str,
+        skip_lines_starting_with: List[str],
+    ):
+        for message in query_result.threads.messages:
+            LOG.debug("Processing message: %s", message.subject)
+            msg_parts = message.get_all_plain_text_parts()
+            for msg_part in msg_parts:
+                lines = msg_part.body_data.split(split_body_by)
+                result.start_new_context()
+                for line in lines:
+                    line = line.strip()
+                    # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
+                    if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
+                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
+                        continue
+                    result.match_line(line, message.subject)
+                result.finish_context(message)
+        result.finish_processing_all()
