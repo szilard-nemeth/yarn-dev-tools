@@ -155,6 +155,7 @@ class FailedTestCase(FailedTestCaseAbs):
         self._simple_name = simple_name
         self._parameterized = parameterized
         self._parameter = parameter
+        self.__post_init__()
 
     def __post_init__(self):
         self._simple_name = self._full_name
