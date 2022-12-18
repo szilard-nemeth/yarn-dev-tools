@@ -215,17 +215,16 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
 class FinalAggregationResults:
     # TODO yarndevtoolsv2: Revisit any email specific logic in this class
     # TODO yarndevtoolsv2: Extract build comparison + jira logic to new class
-    def __init__(self):
+    def __init__(self, all_filters: List[TestCaseFilter]):
         self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
         self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = {}
         self.comparison: TestFailureComparison = None
-
-    def __post_init__(self):
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = defaultdict(list)
+        self._init_with_testcase_filters(all_filters)
 
-    def init_with_testcase_filters(self, testcase_filters: List[TestCaseFilter]):
-        for tcf in testcase_filters:
+    def _init_with_testcase_filters(self, filters: List[TestCaseFilter]):
+        for tcf in filters:
             if tcf not in self._test_failures_by_tcf:
                 self._test_failures_by_tcf[tcf] = []
 

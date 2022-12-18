@@ -51,11 +51,12 @@ DEFAULT_LINE_SEP = "\\r\\n"
 class EmailBasedAggregationResults:
     # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
     def __init__(self, testcase_filters: TestCaseFilters, known_failures: KnownTestFailures):
-        self._match_all_lines: bool = EmailBasedAggregationResults._should_match_all_lines(testcase_filters)
+        self._match_all_lines: bool = self._should_match_all_lines(testcase_filters)
         self._testcase_filters: TestCaseFilters = testcase_filters
         self._known_failures: KnownTestFailures = known_failures
-        self._aggregation_results: FinalAggregationResults = FinalAggregationResults()
-        self._aggregation_results.init_with_testcase_filters(self._testcase_filters.ALL_VALID_FILTERS)
+        self._aggregation_results: FinalAggregationResults = FinalAggregationResults(
+            self._testcase_filters.ALL_VALID_FILTERS
+        )
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
@@ -155,6 +156,7 @@ class EmailBasedAggregationResults:
         )
         self._aggregation_results.comparison = TestFailureComparison(
             self._testcase_filters.LATEST_FAILURE_FILTERS,
+            # TODO
             self._aggregation_results._test_failures_by_tcf,
             compare_with_last=True,
         )
