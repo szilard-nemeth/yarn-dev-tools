@@ -9,6 +9,8 @@ from typing import List, Dict, Set, Tuple
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.string_utils import RegexUtils, auto_str
 
+from yarndevtools.commands.unittestresultaggregator.email.common import FailedTestCaseFromEmail
+
 MATCH_EXPRESSION_SEPARATOR = "::"
 MATCH_EXPRESSION_PATTERN = "^([a-zA-Z]+)%s(.*)$" % MATCH_EXPRESSION_SEPARATOR
 AGGREGATED_WS_POSTFIX = "aggregated"
@@ -113,14 +115,6 @@ class KnownTestFailures:
             row.append("")
 
 
-@dataclass
-class EmailMetaData:
-    message_id: str
-    thread_id: str
-    subject: str
-    date: datetime.datetime
-
-
 class FailedTestCaseAbs(ABC):
     @abstractmethod
     def date(self) -> datetime.datetime:
@@ -196,19 +190,6 @@ class FailedTestCaseFactory:
         return FailedTestCaseFromEmail(matched_line, email_meta)
 
     # TODO Implement create_from_xxx
-
-
-@auto_str
-class FailedTestCaseFromEmail(FailedTestCase):
-    def __init__(self, full_name, email_meta: EmailMetaData):
-        super().__init__(full_name)
-        self.email_meta: EmailMetaData = email_meta
-
-    def date(self) -> datetime.datetime:
-        return self.email_meta.date
-
-    def subject(self):
-        return self.email_meta.subject
 
 
 @dataclass

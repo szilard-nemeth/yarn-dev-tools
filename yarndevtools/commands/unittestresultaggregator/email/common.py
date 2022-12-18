@@ -1,4 +1,6 @@
+import datetime
 from collections import defaultdict
+from dataclasses import dataclass
 from pprint import pformat
 from typing import List, Callable, Dict, Tuple
 
@@ -10,7 +12,7 @@ from googleapiwrapper.google_sheet import GSheetOptions, GSheetWrapper
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.string_utils import RegexUtils
+from pythoncommons.string_utils import RegexUtils, auto_str
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common import (
@@ -23,7 +25,6 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     SummaryMode,
     KnownTestFailures,
     FailedTestCases,
-    EmailMetaData,
     FailedTestCaseFactory,
     BuildComparisonResult,
     FailedTestCaseAggregated,
@@ -31,6 +32,7 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCaseAbs,
     MatchExpression,
     get_key_by_testcase_filter,
+    FailedTestCase,
 )
 from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
 from yarndevtools.common.shared_command_utils import CommandType
@@ -532,3 +534,24 @@ class EmailUtilsForAggregators:
                     result.match_line(line, message.subject)
                 result.finish_context(message)
         result.finish_processing_all()
+
+
+@dataclass
+class EmailMetaData:
+    message_id: str
+    thread_id: str
+    subject: str
+    date: datetime.datetime
+
+
+@auto_str
+class FailedTestCaseFromEmail(FailedTestCase):
+    def __init__(self, full_name, email_meta: EmailMetaData):
+        super().__init__(full_name)
+        self.email_meta: EmailMetaData = email_meta
+
+    def date(self) -> datetime.datetime:
+        return self.email_meta.date
+
+    def subject(self):
+        return self.email_meta.subject

@@ -25,9 +25,8 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     FailedTestCaseAggregated,
     BuildComparisonResult,
     FailedTestCaseAbs,
-    FailedTestCaseFromEmail,
-    EmailMetaData,
 )
+from yarndevtools.commands.unittestresultaggregator.email.common import EmailMetaData, FailedTestCaseFromEmail
 from yarndevtools.constants import (
     ReportFile,
 )
