@@ -146,6 +146,7 @@ class TestcaseFilterResults:
         for tcf in self._testcase_filters.ALL_VALID_FILTERS:
             self._failed_testcases.init_comparison_results(tcf)
 
+        # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
         self._failed_testcases.aggregate(self._testcase_filters.get_aggregate_filters())
         self._failed_testcases.create_latest_failures(
             self._testcase_filters.LATEST_FAILURE_FILTERS, only_last_results=True

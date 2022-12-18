@@ -235,6 +235,13 @@ class CommandType(Enum):
         "latest-session-unit-test-result-aggregator-email",
     )
 
+    UNIT_TEST_RESULT_AGGREGATOR_DB_CONNECTOR = (
+        "unit_test_result_aggregator",
+        "unit-test-result-aggregator",
+        True,
+        "latest-session-unit-test-result-aggregator-dbconnector",
+    )
+
     REVIEW_SHEET_BACKPORT_UPDATER = (
         "review_sheet_backport_updater",
         "review-sheet-backport-updater",
