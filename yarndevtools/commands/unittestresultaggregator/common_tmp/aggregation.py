@@ -36,7 +36,7 @@ class AggregatedTestFailures(UserDict):
             aggregated_test_failures: List[FailedTestCaseAggregated] = []
             for testcase in test_failures[tcf]:
                 tc_key = TestCaseKey.create_from(
-                    tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
+                    tcf, testcase, use_simple_name=True, use_full_name=False, include_origin=False
                 )
                 tc_key_to_testcases[tc_key].append(testcase)
                 if tc_key not in failure_freqs:
