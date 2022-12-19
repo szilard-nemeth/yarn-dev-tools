@@ -176,7 +176,7 @@ class EmailBasedAggregationResults:
         )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
-        return self._aggregation_results.get(tcf)
+        return self._aggregation_results.get_failure(tcf)
 
     def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
         return self._aggregation_results.get_latest_testcases(tcf)
@@ -509,6 +509,7 @@ class EmailUtilsForAggregators:
         query_result: ThreadQueryResults = self.gmail_wrapper.query_threads(
             query=self.get_gmail_query(), limit=self.config.request_limit, expect_one_message_per_thread=True
         )
+        # TODO yarndevtoolsv2: Write start date, end date, missing dates between start and end date
         LOG.info(
             f"Received thread query result:\n"
             f"Number of threads: {query_result.no_of_threads}\n"
