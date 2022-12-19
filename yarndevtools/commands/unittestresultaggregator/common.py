@@ -435,30 +435,7 @@ class FinalAggregationResults:
         self._latest_failures: LatestTestFailures = None
         self._known_failure_checker: KnownTestFailureChecker = None
 
-        # TODO yarndevtoolsv2: what's the purpose of _tc_keys?
-        self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
-
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
-        tc_key = TestCaseKey.create_from(
-            tcf,
-            failed_testcase,
-            use_full_name=True,
-            use_simple_name=False,
-            include_email_subject=True,
-        )
-        if tc_key in self._tc_keys:
-            stored_testcase = self._tc_keys[tc_key]
-            # TODO printout seems to be wrong
-            LOG.debug(
-                f"Found already existing testcase key: {tc_key}. "
-                f"Value: {stored_testcase}, "
-                f"Email data (stored): {stored_testcase.subject()} "
-                f"Email data (new): {stored_testcase.subject()}"
-            )
-            return
-        else:
-            self._tc_keys[tc_key] = failed_testcase
-
         self.test_failures.add(tcf, failed_testcase)
 
     def get_failure(self, tcf) -> List[FailedTestCaseAbs]:
