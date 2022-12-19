@@ -59,7 +59,7 @@ class BuildComparisonResult:
 
 @dataclass
 class FailedTestCaseAggregated:
-    # TODO yarndevtoolsv2: this is very similar to FailedTestCase, should use composition
+    # TODO yarndevtoolsv2: this is very similar to FailedTestCase, should use composition?
     full_name: str
     simple_name: str
     parameterized: bool
@@ -377,12 +377,19 @@ class TestFailuresByFilters(UserDict):
 
 class FinalAggregationResults:
     def __init__(self, all_filters: TestCaseFilters):
+        # Needs local import to avoid cyclic-import issues
+        from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
+            AggregatedTestFailures,
+            TestFailureComparison,
+            LatestTestFailures,
+            KnownTestFailureChecker,
+        )
+
         self.test_failures = TestFailuresByFilters(all_filters)
-        # TODO yarndevtoolsv2: specify types? (caused cyclic import issues previously)
-        self._aggregated = None
-        self._comparison = None
-        self._latest_failures = None
-        self._known_failure_checker = None
+        self._aggregated: AggregatedTestFailures = None
+        self._comparison: TestFailureComparison = None
+        self._latest_failures: LatestTestFailures = None
+        self._known_failure_checker: KnownTestFailureChecker = None
 
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
         self.test_failures.add(tcf, failed_testcase)

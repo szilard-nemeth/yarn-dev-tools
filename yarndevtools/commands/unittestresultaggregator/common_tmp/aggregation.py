@@ -28,6 +28,7 @@ class AggregatedTestFailures(UserDict):
         return self.data[tcf]
 
     def _aggregate(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters):
+        # TODO yarndevtoolsv2: simplify logic
         result = {}
         for tcf in filters:
             failure_freqs: Dict[TestCaseKey, int] = {}
@@ -140,6 +141,7 @@ class LatestTestFailures(UserDict):
         only_last_results=False,
         reset_oldest_day_to_midnight=False,
     ):
+        # TODO yarndevtoolsv2: simplify logic
         if sum([True if last_n_days else False, only_last_results]) != 1:
             raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
 
@@ -185,6 +187,7 @@ class TestFailureComparison(UserDict):
         return self.data[tcf]
 
     def _compare(self, compare_with_n_days_old=None):
+        # TODO yarndevtoolsv2: simplify logic
         if (self._compare_with_last and compare_with_n_days_old) or not any(
             [self._compare_with_last, compare_with_n_days_old]
         ):
@@ -276,14 +279,13 @@ class KnownTestFailureChecker:
         self._cross_check_results_with_known_failures()
 
     def _cross_check_results_with_known_failures(self):
+        # TODO yarndevtoolsv2: simplify logic / Optimize nested for-loop
         if not any(True for _ in self.known_failures):
             raise ValueError("Empty known test failures!")
         encountered_known_test_failures: Set[KnownTestFailureInJira] = set()
-        # TODO Optimize nested for-loop
         for tcf in self._filters:
             LOG.debug(f"Cross-checking testcases with known test failures from Jira for filter: {tcf.short_str()}")
             for testcase in self._aggregated[tcf]:
-                # TODO Simplify logic
                 known_tcf: KnownTestFailureInJira or None = None
                 for known_test_failure in self.known_failures:
                     if known_test_failure.tc_name in testcase.simple_name:
