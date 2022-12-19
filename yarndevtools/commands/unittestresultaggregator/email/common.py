@@ -520,12 +520,10 @@ class EmailUtilsForAggregators:
 
     @staticmethod
     def check_if_line_is_valid(line, skip_lines_starting_with):
-        valid_line = True
         for skip_str in skip_lines_starting_with:
             if line.startswith(skip_str):
-                valid_line = False
-                break
-        return valid_line
+                return False
+        return True
 
     @staticmethod
     def process_gmail_results(
