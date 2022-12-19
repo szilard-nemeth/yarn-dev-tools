@@ -33,11 +33,12 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     BuildComparisonResult,
     FailedTestCaseAggregated,
     TestCaseFilter,
-    TestCaseFilters,
+    TestCaseFilterDefinitions,
     FailedTestCaseAbs,
     FailedTestCaseFactory,
     FinalAggregationResults,
     EmailMetaData,
+    TestCaseFilters,
 )
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
 from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
@@ -51,12 +52,12 @@ DEFAULT_LINE_SEP = "\\r\\n"
 
 class EmailBasedAggregationResults:
     # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
-    def __init__(self, testcase_filters: TestCaseFilters, known_failures: KnownTestFailures):
-        self._match_all_lines: bool = self._should_match_all_lines(testcase_filters)
-        self._testcase_filters: TestCaseFilters = testcase_filters
+    def __init__(self, testcase_filter_defs: TestCaseFilterDefinitions, known_failures: KnownTestFailures):
+        self._match_all_lines: bool = self._should_match_all_lines(testcase_filter_defs)
+        self._testcase_filter_defs: TestCaseFilterDefinitions = testcase_filter_defs
         self._known_failures: KnownTestFailures = known_failures
         self._aggregation_results: FinalAggregationResults = FinalAggregationResults(
-            self._testcase_filters.ALL_VALID_FILTERS
+            self._testcase_filter_defs.ALL_VALID_FILTERS
         )
 
         # This is a temporary dict - usually for a context of a message
@@ -65,19 +66,19 @@ class EmailBasedAggregationResults:
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
 
     @staticmethod
-    def _should_match_all_lines(testcase_filters):
-        match_all_lines: bool = testcase_filters.match_all_lines()
+    def _should_match_all_lines(testcase_filter_defs):
+        match_all_lines: bool = testcase_filter_defs.match_all_lines()
         LOG.info(
             "**Matching all lines"
             if match_all_lines
-            else f"**Matching lines with regex pattern: {testcase_filters.match_expressions}"
+            else f"**Matching lines with regex pattern: {testcase_filter_defs.match_expressions}"
         )
         return match_all_lines
 
     def start_new_context(self):
         # Prepare matched_lines dict with all required empty-lists for ALL filters
         self._matched_lines_dict = defaultdict(list)
-        filters: List[TestCaseFilter] = self._testcase_filters.ALL_VALID_FILTERS
+        filters: TestCaseFilters = self._testcase_filter_defs.ALL_VALID_FILTERS
         for tcf in filters:
             self._matched_lines_dict[self._get_matched_lines_key(tcf)] = []
 
@@ -98,7 +99,7 @@ class EmailBasedAggregationResults:
             self._matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
             self._add_match_to_matched_lines_dict(line, matched_expression, aggregate_values=[True, False])
 
-            for aggr_filter in self._testcase_filters.aggregate_filters:
+            for aggr_filter in self._testcase_filter_defs.aggregate_filters:
                 if aggr_filter.val in mail_subject:
                     LOG.debug(
                         f"Found matching email subject for aggregation filter '{aggr_filter}': "
@@ -113,7 +114,7 @@ class EmailBasedAggregationResults:
             self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
 
     def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
-        for match_expression in self._testcase_filters.match_expressions:
+        for match_expression in self._testcase_filter_defs.match_expressions:
             if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
                 LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
                 return True, match_expression
@@ -153,21 +154,21 @@ class EmailBasedAggregationResults:
 
         # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
         self._aggregation_results._aggregated = AggregatedTestFailures(
-            self._testcase_filters.get_aggregate_filters(),
+            self._testcase_filter_defs.get_aggregate_filters(),
             self._aggregation_results.test_failures,
         )
         self._aggregation_results._latest_failures = LatestTestFailures(
-            self._testcase_filters.LATEST_FAILURE_FILTERS,
+            self._testcase_filter_defs.LATEST_FAILURE_FILTERS,
             self._aggregation_results.test_failures,
             only_last_results=True,
         )
         self._aggregation_results._comparison = TestFailureComparison(
-            self._testcase_filters.LATEST_FAILURE_FILTERS,
+            self._testcase_filter_defs.LATEST_FAILURE_FILTERS,
             self._aggregation_results.test_failures,
             compare_with_last=True,
         )
         self._aggregation_results._known_failure_checker = KnownTestFailureChecker(
-            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
+            self._testcase_filter_defs.TESTCASES_TO_JIRAS_FILTERS,
             self._known_failures,
             self._aggregation_results._aggregated,
         )
@@ -372,8 +373,8 @@ class EmailBasedUnitTestResultAggregatorConfig:
         self.smart_subject_query = args.smart_subject_query
         self.request_limit = getattr(args, "request_limit", 1000000)
         self.account_email: str = args.account_email
-        self.testcase_filters = TestCaseFilters(
-            TestCaseFilters.convert_raw_match_expressions_to_objs(getattr(args, "match_expression", None)),
+        self.testcase_filter_defs = TestCaseFilterDefinitions(
+            TestCaseFilterDefinitions.convert_raw_match_expressions_to_objs(getattr(args, "match_expression", None)),
             self._get_attribute(args, "aggregate_filters", default=[]),
         )
         self.skip_lines_starting_with: List[str] = getattr(args, "skip_lines_starting_with", [])
@@ -388,7 +389,7 @@ class EmailBasedUnitTestResultAggregatorConfig:
 
         if self.operation_mode == OperationMode.GSHEET:
             worksheet_names: List[str] = [
-                self.get_worksheet_name(tcf) for tcf in self.testcase_filters.ALL_VALID_FILTERS
+                self.get_worksheet_name(tcf) for tcf in self.testcase_filter_defs.ALL_VALID_FILTERS
             ]
             LOG.info(
                 f"Adding worksheets to {self.gsheet_options.__class__.__name__}. "
@@ -437,7 +438,7 @@ class EmailBasedUnitTestResultAggregatorConfig:
             f"Console mode: {self.console_mode}\n"
             f"Gmail query: {self.gmail_query}\n"
             f"Smart subject query: {self.smart_subject_query}\n"
-            f"Testcase filters: {self.testcase_filters}\n"
+            f"Testcase filters: {self.testcase_filter_defs}\n"
             f"Email line separator: {self.email_content_line_sep}\n"
             f"Request limit: {self.request_limit}\n"
             f"Operation mode: {self.operation_mode}\n"
@@ -449,14 +450,14 @@ class EmailBasedUnitTestResultAggregatorConfig:
 
     @staticmethod
     def get_worksheet_name(tcf: TestCaseFilter):
-        ws_name: str = f"{tcf.match_expr.alias}"
+        worksheet_name: str = f"{tcf.match_expr.alias}"
         if tcf.aggr_filter:
-            ws_name += f"_{tcf.aggr_filter.val}_{AGGREGATED_WS_POSTFIX}"
+            worksheet_name += f"_{tcf.aggr_filter.val}_{AGGREGATED_WS_POSTFIX}"
         elif tcf.aggregate:
-            ws_name += f"_{AGGREGATED_WS_POSTFIX}"
+            worksheet_name += f"_{AGGREGATED_WS_POSTFIX}"
         else:
-            ws_name += f"_{MATCHTYPE_ALL_POSTFIX}"
-        return f"{ws_name}"
+            worksheet_name += f"_{MATCHTYPE_ALL_POSTFIX}"
+        return f"{worksheet_name}"
 
 
 class EmailUtilsForAggregators:

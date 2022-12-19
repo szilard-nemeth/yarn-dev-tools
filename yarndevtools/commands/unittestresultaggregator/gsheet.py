@@ -32,6 +32,7 @@ class KnownTestFailures:
         return self._num_testcases
 
     def __iter__(self):
+        self._index = 0
         return self
 
     def __next__(self):

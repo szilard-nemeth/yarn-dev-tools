@@ -12,6 +12,7 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     TestCaseKey,
     FailedTestCaseAbs,
     BuildComparisonResult,
+    TestCaseFilters,
 )
 import logging
 
@@ -19,14 +20,14 @@ LOG = logging.getLogger(__name__)
 
 
 class AggregatedTestFailures(UserDict):
-    def __init__(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
+    def __init__(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters):
         super().__init__()
         self.data: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(filters, test_failures)
 
     def __getitem__(self, tcf):
         return self.data[tcf]
 
-    def _aggregate(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
+    def _aggregate(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters):
         result = {}
         for tcf in filters:
             failure_freqs: Dict[TestCaseKey, int] = {}
@@ -126,7 +127,7 @@ class AggregatedTestFailures(UserDict):
 
 
 class LatestTestFailures(UserDict):
-    def __init__(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters, only_last_results=True):
+    def __init__(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters, only_last_results=True):
         super().__init__()
         self._test_failures = test_failures
         self.data = self._create_latest_failures(filters, only_last_results=only_last_results)
@@ -136,7 +137,7 @@ class LatestTestFailures(UserDict):
 
     def _create_latest_failures(
         self,
-        testcase_filters: List[TestCaseFilter],
+        filters: TestCaseFilters,
         last_n_days=None,
         only_last_results=False,
         reset_oldest_day_to_midnight=False,
@@ -145,7 +146,7 @@ class LatestTestFailures(UserDict):
             raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
 
         result = {}
-        for tcf in testcase_filters:
+        for tcf in filters:
             if tcf not in result:
                 result[tcf] = []
 
@@ -175,11 +176,9 @@ class LatestTestFailures(UserDict):
 
 
 class TestFailureComparison(UserDict):
-    def __init__(
-        self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters, compare_with_last: bool = True
-    ):
+    def __init__(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters, compare_with_last: bool = True):
         super().__init__()
-        self._testcase_filters = filters
+        self._filters = filters
         self._test_failures = test_failures
         self._compare_with_last = compare_with_last
         self.data: Dict[TestCaseFilter, BuildComparisonResult] = self._compare()
@@ -197,7 +196,7 @@ class TestFailureComparison(UserDict):
         last_n_days = 1 if self._compare_with_last else compare_with_n_days_old
 
         result = {}
-        for tcf in self._testcase_filters:
+        for tcf in self._filters:
             LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
             failed_testcases = self._test_failures[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
@@ -269,11 +268,11 @@ class TestFailureComparison(UserDict):
 class KnownTestFailureChecker:
     def __init__(
         self,
-        filters: List[TestCaseFilter],
+        filters: TestCaseFilters,
         known_failures: KnownTestFailures,
         aggregated_test_failures: AggregatedTestFailures,
     ):
-        self.filters = filters
+        self._filters = filters
         self.known_failures: KnownTestFailures = known_failures
         self._aggregated: AggregatedTestFailures = aggregated_test_failures
         self._cross_check_results_with_known_failures()
@@ -283,7 +282,7 @@ class KnownTestFailureChecker:
             raise ValueError("Empty known test failures!")
         encountered_known_test_failures: Set[KnownTestFailureInJira] = set()
         # TODO Optimize nested for-loop
-        for tcf in self.filters:
+        for tcf in self._filters:
             LOG.debug(f"Cross-checking testcases with known test failures from Jira for filter: {tcf.short_str()}")
             for testcase in self._aggregated[tcf]:
                 # TODO Simplify logic
@@ -319,5 +318,5 @@ class KnownTestFailureChecker:
             LOG.warning(
                 "Found known jira test failures that are not encountered for any test failures. "
                 f"Not encountered: {not_encountered_known_test_failures}"
-                f"Filters: {self.filters}"
+                f"Filters: {self._filters}"
             )
