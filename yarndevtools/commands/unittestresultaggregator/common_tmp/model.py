@@ -6,19 +6,16 @@ from typing import List, Dict
 from pythoncommons.string_utils import auto_str, RegexUtils
 
 from yarndevtools.commands.unittestresultaggregator.common import (
-    LOG,
-    MATCH_ALL_LINES_EXPRESSION,
     MATCH_EXPRESSION_SEPARATOR,
-    MATCHTYPE_ALL_POSTFIX,
+    AGGREGATED_WS_POSTFIX,
     REGEX_EVERYTHING,
+    MATCH_ALL_LINES_EXPRESSION,
+    MATCHTYPE_ALL_POSTFIX,
+    MatchExpression,
 )
-from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
-    AggregatedTestFailures,
-    TestFailureComparison,
-    LatestTestFailures,
-    KnownTestFailureChecker,
-)
-from yarndevtools.commands.unittestresultaggregator.email.common import FailedTestCaseFromEmail
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 class FailedTestCaseAbs(ABC):
@@ -46,20 +43,6 @@ class FailedTestCaseAbs(ABC):
     @abstractmethod
     def parameterized(self) -> bool:
         pass
-
-
-@dataclass(eq=True, frozen=True)
-class MatchExpression:
-    alias: str
-    original_expression: str
-    pattern: str
-
-
-@dataclass(eq=True, frozen=True)
-class KnownTestFailureInJira:
-    tc_name: str
-    jira: str
-    resolution_date: datetime.datetime
 
 
 @dataclass
@@ -98,6 +81,12 @@ class TestCaseFilter:
     aggr_filter: AggregateFilter or None
     aggregate: bool = False
 
+    def __post_init__(self):
+        super().__setattr__("_key", self.generate_key())
+
+    def key(self):
+        return super().__getattribute__("_key")
+
     def short_str(self):
         return f"{self.match_expr.alias} / {self._safe_get_aggr_filter()} (aggregate: {self.aggregate})"
 
@@ -105,6 +94,17 @@ class TestCaseFilter:
         if not self.aggr_filter:
             return "*"
         return self.aggr_filter.val
+
+    def generate_key(self):
+        # TODO consider converting this a hashable object and drop str
+        key: str = self.match_expr.alias.lower()
+        if self.aggr_filter:
+            key += f"_{self.aggr_filter.val.lower()}"
+        elif self.aggregate:
+            key += f"_{AGGREGATED_WS_POSTFIX}"
+        else:
+            key += f"_{MATCHTYPE_ALL_POSTFIX.lower()}"
+        return key
 
 
 @dataclass(eq=True, frozen=True)
@@ -348,10 +348,10 @@ class FinalAggregationResults:
     # TODO yarndevtoolsv2: Revisit any email specific logic in this class
     def __init__(self, all_filters: List[TestCaseFilter]):
         self.test_failures = TestFailuresByFilters(all_filters)
-        self._aggregated: AggregatedTestFailures = None
-        self._comparison: TestFailureComparison = None
-        self._latest_failures: LatestTestFailures = None
-        self._known_failure_checker: KnownTestFailureChecker = None
+        self._aggregated = None
+        self._comparison = None
+        self._latest_failures = None
+        self._known_failure_checker = None
 
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
         self.test_failures.add(tcf, failed_testcase)
@@ -366,7 +366,30 @@ class FinalAggregationResults:
         return self._comparison.get(tcf)
 
     def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
+        # TODO
+        # return self._aggregated[tcf]
         return self._aggregated.get(tcf)
 
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self.test_failures.get_filters()}")
+
+
+@dataclass
+class EmailMetaData:
+    message_id: str
+    thread_id: str
+    subject: str
+    date: datetime.datetime
+
+
+@auto_str
+class FailedTestCaseFromEmail(FailedTestCase):
+    def __init__(self, full_name, email_meta: EmailMetaData):
+        super().__init__(full_name)
+        self.email_meta: EmailMetaData = email_meta
+
+    def date(self) -> datetime.datetime:
+        return self.email_meta.date
+
+    def subject(self):
+        return self.email_meta.subject

@@ -18,7 +18,6 @@ from pythoncommons.result_printer import (
 from pythoncommons.string_utils import StringUtils, auto_str
 
 from yarndevtools.commands.unittestresultaggregator.common import (
-    get_key_by_testcase_filter,
     OperationMode,
     SummaryMode,
 )
@@ -27,8 +26,9 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     FailedTestCaseAggregated,
     TestCaseFilter,
     FailedTestCaseAbs,
+    FailedTestCaseFromEmail,
+    EmailMetaData,
 )
-from yarndevtools.commands.unittestresultaggregator.email.common import EmailMetaData, FailedTestCaseFromEmail
 from yarndevtools.constants import (
     ReportFile,
 )
@@ -378,7 +378,7 @@ class SummaryGenerator:
         tables: List[GenericTableWithHeader] = []
         for conf in render_confs:
             for tcf in conf.testcase_filters:
-                alias = get_key_by_testcase_filter(tcf)
+                alias = tcf.key()
                 rendered_table = self._callback_dict[table_output_format](conf.data_type, alias=alias)
                 tables.append(rendered_table)
             if conf.simple_mode:
@@ -433,7 +433,7 @@ class TableRenderer:
                 formats=conf.tabulate_formats,
             )
         for tcf in conf.testcase_filters:
-            key = get_key_by_testcase_filter(tcf)
+            key = tcf.key()
             self._render_tables(
                 header=conf.header,
                 data=data_callable(tcf, conf.out_fmt),

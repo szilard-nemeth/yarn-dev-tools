@@ -1,6 +1,5 @@
-import datetime
+import logging
 from collections import defaultdict
-from dataclasses import dataclass
 from pprint import pformat
 from typing import List, Callable, Dict, Tuple
 
@@ -12,19 +11,18 @@ from googleapiwrapper.google_sheet import GSheetOptions, GSheetWrapper
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
-from pythoncommons.string_utils import RegexUtils, auto_str
+from pythoncommons.string_utils import RegexUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common import (
     OperationMode,
-    VALID_OPERATION_MODES,
-    AGGREGATED_WS_POSTFIX,
-    MATCHTYPE_ALL_POSTFIX,
     SummaryMode,
+    AGGREGATED_WS_POSTFIX,
+    VALID_OPERATION_MODES,
     MATCH_ALL_LINES_EXPRESSION,
-    get_key_by_testcase_filter,
+    MATCHTYPE_ALL_POSTFIX,
+    MatchExpression,
 )
-from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
 from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
     AggregatedTestFailures,
     LatestTestFailures,
@@ -32,20 +30,18 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation impor
     KnownTestFailureChecker,
 )
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
-    MatchExpression,
     BuildComparisonResult,
     FailedTestCaseAggregated,
     TestCaseFilter,
     TestCaseFilters,
     FailedTestCaseAbs,
-    FailedTestCase,
     FailedTestCaseFactory,
     FinalAggregationResults,
+    EmailMetaData,
 )
+from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
 from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
 from yarndevtools.common.shared_command_utils import CommandType
-
-import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -130,7 +126,7 @@ class EmailBasedAggregationResults:
             key = MATCHTYPE_ALL_POSTFIX + f"_{AGGREGATED_WS_POSTFIX}" if tcf.aggregate else MATCHTYPE_ALL_POSTFIX
             self._str_key_to_testcase_filter[key] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
             return key
-        key = get_key_by_testcase_filter(tcf)
+        key = tcf.key()
         if key not in self._str_key_to_testcase_filter:
             self._str_key_to_testcase_filter[key] = tcf
         return key
@@ -547,24 +543,3 @@ class EmailUtilsForAggregators:
                     result.match_line(line, message.subject)
                 result.finish_context(message)
         result.finish_processing_all()
-
-
-@dataclass
-class EmailMetaData:
-    message_id: str
-    thread_id: str
-    subject: str
-    date: datetime.datetime
-
-
-@auto_str
-class FailedTestCaseFromEmail(FailedTestCase):
-    def __init__(self, full_name, email_meta: EmailMetaData):
-        super().__init__(full_name)
-        self.email_meta: EmailMetaData = email_meta
-
-    def date(self) -> datetime.datetime:
-        return self.email_meta.date
-
-    def subject(self):
-        return self.email_meta.subject

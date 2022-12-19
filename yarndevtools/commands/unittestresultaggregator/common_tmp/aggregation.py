@@ -4,8 +4,7 @@ from typing import List, Dict, Set, Tuple
 
 from pythoncommons.date_utils import DateUtils
 
-from yarndevtools.commands.unittestresultaggregator.common import LOG
-from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
+from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures, KnownTestFailureInJira
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     TestCaseFilter,
     TestFailuresByFilters,
@@ -13,16 +12,25 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     TestCaseKey,
     FailedTestCaseAbs,
     BuildComparisonResult,
-    KnownTestFailureInJira,
 )
+import logging
+
+LOG = logging.getLogger(__name__)
+
+# TODO
+# class AggregatedTestFailures(UserDict):
 
 
 class AggregatedTestFailures:
     def __init__(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
+        # super().__init__()
         self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(
             filters, test_failures
         )
 
+    # def __getitem__(self, key):
+    #     return self.data[key]
+    #
     def get(self, tcf: TestCaseFilter):
         return self._aggregated_test_failures[tcf]
 
@@ -202,7 +210,7 @@ class TestFailureComparison:
         result = {}
         for tcf in self._testcase_filters:
             LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
-            failed_testcases = self._test_failures[tcf]
+            failed_testcases = self._test_failures.get_all(tcf)
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 LOG.warning("No failed testcases found for testcase filter: %s", tcf)
@@ -289,6 +297,7 @@ class KnownTestFailureChecker:
         for tcf in self.filters:
             LOG.debug(f"Cross-checking testcases with known test failures from Jira for filter: {tcf.short_str()}")
             for testcase in self._aggregated.get(tcf):
+                # for testcase in self._aggregated[tcf]:
                 # TODO Simplify logic
                 known_tcf: KnownTestFailureInJira or None = None
                 for known_test_failure in self.known_failures:
