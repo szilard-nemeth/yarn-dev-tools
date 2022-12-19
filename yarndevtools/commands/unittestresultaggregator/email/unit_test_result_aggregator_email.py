@@ -55,8 +55,8 @@ class EmailBasedUnitTestResultAggregator(CommandAbs):
         )
         self._post_process(gmail_query_result, result)
 
-    def _post_process(self, query_result, tc_filter_results):
+    def _post_process(self, query_result, aggr_results):
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self._known_test_failures.gsheet_wrapper
         )
-        SummaryGenerator.process_testcase_filter_results(tc_filter_results, query_result, self.config, output_manager)
+        SummaryGenerator.process_aggregation_results(aggr_results, query_result, self.config, output_manager)
