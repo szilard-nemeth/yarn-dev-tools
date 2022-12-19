@@ -113,7 +113,6 @@ class TestCaseKey:
     # TODO yarndevtoolsv2: Revisit why this class is required?
     tc_filter: TestCaseFilter
     full_name: str
-    # TODO yarndevtoolsv2: Email-specific properties throughout class
     origin: str or None = None  # Can be email subject or ... ?
 
     @staticmethod
@@ -168,7 +167,6 @@ class TestCaseFilters:
 
 @dataclass
 class TestCaseFilterDefinitions:
-    # TODO yarndevtoolsv2: Revisit any email specific logic in this class?
     match_expressions: List[MatchExpression]
     aggregate_filters: List[AggregateFilter]
 
@@ -242,7 +240,9 @@ class TestCaseFilterDefinitions:
         filters = TestCaseFilters.create_empty()
         for match_expr in match_expressions_list:
             if match_expr_separately_always or (match_expr_if_no_aggr_filter and not self.aggregate_filters):
-                self._append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, filters)
+                filters.add(
+                    TestCaseFilter(match_expr, None, aggregate=(True if aggregated_match_expressions else False))
+                )
 
             if without_aggregates:
                 continue
@@ -253,22 +253,17 @@ class TestCaseFilterDefinitions:
                     filters.add(TestCaseFilter(match_expr, aggr_filter, aggregate=True))
         return filters
 
-    @staticmethod
-    def _append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, filters: TestCaseFilters):
-        aggregated = True if aggregated_match_expressions else False
-        filters.add(TestCaseFilter(match_expr, None, aggregate=aggregated))
-
     def match_all_lines(self) -> bool:
         return len(self.match_expressions) == 1 and self.match_expressions[0] == MATCH_ALL_LINES_EXPRESSION
 
     @staticmethod
-    def convert_raw_match_expressions_to_objs(raw_match_exprs: List[str]) -> List[MatchExpression]:
-        if not raw_match_exprs:
+    def convert_raw_match_expressions_to_objs(raw_expressions: List[str]) -> List[MatchExpression]:
+        if not raw_expressions:
             return [MATCH_ALL_LINES_EXPRESSION]
 
         match_expressions: List[MatchExpression] = []
-        for raw_match_expr in raw_match_exprs:
-            segments = raw_match_expr.split(MATCH_EXPRESSION_SEPARATOR)
+        for expression in raw_expressions:
+            segments = expression.split(MATCH_EXPRESSION_SEPARATOR)
             alias = segments[0]
             if alias == MATCHTYPE_ALL_POSTFIX:
                 raise ValueError(
@@ -276,7 +271,7 @@ class TestCaseFilterDefinitions:
                 )
             match_expr = segments[1]
             pattern = REGEX_EVERYTHING + match_expr.replace(".", "\\.") + REGEX_EVERYTHING
-            match_expressions.append(MatchExpression(alias, raw_match_expr, pattern))
+            match_expressions.append(MatchExpression(alias, expression, pattern))
         return match_expressions
 
     def get_non_aggregate_filters(self):
