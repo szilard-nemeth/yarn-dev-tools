@@ -111,7 +111,7 @@ class TestCaseFilter:
 class TestCaseKey:
     tc_filter: TestCaseFilter
     full_name: str
-    # TODO yarndevtoolsv2: Email-specific property
+    # TODO yarndevtoolsv2: Email-specific properties throughout class
     email_subject: str or None = None
 
     @staticmethod
@@ -120,14 +120,12 @@ class TestCaseKey:
         ftc: FailedTestCaseAbs,
         use_full_name=True,
         use_simple_name=False,
-        # TODO yarndevtoolsv2: Email-specific property
         include_email_subject=True,
     ):
         if all([use_full_name, use_simple_name]) or not any([use_full_name, use_simple_name]):
             raise ValueError("Either 'use_simple_name' or 'use_full_name' should be set to True, but not both!")
         tc_name = ftc.full_name() if use_full_name else None
         tc_name = ftc.simple_name() if use_simple_name else tc_name
-        # TODO yarndevtoolsv2 email specific stuff
         subject = ftc.subject if include_email_subject else None
         return TestCaseKey(tcf, tc_name, subject)
 
