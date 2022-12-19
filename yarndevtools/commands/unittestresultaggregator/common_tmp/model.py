@@ -12,6 +12,12 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     MATCHTYPE_ALL_POSTFIX,
     REGEX_EVERYTHING,
 )
+from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
+    AggregatedTestFailures,
+    TestFailureComparison,
+    LatestTestFailures,
+    KnownTestFailureChecker,
+)
 from yarndevtools.commands.unittestresultaggregator.email.common import FailedTestCaseFromEmail
 
 
@@ -336,3 +342,31 @@ class TestFailuresByFilters:
 
     def get_filters(self):
         return self._data.keys()
+
+
+class FinalAggregationResults:
+    # TODO yarndevtoolsv2: Revisit any email specific logic in this class
+    def __init__(self, all_filters: List[TestCaseFilter]):
+        self.test_failures = TestFailuresByFilters(all_filters)
+        self._aggregated: AggregatedTestFailures = None
+        self._comparison: TestFailureComparison = None
+        self._latest_failures: LatestTestFailures = None
+        self._known_failure_checker: KnownTestFailureChecker = None
+
+    def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
+        self.test_failures.add(tcf, failed_testcase)
+
+    def get_failure(self, tcf) -> List[FailedTestCaseAbs]:
+        return self.test_failures.get_all(tcf)
+
+    def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
+        return self._latest_failures.get(tcf)
+
+    def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
+        return self._comparison.get(tcf)
+
+    def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
+        return self._aggregated.get(tcf)
+
+    def print_keys(self):
+        LOG.debug(f"Keys of _failed_testcases_by_filter: {self.test_failures.get_filters()}")

@@ -21,13 +21,14 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     AGGREGATED_WS_POSTFIX,
     MATCHTYPE_ALL_POSTFIX,
     SummaryMode,
-    KnownTestFailures,
-    FinalAggregationResults,
     MATCH_ALL_LINES_EXPRESSION,
     get_key_by_testcase_filter,
-    TestFailureComparison,
-    LatestTestFailures,
+)
+from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
+from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
     AggregatedTestFailures,
+    LatestTestFailures,
+    TestFailureComparison,
     KnownTestFailureChecker,
 )
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
@@ -39,6 +40,7 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     FailedTestCaseAbs,
     FailedTestCase,
     FailedTestCaseFactory,
+    FinalAggregationResults,
 )
 from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
 from yarndevtools.common.shared_command_utils import CommandType
