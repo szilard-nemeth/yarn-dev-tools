@@ -167,7 +167,9 @@ class EmailBasedAggregationResults:
             compare_with_last=True,
         )
         self._aggregation_results._known_failure_checker = KnownTestFailureChecker(
-            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS, self._aggregation_results._aggregated
+            self._testcase_filters.TESTCASES_TO_JIRAS_FILTERS,
+            self._known_failures,
+            self._aggregation_results._aggregated,
         )
 
     def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
