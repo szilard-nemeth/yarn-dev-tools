@@ -1,5 +1,6 @@
 import datetime
 from abc import ABC, abstractmethod
+from collections import UserDict
 from dataclasses import dataclass, field
 from typing import List, Dict
 
@@ -303,14 +304,21 @@ class FailedTestCaseFactory:
     # TODO Implement create_from_xxx
 
 
-class TestFailuresByFilters:
+class TestFailuresByFilters(UserDict):
     def __init__(self, all_filters):
-        self._data: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
+        super().__init__()
+        self.data: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
         self._testcase_cache: Dict[TestCaseKey, FailedTestCaseAbs] = {}
 
         for tcf in all_filters:
-            if tcf not in self._data:
-                self._data[tcf] = []
+            if tcf not in self.data:
+                self.data[tcf] = []
+
+    def __getitem__(self, tcf):
+        return self.data[tcf]
+
+    def get_filters(self):
+        return self.data.keys()
 
     def add(self, tcf, failed_testcase):
         tc_key = TestCaseKey.create_from(
@@ -333,19 +341,14 @@ class TestFailuresByFilters:
         else:
             self._testcase_cache[tc_key] = failed_testcase
 
-        self._data[tcf].append(failed_testcase)
-
-    def get_all(self, tcf):
-        return self._data[tcf]
-
-    def get_filters(self):
-        return self._data.keys()
+        self.data[tcf].append(failed_testcase)
 
 
 class FinalAggregationResults:
     # TODO yarndevtoolsv2: Revisit any email specific logic in this class
     def __init__(self, all_filters: List[TestCaseFilter]):
         self.test_failures = TestFailuresByFilters(all_filters)
+        # TODO yarndevtoolsv2: specify types? (caused cyclic import issues previously)
         self._aggregated = None
         self._comparison = None
         self._latest_failures = None
@@ -355,18 +358,16 @@ class FinalAggregationResults:
         self.test_failures.add(tcf, failed_testcase)
 
     def get_failure(self, tcf) -> List[FailedTestCaseAbs]:
-        return self.test_failures.get_all(tcf)
+        return self.test_failures[tcf]
 
     def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
-        return self._latest_failures.get(tcf)
+        return self._latest_failures[tcf]
 
     def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
-        return self._comparison.get(tcf)
+        return self._comparison[tcf]
 
     def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
-        # TODO
-        # return self._aggregated[tcf]
-        return self._aggregated.get(tcf)
+        return self._aggregated[tcf]
 
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self.test_failures.get_filters()}")

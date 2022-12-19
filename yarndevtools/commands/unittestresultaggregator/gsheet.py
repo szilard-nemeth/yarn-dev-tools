@@ -17,6 +17,7 @@ class KnownTestFailureInJira:
 
 
 class KnownTestFailures:
+    # TODO yarndevtoolsv2: this should be capable of using DB instead of Google Sheets
     def __init__(self, gsheet_wrapper=None, gsheet_jira_table=None):
         self._testcases_to_jiras: List[KnownTestFailureInJira] = []
         self.gsheet_wrapper = gsheet_wrapper
