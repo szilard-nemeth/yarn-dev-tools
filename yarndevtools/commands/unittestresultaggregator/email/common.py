@@ -156,19 +156,16 @@ class EmailBasedAggregationResults:
         # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
         self._aggregation_results._aggregated = AggregatedTestFailures(
             self._testcase_filters.get_aggregate_filters(),
-            # TODO yarndevtoolsv2
-            self._aggregation_results._test_failures_by_tcf,
+            self._aggregation_results.test_failures,
         )
         self._aggregation_results._latest_failures = LatestTestFailures(
             self._testcase_filters.LATEST_FAILURE_FILTERS,
-            # TODO yarndevtoolsv2
-            self._aggregation_results._test_failures_by_tcf,
+            self._aggregation_results.test_failures,
             only_last_results=True,
         )
         self._aggregation_results._comparison = TestFailureComparison(
             self._testcase_filters.LATEST_FAILURE_FILTERS,
-            # TODO yarndevtoolsv2
-            self._aggregation_results._test_failures_by_tcf,
+            self._aggregation_results.test_failures,
             compare_with_last=True,
         )
         self._aggregation_results._known_failure_checker = KnownTestFailureChecker(

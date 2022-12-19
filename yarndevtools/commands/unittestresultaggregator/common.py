@@ -14,6 +14,7 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     TestCaseFilter,
     TestCaseKey,
     FailedTestCaseAbs,
+    TestFailuresByFilters,
 )
 
 MATCH_EXPRESSION_SEPARATOR = "::"
@@ -43,25 +44,22 @@ MATCHTYPE_ALL_POSTFIX = "ALL"
 
 
 class AggregatedTestFailures:
-    def __init__(
-        self,
-        filters: List[TestCaseFilter],
-        test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]],
-    ):
-        self._test_failures_by_tcf = test_failures_by_tcf
-        self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(filters)
+    def __init__(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
+        self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(
+            filters, test_failures
+        )
 
     def get(self, tcf: TestCaseFilter):
         return self._aggregated_test_failures[tcf]
 
-    def _aggregate(self, filters: List[TestCaseFilter]):
+    def _aggregate(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
         result = {}
         for tcf in filters:
             failure_freqs: Dict[TestCaseKey, int] = {}
             latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
             tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
             aggregated_test_failures: List[FailedTestCaseAggregated] = []
-            for testcase in self._test_failures_by_tcf[tcf]:
+            for testcase in test_failures.get_all(tcf):
                 tc_key = TestCaseKey.create_from(
                     tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
                 )
@@ -157,14 +155,14 @@ class LatestTestFailures:
     def __init__(
         self,
         filters: List[TestCaseFilter],
-        test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]],
+        test_failures: TestFailuresByFilters,
         only_last_results=True,
     ):
-        self._test_failures_by_tcf = test_failures_by_tcf
+        self._test_failures = test_failures
         self._latest_testcases = self._create_latest_failures(filters, only_last_results=only_last_results)
 
     def get(self, tcf):
-        return self._test_failures_by_tcf[tcf]
+        return self._test_failures.get_all(tcf)
 
     def _create_latest_failures(
         self,
@@ -178,7 +176,7 @@ class LatestTestFailures:
 
         result = {}
         for tcf in testcase_filters:
-            failed_testcases = self._test_failures_by_tcf[tcf]
+            failed_testcases = self._test_failures.get_all(tcf)
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 return []
@@ -207,11 +205,11 @@ class TestFailureComparison:
     def __init__(
         self,
         filters: List[TestCaseFilter],
-        test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]],
+        test_failures: TestFailuresByFilters,
         compare_with_last: bool = True,
     ):
         self._testcase_filters = filters
-        self._test_failures_by_tcf = test_failures_by_tcf
+        self._test_failures = test_failures
         self._compare_with_last = compare_with_last
         self._results: Dict[TestCaseFilter, BuildComparisonResult] = self._compare()
 
@@ -230,7 +228,7 @@ class TestFailureComparison:
         result = {}
         for tcf in self._testcase_filters:
             LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
-            failed_testcases = self._test_failures_by_tcf[tcf]
+            failed_testcases = self._test_failures[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 LOG.warning("No failed testcases found for testcase filter: %s", tcf)
@@ -367,6 +365,7 @@ class KnownTestFailureChecker:
         known_failures: KnownTestFailures,
         aggregated_test_failures: AggregatedTestFailures,
     ):
+        self.filters = filters
         self.known_failures = known_failures
         self._aggregated = aggregated_test_failures
         self._cross_check_results_with_known_failures()
@@ -430,7 +429,7 @@ def get_key_by_testcase_filter(tcf: TestCaseFilter):
 class FinalAggregationResults:
     # TODO yarndevtoolsv2: Revisit any email specific logic in this class
     def __init__(self, all_filters: List[TestCaseFilter]):
-        self._test_failures_by_tcf: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
+        self.test_failures = TestFailuresByFilters(all_filters)
         self._aggregated: AggregatedTestFailures = None
         self._comparison: TestFailureComparison = None
         self._latest_failures: LatestTestFailures = None
@@ -438,10 +437,6 @@ class FinalAggregationResults:
 
         # TODO yarndevtoolsv2: what's the purpose of _tc_keys?
         self._tc_keys: Dict[TestCaseKey, FailedTestCaseAbs] = {}
-
-        for tcf in all_filters:
-            if tcf not in self._test_failures_by_tcf:
-                self._test_failures_by_tcf[tcf] = []
 
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
         tc_key = TestCaseKey.create_from(
@@ -464,10 +459,10 @@ class FinalAggregationResults:
         else:
             self._tc_keys[tc_key] = failed_testcase
 
-        self._test_failures_by_tcf[tcf].append(failed_testcase)
+        self.test_failures.add(tcf, failed_testcase)
 
     def get_failure(self, tcf) -> List[FailedTestCaseAbs]:
-        return self._test_failures_by_tcf[tcf]
+        return self.test_failures.get_all(tcf)
 
     def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
         return self._latest_failures.get(tcf)
@@ -479,4 +474,4 @@ class FinalAggregationResults:
         return self._aggregated.get(tcf)
 
     def print_keys(self):
-        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._test_failures_by_tcf.keys()}")
+        LOG.debug(f"Keys of _failed_testcases_by_filter: {self.test_failures.get_filters()}")

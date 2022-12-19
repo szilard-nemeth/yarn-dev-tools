@@ -1,7 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str, RegexUtils
 
@@ -297,3 +297,20 @@ class FailedTestCaseFactory:
         return FailedTestCaseFromEmail(matched_line, email_meta)
 
     # TODO Implement create_from_xxx
+
+
+class TestFailuresByFilters:
+    def __init__(self, all_filters):
+        self._data: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
+        for tcf in all_filters:
+            if tcf not in self._data:
+                self._data[tcf] = []
+
+    def add(self, tcf, failed_testcase):
+        self._data[tcf].append(failed_testcase)
+
+    def get_all(self, tcf):
+        return self._data[tcf]
+
+    def get_filters(self):
+        return self._data.keys()
