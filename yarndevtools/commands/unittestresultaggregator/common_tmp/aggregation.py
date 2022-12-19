@@ -1,5 +1,5 @@
 import datetime
-from collections import defaultdict
+from collections import defaultdict, UserDict
 from typing import List, Dict, Set, Tuple
 
 from pythoncommons.date_utils import DateUtils
@@ -17,22 +17,14 @@ import logging
 
 LOG = logging.getLogger(__name__)
 
-# TODO
-# class AggregatedTestFailures(UserDict):
 
-
-class AggregatedTestFailures:
+class AggregatedTestFailures(UserDict):
     def __init__(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
-        # super().__init__()
-        self._aggregated_test_failures: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(
-            filters, test_failures
-        )
+        super().__init__()
+        self.data: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(filters, test_failures)
 
-    # def __getitem__(self, key):
-    #     return self.data[key]
-    #
-    def get(self, tcf: TestCaseFilter):
-        return self._aggregated_test_failures[tcf]
+    def __getitem__(self, tcf):
+        return self.data[tcf]
 
     def _aggregate(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters):
         result = {}
@@ -41,7 +33,7 @@ class AggregatedTestFailures:
             latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
             tc_key_to_testcases: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
             aggregated_test_failures: List[FailedTestCaseAggregated] = []
-            for testcase in test_failures.get_all(tcf):
+            for testcase in test_failures[tcf]:
                 tc_key = TestCaseKey.create_from(
                     tcf, testcase, use_simple_name=True, use_full_name=False, include_email_subject=False
                 )
@@ -133,18 +125,14 @@ class AggregatedTestFailures:
             # )
 
 
-class LatestTestFailures:
-    def __init__(
-        self,
-        filters: List[TestCaseFilter],
-        test_failures: TestFailuresByFilters,
-        only_last_results=True,
-    ):
+class LatestTestFailures(UserDict):
+    def __init__(self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters, only_last_results=True):
+        super().__init__()
         self._test_failures = test_failures
-        self._latest_testcases = self._create_latest_failures(filters, only_last_results=only_last_results)
+        self.data = self._create_latest_failures(filters, only_last_results=only_last_results)
 
-    def get(self, tcf):
-        return self._test_failures.get_all(tcf)
+    def __getitem__(self, tcf):
+        return self.data[tcf]
 
     def _create_latest_failures(
         self,
@@ -158,7 +146,10 @@ class LatestTestFailures:
 
         result = {}
         for tcf in testcase_filters:
-            failed_testcases = self._test_failures.get_all(tcf)
+            if tcf not in result:
+                result[tcf] = []
+
+            failed_testcases = self._test_failures[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 return []
@@ -183,20 +174,18 @@ class LatestTestFailures:
         return oldest_day
 
 
-class TestFailureComparison:
+class TestFailureComparison(UserDict):
     def __init__(
-        self,
-        filters: List[TestCaseFilter],
-        test_failures: TestFailuresByFilters,
-        compare_with_last: bool = True,
+        self, filters: List[TestCaseFilter], test_failures: TestFailuresByFilters, compare_with_last: bool = True
     ):
+        super().__init__()
         self._testcase_filters = filters
         self._test_failures = test_failures
         self._compare_with_last = compare_with_last
-        self._results: Dict[TestCaseFilter, BuildComparisonResult] = self._compare()
+        self.data: Dict[TestCaseFilter, BuildComparisonResult] = self._compare()
 
-    def get(self, tcf: TestCaseFilter):
-        return self._results[tcf]
+    def __getitem__(self, tcf):
+        return self.data[tcf]
 
     def _compare(self, compare_with_n_days_old=None):
         if (self._compare_with_last and compare_with_n_days_old) or not any(
@@ -210,7 +199,7 @@ class TestFailureComparison:
         result = {}
         for tcf in self._testcase_filters:
             LOG.debug("Creating failure comparison for testcase filter: %s", tcf)
-            failed_testcases = self._test_failures.get_all(tcf)
+            failed_testcases = self._test_failures[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 LOG.warning("No failed testcases found for testcase filter: %s", tcf)
@@ -285,19 +274,18 @@ class KnownTestFailureChecker:
         aggregated_test_failures: AggregatedTestFailures,
     ):
         self.filters = filters
-        self.known_failures = known_failures
-        self._aggregated = aggregated_test_failures
+        self.known_failures: KnownTestFailures = known_failures
+        self._aggregated: AggregatedTestFailures = aggregated_test_failures
         self._cross_check_results_with_known_failures()
 
     def _cross_check_results_with_known_failures(self):
         if not any(True for _ in self.known_failures):
             raise ValueError("Empty known test failures!")
         encountered_known_test_failures: Set[KnownTestFailureInJira] = set()
-        # TODO Optimize triple for-loop
+        # TODO Optimize nested for-loop
         for tcf in self.filters:
             LOG.debug(f"Cross-checking testcases with known test failures from Jira for filter: {tcf.short_str()}")
-            for testcase in self._aggregated.get(tcf):
-                # for testcase in self._aggregated[tcf]:
+            for testcase in self._aggregated[tcf]:
                 # TODO Simplify logic
                 known_tcf: KnownTestFailureInJira or None = None
                 for known_test_failure in self.known_failures:

@@ -1338,7 +1338,7 @@ class UnitTestResultFetcher(CommandAbs):
         )
 
     @staticmethod
-    def _create_testcase_to_fail_count_dict(job_data, tc_to_fail_count):
+    def _create_testcase_to_fail_count_dict(job_data, tc_to_fail_count: Dict[str, int]):
         if job_data.has_failed_testcases():
             for failed_testcase in job_data.testcases:
                 LOG.info(f"Failed test: {failed_testcase}")
