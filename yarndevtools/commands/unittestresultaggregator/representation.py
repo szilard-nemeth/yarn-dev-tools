@@ -43,6 +43,7 @@ class TableOutputFormat(Enum):
     REGULAR_WITH_COLORS = "regular_colorized"
 
 
+# TODO yarndevtoolsv2: search for 'subject' in this class
 class TableDataType(Enum):
     MATCHED_LINES = "matched lines per thread"
     MATCHED_LINES_AGGREGATED = "matched lines aggregated"
@@ -65,7 +66,7 @@ class TableDataType(Enum):
 class OutputFormatRules:
     truncate_length: bool
     abbrev_tc_package: str or None
-    truncate_subject_with: str or None
+    truncate_origin_with: str or None
 
 
 # TODO Get rid of this later?
@@ -132,15 +133,15 @@ class SummaryGenerator:
             # We apply the specified truncation / abbreviation rules only for TEXT based tables
             # HTML / Gsheet output is just fine with longer names.
             # If SummaryMode.ALL is used, we leave all values intact for simplicity.
-            if config.abbrev_tc_package or config.truncate_subject_with:
+            if config.abbrev_tc_package or config.truncate_origin_with:
                 if config.summary_mode in [SummaryMode.ALL.value, SummaryMode.HTML.value]:
                     LOG.warning(
-                        f"Either abbreviate package or truncate subject is enabled "
+                        f"Either abbreviate package or truncate origin is enabled "
                         f"but SummaryMode is set to '{config.summary_mode}'. "
                         "Leaving all data intact so truncate / abbreviate options are ignored."
                     )
                     config.abbrev_tc_package = None
-                    config.truncate_subject_with = None
+                    config.truncate_origin_with = None
 
             data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
                 TableDataType.MATCHED_LINES: lambda tcf, out_fmt: DataConverter.convert_data_to_rows(
@@ -247,7 +248,7 @@ class SummaryGenerator:
                 header=["Testcase", "Still failing", "Fixed", "New failure"],
                 testcase_filters=config.testcase_filter_defs.LATEST_FAILURE_FILTERS,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_origin_with),
             ),
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.UNKNOWN_FAILURES,
@@ -297,7 +298,7 @@ class SummaryGenerator:
                 testcase_filters=config.testcase_filter_defs.get_non_aggregate_filters(),
                 header=cls.matched_testcases_all_header,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_origin_with),
             ),
             # Render tables for all match expressions AND all aggregation filters
             # --> 4 tables in case of 2 match expressions and 2 aggregate filters
@@ -329,7 +330,7 @@ class SummaryGenerator:
                 header=["Testcase", "Failure date", "Subject"],
                 testcase_filters=config.testcase_filter_defs.LATEST_FAILURE_FILTERS,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
-                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
+                out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_origin_with),
             ),
         ] + SummaryGenerator.short_render_confs(config, truncate)
 
@@ -596,18 +597,18 @@ class UnitTestResultOutputManager:
 
 # TODO This should be a simple renderer class without any data business logic
 class DataConverter:
-    SUBJECT_MAX_LENGTH = 50
+    ORIGIN_MAX_LENGTH = 50
     LINE_MAX_LENGTH = 80
 
     @staticmethod
     def convert_data_to_rows(failed_testcases: List[FailedTestCaseAbs], out_fmt: OutputFormatRules) -> List[List[str]]:
         data_table: List[List[str]] = []
-        truncate_subject_by_length: bool = out_fmt.truncate_length
+        truncate_origin_by_length: bool = out_fmt.truncate_length
         truncate_testcase_by_length: bool = out_fmt.truncate_length
 
         for testcase in failed_testcases:
-            subject, testcase_name = DataConverter._apply_truncate_rules(
-                out_fmt, testcase, truncate_subject_by_length, truncate_testcase_by_length
+            origin, testcase_name = DataConverter._apply_truncate_rules(
+                out_fmt, testcase, truncate_origin_by_length, truncate_testcase_by_length
             )
 
             # TODO yarndevtoolsv2: dirty hack!
@@ -619,7 +620,7 @@ class DataConverter:
             data_table.append(
                 [
                     str(testcase.date()),
-                    subject,
+                    origin,
                     testcase_name,
                     message_id,
                     thread_id,
@@ -628,23 +629,23 @@ class DataConverter:
         return data_table
 
     @staticmethod
-    def _apply_truncate_rules(out_fmt, testcase, truncate_subject_by_length, truncate_testcase_by_length):
+    def _apply_truncate_rules(out_fmt, testcase, truncate_origin_by_length, truncate_testcase_by_length):
         # Don't touch the original MatchObject data.
-        # It's not memory efficient to copy subject / TC name but we need the
+        # It's not memory efficient to copy origin / TC name but we need the
         # untruncated / original fields later.
-        subject = copy.copy(testcase.subject())
+        origin = copy.copy(testcase.origin())
         testcase_name = copy.copy(testcase.full_name())
-        if out_fmt.truncate_subject_with:
-            subject = DataConverter._truncate_subject(subject, out_fmt.truncate_subject_with)
+        if out_fmt.truncate_origin_with:
+            origin = DataConverter._truncate_origin(origin, out_fmt.truncate_origin_with)
         if out_fmt.abbrev_tc_package:
             testcase_name = DataConverter._abbreviate_package_name(out_fmt.abbrev_tc_package, testcase_name)
 
         # Check length-based truncate, if still necessary
-        if truncate_subject_by_length and len(subject) > DataConverter.SUBJECT_MAX_LENGTH:
-            subject = DataConverter._truncate_str(subject, DataConverter.SUBJECT_MAX_LENGTH, "subject")
+        if truncate_origin_by_length and len(origin) > DataConverter.ORIGIN_MAX_LENGTH:
+            origin = DataConverter._truncate_str(origin, DataConverter.ORIGIN_MAX_LENGTH, "origin")
         if truncate_testcase_by_length:
             testcase_name = DataConverter._truncate_str(testcase_name, DataConverter.LINE_MAX_LENGTH, "testcase")
-        return subject, testcase_name
+        return origin, testcase_name
 
     @staticmethod
     def _abbreviate_package_name(abbrev_tc_package, testcase_name):
@@ -656,12 +657,12 @@ class DataConverter:
         return testcase_name
 
     @staticmethod
-    def _truncate_subject(subject, truncate_subject_with):
-        if truncate_subject_with in subject:
-            new_subject = "".join([s for s in subject.split(truncate_subject_with) if s])
-            LOG.debug(f"Truncated subject: '{subject}' -> {new_subject}")
-            subject = new_subject
-        return subject
+    def _truncate_origin(origin, truncate_origin_with):
+        if truncate_origin_with in origin:
+            new_origin = "".join([s for s in origin.split(truncate_origin_with) if s])
+            LOG.debug(f"Truncated origin: '{origin}' -> {new_origin}")
+            origin = new_origin
+        return origin
 
     @staticmethod
     def render_aggregated_rows_table(
@@ -687,7 +688,7 @@ class DataConverter:
     def render_latest_failures_table(failed_testcases: List[FailedTestCaseAbs]) -> List[List[str]]:
         data_table: List[List[str]] = []
         for testcase in failed_testcases:
-            data_table.append([testcase.full_name, testcase.date(), testcase.subject()])
+            data_table.append([testcase.full_name, testcase.date(), testcase.origin()])
         return data_table
 
     @classmethod

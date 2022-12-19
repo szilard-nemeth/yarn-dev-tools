@@ -34,8 +34,7 @@ class FailedTestCaseAbs(ABC):
         pass
 
     @abstractmethod
-    def subject(self):
-        # TODO yarndevtoolsv2: Email-specific abstractmethod
+    def origin(self):
         pass
 
     @abstractmethod
@@ -111,10 +110,11 @@ class TestCaseFilter:
 
 @dataclass(eq=True, frozen=True)
 class TestCaseKey:
+    # TODO yarndevtoolsv2: Revisit why this class is required?
     tc_filter: TestCaseFilter
     full_name: str
     # TODO yarndevtoolsv2: Email-specific properties throughout class
-    email_subject: str or None = None
+    origin: str or None = None  # Can be email subject or ... ?
 
     @staticmethod
     def create_from(
@@ -122,14 +122,14 @@ class TestCaseKey:
         ftc: FailedTestCaseAbs,
         use_full_name=True,
         use_simple_name=False,
-        include_email_subject=True,
+        include_origin=True,
     ):
         if all([use_full_name, use_simple_name]) or not any([use_full_name, use_simple_name]):
             raise ValueError("Either 'use_simple_name' or 'use_full_name' should be set to True, but not both!")
         tc_name = ftc.full_name() if use_full_name else None
         tc_name = ftc.simple_name() if use_simple_name else tc_name
-        subject = ftc.subject if include_email_subject else None
-        return TestCaseKey(tcf, tc_name, subject)
+        origin = ftc.origin() if include_origin else None
+        return TestCaseKey(tcf, tc_name, origin)
 
 
 class TestCaseFilters:
@@ -321,8 +321,9 @@ class FailedTestCase(FailedTestCaseAbs):
     def simple_name(self):
         return self._simple_name
 
-    def subject(self):
-        raise AttributeError("No subject for this testcase type!")
+    def origin(self):
+        # TODO yarndevtoolsv2: implement
+        raise AttributeError("No origin for this testcase type!")
 
     def parameter(self) -> str:
         return self._parameter
@@ -361,7 +362,7 @@ class TestFailuresByFilters(UserDict):
             failed_testcase,
             use_full_name=True,
             use_simple_name=False,
-            include_email_subject=True,
+            include_origin=True,
         )
         if tc_key in self._testcase_cache:
             stored_testcase = self._testcase_cache[tc_key]
@@ -369,8 +370,8 @@ class TestFailuresByFilters(UserDict):
             LOG.debug(
                 f"Found already existing testcase key: {tc_key}. "
                 f"Value: {stored_testcase}, "
-                f"Email data (stored): {stored_testcase.subject()} "
-                f"Email data (new): {stored_testcase.subject()}"
+                f"Email data (stored): {stored_testcase.origin()} "
+                f"Email data (new): {stored_testcase.origin()}"
             )
             return
         else:
@@ -425,5 +426,5 @@ class FailedTestCaseFromEmail(FailedTestCase):
     def date(self) -> datetime.datetime:
         return self.email_meta.date
 
-    def subject(self):
+    def origin(self):
         return self.email_meta.subject
