@@ -302,11 +302,33 @@ class FailedTestCaseFactory:
 class TestFailuresByFilters:
     def __init__(self, all_filters):
         self._data: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
+        self._testcase_cache: Dict[TestCaseKey, FailedTestCaseAbs] = {}
+
         for tcf in all_filters:
             if tcf not in self._data:
                 self._data[tcf] = []
 
     def add(self, tcf, failed_testcase):
+        tc_key = TestCaseKey.create_from(
+            tcf,
+            failed_testcase,
+            use_full_name=True,
+            use_simple_name=False,
+            include_email_subject=True,
+        )
+        if tc_key in self._testcase_cache:
+            stored_testcase = self._testcase_cache[tc_key]
+            # TODO printout seems to be wrong
+            LOG.debug(
+                f"Found already existing testcase key: {tc_key}. "
+                f"Value: {stored_testcase}, "
+                f"Email data (stored): {stored_testcase.subject()} "
+                f"Email data (new): {stored_testcase.subject()}"
+            )
+            return
+        else:
+            self._testcase_cache[tc_key] = failed_testcase
+
         self._data[tcf].append(failed_testcase)
 
     def get_all(self, tcf):
