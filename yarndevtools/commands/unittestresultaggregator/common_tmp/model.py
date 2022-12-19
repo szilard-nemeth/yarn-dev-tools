@@ -307,7 +307,7 @@ class FailedTestCase(FailedTestCaseAbs):
             )
 
     def date(self) -> datetime.datetime:
-        # TODO implement
+        # TODO yarndevtoolsv2: implement
         raise NotImplementedError("not yet implemented!")
 
     def full_name(self):
@@ -332,7 +332,7 @@ class FailedTestCaseFactory:
     def create_from_email(matched_line, email_meta):
         return FailedTestCaseFromEmail(matched_line, email_meta)
 
-    # TODO Implement create_from_xxx
+    # TODO yarndevtoolsv2: Implement create_from_xxx
 
 
 class TestFailuresByFilters(UserDict):
@@ -376,7 +376,6 @@ class TestFailuresByFilters(UserDict):
 
 
 class FinalAggregationResults:
-    # TODO yarndevtoolsv2: Revisit any email specific logic in this class
     def __init__(self, all_filters: TestCaseFilters):
         self.test_failures = TestFailuresByFilters(all_filters)
         # TODO yarndevtoolsv2: specify types? (caused cyclic import issues previously)
