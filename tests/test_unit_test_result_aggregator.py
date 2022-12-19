@@ -9,11 +9,11 @@ from pythoncommons.project_utils import ProjectRootDeterminationStrategy, Projec
 from tests.test_utilities import TestUtilities
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
-    MatchExpression,
     AggregateFilter,
     TestCaseFilter,
     TestCaseFilters,
 )
+from yarndevtools.commands.unittestresultaggregator.common import MatchExpression
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CDP_7X = "CDPD-7.x"

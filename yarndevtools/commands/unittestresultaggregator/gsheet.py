@@ -1,9 +1,19 @@
+import datetime
+from dataclasses import dataclass
 from typing import List
 
 from pythoncommons.date_utils import DateUtils
 
-from yarndevtools.commands.unittestresultaggregator.common import LOG
-from yarndevtools.commands.unittestresultaggregator.common_tmp.model import KnownTestFailureInJira
+import logging
+
+LOG = logging.getLogger(__name__)
+
+
+@dataclass(eq=True, frozen=True)
+class KnownTestFailureInJira:
+    tc_name: str
+    jira: str
+    resolution_date: datetime.datetime
 
 
 class KnownTestFailures:
