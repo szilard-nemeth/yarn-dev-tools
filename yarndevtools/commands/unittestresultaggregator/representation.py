@@ -97,6 +97,7 @@ class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
         self.table_types = table_types
         self.out_fmt = out_fmt
         self.simple_mode = simple_mode
+        # TODO Debug when these can be None: self.data_type, self.testcase_filters
         LOG.info(
             f"Testcase filters for data type '{self.data_type}': {[tcf.short_str() for tcf in self.testcase_filters]}"
         )
@@ -378,7 +379,7 @@ class SummaryGenerator:
     ) -> str:
         tables: List[GenericTableWithHeader] = []
         for conf in render_confs:
-            for tcf in conf.testcase_filter_defs:
+            for tcf in conf.testcase_filters:
                 alias = tcf.key()
                 rendered_table = self._callback_dict[table_output_format](conf.data_type, alias=alias)
                 tables.append(rendered_table)
@@ -433,7 +434,7 @@ class TableRenderer:
                 dtype=conf.data_type,
                 formats=conf.tabulate_formats,
             )
-        for tcf in conf.testcase_filter_defs:
+        for tcf in conf.testcase_filters:
             key = tcf.key()
             self._render_tables(
                 header=conf.header,
