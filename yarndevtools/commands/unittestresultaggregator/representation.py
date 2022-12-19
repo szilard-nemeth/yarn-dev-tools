@@ -28,6 +28,7 @@ from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     FailedTestCaseAbs,
     FailedTestCaseFromEmail,
     EmailMetaData,
+    TestCaseFilters,
 )
 from yarndevtools.constants import (
     ReportFile,
@@ -73,7 +74,7 @@ class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
     def __init__(
         self,
         data_type: TableDataType = None,
-        testcase_filters: List[TestCaseFilter] or None = None,
+        testcase_filters: TestCaseFilters or None = None,
         header: List[str] = None,
         table_types: List[TableOutputFormat] = None,
         out_fmt: OutputFormatRules or None = None,
@@ -90,7 +91,7 @@ class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
         self.add_row_numbers = add_row_numbers
         self.max_width_separator = max_width_separator
         self.max_width = max_width
-        self.testcase_filters = [] if not testcase_filters else testcase_filters
+        self.testcase_filters = TestCaseFilters.create_empty() if not testcase_filters else testcase_filters
         self.header = header
         self.data_type = data_type
         self.table_types = table_types
@@ -198,13 +199,13 @@ class SummaryGenerator:
         if config.operation_mode == OperationMode.GSHEET:
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
             LOG.info("Updating Google sheet with data...")
-            for tcf in config.testcase_filters.get_non_aggregate_filters():
+            for tcf in config.testcase_filter_defs.get_non_aggregate_filters():
                 failed_testcases = aggr_results.get_failed_testcases_by_filter(tcf)
                 table_data = DataConverter.convert_data_to_rows(failed_testcases, OutputFormatRules(False, None, None))
                 SummaryGenerator._write_to_sheet(
                     config, "data", cls.matched_testcases_all_header, output_manager, table_data, tcf
                 )
-            for tcf in config.testcase_filters.get_aggregate_filters():
+            for tcf in config.testcase_filter_defs.get_aggregate_filters():
                 failed_testcases = aggr_results.get_aggregated_testcases_by_filter(tcf)
                 table_data = DataConverter.render_aggregated_rows_table(
                     failed_testcases, OutputFormatRules(False, None, None)
@@ -243,27 +244,27 @@ class SummaryGenerator:
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.BUILD_COMPARISON,
                 header=["Testcase", "Still failing", "Fixed", "New failure"],
-                testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
+                testcase_filters=config.testcase_filter_defs.LATEST_FAILURE_FILTERS,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
             ),
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.UNKNOWN_FAILURES,
-                testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
+                testcase_filters=config.testcase_filter_defs.get_match_expression_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_basic,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
             ),
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.REOCCURRED_FAILURES,
-                testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
+                testcase_filters=config.testcase_filter_defs.get_match_expression_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_basic,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
             ),
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.TESTCASES_TO_JIRAS,
-                testcase_filters=config.testcase_filters.get_match_expression_aggregate_filters(),
+                testcase_filters=config.testcase_filter_defs.get_match_expression_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_full,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
@@ -292,7 +293,7 @@ class SummaryGenerator:
             # --> 3 tables in case of 2 match expressions
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.MATCHED_LINES,
-                testcase_filters=config.testcase_filters.get_non_aggregate_filters(),
+                testcase_filters=config.testcase_filter_defs.get_non_aggregate_filters(),
                 header=cls.matched_testcases_all_header,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
@@ -301,7 +302,7 @@ class SummaryGenerator:
             # --> 4 tables in case of 2 match expressions and 2 aggregate filters
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.MATCHED_LINES_AGGREGATED,
-                testcase_filters=config.testcase_filters.get_aggregate_filters(),
+                testcase_filters=config.testcase_filter_defs.get_aggregate_filters(),
                 header=cls.matched_testcases_aggregated_header_full,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(False, config.abbrev_tc_package, None),
@@ -325,7 +326,7 @@ class SummaryGenerator:
             UnitTestResultAggregatorTableRenderingConfig(
                 data_type=TableDataType.LATEST_FAILURES,
                 header=["Testcase", "Failure date", "Subject"],
-                testcase_filters=config.testcase_filters.LATEST_FAILURE_FILTERS,
+                testcase_filters=config.testcase_filter_defs.LATEST_FAILURE_FILTERS,
                 table_types=[TableOutputFormat.REGULAR, TableOutputFormat.HTML],
                 out_fmt=OutputFormatRules(truncate, config.abbrev_tc_package, config.truncate_subject_with),
             ),
@@ -377,7 +378,7 @@ class SummaryGenerator:
     ) -> str:
         tables: List[GenericTableWithHeader] = []
         for conf in render_confs:
-            for tcf in conf.testcase_filters:
+            for tcf in conf.testcase_filter_defs:
                 alias = tcf.key()
                 rendered_table = self._callback_dict[table_output_format](conf.data_type, alias=alias)
                 tables.append(rendered_table)
@@ -432,7 +433,7 @@ class TableRenderer:
                 dtype=conf.data_type,
                 formats=conf.tabulate_formats,
             )
-        for tcf in conf.testcase_filters:
+        for tcf in conf.testcase_filter_defs:
             key = tcf.key()
             self._render_tables(
                 header=conf.header,

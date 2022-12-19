@@ -1,6 +1,7 @@
 import datetime
 from abc import ABC, abstractmethod
 from collections import UserDict
+from copy import copy
 from dataclasses import dataclass, field
 from typing import List, Dict
 
@@ -131,8 +132,42 @@ class TestCaseKey:
         return TestCaseKey(tcf, tc_name, subject)
 
 
-@dataclass
 class TestCaseFilters:
+    def __init__(self, filters):
+        self._filters: List[TestCaseFilter] = filters
+        self._index = 0
+
+    @staticmethod
+    def create_empty():
+        return TestCaseFilters([])
+
+    def add(self, f):
+        self._filters.append(f)
+
+    def __add__(self, other):
+        # res = TestCaseFilters(copy(self._filters))
+        # res._filters.extend(other._filters)
+        # return res
+        self._filters.extend(other._filters)
+        return self
+
+    def __len__(self):
+        return len(self._filters)
+
+    def __iter__(self):
+        self._index = 0
+        return self
+
+    def __next__(self):
+        if self._index == len(self._filters):
+            raise StopIteration
+        result = self._filters[self._index]
+        self._index += 1
+        return result
+
+
+@dataclass
+class TestCaseFilterDefinitions:
     # TODO yarndevtoolsv2: Revisit any email specific logic in this class?
     match_expressions: List[MatchExpression]
     aggregate_filters: List[AggregateFilter]
@@ -156,18 +191,18 @@ class TestCaseFilters:
         #   Aggregation filter #2 = CDPD-7.1.x
 
         # 3 filters: Global ALL, YARN ALL, MR ALL
-        self._SIMPLE_MATCHED_LINE_FILTERS = self._get_testcase_filter_objs(
+        self._SIMPLE_MATCHED_LINE_FILTERS: TestCaseFilters = self._get_testcase_filter_objs(
             extended_expressions=True, match_expr_separately_always=True, without_aggregates=True
         )
 
         # 4 filters:
         # YARN CDPD-7.1.x aggregated, YARN CDPD-7.x aggregated,
         # MR CDPD-7.1.x aggregated, MR CDPD-7.x aggregated
-        self._AGGREGATION_FILTERS: List[TestCaseFilter] = self._get_testcase_filter_objs(
+        self._AGGREGATION_FILTERS: TestCaseFilters = self._get_testcase_filter_objs(
             extended_expressions=False, match_expr_if_no_aggr_filter=True
         )
         # 2 filters: YARN ALL aggregated, MR ALL aggregated
-        self._aggregated_match_expr_filters = self._get_testcase_filter_objs(
+        self._aggregated_match_expr_filters: TestCaseFilters = self._get_testcase_filter_objs(
             extended_expressions=False,
             match_expr_separately_always=True,
             aggregated_match_expressions=True,
@@ -175,12 +210,12 @@ class TestCaseFilters:
         )
         self._AGGREGATION_FILTERS += self._aggregated_match_expr_filters
 
-        self.ALL_VALID_FILTERS = self._AGGREGATION_FILTERS + self._SIMPLE_MATCHED_LINE_FILTERS
+        self.ALL_VALID_FILTERS: TestCaseFilters = self._AGGREGATION_FILTERS + self._SIMPLE_MATCHED_LINE_FILTERS
 
-        self.LATEST_FAILURE_FILTERS = self._get_testcase_filter_objs(
+        self.LATEST_FAILURE_FILTERS: TestCaseFilters = self._get_testcase_filter_objs(
             match_expr_separately_always=False, match_expr_if_no_aggr_filter=False, without_aggregates=False
         )
-        self.TESTCASES_TO_JIRAS_FILTERS = self._AGGREGATION_FILTERS
+        self.TESTCASES_TO_JIRAS_FILTERS: TestCaseFilters = self._AGGREGATION_FILTERS
         self._print_filters()
 
     def _print_filters(self):
@@ -201,13 +236,13 @@ class TestCaseFilters:
         match_expr_if_no_aggr_filter=False,
         without_aggregates=False,
         aggregated_match_expressions=False,
-    ) -> List[TestCaseFilter]:
+    ) -> TestCaseFilters:
         match_expressions_list = self.extended_match_expressions if extended_expressions else self.match_expressions
 
-        result: List[TestCaseFilter] = []
+        filters = TestCaseFilters.create_empty()
         for match_expr in match_expressions_list:
             if match_expr_separately_always or (match_expr_if_no_aggr_filter and not self.aggregate_filters):
-                self._append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, result)
+                self._append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, filters)
 
             if without_aggregates:
                 continue
@@ -215,13 +250,13 @@ class TestCaseFilters:
             # We don't need aggregate for all lines
             if match_expr != MATCH_ALL_LINES_EXPRESSION:
                 for aggr_filter in self.aggregate_filters:
-                    result.append(TestCaseFilter(match_expr, aggr_filter, aggregate=True))
-        return result
+                    filters.add(TestCaseFilter(match_expr, aggr_filter, aggregate=True))
+        return filters
 
     @staticmethod
-    def _append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, result):
+    def _append_tc_filter_with_match_expr(aggregated_match_expressions, match_expr, filters: TestCaseFilters):
         aggregated = True if aggregated_match_expressions else False
-        result.append(TestCaseFilter(match_expr, None, aggregate=aggregated))
+        filters.add(TestCaseFilter(match_expr, None, aggregate=aggregated))
 
     def match_all_lines(self) -> bool:
         return len(self.match_expressions) == 1 and self.match_expressions[0] == MATCH_ALL_LINES_EXPRESSION
@@ -278,7 +313,7 @@ class FailedTestCase(FailedTestCaseAbs):
 
     def date(self) -> datetime.datetime:
         # TODO implement
-        pass
+        raise NotImplementedError("not yet implemented!")
 
     def full_name(self):
         return self._full_name
@@ -305,7 +340,7 @@ class FailedTestCaseFactory:
 
 
 class TestFailuresByFilters(UserDict):
-    def __init__(self, all_filters):
+    def __init__(self, all_filters: TestCaseFilters):
         super().__init__()
         self.data: Dict[TestCaseFilter, List[FailedTestCaseAbs]] = {}
         self._testcase_cache: Dict[TestCaseKey, FailedTestCaseAbs] = {}
@@ -346,7 +381,7 @@ class TestFailuresByFilters(UserDict):
 
 class FinalAggregationResults:
     # TODO yarndevtoolsv2: Revisit any email specific logic in this class
-    def __init__(self, all_filters: List[TestCaseFilter]):
+    def __init__(self, all_filters: TestCaseFilters):
         self.test_failures = TestFailuresByFilters(all_filters)
         # TODO yarndevtoolsv2: specify types? (caused cyclic import issues previously)
         self._aggregated = None

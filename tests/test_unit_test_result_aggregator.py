@@ -11,7 +11,7 @@ from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
     AggregateFilter,
     TestCaseFilter,
-    TestCaseFilters,
+    TestCaseFilterDefinitions,
 )
 from yarndevtools.commands.unittestresultaggregator.common import MatchExpression
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
@@ -44,8 +44,8 @@ class TestTestCaseFilters(unittest.TestCase):
 
         match_expressions = [YARN_EXPRESSION, MR_EXPRESSION]
         aggr_filters = [CDP_71X, CDP_7X]
-        cls.filters = TestCaseFilters(
-            TestCaseFilters.convert_raw_match_expressions_to_objs(match_expressions), aggr_filters
+        cls.filters = TestCaseFilterDefinitions(
+            TestCaseFilterDefinitions.convert_raw_match_expressions_to_objs(match_expressions), aggr_filters
         )
 
     @classmethod
