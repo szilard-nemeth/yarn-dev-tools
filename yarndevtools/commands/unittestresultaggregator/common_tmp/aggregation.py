@@ -118,12 +118,10 @@ class AggregatedTestFailures(UserDict):
         parameterized_had_same_value = True if (len(parameterized_lst) == 1 and parameterized_lst[0]) else False
         # If we have more than 1 fullname, testcases should be all parameterized
         if len(full_names) > 1 and not parameterized_had_same_value:
-            pass
-            # TODO yarndevtoolsv2: this check does not really makes sense now
-            # raise ValueError(
-            #     "We have 2 different TC full names but testcases are not having the same parameterized flags. "
-            #     f"Testcase objects: {testcases}"
-            # )
+            raise ValueError(
+                "We have 2 different testcase full names but testcases are not having the same parameterized flags. "
+                f"Testcase objects: {testcases}"
+            )
 
 
 class LatestTestFailures(UserDict):
