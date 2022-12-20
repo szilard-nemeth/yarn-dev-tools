@@ -110,7 +110,6 @@ class TestCaseFilter:
 
 @dataclass(eq=True, frozen=True)
 class TestCaseKey:
-    # TODO yarndevtoolsv2 refactor: Revisit why this class is required?
     tc_filter: TestCaseFilter
     full_name: str
     origin: str or None = None  # Can be email subject or ... ?
