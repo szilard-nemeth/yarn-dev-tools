@@ -327,23 +327,23 @@ class KnownTestFailureChecker:
         self._cross_check_results_with_known_failures()
 
     def _cross_check_results_with_known_failures(self):
-        # TODO yarndevtoolsv2 refactor: simplify logic / Optimize nested for-loop
         if not any(True for _ in self.known_failures):
             raise ValueError("Empty known test failures!")
-        encountered_known_test_failures: Set[KnownTestFailureInJira] = set()
+        encountered_known_failures: Set[KnownTestFailureInJira] = set()
         for tcf in self._filters:
-            LOG.debug(f"Cross-checking testcases with known test failures from Jira for filter: {tcf.short_str()}")
+            LOG.debug(f"Cross-checking testcases with known failures for filter: {tcf.short_str()}")
             for testcase in self._aggregated[tcf]:
                 known_tcf: KnownTestFailureInJira or None = None
-                for known_test_failure in self.known_failures:
-                    if known_test_failure.tc_name in testcase.simple_name:
-                        encountered_known_test_failures.add(known_test_failure)
+                for known_failure in self.known_failures:
+                    if known_failure.tc_name in testcase.simple_name:
+                        encountered_known_failures.add(known_failure)
                         LOG.debug(
-                            "Found matching failed testcase + known Jira testcase:\n"
-                            f"Failed testcase: {testcase.simple_name}, Known testcase: {known_test_failure.tc_name}"
+                            "Found known failure in failed testcases:\n"
+                            f"Failed testcase: {testcase.simple_name}, "
+                            f"Known failure: {known_failure.tc_name}"
                         )
                         testcase.known_failure = True
-                        known_tcf = known_test_failure
+                        known_tcf = known_failure
 
                 if testcase.known_failure:
                     if known_tcf.resolution_date and testcase.latest_failure > known_tcf.resolution_date:
@@ -353,7 +353,7 @@ class KnownTestFailureChecker:
                         testcase.reoccurred = False
                 else:
                     LOG.info(
-                        "Found testcase that does not have corresponding jira so it is unknown. "
+                        "Found testcase that does not have corresponding Jira so it is unknown. "
                         f"Testcase details: {testcase}. "
                         f"Testcase filter: {tcf.short_str()}"
                     )
@@ -361,7 +361,7 @@ class KnownTestFailureChecker:
                     testcase.reoccurred = False
 
         all_known_test_failures = set(self.known_failures)
-        not_encountered_known_test_failures = all_known_test_failures.difference(encountered_known_test_failures)
+        not_encountered_known_test_failures = all_known_test_failures.difference(encountered_known_failures)
         if not_encountered_known_test_failures:
             LOG.warning(
                 "Found known jira test failures that are not encountered for any test failures. "
