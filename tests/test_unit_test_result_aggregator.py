@@ -8,12 +8,12 @@ from pythoncommons.project_utils import ProjectRootDeterminationStrategy, Projec
 
 from tests.test_utilities import TestUtilities
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
+from yarndevtools.commands.unittestresultaggregator.common.model import (
     AggregateFilter,
     TestCaseFilter,
     TestCaseFilterDefinitions,
 )
-from yarndevtools.commands.unittestresultaggregator.common import MatchExpression
+from yarndevtools.commands.unittestresultaggregator.constants import MatchExpression
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 CDP_7X = "CDPD-7.x"

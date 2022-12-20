@@ -3,7 +3,7 @@ import logging
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.project_utils import ProjectUtils
 
-from yarndevtools.commands.unittestresultaggregator.common import (
+from yarndevtools.commands.unittestresultaggregator.constants import (
     SummaryMode,
 )
 from yarndevtools.commands_common import CommandAbs, GSheetArguments, ArgumentParserUtils

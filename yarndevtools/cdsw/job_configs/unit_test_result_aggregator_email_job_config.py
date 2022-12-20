@@ -4,7 +4,7 @@ from yarndevtools.cdsw.cdsw_common import (
 )
 from yarndevtools.cdsw.cdsw_config import Include
 from yarndevtools.cdsw.constants import CdswEnvVar
-from yarndevtools.commands.unittestresultaggregator.common import OperationMode
+from yarndevtools.commands.unittestresultaggregator.constants import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import ReportFile
 

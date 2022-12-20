@@ -14,7 +14,7 @@ from pythoncommons.project_utils import ProjectUtils
 from pythoncommons.string_utils import RegexUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
-from yarndevtools.commands.unittestresultaggregator.common import (
+from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,
     SummaryMode,
     AGGREGATED_WS_POSTFIX,
@@ -23,13 +23,13 @@ from yarndevtools.commands.unittestresultaggregator.common import (
     MATCHTYPE_ALL_POSTFIX,
     MatchExpression,
 )
-from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
+from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
     AggregatedTestFailures,
     LatestTestFailures,
     TestFailureComparison,
     KnownTestFailureChecker,
 )
-from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
+from yarndevtools.commands.unittestresultaggregator.common.model import (
     BuildComparisonResult,
     FailedTestCaseAggregated,
     TestCaseFilter,
