@@ -17,11 +17,11 @@ from pythoncommons.result_printer import (
 )
 from pythoncommons.string_utils import StringUtils, auto_str
 
-from yarndevtools.commands.unittestresultaggregator.common import (
+from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,
     SummaryMode,
 )
-from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
+from yarndevtools.commands.unittestresultaggregator.common.model import (
     BuildComparisonResult,
     FailedTestCaseAggregated,
     TestCaseFilter,

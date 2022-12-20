@@ -7,7 +7,7 @@ from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str, RegexUtils
 
-from yarndevtools.commands.unittestresultaggregator.common import (
+from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCH_EXPRESSION_SEPARATOR,
     AGGREGATED_WS_POSTFIX,
     REGEX_EVERYTHING,
@@ -376,7 +376,7 @@ class TestFailuresByFilters(UserDict):
 class FinalAggregationResults:
     def __init__(self, all_filters: TestCaseFilters):
         # Needs local import to avoid cyclic-import issues
-        from yarndevtools.commands.unittestresultaggregator.common_tmp.aggregation import (
+        from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
             AggregatedTestFailures,
             TestFailureComparison,
             LatestTestFailures,

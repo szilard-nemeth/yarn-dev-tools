@@ -14,7 +14,7 @@ from pythoncommons.git_constants import (
 from pythoncommons.git_wrapper import GitLogLineFormat
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.commands.unittestresultaggregator.common import MATCH_EXPRESSION_PATTERN
+from yarndevtools.commands.unittestresultaggregator.constants import MATCH_EXPRESSION_PATTERN
 from yarndevtools.constants import (
     YARN_JIRA_ID_PATTERN,
 )

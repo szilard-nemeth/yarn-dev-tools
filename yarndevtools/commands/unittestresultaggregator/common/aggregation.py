@@ -5,7 +5,7 @@ from typing import List, Dict, Set, Tuple
 from pythoncommons.date_utils import DateUtils
 
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures, KnownTestFailureInJira
-from yarndevtools.commands.unittestresultaggregator.common_tmp.model import (
+from yarndevtools.commands.unittestresultaggregator.common.model import (
     TestCaseFilter,
     TestFailuresByFilters,
     FailedTestCaseAggregated,
