@@ -51,7 +51,7 @@ DEFAULT_LINE_SEP = "\\r\\n"
 
 
 class EmailBasedAggregationResults:
-    # TODO yarndevtoolsv2: consider extracting common aggregation logic from this class / or create abstraction layer?
+    # TODO yarndevtoolsv2 refactor: consider extracting common aggregation logic from this class / or create abstraction layer?
     def __init__(self, testcase_filter_defs: TestCaseFilterDefinitions, known_failures: KnownTestFailures):
         self._match_all_lines: bool = self._should_match_all_lines(testcase_filter_defs)
         self._testcase_filter_defs: TestCaseFilterDefinitions = testcase_filter_defs
@@ -61,7 +61,7 @@ class EmailBasedAggregationResults:
         )
 
         # This is a temporary dict - usually for a context of a message
-        # TODO yarndevtoolsv2: Can we get rid of str key altogether? (_get_matched_lines_key vs. TestCaseFilter)
+        # TODO yarndevtoolsv2 refactor: Can we get rid of str key altogether? (_get_matched_lines_key vs. TestCaseFilter)
         self._matched_lines_dict: Dict[str, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
 
@@ -152,7 +152,7 @@ class EmailBasedAggregationResults:
     def finish_processing_all(self):
         self.print_objects()
 
-        # TODO yarndevtoolsv2: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
+        # TODO yarndevtoolsv2 refactor: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
         self._aggregation_results._aggregated = AggregatedTestFailures(
             self._testcase_filter_defs.get_aggregate_filters(),
             self._aggregation_results.test_failures,
@@ -365,7 +365,7 @@ class UnitTestResultAggregatorEmailParserUtils:
 
 
 class EmailBasedUnitTestResultAggregatorConfig:
-    # TODO yarndevtoolsv2: Revisit any common logic / config for email+db based aggregator?
+    # TODO yarndevtoolsv2 refactor: Revisit any common logic / config for email+db based aggregator?
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
         self.console_mode = getattr(args, "console mode", False)
@@ -507,7 +507,7 @@ class EmailUtilsForAggregators:
         query_result: ThreadQueryResults = self.gmail_wrapper.query_threads(
             query=self.get_gmail_query(), limit=self.config.request_limit, expect_one_message_per_thread=True
         )
-        # TODO yarndevtoolsv2: Write start date, end date, missing dates between start and end date
+        # TODO yarndevtoolsv2 improvement: Write start date, end date, missing dates between start and end date
         LOG.info(
             f"Received thread query result:\n"
             f"Number of threads: {query_result.no_of_threads}\n"

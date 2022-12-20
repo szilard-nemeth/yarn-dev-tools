@@ -28,7 +28,7 @@ class AggregatedTestFailures(UserDict):
         return self.data[tcf]
 
     def _aggregate(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters):
-        # TODO yarndevtoolsv2: simplify logic
+        # TODO yarndevtoolsv2 refactor: simplify logic
         result = {}
         for tcf in filters:
             failure_freqs: Dict[TestCaseKey, int] = {}
@@ -141,7 +141,7 @@ class LatestTestFailures(UserDict):
         only_last_results=False,
         reset_oldest_day_to_midnight=False,
     ):
-        # TODO yarndevtoolsv2: simplify logic
+        # TODO yarndevtoolsv2 refactor: simplify logic
         if sum([True if last_n_days else False, only_last_results]) != 1:
             raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
 
@@ -187,7 +187,7 @@ class TestFailureComparison(UserDict):
         return self.data[tcf]
 
     def _compare(self, compare_with_n_days_old=None):
-        # TODO yarndevtoolsv2: simplify logic
+        # TODO yarndevtoolsv2 refactor: simplify logic
         if (self._compare_with_last and compare_with_n_days_old) or not any(
             [self._compare_with_last, compare_with_n_days_old]
         ):
@@ -279,7 +279,7 @@ class KnownTestFailureChecker:
         self._cross_check_results_with_known_failures()
 
     def _cross_check_results_with_known_failures(self):
-        # TODO yarndevtoolsv2: simplify logic / Optimize nested for-loop
+        # TODO yarndevtoolsv2 refactor: simplify logic / Optimize nested for-loop
         if not any(True for _ in self.known_failures):
             raise ValueError("Empty known test failures!")
         encountered_known_test_failures: Set[KnownTestFailureInJira] = set()

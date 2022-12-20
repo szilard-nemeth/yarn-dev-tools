@@ -8,7 +8,7 @@ from yarndevtools.commands.unittestresultaggregator.common import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import ReportFile
 
-# TODO yarndevtoolsv2: Create new file: unit_test_result_aggregator_db_job_config.py
+# TODO yarndevtoolsv2 DB: Create new file: unit_test_result_aggregator_db_job_config.py
 config = {
     "job_name": "Unit test result aggregator",
     "command_type": CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL,

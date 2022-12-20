@@ -43,7 +43,7 @@ class TableOutputFormat(Enum):
     REGULAR_WITH_COLORS = "regular_colorized"
 
 
-# TODO yarndevtoolsv2: search for 'subject' in this class
+# TODO yarndevtoolsv2 representation: search for 'subject' in this class
 class TableDataType(Enum):
     MATCHED_LINES = "matched lines per thread"
     MATCHED_LINES_AGGREGATED = "matched lines aggregated"
@@ -611,7 +611,7 @@ class DataConverter:
                 out_fmt, testcase, truncate_origin_by_length, truncate_testcase_by_length
             )
 
-            # TODO yarndevtoolsv2: dirty hack!
+            # TODO yarndevtoolsv2 DB: dirty hack!
             message_id, thread_id = "", ""
             if isinstance(testcase, FailedTestCaseFromEmail):
                 email_meta: EmailMetaData = getattr(testcase, "email_meta")

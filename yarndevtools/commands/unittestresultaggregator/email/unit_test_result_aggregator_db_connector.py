@@ -55,5 +55,5 @@ class UnitTestResultAggregatorDBConnector(CommandAbs):
         self._post_process(gmail_query_result, result)
 
     def _post_process(self, query_result, aggr_results):
-        # TODO yarndevtoolsv2: implement DB connector logic, use same / similar schema like in unit_test_result_fetcher.py
+        # TODO yarndevtoolsv2 DB: implement DB connector logic, use same / similar schema like in unit_test_result_fetcher.py
         raise NotImplementedError()

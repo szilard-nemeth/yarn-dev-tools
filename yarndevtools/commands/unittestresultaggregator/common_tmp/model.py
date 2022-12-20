@@ -59,7 +59,7 @@ class BuildComparisonResult:
 
 @dataclass
 class FailedTestCaseAggregated:
-    # TODO yarndevtoolsv2: this is very similar to FailedTestCase, should use composition?
+    # TODO yarndevtoolsv2 refactor: this is very similar to FailedTestCase, should use composition?
     full_name: str
     simple_name: str
     parameterized: bool
@@ -110,7 +110,7 @@ class TestCaseFilter:
 
 @dataclass(eq=True, frozen=True)
 class TestCaseKey:
-    # TODO yarndevtoolsv2: Revisit why this class is required?
+    # TODO yarndevtoolsv2 refactor: Revisit why this class is required?
     tc_filter: TestCaseFilter
     full_name: str
     origin: str or None = None  # Can be email subject or ... ?
@@ -305,7 +305,7 @@ class FailedTestCase(FailedTestCaseAbs):
             )
 
     def date(self) -> datetime.datetime:
-        # TODO yarndevtoolsv2: implement
+        # TODO yarndevtoolsv2 DB: implement
         raise NotImplementedError("not yet implemented!")
 
     def full_name(self):
@@ -315,7 +315,7 @@ class FailedTestCase(FailedTestCaseAbs):
         return self._simple_name
 
     def origin(self):
-        # TODO yarndevtoolsv2: implement
+        # TODO yarndevtoolsv2 DB: implement
         raise AttributeError("No origin for this testcase type!")
 
     def parameter(self) -> str:
@@ -330,7 +330,7 @@ class FailedTestCaseFactory:
     def create_from_email(matched_line, email_meta):
         return FailedTestCaseFromEmail(matched_line, email_meta)
 
-    # TODO yarndevtoolsv2: Implement create_from_xxx
+    # TODO yarndevtoolsv2 DB: Implement create_from_xxx
 
 
 class TestFailuresByFilters(UserDict):
