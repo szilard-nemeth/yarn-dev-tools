@@ -59,7 +59,7 @@ class BuildComparisonResult:
 
 @dataclass
 class FailedTestCaseAggregated:
-    # TODO yarndevtoolsv2 refactor: this is very similar to FailedTestCase, should use composition?
+    # TODO yarndevtoolsv2 refactor2: this is very similar to FailedTestCase, should use composition?
     full_name: str
     simple_name: str
     parameterized: bool
