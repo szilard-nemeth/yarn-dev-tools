@@ -145,7 +145,7 @@ class SummaryGenerator:
 
             data_dict: Dict[TableDataType, Callable[[TestCaseFilter, OutputFormatRules], List[List[str]]]] = {
                 TableDataType.MATCHED_LINES: lambda tcf, out_fmt: DataConverter.convert_data_to_rows(
-                    aggr_results.get_failed_testcases_by_filter(tcf),
+                    aggr_results.get_failures(tcf),
                     out_fmt,
                 ),
                 TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
@@ -157,10 +157,10 @@ class SummaryGenerator:
                     query_result
                 ),
                 TableDataType.LATEST_FAILURES: lambda tcf, out_fmt: DataConverter.render_latest_failures_table(
-                    aggr_results.get_latest_failed_testcases_by_filter(tcf)
+                    aggr_results.get_latest_failures(tcf)
                 ),
                 TableDataType.BUILD_COMPARISON: lambda tcf, out_fmt: DataConverter.render_build_comparison_table(
-                    aggr_results.get_build_comparison_result_by_filter(tcf)
+                    aggr_results.get_build_comparison(tcf)
                 ),
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
                     aggr_results.get_aggregated_testcases_by_filter(tcf, filter_unknown=True),
@@ -202,7 +202,7 @@ class SummaryGenerator:
             # We need to re-generate all the data here, as table renderer might rendered truncated data.
             LOG.info("Updating Google sheet with data...")
             for tcf in config.testcase_filter_defs.get_non_aggregate_filters():
-                failed_testcases = aggr_results.get_failed_testcases_by_filter(tcf)
+                failed_testcases = aggr_results.get_failures(tcf)
                 table_data = DataConverter.convert_data_to_rows(failed_testcases, OutputFormatRules(False, None, None))
                 SummaryGenerator._write_to_sheet(
                     config, "data", cls.matched_testcases_all_header, output_manager, table_data, tcf

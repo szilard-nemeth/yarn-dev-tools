@@ -395,13 +395,13 @@ class FinalAggregationResults:
     def get_failure(self, tcf) -> List[FailedTestCaseAbs]:
         return self.test_failures[tcf]
 
-    def get_latest_testcases(self, tcf) -> List[FailedTestCaseAbs]:
+    def get_latest_failures(self, tcf) -> List[FailedTestCaseAbs]:
         return self._latest_failures[tcf]
 
-    def get_build_comparison_results(self, tcf) -> BuildComparisonResult:
+    def get_build_comparison(self, tcf) -> BuildComparisonResult:
         return self._comparison[tcf]
 
-    def get_aggregated_testcases(self, tcf) -> List[FailedTestCaseAggregated]:
+    def get_aggregated_failures(self, tcf) -> List[FailedTestCaseAggregated]:
         return self._aggregated[tcf]
 
     def print_keys(self):
