@@ -35,7 +35,7 @@ yarndevtools = ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]
 
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.8.12"
 python-common-lib = "1.0.4"
 google-api-wrapper2 = "1.0.4"
 gitpython = "*"
@@ -50,7 +50,7 @@ marshmallow = "*"
 
 [tool.poetry.group.dev.dependencies]
 requests = "*"
-flake8 = "*"
+flake8 = "6.0.0"
 pytest = "*"
 pytest-html = "*"
 pytest-cov = "*"
