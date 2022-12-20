@@ -8,6 +8,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict, Set, Tuple, Any
+
+import pymongo
 from marshmallow import Schema, fields
 
 from googleapiwrapper.common import ServiceType
@@ -22,7 +24,6 @@ from googleapiwrapper.google_drive import (
     SearchResultHandlingMode,
     DriveApiFile,
 )
-from pymongo import MongoClient
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.email import EmailService, EmailMimeType
@@ -1350,7 +1351,7 @@ class Database:
     def __init__(self, config: UnitTestResultFetcherConfig):
         url = f"mongodb://{config.mongo_user}:{config.mongo_password}@{config.mongo_hostname}:{config.mongo_port}/{config.mongo_db_name}?authSource=admin"
         LOG.debug("Using connection URL '%s' for mongodb", url)
-        self._client = MongoClient(url)
+        self._client = pymongo.MongoClient(url)
         self._db = self._client[config.mongo_db_name]
 
     def save_build_data(self, build_data: JobBuildData):

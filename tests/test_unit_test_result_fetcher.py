@@ -13,6 +13,7 @@ from typing import List, Dict, Tuple, Set
 from unittest.mock import patch, Mock
 
 import httpretty as httpretty
+import mongomock
 from coolname import generate_slug
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils
@@ -390,6 +391,12 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args.verbose = True
         args.command = CommandType.UNIT_TEST_RESULT_FETCHER.real_name
         args.force_mode = force_mode
+
+        args.mongo_hostname = "mongo.example.com"
+        args.mongo_port = 27017
+        args.mongo_user = "mongo_user"
+        args.mongo_password = "mongo_password"
+        args.mongo_db_name = "mongo_db_name"
         return args
 
     @property
@@ -518,6 +525,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         )
 
     @patch(SEND_MAIL_PATCH_PATH)
+    @mongomock.patch(servers=(("mongo.example.com", 27017),))
     def test_successful_api_response_verify_failed_testcases(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={PACK_3: 10, PACK_4: 20},
@@ -543,6 +551,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         )
 
     @patch(SEND_MAIL_PATCH_PATH)
+    @mongomock.patch(servers=(("mongo.example.com", 27017),))
     def test_successful_api_response_verify_filtered_testcases(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec(
             failed={PACK_3: 10, PACK_4: 20, self._get_package_from_filter(YARN_TC_FILTER): 25},
@@ -569,6 +578,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         )
 
     @patch(SEND_MAIL_PATCH_PATH)
+    @mongomock.patch(servers=(("mongo.example.com", 27017),))
     def test_successful_api_response_verify_multi_filtered(self, mock_send_mail_call):
         spec = JenkinsReportJsonSpec.get_arbitrary()
         failed_yarn_testcases: List[str] = spec.get_failed_testcases(self._get_package_from_filter(YARN_TC_FILTER))

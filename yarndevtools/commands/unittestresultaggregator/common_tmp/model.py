@@ -144,11 +144,9 @@ class TestCaseFilters:
         self._filters.append(f)
 
     def __add__(self, other):
-        # res = TestCaseFilters(copy(self._filters))
-        # res._filters.extend(other._filters)
-        # return res
-        self._filters.extend(other._filters)
-        return self
+        res = TestCaseFilters(copy(self._filters))
+        res._filters.extend(other._filters)
+        return res
 
     def __len__(self):
         return len(self._filters)
