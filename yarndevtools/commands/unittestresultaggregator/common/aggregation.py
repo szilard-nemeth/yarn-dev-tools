@@ -142,10 +142,22 @@ class AggregatedTestFailures(UserDict):
 
 
 class LatestTestFailures(UserDict):
-    def __init__(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters, only_last_results=True):
+    def __init__(
+        self,
+        filters: TestCaseFilters,
+        test_failures: TestFailuresByFilters,
+        last_n_days: int = -1,
+        only_last_results: bool = False,
+        reset_oldest_day_to_midnight: bool = True,
+    ):
         super().__init__()
         self._test_failures = test_failures
-        self.data = self._create_latest_failures(filters, only_last_results=only_last_results)
+        self.data = self._create_latest_failures(
+            filters,
+            last_n_days=last_n_days,
+            only_last_results=only_last_results,
+            reset_oldest_day_to_midnight=reset_oldest_day_to_midnight,
+        )
 
     def __getitem__(self, tcf):
         return self.data[tcf]
@@ -153,42 +165,41 @@ class LatestTestFailures(UserDict):
     def _create_latest_failures(
         self,
         filters: TestCaseFilters,
-        last_n_days=None,
-        only_last_results=False,
-        reset_oldest_day_to_midnight=False,
+        last_n_days: int = -1,
+        only_last_results: bool = False,
+        reset_oldest_day_to_midnight: bool = True,
     ):
-        # TODO yarndevtoolsv2 refactor: simplify logic
-        if sum([True if last_n_days else False, only_last_results]) != 1:
+        if sum([True if last_n_days > -1 else False, only_last_results]) != 1:
             raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
 
-        result = {}
+        start_date = "unknown"
+        result = defaultdict(list)
         for tcf in filters:
-            if tcf not in result:
-                result[tcf] = []
-
-            failed_testcases = self._test_failures[tcf]
-            sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.date(), reverse=True)
+            sorted_testcases = sorted(self._test_failures[tcf], key=lambda ftc: ftc.date(), reverse=True)
             if not sorted_testcases:
                 return []
 
             if last_n_days:
-                date_range_open = self._get_date_range_open(last_n_days, reset_oldest_day_to_midnight)
-                LOG.info(f"Using date range open date to filter dates: {date_range_open}")
+                start_date = self._get_start_date(last_n_days, reset_oldest_day_to_midnight)
+                LOG.info(f"Using start date to filter dates from: {start_date}")
             else:
-                date_range_open = sorted_testcases[0].date()
+                start_date = sorted_testcases[0].date()
 
             for testcase in sorted_testcases:
-                if testcase.date() >= date_range_open:
+                if testcase.date() >= start_date:
                     result[tcf].append(testcase)
+
+        if not result:
+            raise ValueError("No latest test failures found! Start date was: {}".format(start_date))
 
         return result
 
     @staticmethod
-    def _get_date_range_open(last_n_days, reset_oldest_day_to_midnight=False):
-        oldest_day: datetime.datetime = DateUtils.get_current_time_minus(days=last_n_days)
+    def _get_start_date(days_back: int, reset_oldest_day_to_midnight=False):
+        start_date: datetime.datetime = DateUtils.get_current_time_minus(days=days_back)
         if reset_oldest_day_to_midnight:
-            oldest_day = DateUtils.reset_to_midnight(oldest_day)
-        return oldest_day
+            start_date = DateUtils.reset_to_midnight(start_date)
+        return start_date
 
 
 class TestFailureComparison(UserDict):

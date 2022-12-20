@@ -152,7 +152,6 @@ class EmailBasedAggregationResults:
     def finish_processing_all(self):
         self.print_objects()
 
-        # TODO yarndevtoolsv2 refactor: Refactor to separate classes: latest failures, changed failures comparison, crosscheck with known failures
         self._aggregation_results._aggregated = AggregatedTestFailures(
             self._testcase_filter_defs.get_aggregate_filters(),
             self._aggregation_results.test_failures,
@@ -173,21 +172,22 @@ class EmailBasedAggregationResults:
             self._aggregation_results._aggregated,
         )
 
-    def get_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
+    def get_failures(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
         return self._aggregation_results.get_failure(tcf)
 
-    def get_latest_failed_testcases_by_filter(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
-        return self._aggregation_results.get_latest_testcases(tcf)
+    def get_latest_failures(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
+        return self._aggregation_results.get_latest_failures(tcf)
 
-    def get_build_comparison_result_by_filter(self, tcf: TestCaseFilter) -> BuildComparisonResult:
-        return self._aggregation_results.get_build_comparison_results(tcf)
+    def get_build_comparison_results(self, tcf: TestCaseFilter) -> BuildComparisonResult:
+        return self._aggregation_results.get_build_comparison(tcf)
 
     def get_aggregated_testcases_by_filter(
         self, tcf: TestCaseFilter, filter_unknown=False, filter_reoccurred=False
     ) -> List[FailedTestCaseAggregated]:
+        # TODO yarndevtoolsv2 refactor: Move to separate class?
         local_vars = locals()
         applied_filters = [name for name in local_vars if name.startswith("filter_") and local_vars[name]]
-        filtered_tcs = self._aggregation_results.get_aggregated_testcases(tcf)
+        filtered_tcs = self._aggregation_results.get_aggregated_failures(tcf)
         original_length = len(filtered_tcs)
         prev_length = original_length
         if filter_unknown:
