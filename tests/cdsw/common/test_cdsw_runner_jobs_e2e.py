@@ -461,7 +461,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             }
         )
 
-        # TODO yarndevtoolsv2: Add testcase for UNIT_TEST_RESULT_AGGREGATOR_DB
+        # TODO yarndevtoolsv2 DB: Add testcase for UNIT_TEST_RESULT_AGGREGATOR_DB
         args = self._create_args_for_specified_file(
             config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL, dry_run=True
         )

@@ -15,10 +15,10 @@ LOG = logging.getLogger(__name__)
 
 
 class DatabaseUnitTestResultAggregator(CommandAbs):
-    # TODO yarndevtoolsv2: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
+    # TODO yarndevtoolsv2 DB: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
     def __init__(self, args, parser, output_dir: str):
         super().__init__()
-        # TODO yarndevtoolsv2: Implement
+        # TODO yarndevtoolsv2 DB: Implement
 
     @staticmethod
     def create_parser(subparsers):
@@ -126,7 +126,7 @@ class DatabaseUnitTestResultAggregator(CommandAbs):
         # aggregator.run()
 
     def run(self):
-        # TODO yarndevtoolsv2: implement
+        # TODO yarndevtoolsv2 DB: implement
         LOG.info(f"Starting DB Unit test result aggregator. Config: \n{str(self.config)}")
         raise NotImplementedError()
         # aggr_results: TestcaseFilterResults = self.filter_query_result_data(query_result, self.testcases_to_jiras)
