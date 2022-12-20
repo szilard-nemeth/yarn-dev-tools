@@ -25,6 +25,7 @@ class _PreAggregationPerFilter:
         self.failure_freqs: Dict[TestCaseKey, int] = {}
         self.latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
         self.failures_per_tc_key: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
+        self.failure_dates: Dict[TestCaseKey, List[datetime.datetime]] = defaultdict(list)
 
     def perform(self, tcf: TestCaseFilter):
         for testcase in self._test_failures[tcf]:
@@ -32,6 +33,7 @@ class _PreAggregationPerFilter:
                 tcf, testcase, use_simple_name=True, use_full_name=False, include_origin=False
             )
             self.failures_per_tc_key[tc_key].append(testcase)
+            self.failure_dates[tc_key].append(testcase.date())
 
             if tc_key not in self.failure_freqs:
                 self.failure_freqs[tc_key] = 1
@@ -78,8 +80,6 @@ class _PropertyModifierAggregatorPerFilter:
             full_name = "N/A" if parameterized_more_testcases else arbitrary_tc.full_name()
             parameter = arbitrary_tc.parameter() if parameterized else None
 
-            # TODO fill failure dates
-            failure_dates = []
             # TODO Why parameterized is hardcoded to True?
             self.aggregated_test_failures.append(
                 FailedTestCaseAggregated(
@@ -89,7 +89,7 @@ class _PropertyModifierAggregatorPerFilter:
                     parameter=parameter,
                     latest_failure=self._pre_aggr.latest_failures[tc_key],
                     failure_freq=self._pre_aggr.failure_freqs[tc_key],
-                    failure_dates=failure_dates,
+                    failure_dates=self._pre_aggr.failure_dates[tc_key],
                     # Cannot fill known_failure / reoccurred at this point --> Jira check will be performed later!
                     known_failure=None,
                     reoccurred=None,
