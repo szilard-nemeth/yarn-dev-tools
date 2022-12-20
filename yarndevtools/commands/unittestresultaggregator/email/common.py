@@ -181,39 +181,42 @@ class EmailBasedAggregationResults:
     def get_build_comparison_results(self, tcf: TestCaseFilter) -> BuildComparisonResult:
         return self._aggregation_results.get_build_comparison(tcf)
 
-    def get_aggregated_testcases_by_filter(
+    # TODO yarndevtoolsv2: Filters should be list of enum members
+    def get_aggregated_testcases_by_filters(
         self, tcf: TestCaseFilter, filter_unknown=False, filter_reoccurred=False
     ) -> List[FailedTestCaseAggregated]:
         # TODO yarndevtoolsv2 refactor: Move to separate class?
         local_vars = locals()
         applied_filters = [name for name in local_vars if name.startswith("filter_") and local_vars[name]]
-        filtered_tcs = self._aggregation_results.get_aggregated_failures(tcf)
-        original_length = len(filtered_tcs)
-        prev_length = original_length
+        testcase_failures = self._aggregation_results.get_aggregated_failures(tcf)
+        orig_no_of_failurs = len(testcase_failures)
+        no_of_failures = orig_no_of_failurs
+
         if filter_unknown:
-            filtered_tcs = list(filter(lambda tc: not tc.known_failure, filtered_tcs))
+            testcase_failures = list(filter(lambda tc: not tc.known_failure, testcase_failures))
             LOG.debug(
-                f"Filtering for unknown TCs. "
-                f"Previous length of aggregated TCs: {prev_length}, "
-                f"New length of filtered aggregated TCs: {len(filtered_tcs)}"
+                f"Filtering for unknown test failures. "
+                f"Previous length of aggregated test failures: {no_of_failures}, "
+                f"New length of filtered aggregated test failures: {len(testcase_failures)}"
             )
-            prev_length = len(filtered_tcs)
+            no_of_failures = len(testcase_failures)
+
         if filter_reoccurred:
-            filtered_tcs = list(filter(lambda tc: tc.reoccurred, filtered_tcs))
+            testcase_failures = list(filter(lambda tc: tc.reoccurred, testcase_failures))
             LOG.debug(
-                f"Filtering for reoccurred TCs. "
-                f"Previous length of aggregated TCs: {prev_length}, "
-                f"New length of filtered aggregated TCs: {len(filtered_tcs)}"
+                f"Filtering for reoccurred test failures. "
+                f"Previous length of aggregated test failures: {no_of_failures}, "
+                f"New length of filtered aggregated test failures: {len(testcase_failures)}"
             )
-            prev_length = len(filtered_tcs)
+            no_of_failures = len(testcase_failures)
 
         LOG.debug(
-            "Returning filtered aggregated TCs. "
-            f"Original length of ALL aggregated TCs: {original_length}, "
-            f"Length of filtered aggregated TCs: {prev_length}, "
+            "Returning filtered aggregated test failures. "
+            f"Original length of ALL aggregated test failures: {orig_no_of_failurs}, "
+            f"Length of filtered aggregated test failures: {no_of_failures}, "
             f"Applied filters: {applied_filters}"
         )
-        return filtered_tcs
+        return testcase_failures
 
     def print_objects(self):
         pass
@@ -365,7 +368,6 @@ class UnitTestResultAggregatorEmailParserUtils:
 
 
 class EmailBasedUnitTestResultAggregatorConfig:
-    # TODO yarndevtoolsv2 refactor: Revisit any common logic / config for email+db based aggregator?
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
         self.console_mode = getattr(args, "console mode", False)

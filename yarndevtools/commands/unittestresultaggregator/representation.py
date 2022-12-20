@@ -149,7 +149,7 @@ class SummaryGenerator:
                     out_fmt,
                 ),
                 TableDataType.MATCHED_LINES_AGGREGATED: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    aggr_results.get_aggregated_testcases_by_filter(tcf),
+                    aggr_results.get_aggregated_testcases_by_filters(tcf),
                     out_fmt,
                 ),
                 TableDataType.MAIL_SUBJECTS: lambda tcf, out_fmt: DataConverter.convert_email_subjects(query_result),
@@ -163,17 +163,17 @@ class SummaryGenerator:
                     aggr_results.get_build_comparison(tcf)
                 ),
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    aggr_results.get_aggregated_testcases_by_filter(tcf, filter_unknown=True),
+                    aggr_results.get_aggregated_testcases_by_filters(tcf, filter_unknown=True),
                     out_fmt,
                     basic_mode=True,
                 ),
                 TableDataType.REOCCURRED_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    aggr_results.get_aggregated_testcases_by_filter(tcf, filter_reoccurred=True),
+                    aggr_results.get_aggregated_testcases_by_filters(tcf, filter_reoccurred=True),
                     out_fmt,
                     basic_mode=True,
                 ),
                 TableDataType.TESTCASES_TO_JIRAS: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    aggr_results.get_aggregated_testcases_by_filter(tcf), out_fmt
+                    aggr_results.get_aggregated_testcases_by_filters(tcf), out_fmt
                 ),
             }
 
@@ -208,7 +208,7 @@ class SummaryGenerator:
                     config, "data", cls.matched_testcases_all_header, output_manager, table_data, tcf
                 )
             for tcf in config.testcase_filter_defs.get_aggregate_filters():
-                failed_testcases = aggr_results.get_aggregated_testcases_by_filter(tcf)
+                failed_testcases = aggr_results.get_aggregated_testcases_by_filters(tcf)
                 table_data = DataConverter.render_aggregated_rows_table(
                     failed_testcases, OutputFormatRules(False, None, None)
                 )
