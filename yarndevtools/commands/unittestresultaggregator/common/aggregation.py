@@ -3,6 +3,7 @@ from collections import defaultdict, UserDict
 from typing import List, Dict, Set, Tuple, Callable
 
 from pythoncommons.date_utils import DateUtils
+from pythoncommons.object_utils import ListUtils
 
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures, KnownTestFailureInJira
 from yarndevtools.commands.unittestresultaggregator.common.model import (
@@ -101,9 +102,13 @@ class AggregatedTestFailures(UserDict):
     def __init__(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters):
         super().__init__()
         self.data: Dict[TestCaseFilter, List[FailedTestCaseAggregated]] = self._aggregate(filters, test_failures)
+        self._by_name: Dict[TestCaseFilter, Dict[str, FailedTestCaseAggregated]] = self._get_testcases_by_name(filters)
 
     def __getitem__(self, tcf):
         return self.data[tcf]
+
+    def get_failed_testcases_by_name(self, tcf: TestCaseFilter):
+        return self._by_name[tcf]
 
     def _aggregate(self, filters: TestCaseFilters, test_failures: TestFailuresByFilters):
         result = {}
@@ -140,6 +145,25 @@ class AggregatedTestFailures(UserDict):
                 f"Testcase objects: {testcases}"
             )
 
+    def _get_testcases_by_name(self, filters):
+        final_result = {}
+        for tcf in filters:
+            failed_testcases_by_name: Dict[str, FailedTestCaseAggregated] = {
+                tc.simple_name: tc for tc in self.data[tcf]
+            }
+            # Sanity check size
+            if len(failed_testcases_by_name) != len(self.data[tcf]):
+                dupes = ListUtils.get_duplicates([tc.simple_name for tc in self.data[tcf]])
+                raise ValueError(
+                    "Size mismatch between aggregated test failures and procuded dict!\n"
+                    "Original aggregated test failures: {}\n"
+                    "Produced dict: {}\n"
+                    "Filter: {}\n"
+                    "Duplicates: {}".format(self.data[tcf], failed_testcases_by_name, tcf, dupes)
+                )
+            final_result[tcf] = failed_testcases_by_name
+        return final_result
+
 
 class LatestTestFailures(UserDict):
     def __init__(
@@ -149,6 +173,7 @@ class LatestTestFailures(UserDict):
         last_n_days: int = -1,
         only_last_results: bool = False,
         reset_oldest_day_to_midnight: bool = True,
+        strict_mode: bool = False,
     ):
         super().__init__()
         self._test_failures = test_failures
@@ -157,6 +182,7 @@ class LatestTestFailures(UserDict):
             last_n_days=last_n_days,
             only_last_results=only_last_results,
             reset_oldest_day_to_midnight=reset_oldest_day_to_midnight,
+            strict_mode=strict_mode,
         )
 
     def __getitem__(self, tcf):
@@ -168,6 +194,7 @@ class LatestTestFailures(UserDict):
         last_n_days: int = -1,
         only_last_results: bool = False,
         reset_oldest_day_to_midnight: bool = True,
+        strict_mode: bool = False,
     ):
         if sum([True if last_n_days > -1 else False, only_last_results]) != 1:
             raise ValueError("Either last_n_days or only_last_results mode should be enabled.")
@@ -189,7 +216,7 @@ class LatestTestFailures(UserDict):
                 if testcase.date() >= start_date:
                     result[tcf].append(testcase)
 
-        if not result:
+        if not result and strict_mode:
             raise ValueError("No latest test failures found! Start date was: {}".format(start_date))
 
         return result
@@ -332,30 +359,32 @@ class KnownTestFailureChecker:
         encountered_known_failures: Set[KnownTestFailureInJira] = set()
         for tcf in self._filters:
             LOG.debug(f"Cross-checking testcases with known failures for filter: {tcf.short_str()}")
-            for testcase in self._aggregated[tcf]:
+
+            # Create intersection between current aggregated test failures and known failures to get relevant testcases
+            failed_aggr_testcases_by_name = self._aggregated.get_failed_testcases_by_name(tcf)
+            keys = set(failed_aggr_testcases_by_name.keys()).intersection(set(self.known_failures.by_name.keys()))
+            relevant_testcases = [failed_aggr_testcases_by_name[k] for k in keys]
+
+            for testcase in relevant_testcases:
                 testcase.known_failure = False
                 testcase.reoccurred = False
-                found_known_failure: KnownTestFailureInJira or None = None
-                for known_failure in self.known_failures:
-                    if known_failure.tc_name in testcase.simple_name:
-                        encountered_known_failures.add(known_failure)
-                        LOG.debug(
-                            "Found known failure in failed testcases:\n"
-                            f"Failed testcase: {testcase.simple_name}, "
-                            f"Known failure: {known_failure.tc_name}"
-                        )
-                        testcase.known_failure = True
-                        found_known_failure = known_failure
-                        break
+                known_failures = self.known_failures.by_name[testcase.simple_name]
 
-                if found_known_failure:
-                    if (
-                        found_known_failure.resolution_date
-                        and testcase.latest_failure > found_known_failure.resolution_date
-                    ):
+                known = True if len(known_failures) > 0 else False
+                for known_failure in known_failures:
+                    encountered_known_failures.add(known_failure)
+                    LOG.debug(
+                        "Found known failure in failed testcases:\n"
+                        f"Failed testcase: {testcase.simple_name}, "
+                        f"Known failure: {known_failure.tc_name}"
+                    )
+                    testcase.known_failure = True
+
+                    if known_failure.resolution_date and testcase.latest_failure > known_failure.resolution_date:
                         LOG.info(f"Found reoccurred testcase failure: {testcase}")
                         testcase.reoccurred = True
-                else:
+
+                if not known:
                     LOG.info(
                         "Found new unknown test failure (that does not have reported Jira).\n "
                         f"Testcase details: {testcase}. "

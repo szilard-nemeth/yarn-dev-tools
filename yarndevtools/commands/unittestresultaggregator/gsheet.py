@@ -1,6 +1,7 @@
 import datetime
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import List
+from typing import List, Dict
 
 from pythoncommons.date_utils import DateUtils
 
@@ -27,6 +28,7 @@ class KnownTestFailures:
             )
         self._index = 0
         self._num_testcases = len(self._testcases_to_jiras)
+        self.by_name: Dict[str, List[KnownTestFailureInJira]] = self._get_known_failures_by_name()
 
     def __len__(self):
         return self._num_testcases
@@ -79,3 +81,10 @@ class KnownTestFailures:
         # an equal number of cells. This eases further processing.
         if row_len == 2:
             row.append("")
+
+    def _get_known_failures_by_name(self):
+        # We can have testcase name collisions here - use List[KnownTestFailureInJira] as type of value
+        known_failures_by_name: Dict[str, List[KnownTestFailureInJira]] = defaultdict(list)
+        for kf in self._testcases_to_jiras:
+            known_failures_by_name[kf.tc_name].append(kf)
+        return known_failures_by_name
