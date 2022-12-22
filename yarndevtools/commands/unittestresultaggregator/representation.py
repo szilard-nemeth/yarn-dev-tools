@@ -29,7 +29,9 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     FailedTestCaseFromEmail,
     EmailMetaData,
     TestCaseFilters,
+    AggregatedFailurePropertyFilter,
 )
+from yarndevtools.commands.unittestresultaggregator.email.common import EmailBasedAggregationResults
 from yarndevtools.constants import (
     ReportFile,
 )
@@ -124,7 +126,9 @@ class SummaryGenerator:
         }
 
     @classmethod
-    def process_aggregation_results(cls, aggr_results, query_result: ThreadQueryResults, config, output_manager):
+    def process_aggregation_results(
+        cls, aggr_results: EmailBasedAggregationResults, query_result: ThreadQueryResults, config, output_manager
+    ):
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
             # truncate = self.config.operation_mode == OperationMode.PRINT
@@ -163,12 +167,12 @@ class SummaryGenerator:
                     aggr_results.get_build_comparison(tcf)
                 ),
                 TableDataType.UNKNOWN_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    aggr_results.get_aggregated_testcases_by_filters(tcf, filter_unknown=True),
+                    aggr_results.get_aggregated_testcases_by_filters(tcf, AggregatedFailurePropertyFilter.UNKNOWN),
                     out_fmt,
                     basic_mode=True,
                 ),
                 TableDataType.REOCCURRED_FAILURES: lambda tcf, out_fmt: DataConverter.render_aggregated_rows_table(
-                    aggr_results.get_aggregated_testcases_by_filters(tcf, filter_reoccurred=True),
+                    aggr_results.get_aggregated_testcases_by_filters(tcf, AggregatedFailurePropertyFilter.REOCCURRED),
                     out_fmt,
                     basic_mode=True,
                 ),
