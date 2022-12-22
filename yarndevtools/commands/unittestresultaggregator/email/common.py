@@ -185,39 +185,7 @@ class EmailBasedAggregationResults:
     def get_aggregated_testcases_by_filters(
         self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter
     ) -> List[FailedTestCaseAggregated]:
-        def apply_filter(tc, propfilter: AggregatedFailurePropertyFilter):
-            if not hasattr(tc, propfilter.property_name):
-                raise ValueError(
-                    "Invalid property filter specification. Object {} has no attr named '{}'".format(
-                        tc, propfilter.property_name
-                    )
-                )
-            prop_value = getattr(tc, propfilter.property_name)
-            if propfilter.inverted:
-                return not prop_value
-            return True if prop_value else False
-
-        # TODO yarndevtoolsv2 refactor: Move this to AggregatedTestFailures
-        testcase_failures: List[FailedTestCaseAggregated] = self._aggregation_results.get_aggregated_failures(tcf)
-        orig_no_of_failurs = len(testcase_failures)
-        no_of_failures = orig_no_of_failurs
-
-        for prop_filter in prop_filters:
-            testcase_failures = list(filter(lambda tc: apply_filter(tc, prop_filter), testcase_failures))
-            LOG.debug(
-                f"Filtering with filter: {prop_filter}. "
-                f"Previous length of aggregated test failures: {no_of_failures}, "
-                f"New length of filtered aggregated test failures: {len(testcase_failures)}"
-            )
-            no_of_failures = len(testcase_failures)
-
-        LOG.debug(
-            "Returning filtered aggregated test failures. "
-            f"Original length of ALL aggregated test failures: {orig_no_of_failurs}, "
-            f"Length of filtered aggregated test failures: {no_of_failures}, "
-            f"Applied filters: {prop_filters}"
-        )
-        return testcase_failures
+        return self._aggregation_results.get_aggregated_failures_by_filter(tcf, *prop_filters)
 
     def print_objects(self):
         pass

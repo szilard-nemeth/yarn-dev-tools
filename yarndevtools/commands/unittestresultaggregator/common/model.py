@@ -417,6 +417,9 @@ class FinalAggregationResults:
     def print_keys(self):
         LOG.debug(f"Keys of _failed_testcases_by_filter: {self.test_failures.get_filters()}")
 
+    def get_aggregated_failures_by_filter(self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter):
+        return self._aggregated.get_by_filters(tcf, *prop_filters)
+
 
 @dataclass
 class EmailMetaData:
