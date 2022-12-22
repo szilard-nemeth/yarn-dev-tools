@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from collections import UserDict
 from copy import copy
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str, RegexUtils
@@ -18,6 +19,16 @@ from yarndevtools.commands.unittestresultaggregator.constants import (
 import logging
 
 LOG = logging.getLogger(__name__)
+
+
+class AggregatedFailurePropertyFilter(Enum):
+    UNKNOWN = ("unknown", "known_failure", True)
+    REOCCURRED = ("reoccurred", "reoccurred", False)
+
+    def __init__(self, real_name: str, property_name: str, inverted: bool):
+        self.real_name = real_name
+        self.property_name = property_name
+        self.inverted = inverted
 
 
 class FailedTestCaseAbs(ABC):

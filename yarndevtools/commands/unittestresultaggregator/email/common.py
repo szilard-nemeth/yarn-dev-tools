@@ -39,6 +39,7 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     FinalAggregationResults,
     EmailMetaData,
     TestCaseFilters,
+    AggregatedFailurePropertyFilter,
 )
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
 from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
@@ -178,33 +179,33 @@ class EmailBasedAggregationResults:
     def get_latest_failures(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
         return self._aggregation_results.get_latest_failures(tcf)
 
-    def get_build_comparison_results(self, tcf: TestCaseFilter) -> BuildComparisonResult:
+    def get_build_comparison(self, tcf: TestCaseFilter) -> BuildComparisonResult:
         return self._aggregation_results.get_build_comparison(tcf)
 
-    # TODO yarndevtoolsv2: Filters should be list of enum members
     def get_aggregated_testcases_by_filters(
-        self, tcf: TestCaseFilter, filter_unknown=False, filter_reoccurred=False
+        self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter
     ) -> List[FailedTestCaseAggregated]:
-        # TODO yarndevtoolsv2 refactor: Move to separate class?
-        local_vars = locals()
-        applied_filters = [name for name in local_vars if name.startswith("filter_") and local_vars[name]]
-        testcase_failures = self._aggregation_results.get_aggregated_failures(tcf)
+        def apply_filter(tc, propfilter: AggregatedFailurePropertyFilter):
+            if not hasattr(tc, propfilter.property_name):
+                raise ValueError(
+                    "Invalid property filter specification. Object {} has no attr named '{}'".format(
+                        tc, propfilter.property_name
+                    )
+                )
+            prop_value = getattr(tc, propfilter.property_name)
+            if propfilter.inverted:
+                return not prop_value
+            return True if prop_value else False
+
+        # TODO yarndevtoolsv2 refactor: Move this to AggregatedTestFailures
+        testcase_failures: List[FailedTestCaseAggregated] = self._aggregation_results.get_aggregated_failures(tcf)
         orig_no_of_failurs = len(testcase_failures)
         no_of_failures = orig_no_of_failurs
 
-        if filter_unknown:
-            testcase_failures = list(filter(lambda tc: not tc.known_failure, testcase_failures))
+        for prop_filter in prop_filters:
+            testcase_failures = list(filter(lambda tc: apply_filter(tc, prop_filter), testcase_failures))
             LOG.debug(
-                f"Filtering for unknown test failures. "
-                f"Previous length of aggregated test failures: {no_of_failures}, "
-                f"New length of filtered aggregated test failures: {len(testcase_failures)}"
-            )
-            no_of_failures = len(testcase_failures)
-
-        if filter_reoccurred:
-            testcase_failures = list(filter(lambda tc: tc.reoccurred, testcase_failures))
-            LOG.debug(
-                f"Filtering for reoccurred test failures. "
+                f"Filtering with filter: {prop_filter}. "
                 f"Previous length of aggregated test failures: {no_of_failures}, "
                 f"New length of filtered aggregated test failures: {len(testcase_failures)}"
             )
@@ -214,7 +215,7 @@ class EmailBasedAggregationResults:
             "Returning filtered aggregated test failures. "
             f"Original length of ALL aggregated test failures: {orig_no_of_failurs}, "
             f"Length of filtered aggregated test failures: {no_of_failures}, "
-            f"Applied filters: {applied_filters}"
+            f"Applied filters: {prop_filters}"
         )
         return testcase_failures
 
