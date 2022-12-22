@@ -358,6 +358,11 @@ class KnownTestFailureChecker:
             raise ValueError("Empty known test failures!")
         encountered_known_failures: Set[KnownTestFailureInJira] = set()
         for tcf in self._filters:
+            # Init all testcase to not known failure + not reoccurred by default
+            for testcase in self._aggregated[tcf]:
+                testcase.known_failure = False
+                testcase.reoccurred = False
+
             LOG.debug(f"Cross-checking testcases with known failures for filter: {tcf.short_str()}")
 
             # Create intersection between current aggregated test failures and known failures to get relevant testcases
@@ -366,8 +371,6 @@ class KnownTestFailureChecker:
             relevant_testcases = [failed_aggr_testcases_by_name[k] for k in keys]
 
             for testcase in relevant_testcases:
-                testcase.known_failure = False
-                testcase.reoccurred = False
                 known_failures = self.known_failures.by_name[testcase.simple_name]
 
                 known = True if len(known_failures) > 0 else False
