@@ -63,8 +63,9 @@ class EmailBasedAggregationResults:
 
         # This is a temporary dict - usually for a context of a message
         # TODO yarndevtoolsv2 refactor: Can we get rid of str key altogether? (_get_matched_lines_key vs. TestCaseFilter)
-        self._matched_lines_dict: Dict[str, List[str]] = {}
+        self._matched_lines_dict: Dict[TestCaseFilter, List[str]] = {}
         self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
+        self._all_matching_tcf = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
 
     @staticmethod
     def _should_match_all_lines(testcase_filter_defs):
@@ -81,10 +82,10 @@ class EmailBasedAggregationResults:
         self._matched_lines_dict = defaultdict(list)
         filters: TestCaseFilters = self._testcase_filter_defs.ALL_VALID_FILTERS
         for tcf in filters:
-            self._matched_lines_dict[self._get_matched_lines_key(tcf)] = []
+            self._matched_lines_dict[tcf] = []
 
         # Do sanity check
-        generated_keys = [self._get_matched_lines_key(tcf) for tcf in filters]
+        generated_keys = [tcf.key() for tcf in filters]
         unique_keys = set(generated_keys)
         if len(filters) != len(unique_keys):
             raise ValueError(
@@ -97,7 +98,7 @@ class EmailBasedAggregationResults:
     def match_line(self, line, mail_subject: str):
         matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
         if self._match_all_lines or matches_any_pattern:
-            self._matched_lines_dict[MATCHTYPE_ALL_POSTFIX].append(line)
+            self._matched_lines_dict[self._all_matching_tcf].append(line)
             self._add_match_to_matched_lines_dict(line, matched_expression, aggregate_values=[True, False])
 
             for aggr_filter in self._testcase_filter_defs.aggregate_filters:
@@ -107,12 +108,12 @@ class EmailBasedAggregationResults:
                         f"Subject: {mail_subject}"
                     )
                     tcf = TestCaseFilter(matched_expression, aggr_filter)
-                    self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
+                    self._matched_lines_dict[tcf].append(line)
 
     def _add_match_to_matched_lines_dict(self, line, matched_expression, aggregate_values: List[bool]):
         for aggr_value in aggregate_values:
             tcf = TestCaseFilter(matched_expression, aggr_filter=None, aggregate=aggr_value)
-            self._matched_lines_dict[self._get_matched_lines_key(tcf)].append(line)
+            self._matched_lines_dict[tcf].append(line)
 
     def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self._testcase_filter_defs.match_expressions:
@@ -123,24 +124,13 @@ class EmailBasedAggregationResults:
         # TODO in strict mode, unmatching lines should not be allowed
         return False, None
 
-    def _get_matched_lines_key(self, tcf: TestCaseFilter) -> str:
-        if tcf.match_expr == MATCH_ALL_LINES_EXPRESSION:
-            key = MATCHTYPE_ALL_POSTFIX + f"_{AGGREGATED_WS_POSTFIX}" if tcf.aggregate else MATCHTYPE_ALL_POSTFIX
-            self._str_key_to_testcase_filter[key] = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
-            return key
-        key = tcf.key()
-        if key not in self._str_key_to_testcase_filter:
-            self._str_key_to_testcase_filter[key] = tcf
-        return key
-
     def finish_context(self, message: GmailMessage):
         LOG.info("Finishing context...")
         LOG.debug(f"Keys of of matched lines: {self._matched_lines_dict.keys()}")
 
-        for key, matched_lines in self._matched_lines_dict.items():
+        for tcf, matched_lines in self._matched_lines_dict.items():
             if not matched_lines:
                 continue
-            tcf: TestCaseFilter = self._str_key_to_testcase_filter[key]
             for matched_line in matched_lines:
                 email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
                 failed_testcase = FailedTestCaseFactory.create_from_email(matched_line, email_meta)

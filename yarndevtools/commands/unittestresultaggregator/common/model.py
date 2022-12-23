@@ -94,7 +94,7 @@ class TestCaseFilter:
     aggregate: bool = False
 
     def __post_init__(self):
-        super().__setattr__("_key", self.generate_key())
+        super().__setattr__("_key", self._generate_key())
 
     def key(self):
         return super().__getattribute__("_key")
@@ -107,8 +107,11 @@ class TestCaseFilter:
             return "*"
         return self.aggr_filter.val
 
-    def generate_key(self):
+    def _generate_key(self):
         # TODO consider converting this a hashable object and drop str
+        if self.match_expr == MATCH_ALL_LINES_EXPRESSION:
+            return MATCHTYPE_ALL_POSTFIX + f"_{AGGREGATED_WS_POSTFIX}" if self.aggregate else MATCHTYPE_ALL_POSTFIX
+
         key: str = self.match_expr.alias.lower()
         if self.aggr_filter:
             key += f"_{self.aggr_filter.val.lower()}"
