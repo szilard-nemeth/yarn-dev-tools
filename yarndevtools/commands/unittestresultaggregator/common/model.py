@@ -87,7 +87,7 @@ class AggregateFilter:
     val: str or None
 
 
-@dataclass(eq=True, frozen=True)
+@dataclass(eq=True, unsafe_hash=True)
 class TestCaseFilter:
     match_expr: MatchExpression
     aggr_filter: AggregateFilter or None
@@ -95,6 +95,12 @@ class TestCaseFilter:
 
     def __post_init__(self):
         super().__setattr__("_key", self._generate_key())
+        if not self.aggregate and self.aggr_filter:
+            LOG.warning(
+                "Testcase filter is not set to aggregate but filter has an aggregate filter. Setting it to aggregate=True. Printing original filter: %s",
+                self,
+            )
+            self.aggregate = True
 
     def key(self):
         return super().__getattribute__("_key")
