@@ -62,9 +62,7 @@ class EmailBasedAggregationResults:
         )
 
         # This is a temporary dict - usually for a context of a message
-        # TODO yarndevtoolsv2 refactor: Can we get rid of str key altogether? (_get_matched_lines_key vs. TestCaseFilter)
         self._matched_lines_dict: Dict[TestCaseFilter, List[str]] = {}
-        self._str_key_to_testcase_filter: Dict[str, TestCaseFilter] = {}
         self._all_matching_tcf = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
 
     @staticmethod
