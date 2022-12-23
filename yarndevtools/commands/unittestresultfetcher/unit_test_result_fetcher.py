@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict, Set, Tuple, Any
 
-import pymongo
 from marshmallow import Schema, fields
 
 from googleapiwrapper.common import ServiceType
@@ -37,6 +36,7 @@ from pythoncommons.string_utils import auto_str
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands_common import CommandAbs, EmailArguments
+from yarndevtools.common.db import MongoDbConfig, DBSerializable, Database
 from yarndevtools.common.shared_command_utils import FullEmailConfig, CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -127,7 +127,7 @@ class JobBuildDataStatus(Enum):
     HAVE_FAILED_TESTCASES = "Valid build report. Contains some failed tests"
 
 
-class JobBuildData:
+class JobBuildData(DBSerializable):
     def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, status: JobBuildDataStatus):
         self._failed_build: FailedJenkinsBuild = failed_build
         self.counters = counters
@@ -141,10 +141,10 @@ class JobBuildData:
         self.mail_sent = False
         self.sent_date = None
 
+        self._schema = JobBuildDataSchema()
+
     def serialize(self):
-        schema = JobBuildDataSchema()
-        output = schema.dump(self)
-        return output
+        return self._schema.dump(self)
 
     def has_failed_testcases(self):
         return len(self.testcases) > 0
@@ -842,22 +842,7 @@ class UnitTestResultFetcherConfig:
         self.reset_job_build_data_for_jobs: List[str] = (
             args.reset_job_build_data_for_jobs if hasattr(args, "reset_job_build_data_for_jobs") else []
         )
-        self.mongo_hostname = args.mongo_hostname
-        self.mongo_port = args.mongo_port
-        self.mongo_user = args.mongo_user
-        self.mongo_password = args.mongo_password
-        self.mongo_db_name = args.mongo_db_name
-
-        if not self.mongo_hostname:
-            raise ValueError("Mongo hostname is not specified!")
-        if not self.mongo_port:
-            raise ValueError("Mongo port is not specified!")
-        if not self.mongo_user:
-            raise ValueError("Mongo user is not specified!")
-        if not self.mongo_password:
-            raise ValueError("Mongo password is not specified!")
-        if not self.mongo_db_name:
-            raise ValueError("Mongo DB name is not specified!")
+        self.mongo_config = MongoDbConfig(args)
 
         # Validation
         if not self.tc_filters:
@@ -914,7 +899,7 @@ class UnitTestResultFetcher(CommandAbs):
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
         self.sent_requests: int = 0
-        self._database = Database(self.config)
+        self._database = UTResultFetcherDatabase(self.config.mongo_config)
 
     @staticmethod
     def create_parser(subparsers):
@@ -1347,18 +1332,9 @@ class UnitTestResultFetcher(CommandAbs):
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
 
-class Database:
-    def __init__(self, config: UnitTestResultFetcherConfig):
-        url = f"mongodb://{config.mongo_user}:{config.mongo_password}@{config.mongo_hostname}:{config.mongo_port}/{config.mongo_db_name}?authSource=admin"
-        LOG.debug("Using connection URL '%s' for mongodb", url)
-        self._client = pymongo.MongoClient(url)
-        self._db = self._client[config.mongo_db_name]
+class UTResultFetcherDatabase(Database):
+    def __init__(self, conf: MongoDbConfig):
+        super().__init__(conf)
 
     def save_build_data(self, build_data: JobBuildData):
-        serialized = build_data.serialize()
-
-        # Manually add _id field for MongoDB.
-        serialized["_id"] = serialized["build_url"]
-        LOG.debug("Serialized build data with _id:", serialized)
-        result = self._db.reports.insert_one(serialized)
-        return result
+        return super().save(build_data, collection="reports", id_field_name="build_url")
