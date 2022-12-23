@@ -105,7 +105,7 @@ class EmailBasedAggregationResults:
                         f"Found matching email subject for aggregation filter '{aggr_filter}': "
                         f"Subject: {mail_subject}"
                     )
-                    tcf = TestCaseFilter(matched_expression, aggr_filter)
+                    tcf = TestCaseFilter(matched_expression, aggr_filter, aggregate=True)
                     self._matched_lines_dict[tcf].append(line)
 
     def _add_match_to_matched_lines_dict(self, line, matched_expression, aggregate_values: List[bool]):
