@@ -51,6 +51,7 @@ class UnitTestResultAggregatorDBConnector(CommandAbs):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         gmail_query_result = self._email_utils.perform_gmail_query()
         result = EmailBasedAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
+        # TODO yarndevtoolsv2 DB: implement force mode flag that always scans all emails
         # TODO yarndevtoolsv2 DB: store dates of emails as well to mongodb
         # TODO yarndevtoolsv2 DB: Only query gmail results from a certain date that don't have mongo results
         self._email_utils.process_gmail_results(
