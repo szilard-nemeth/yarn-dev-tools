@@ -3,6 +3,10 @@ import logging
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.project_utils import ProjectUtils
 
+from yarndevtools.commands.unittestresultaggregator.db.model import (
+    DBWriterEmailContentProcessor,
+    UTResultAggregatorDatabase,
+)
 from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailBasedUnitTestResultAggregatorConfig,
     UnitTestResultAggregatorEmailParserUtils,
@@ -24,6 +28,7 @@ class UnitTestResultAggregatorDBConnector(CommandAbs):
         self._email_utils = EmailUtilsForAggregators(self.config, CMD)
         self._email_utils.init_gmail()
         self._known_test_failures = self._email_utils.fetch_known_test_failures()
+        self._db = UTResultAggregatorDatabase(self.config.mongo_config)
 
     @staticmethod
     def create_parser(subparsers):
@@ -46,14 +51,12 @@ class UnitTestResultAggregatorDBConnector(CommandAbs):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         gmail_query_result = self._email_utils.perform_gmail_query()
         result = EmailBasedAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
+        # TODO yarndevtoolsv2 DB: store dates of emails as well to mongodb
+        # TODO yarndevtoolsv2 DB: Only query gmail results from a certain date that don't have mongo results
         self._email_utils.process_gmail_results(
             gmail_query_result,
             result,
             split_body_by=self.config.email_content_line_sep,
             skip_lines_starting_with=self.config.skip_lines_starting_with,
+            email_content_processors=[DBWriterEmailContentProcessor(self._db)],
         )
-        self._post_process(gmail_query_result, result)
-
-    def _post_process(self, query_result, aggr_results):
-        # TODO yarndevtoolsv2 DB: implement DB connector logic, use same / similar schema like in unit_test_result_fetcher.py
-        raise NotImplementedError()

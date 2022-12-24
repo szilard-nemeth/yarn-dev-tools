@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from pprint import pformat
-from typing import List, Callable, Dict, Tuple
+from typing import List, Callable, Dict, Tuple, Iterable
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
@@ -40,9 +40,11 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     EmailMetaData,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
+    EmailContentProcessor,
 )
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
-from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments
+from yarndevtools.commands_common import ArgumentParserUtils, GSheetArguments, MongoArguments
+from yarndevtools.common.db import MongoDbConfig
 from yarndevtools.common.shared_command_utils import CommandType
 
 LOG = logging.getLogger(__name__)
@@ -183,7 +185,9 @@ class EmailBasedAggregationResults:
 
 class UnitTestResultAggregatorEmailParserUtils:
     @staticmethod
-    def create_parser(subparsers, command_type: CommandType, func_to_execute: Callable, add_gsheet_args=True):
+    def create_parser(
+        subparsers, command_type: CommandType, func_to_execute: Callable, add_gsheet_args=True, add_mongo_args=True
+    ):
         parser = subparsers.add_parser(
             command_type.name,
             help="Aggregates unit test results from a gmail account."
@@ -203,6 +207,9 @@ class UnitTestResultAggregatorEmailParserUtils:
                 help="This should be provided if comparison of failed testcases with reported jira table must be performed. "
                 "The value is a name to a worksheet, for example 'testcases with jiras'.",
             )
+
+        if add_mongo_args:
+            MongoArguments.add_mongo_arguments(parser)
 
         parser.add_argument(
             "--account-email",
@@ -357,6 +364,8 @@ class EmailBasedUnitTestResultAggregatorConfig:
             for worksheet_name in worksheet_names:
                 self.gsheet_options.add_worksheet(worksheet_name)
 
+        self.mongo_config = MongoDbConfig(args)
+
     @staticmethod
     def _get_attribute(args, attr_name, default=None):
         val = getattr(args, attr_name)
@@ -468,11 +477,11 @@ class EmailUtilsForAggregators:
         )
         # TODO yarndevtoolsv2 improvement: Write start date, end date, missing dates between start and end date
         LOG.info(
-            f"Received thread query result:\n"
-            f"Number of threads: {query_result.no_of_threads}\n"
-            f"Number of messages: {query_result.no_of_messages}\n"
-            f"Number of unique subjects: {len(query_result.unique_subjects)}\n"
-            f"Unique subjects: {pformat(query_result.unique_subjects)}"
+            f"Gmail thread query result summary:\n"
+            f"--> Number of threads: {query_result.no_of_threads}\n"
+            f"--> Number of messages: {query_result.no_of_messages}\n"
+            f"--> Number of unique subjects: {len(query_result.unique_subjects)}\n"
+            f"--> Unique subjects: {pformat(query_result.unique_subjects)}"
         )
         return query_result
 
@@ -489,15 +498,23 @@ class EmailUtilsForAggregators:
         result: EmailBasedAggregationResults,
         split_body_by: str,
         skip_lines_starting_with: List[str],
+        email_content_processors: Iterable[EmailContentProcessor] = None,
     ):
+        # TODO yarndevtoolsv2 DB: Should work without mongodb as well!
+        # TODO yarndevtoolsv2 DB: Introduce strict flag
+        if not email_content_processors:
+            email_content_processors = []
+
         for message in query_result.threads.messages:
             LOG.debug("Processing message: %s", message.subject)
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(split_body_by)
+                lines = list(map(lambda line: line.strip(), lines))
+                for processor in email_content_processors:
+                    processor.process(message, lines)
                 result.start_new_context()
                 for line in lines:
-                    line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
                     if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")

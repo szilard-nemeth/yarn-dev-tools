@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict
 
+from googleapiwrapper.gmail_domain import GmailMessage
 from pythoncommons.string_utils import auto_str, RegexUtils
 
 from yarndevtools.commands.unittestresultaggregator.constants import (
@@ -449,3 +450,9 @@ class FailedTestCaseFromEmail(FailedTestCase):
 
     def origin(self):
         return self.email_meta.subject
+
+
+class EmailContentProcessor(ABC):
+    @abstractmethod
+    def process(self, message: GmailMessage, lines: List[str]):
+        pass
