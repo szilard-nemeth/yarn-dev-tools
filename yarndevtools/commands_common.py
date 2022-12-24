@@ -47,6 +47,53 @@ class CommandAbs(ABC):
         pass
 
 
+class MongoArguments:
+    @staticmethod
+    def add_mongo_arguments(parser):
+        mongo_group = parser.add_argument_group("mongo", "Arguments for MongoDB integration")
+
+        parser.add_argument(
+            "-mhost",
+            "--mongo-hostname",
+            type=str,
+            dest="mongo.hostname",
+            help="MongoDB hostname",
+        )
+
+        parser.add_argument(
+            "-mport",
+            "--mongo-port",
+            type=str,
+            dest="mongo.port",
+            help="MongoDB port",
+        )
+        parser.add_argument(
+            "-muser",
+            "--mongo-user",
+            type=str,
+            dest="mongo.user",
+            help="MongoDB username",
+        )
+
+        parser.add_argument(
+            "-mpass",
+            "--mongo-password",
+            type=str,
+            dest="mongo.password",
+            help="MongoDB password",
+        )
+
+        parser.add_argument(
+            "-mdbname",
+            "--mongo-db-name",
+            type=str,
+            dest="mongo.db_name",
+            help="MongoDB DB name",
+        )
+
+        return mongo_group
+
+
 class GSheetArguments:
     @staticmethod
     def add_gsheet_arguments(parser):
