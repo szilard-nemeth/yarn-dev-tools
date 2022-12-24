@@ -18,10 +18,11 @@ class DatabaseUnitTestResultAggregator(CommandAbs):
     # TODO yarndevtoolsv2 DB: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
     def __init__(self, args, parser, output_dir: str):
         super().__init__()
-        # TODO yarndevtoolsv2 DB: Implement
+        # TODO yarndevtoolsv2 DB: This class should aggregate email content data (collection: email_data) with Jenkins reports (collection: reports)
 
     @staticmethod
     def create_parser(subparsers):
+        # TODO yarndevtoolsv2 DB: Add all email-related options under a subparser --> if not specified, email data won't be loaded at all
         parser = subparsers.add_parser(
             CMD.name,
             help="Aggregates unit test results from a Database."
