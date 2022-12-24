@@ -10,7 +10,7 @@ from yarndevtools.commands.unittestresultaggregator.db.model import (
 from yarndevtools.commands.unittestresultaggregator.db.parser import DatabaseUnitTestResultAggregatorParser
 from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailUtilsForAggregators,
-    EmailBasedAggregationResults,
+    EmailContentAggregationResults,
 )
 from yarndevtools.commands.unittestresultaggregator.email.config import EmailBasedUnitTestResultAggregatorConfig
 from yarndevtools.commands.unittestresultaggregator.email.parser import UnitTestResultAggregatorEmailParserUtils
@@ -33,13 +33,14 @@ class UnitTestResultAggregator(CommandAbs):
         self._email_utils.init_gmail()
         self._known_test_failures = self._email_utils.fetch_known_test_failures()
 
-        # TODO yarndevtoolsv2 DB: check for operation mode and only expect mongo config if required
+        # TODO yarndevtoolsv2 DB: check for execution mode and only expect mongo config if required
         # if self.config.
         self._db = UTResultAggregatorDatabase(self.config.mongo_config)
 
     @staticmethod
     def create_parser(subparsers):
-        # TODO yarndevtoolsv2: Choose parser based on exec mode
+        # TODO yarndevtoolsv2: Choose parser based on execution mode
+        # TODO yarndevtoolsv2 DB: Add all email-related options under a subparser --> if not specified, email data won't be loaded at all
         DatabaseUnitTestResultAggregatorParser.setup(subparsers)
         UnitTestResultAggregatorEmailParserUtils.create_parser(
             subparsers, CMD, func_to_execute=UnitTestResultAggregator.execute, add_gsheet_args=True
@@ -61,11 +62,11 @@ class UnitTestResultAggregator(CommandAbs):
         # TODO yarndevtoolsv2 DB: implement DB-based execution
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
         gmail_query_result = self._email_utils.perform_gmail_query()
-        result = EmailBasedAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
+        result = EmailContentAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
         # TODO yarndevtoolsv2 DB: implement force mode flag that always scans all emails
-        # TODO yarndevtoolsv2 DB: store dates of emails as well to mongodb
-        # TODO yarndevtoolsv2 DB: Only query gmail results from a certain date that don't have mongo results
-        # TODO yarndevtoolsv2 DB: Only add DBWriterEmailContentProcessor if required
+        # TODO yarndevtoolsv2 DB: store dates of emails as well to mongodb: Write start date, end date, missing dates between start and end date
+        # TODO yarndevtoolsv2 DB: Do not query gmail if not forced / required: Only query gmail results from a certain date that don't have mongo results
+        # TODO yarndevtoolsv2 DB: Only add DBWriterEmailContentProcessor if execution mode dictates
         self._email_utils.process_gmail_results(
             gmail_query_result,
             result,

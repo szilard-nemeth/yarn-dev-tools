@@ -5,7 +5,6 @@ from yarndevtools.commands_common import GSheetArguments, ArgumentParserUtils
 class DatabaseUnitTestResultAggregatorParser:
     @classmethod
     def setup(cls, subparsers, command_type, func_to_execute):
-        # TODO yarndevtoolsv2 DB: Add all email-related options under a subparser --> if not specified, email data won't be loaded at all
         parser = subparsers.add_parser(
             command_type.name,
             help="Aggregates unit test results from a Database."

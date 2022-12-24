@@ -43,7 +43,7 @@ SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
 
 
-class EmailBasedAggregationResults:
+class EmailContentAggregationResults:
     # TODO yarndevtoolsv2 refactor: consider extracting common aggregation logic from this class / or create abstraction layer?
     def __init__(self, testcase_filter_defs: TestCaseFilterDefinitions, known_failures: KnownTestFailures):
         self._match_all_lines: bool = self._should_match_all_lines(testcase_filter_defs)
@@ -220,7 +220,6 @@ class EmailUtilsForAggregators:
         query_result: ThreadQueryResults = self.gmail_wrapper.query_threads(
             query=self.get_gmail_query(), limit=self.config.request_limit, expect_one_message_per_thread=True
         )
-        # TODO yarndevtoolsv2 improvement: Write start date, end date, missing dates between start and end date
         LOG.info(
             f"Gmail thread query result summary:\n"
             f"--> Number of threads: {query_result.no_of_threads}\n"
@@ -240,13 +239,11 @@ class EmailUtilsForAggregators:
     @staticmethod
     def process_gmail_results(
         query_result: ThreadQueryResults,
-        result: EmailBasedAggregationResults,
+        result: EmailContentAggregationResults,
         split_body_by: str,
         skip_lines_starting_with: List[str],
         email_content_processors: Iterable[EmailContentProcessor] = None,
     ):
-        # TODO yarndevtoolsv2 DB: Should work without mongodb as well!
-        # TODO yarndevtoolsv2 DB: Introduce strict flag
         if not email_content_processors:
             email_content_processors = []
 

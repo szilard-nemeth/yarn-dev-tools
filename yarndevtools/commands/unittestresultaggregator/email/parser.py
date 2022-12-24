@@ -11,6 +11,7 @@ class UnitTestResultAggregatorEmailParserUtils:
     def create_parser(
         subparsers, command_type: CommandType, func_to_execute: Callable, add_gsheet_args=True, add_mongo_args=True
     ):
+        # TODO Add example calls for all execution modes?
         parser = subparsers.add_parser(
             command_type.name,
             help="Aggregates unit test results from a gmail account."
