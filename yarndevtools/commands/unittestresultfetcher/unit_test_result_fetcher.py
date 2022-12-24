@@ -40,6 +40,8 @@ from yarndevtools.common.db import MongoDbConfig, DBSerializable, Database
 from yarndevtools.common.shared_command_utils import FullEmailConfig, CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
+MONGO_COLLECTION_JENKINS_REPORTS = "reports"
+
 CACHED_DATA_DIRNAME = "cached_data"
 
 LOG = logging.getLogger(__name__)
@@ -1300,4 +1302,4 @@ class UTResultFetcherDatabase(Database):
         super().__init__(conf)
 
     def save_build_data(self, build_data: JobBuildData):
-        return super().save(build_data, collection_name="reports", id_field_name="build_url")
+        return super().save(build_data, collection_name=MONGO_COLLECTION_JENKINS_REPORTS, id_field_name="build_url")

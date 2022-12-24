@@ -31,7 +31,7 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
 )
-from yarndevtools.commands.unittestresultaggregator.email.common import EmailBasedAggregationResults
+from yarndevtools.commands.unittestresultaggregator.email.common import EmailContentAggregationResults
 from yarndevtools.constants import (
     ReportFile,
 )
@@ -127,7 +127,7 @@ class SummaryGenerator:
 
     @classmethod
     def process_aggregation_results(
-        cls, aggr_results: EmailBasedAggregationResults, query_result: ThreadQueryResults, config, output_manager
+        cls, aggr_results: EmailContentAggregationResults, query_result: ThreadQueryResults, config, output_manager
     ):
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
