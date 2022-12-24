@@ -35,7 +35,7 @@ from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, ProjectUtils
 from pythoncommons.string_utils import auto_str
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
-from yarndevtools.commands_common import CommandAbs, EmailArguments
+from yarndevtools.commands_common import CommandAbs, EmailArguments, MongoArguments
 from yarndevtools.common.db import MongoDbConfig, DBSerializable, Database
 from yarndevtools.common.shared_command_utils import FullEmailConfig, CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
@@ -923,6 +923,7 @@ class UnitTestResultFetcher(CommandAbs):
             "--download-uncached-job-data",
         )
         EmailArguments.add_email_arguments(parser, add_subject=False, add_attachment_filename=False)
+        MongoArguments.add_mongo_arguments(parser)
 
         parser.add_argument(
             "--omit-job-summary",
@@ -1025,44 +1026,6 @@ class UnitTestResultFetcher(CommandAbs):
             dest="req_limit",
             help="Request limit",
             default=999,
-        )
-        parser.add_argument(
-            "-mhost",
-            "--mongo-hostname",
-            type=str,
-            dest="mongo_hostname",
-            help="MongoDB hostname",
-        )
-
-        parser.add_argument(
-            "-mport",
-            "--mongo-port",
-            type=str,
-            dest="mongo_port",
-            help="MongoDB port",
-        )
-        parser.add_argument(
-            "-muser",
-            "--mongo-user",
-            type=str,
-            dest="mongo_user",
-            help="MongoDB username",
-        )
-
-        parser.add_argument(
-            "-mpass",
-            "--mongo-password",
-            type=str,
-            dest="mongo_password",
-            help="MongoDB password",
-        )
-
-        parser.add_argument(
-            "-mdbname",
-            "--mongo-db-name",
-            type=str,
-            dest="mongo_db_name",
-            help="MongoDB DB name",
         )
 
         def tc_filter_validator(value):
@@ -1337,4 +1300,4 @@ class UTResultFetcherDatabase(Database):
         super().__init__(conf)
 
     def save_build_data(self, build_data: JobBuildData):
-        return super().save(build_data, collection="reports", id_field_name="build_url")
+        return super().save(build_data, collection_name="reports", id_field_name="build_url")

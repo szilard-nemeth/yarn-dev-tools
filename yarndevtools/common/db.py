@@ -15,22 +15,40 @@ class DBSerializable(ABC):
 
 class MongoDbConfig:
     def __init__(self, args):
-        self.hostname = args.hostname
-        self.port = args.port
-        self.user = args.user
-        self.password = args.password
-        self.db_name = args.db_name
+        mongo_vars = {k.replace("mongo.", ""): v for k, v in vars(args).items() if k.startswith("mongo.")}
 
-        if not self.hostname:
-            raise ValueError("Mongo hostname is not specified!")
-        if not self.port:
-            raise ValueError("Mongo port is not specified!")
-        if not self.user:
-            raise ValueError("Mongo user is not specified!")
-        if not self.password:
-            raise ValueError("Mongo password is not specified!")
-        if not self.db_name:
-            raise ValueError("Mongo DB name is not specified!")
+        self._validate_arg(args, mongo_vars, "hostname")
+        self._validate_arg(args, mongo_vars, "port")
+        self._validate_arg(args, mongo_vars, "user")
+        self._validate_arg(args, mongo_vars, "password")
+        self._validate_arg(args, mongo_vars, "db_name")
+
+        self._dict = mongo_vars
+
+    @staticmethod
+    def _validate_arg(args, mongo_vars, name):
+        if name not in mongo_vars:
+            raise ValueError("Mongo {} is not specified! Recognized args: {}".format(name, args))
+
+    @property
+    def hostname(self):
+        return self._dict["hostname"]
+
+    @property
+    def port(self):
+        return self._dict["port"]
+
+    @property
+    def user(self):
+        return self._dict["user"]
+
+    @property
+    def password(self):
+        return self._dict["password"]
+
+    @property
+    def db_name(self):
+        return self._dict["db_name"]
 
 
 class Database(ABC):
@@ -42,14 +60,18 @@ class Database(ABC):
         self._client = pymongo.MongoClient(url)
         self._db = self._client[conf.db_name]
 
-    def save(self, obj: DBSerializable, collection: str, id_field_name: str = None):
+    def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None):
         serialized = obj.serialize()
 
         if id_field_name:
-            if not hasattr(serialized, id_field_name):
+            if id_field_name not in serialized:
                 raise ValueError("Serialized object '{}' has no field with name '{}'".format(serialized, id_field_name))
             # Manually add _id field for MongoDB.
             serialized["_id"] = serialized[id_field_name]
         LOG.debug("Serialized object to MongoDB:", serialized)
 
-        return self._db[collection].insert_one(serialized)
+        return self._db[collection_name].insert_one(serialized)
+
+    def find_by_id(self, id, collection_name: str):
+        collection = self._db[collection_name]
+        return collection.find_one({"_id": id})
