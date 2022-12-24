@@ -462,9 +462,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         # TODO yarndevtoolsv2 DB: Add testcase for UNIT_TEST_RESULT_AGGREGATOR_DB
-        args = self._create_args_for_specified_file(
-            config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL, dry_run=True
-        )
+        args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = FakeCdswRunner(cdsw_runner_config)
         cdsw_runner.start()
@@ -478,7 +476,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             CommandExpectations(self)
             .add_expected_ordered_arg(PYTHON3)
             .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR_EMAIL")
+            .add_expected_ordered_arg("UNIT_TEST_RESULT_AGGREGATOR")
             .add_expected_arg("--gsheet")
             .add_expected_arg("--gsheet-client-secret", "testGsheetClientSecret")
             .add_expected_arg("--gsheet-worksheet", "testGsheetWorkSheet")
@@ -502,11 +500,9 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--abbreviate-testcase-package", "org.apache.hadoop.yarn.server")
             .add_expected_args("--aggregate-filters", "CDPD-7.1.x", "CDPD-7.x")
             .add_expected_arg("--gsheet-compare-with-jira-table", '"testcases with jiras"')
-            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL)
+            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
         )
-        exp_command_2 = self._get_expected_zip_latest_command_data_command(
-            CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL
-        )
+        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
         exp_command_3 = self._get_expected_send_latest_command_data_command(
             job_start_date, subject=subject, sender=sender, email_file_from_zip="report-short.html"
         )

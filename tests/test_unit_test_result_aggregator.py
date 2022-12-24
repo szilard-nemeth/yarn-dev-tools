@@ -36,7 +36,7 @@ class TestTestCaseFilters(unittest.TestCase):
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         SimpleLoggingSetup.init_logger(
-            project_name=CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL.real_name,
+            project_name=CommandType.UNIT_TEST_RESULT_AGGREGATOR.real_name,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.TEST,
             console_debug=True,
@@ -50,7 +50,7 @@ class TestTestCaseFilters(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL)
+        TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.UNIT_TEST_RESULT_AGGREGATOR)
 
     def setUp(self):
         self.test_instance = self
