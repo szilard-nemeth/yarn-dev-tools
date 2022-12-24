@@ -27,7 +27,7 @@ class MongoDbConfig:
 
     @staticmethod
     def _validate_arg(args, mongo_vars, name):
-        if name not in mongo_vars:
+        if name not in mongo_vars or not mongo_vars[name]:
             raise ValueError("Mongo {} is not specified! Recognized args: {}".format(name, args))
 
     @property
@@ -52,12 +52,17 @@ class MongoDbConfig:
 
 
 class Database(ABC):
-    def __init__(self, conf: MongoDbConfig):
+    def __init__(self, conf: MongoDbConfig, validate_db=True):
         url = "mongodb://{user}:{password}@{hostname}:{port}/{db_name}?authSource=admin".format(
             user=conf.user, password=conf.password, hostname=conf.hostname, port=conf.port, db_name=conf.db_name
         )
         LOG.info("Using connection URL '%s' for mongodb", url)
         self._client = pymongo.MongoClient(url)
+
+        if validate_db:
+            dbnames = self._client.list_database_names()
+            if conf.db_name not in dbnames:
+                raise ValueError("DB with name '{}' does not exist!".format(conf.db_name))
         self._db = self._client[conf.db_name]
 
     def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None):
