@@ -222,26 +222,12 @@ class CommandType(Enum):
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", "send-latest-command-data", False)
     UNIT_TEST_RESULT_FETCHER = ("unit_test_result_fetcher", "unit-test-result-fetcher", False)
 
-    UNIT_TEST_RESULT_AGGREGATOR_DB = (
+    UNIT_TEST_RESULT_AGGREGATOR = (
         "unit_test_result_aggregator",
         "unit-test-result-aggregator",
         True,
-        "latest-session-unit-test-result-aggregator-db",
+        "latest-session-unit-test-result-aggregator",
     )
-    UNIT_TEST_RESULT_AGGREGATOR_EMAIL = (
-        "unit_test_result_aggregator",
-        "unit-test-result-aggregator",
-        True,
-        "latest-session-unit-test-result-aggregator-email",
-    )
-
-    UNIT_TEST_RESULT_AGGREGATOR_DB_CONNECTOR = (
-        "unit_test_result_aggregator",
-        "unit-test-result-aggregator",
-        True,
-        "latest-session-unit-test-result-aggregator-dbconnector",
-    )
-
     REVIEW_SHEET_BACKPORT_UPDATER = (
         "review_sheet_backport_updater",
         "review-sheet-backport-updater",

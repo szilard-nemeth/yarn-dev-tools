@@ -1,30 +1,13 @@
-import logging
-
-from pythoncommons.file_utils import FileUtils
-from pythoncommons.project_utils import ProjectUtils
-
-from yarndevtools.commands.unittestresultaggregator.constants import (
-    SummaryMode,
-)
-from yarndevtools.commands_common import CommandAbs, GSheetArguments, ArgumentParserUtils
-from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
-
-CMD = CommandType.UNIT_TEST_RESULT_AGGREGATOR_DB
-LOG = logging.getLogger(__name__)
+from yarndevtools.commands.unittestresultaggregator.constants import SummaryMode
+from yarndevtools.commands_common import GSheetArguments, ArgumentParserUtils
 
 
-class DatabaseUnitTestResultAggregator(CommandAbs):
-    # TODO yarndevtoolsv2 DB: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
-    def __init__(self, args, parser, output_dir: str):
-        super().__init__()
-        # TODO yarndevtoolsv2 DB: This class should aggregate email content data (collection: email_data) with Jenkins reports (collection: reports)
-
-    @staticmethod
-    def create_parser(subparsers):
+class DatabaseUnitTestResultAggregatorParser:
+    @classmethod
+    def setup(cls, subparsers, command_type, func_to_execute):
         # TODO yarndevtoolsv2 DB: Add all email-related options under a subparser --> if not specified, email data won't be loaded at all
         parser = subparsers.add_parser(
-            CMD.name,
+            command_type.name,
             help="Aggregates unit test results from a Database."
             "Example: "
             "--gsheet "
@@ -111,27 +94,4 @@ class DatabaseUnitTestResultAggregator(CommandAbs):
             help="Export values to Google sheet. Additional gsheet arguments need to be specified!",
         )
 
-        parser.set_defaults(func=DatabaseUnitTestResultAggregator.execute)
-
-    @staticmethod
-    def execute(args, parser=None):
-        # TODO implement
-        raise NotImplementedError()
-        # output_dir = ProjectUtils.get_output_child_dir(CMD.output_dir_name)
-        # aggregator = DatabaseUnitTestResultAggregator(args, parser, output_dir)
-        # FileUtils.create_symlink_path_dir(
-        #     CMD.session_link_name,
-        #     aggregator.config.session_dir,
-        #     YarnDevToolsConfig.PROJECT_OUT_ROOT,
-        # )
-        # aggregator.run()
-
-    def run(self):
-        # TODO yarndevtoolsv2 DB: implement
-        LOG.info(f"Starting DB Unit test result aggregator. Config: \n{str(self.config)}")
-        raise NotImplementedError()
-        # aggr_results: TestcaseFilterResults = self.filter_query_result_data(query_result, self.testcases_to_jiras)
-        # output_manager = UnitTestResultOutputManager(
-        #     self.config.session_dir, self.config.console_mode, self.gsheet_wrapper
-        # )
-        # SummaryGenerator.process_aggregation_results(testcase_filter, query_result, self.config, output_manager)
+        parser.set_defaults(func=func_to_execute)

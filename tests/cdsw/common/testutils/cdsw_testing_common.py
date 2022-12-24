@@ -83,7 +83,7 @@ COMMAND_ARGUMENTS = {
         "--send-attachment": NO_ARG,
     },
     # TODO yarndevtoolsv2 DB: Add tests for CommandType.UNIT_TEST_RESULT_AGGREGATOR_DB
-    CommandType.UNIT_TEST_RESULT_AGGREGATOR_EMAIL: {
+    CommandType.UNIT_TEST_RESULT_AGGREGATOR: {
         **GSHEET_ARGUMENTS,
         "--account-email": SINGLE_NORMAL_ARG,
         "--request-limit": SINGLE_NORMAL_ARG,
