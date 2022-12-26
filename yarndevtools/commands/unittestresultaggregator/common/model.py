@@ -350,7 +350,7 @@ class FailedTestCaseFactory:
     def create_from_email(matched_line, email_meta):
         return FailedTestCaseFromEmail(matched_line, email_meta)
 
-    # TODO yarndevtoolsv2 DB: Implement create_from_xxx
+    # TODO yarndevtoolsv2 DB: Implement create_from_jenkins_report
 
 
 class TestFailuresByFilters(UserDict):

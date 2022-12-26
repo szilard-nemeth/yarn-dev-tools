@@ -24,15 +24,13 @@ from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import
     UnitTestResultFetcher,
     Email,
     JenkinsApiConverter,
-    FailedJenkinsBuild,
-    JobBuildDataStatus,
-    JobBuildDataCounters,
     JenkinsJobUrls,
     DownloadProgress,
     CacheConfig,
     UnitTestResultFetcherCacheType,
     EmailConfig,
 )
+from yarndevtools.common.common_model import FailedJenkinsBuild, JobBuildDataStatus, JobBuildDataCounters
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
 EMAIL_CLASS_NAME = Email.__name__
