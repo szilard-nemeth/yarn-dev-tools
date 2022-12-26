@@ -2,7 +2,7 @@ import datetime
 from collections import defaultdict, UserDict
 from typing import List, Dict, Set, Tuple, Callable
 
-from pythoncommons.date_utils import DateUtils
+from pythoncommons.date_utils import DateUtils, DATEFORMAT_DASH_COLON
 from pythoncommons.object_utils import ListUtils
 
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures, KnownTestFailureInJira
@@ -15,6 +15,7 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     BuildComparisonResult,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
+    EmailMetaData,
 )
 import logging
 
@@ -262,6 +263,30 @@ class LatestTestFailures(UserDict):
         if reset_oldest_day_to_midnight:
             start_date = DateUtils.reset_to_midnight(start_date)
         return start_date
+
+
+class FailedBuilds:
+    def __init__(self):
+        self._by_build_url = defaultdict(list)
+        self._by_date = defaultdict(list)
+
+    def add_build(self, email_meta: EmailMetaData):
+        self._by_build_url[email_meta.build_url].append(email_meta)
+        self._by_date[email_meta.job_name].append(email_meta)
+
+    def get_by_dates(self) -> Dict[str, List[EmailMetaData]]:
+        res = {}
+        for k, email_metas in self._by_date.items():
+            res[k] = sorted(email_metas, key=lambda m: m.date, reverse=True)
+        return res
+
+    def get_dates(self) -> Dict[str, List[str]]:
+        res = {}
+        for k, email_metas in self._by_date.items():
+            dates = [em.date for em in email_metas]
+            dates = sorted(dates, reverse=True)
+            res[k] = [DateUtils.convert_datetime_to_str(dt, DATEFORMAT_DASH_COLON) for dt in dates]
+        return res
 
 
 class TestFailureComparison(UserDict):

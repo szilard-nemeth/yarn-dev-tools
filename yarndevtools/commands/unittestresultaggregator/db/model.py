@@ -4,7 +4,7 @@ from typing import List
 from googleapiwrapper.gmail_domain import GmailMessage
 from marshmallow import fields, Schema, EXCLUDE
 
-from yarndevtools.commands.unittestresultaggregator.common.model import EmailContentProcessor
+from yarndevtools.commands.unittestresultaggregator.common.model import EmailContentProcessor, EmailMetaData
 from yarndevtools.common.db import MongoDbConfig, Database, DBSerializable
 
 
@@ -52,9 +52,10 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
     def __init__(self, db: UTResultAggregatorDatabase):
         self._db = db
 
-    def process(self, message: GmailMessage, lines: List[str]):
+    def process(self, message: GmailMessage, email_meta: EmailMetaData, lines: List[str]):
         email_content = EmailContent.from_message(message, lines)
         doc = self._db.find_by_id(message.msg_id, collection_name="email_data")
+        # TODO yarndevtoolsv2 DB: Save email meta to DB
         if doc:
             schema = EmailContentSchema()
             email_content: EmailContent = EmailContent(**schema.load(doc, unknown=EXCLUDE))
