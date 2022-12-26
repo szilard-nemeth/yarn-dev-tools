@@ -16,7 +16,7 @@ from yarndevtools.commands.unittestresultaggregator.email.common import DEFAULT_
 from yarndevtools.common.db import MongoDbConfig
 
 
-class EmailBasedUnitTestResultAggregatorConfig:
+class UnitTestResultAggregatorConfig:
     def __init__(self, parser, args, output_dir: str):
         self._validate_args(parser, args)
         self.console_mode = getattr(args, "console mode", False)
@@ -78,8 +78,13 @@ class EmailBasedUnitTestResultAggregatorConfig:
                 f"Unknown state! "
                 f"Operation mode should be any of {VALID_OPERATION_MODES}, but it is set to: {self.operation_mode}"
             )
+
         if hasattr(args, "gmail_credentials_file"):
             FileUtils.ensure_file_exists(args.gmail_credentials_file)
+
+        self.execution_mode = getattr(args, "execution_mode", None)
+        if not self.execution_mode:
+            raise ValueError("Execution mode should be specified!")
 
     def __str__(self):
         return (

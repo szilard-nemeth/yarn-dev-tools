@@ -57,6 +57,14 @@ class FailedTestCaseAbs(ABC):
     def parameterized(self) -> bool:
         pass
 
+    @abstractmethod
+    def build_url(self) -> str:
+        pass
+
+    @abstractmethod
+    def job_name(self) -> str:
+        pass
+
 
 @dataclass
 class BuildComparisonResult:
@@ -324,19 +332,11 @@ class FailedTestCase(FailedTestCaseAbs):
                 f"Parameter: {self._parameter}"
             )
 
-    def date(self) -> datetime.datetime:
-        # TODO yarndevtoolsv2 DB: implement
-        raise NotImplementedError("not yet implemented!")
-
     def full_name(self):
         return self._full_name
 
     def simple_name(self):
         return self._simple_name
-
-    def origin(self):
-        # TODO yarndevtoolsv2 DB: implement
-        raise AttributeError("No origin for this testcase type!")
 
     def parameter(self) -> str:
         return self._parameter
@@ -401,6 +401,7 @@ class FinalAggregationResults:
             TestFailureComparison,
             LatestTestFailures,
             KnownTestFailureChecker,
+            FailedBuilds,
         )
 
         self.test_failures = TestFailuresByFilters(all_filters)
@@ -408,6 +409,7 @@ class FinalAggregationResults:
         self._comparison: TestFailureComparison = None
         self._latest_failures: LatestTestFailures = None
         self._known_failure_checker: KnownTestFailureChecker = None
+        self._failed_builds = FailedBuilds()
 
     def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
         self.test_failures.add(tcf, failed_testcase)
@@ -430,6 +432,9 @@ class FinalAggregationResults:
     def get_aggregated_failures_by_filter(self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter):
         return self._aggregated.get_by_filters(tcf, *prop_filters)
 
+    def save_failed_build(self, email_meta):
+        self._failed_builds.add_build(email_meta)
+
 
 @dataclass
 class EmailMetaData:
@@ -437,6 +442,8 @@ class EmailMetaData:
     thread_id: str
     subject: str
     date: datetime.datetime
+    build_url: str
+    job_name: str
 
 
 @auto_str
@@ -451,8 +458,14 @@ class FailedTestCaseFromEmail(FailedTestCase):
     def origin(self):
         return self.email_meta.subject
 
+    def build_url(self) -> str:
+        return self.email_meta.build_url
+
+    def job_name(self) -> str:
+        return self.email_meta.job_name
+
 
 class EmailContentProcessor(ABC):
     @abstractmethod
-    def process(self, message: GmailMessage, lines: List[str]):
+    def process(self, message: GmailMessage, email_meta: EmailMetaData, lines: List[str]):
         pass

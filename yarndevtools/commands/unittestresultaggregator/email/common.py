@@ -1,4 +1,5 @@
 import logging
+import pprint
 from collections import defaultdict
 from pprint import pformat
 from typing import List, Dict, Tuple, Iterable
@@ -9,6 +10,7 @@ from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetWrapper
 from pythoncommons.string_utils import RegexUtils
+from pythoncommons.url_utils import UrlUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.constants import (
@@ -114,7 +116,7 @@ class EmailContentAggregationResults:
         # TODO in strict mode, unmatching lines should not be allowed
         return False, None
 
-    def finish_context(self, message: GmailMessage):
+    def finish_context(self, message: GmailMessage, email_meta):
         LOG.info("Finishing context...")
         LOG.debug(f"Keys of of matched lines: {self._matched_lines_dict.keys()}")
 
@@ -122,9 +124,9 @@ class EmailContentAggregationResults:
             if not matched_lines:
                 continue
             for matched_line in matched_lines:
-                email_meta = EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date)
                 failed_testcase = FailedTestCaseFactory.create_from_email(matched_line, email_meta)
                 self._aggregation_results.add_failure(tcf, failed_testcase)
+        self._aggregation_results.save_failed_build(email_meta)
 
         self._aggregation_results.print_keys()
         # Make sure temp dict is not used until next cycle
@@ -168,7 +170,11 @@ class EmailContentAggregationResults:
         return self._aggregation_results.get_aggregated_failures_by_filter(tcf, *prop_filters)
 
     def print_objects(self):
-        pass
+        builds_with_dates = self._aggregation_results._failed_builds.get_dates()
+        LOG.debug("Printing available builds per job...")
+        for job_name, dates in builds_with_dates.items():
+            LOG.debug("Job: %s, builds: %s", job_name, dates)
+
         # TODO should be trace logged
         # LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
 
@@ -253,8 +259,9 @@ class EmailUtilsForAggregators:
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(split_body_by)
                 lines = list(map(lambda line: line.strip(), lines))
+                email_meta = EmailUtilsForAggregators._create_email_meta(message)
                 for processor in email_content_processors:
-                    processor.process(message, lines)
+                    processor.process(message, email_meta, lines)
                 result.start_new_context()
                 for line in lines:
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
@@ -262,5 +269,17 @@ class EmailUtilsForAggregators:
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
                         continue
                     result.match_line(line, message.subject)
-                result.finish_context(message)
+                result.finish_context(message, email_meta)
         result.finish_processing_all()
+
+    @staticmethod
+    def _create_email_meta(message):
+        build_url = UrlUtils.extract_from_str(message.subject)
+        if not build_url:
+            return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, None, None)
+
+        segments = build_url.split("/job/")
+        if len(segments) != 2:
+            raise ValueError("Cannot parse job name from build URL: {}".format(build_url))
+        job_name = segments[1].split("/")[0]
+        return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, build_url, job_name)
