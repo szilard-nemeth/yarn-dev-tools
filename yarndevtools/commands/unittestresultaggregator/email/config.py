@@ -11,6 +11,7 @@ from yarndevtools.commands.unittestresultaggregator.constants import (
     VALID_OPERATION_MODES,
     AGGREGATED_WS_POSTFIX,
     MATCHTYPE_ALL_POSTFIX,
+    ExecutionMode,
 )
 from yarndevtools.commands.unittestresultaggregator.email.common import DEFAULT_LINE_SEP, LOG
 from yarndevtools.common.db import MongoDbConfig
@@ -49,7 +50,16 @@ class UnitTestResultAggregatorConfig:
             for worksheet_name in worksheet_names:
                 self.gsheet_options.add_worksheet(worksheet_name)
 
-        self.mongo_config = MongoDbConfig(args)
+        self.should_use_db = self.execution_mode in (ExecutionMode.DB_ONLY, ExecutionMode.DB_AND_EMAIL)
+        self.should_fetch_mails = self.execution_mode in (ExecutionMode.EMAIL_ONLY, ExecutionMode.DB_AND_EMAIL)
+        self.should_store_email_content_to_db = self.execution_mode in (
+            ExecutionMode.DB_AND_EMAIL,
+            ExecutionMode.DB_ONLY,
+        )
+        self.should_generate_summary = self.execution_mode == ExecutionMode.EMAIL_ONLY
+
+        if self.should_use_db:
+            self.mongo_config = MongoDbConfig(args)
 
     @staticmethod
     def _get_attribute(args, attr_name, default=None):
