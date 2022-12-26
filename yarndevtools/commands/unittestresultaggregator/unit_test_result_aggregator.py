@@ -27,7 +27,6 @@ LOG = logging.getLogger(__name__)
 
 
 class UnitTestResultAggregator(CommandAbs):
-    # TODO yarndevtoolsv2 DB: This class should aggregate email content data (collection: email_data) with Jenkins reports (collection: reports)
     def __init__(self, args, parser, output_dir: str):
         super().__init__()
         # TODO yarndevtoolsv2 DB: should combine config instances: email + DB

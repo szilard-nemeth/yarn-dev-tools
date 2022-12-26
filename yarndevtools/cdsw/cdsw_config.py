@@ -288,7 +288,6 @@ class CdswJobConfigReader:
         CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
         CommandType.UNIT_TEST_RESULT_FETCHER: UnitTestResultFetcherEnvVar,
         CommandType.UNIT_TEST_RESULT_AGGREGATOR: UnitTestResultAggregatorEmailEnvVar,
-        # TODO yarndevtoolsv2 DB
         CommandType.REVIEW_SHEET_BACKPORT_UPDATER: ReviewSheetBackportUpdaterEnvVar,
         CommandType.REVIEWSYNC: ReviewSyncEnvVar,
     }

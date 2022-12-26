@@ -119,6 +119,7 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
 
 
 class JenkinsJobBuildDataAndEmailContentJoiner:
+    # TODO yarndevtoolsv2 DB: This class should aggregate email content data (collection: email_data) with Jenkins reports (collection: reports)
     def __init__(self, db: UTResultAggregatorDatabase):
         self._db = db
 
@@ -126,6 +127,9 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
         # TODO yarndevtoolsv2 DB: Invoke aggregation logic here
         # build_data = self._db.find_and_validate_all_build_data()
         # email_content = self._db.find_and_validate_all_email_content()
+        self._db.find_and_validate_all_build_data()
+        self._db.find_and_validate_all_email_content()
+        # TODO yarndevtoolsv2 DB: Group failures by job name and build dates --> Verify EmailContent's date?
         # result.start_new_context()
         # result.match_line(line, message.subject)
         # result.finish_context(message, email_meta)
