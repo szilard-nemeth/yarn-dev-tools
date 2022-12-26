@@ -67,7 +67,6 @@ class Database(ABC):
 
     def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None):
         serialized = obj.serialize()
-
         if id_field_name:
             if id_field_name not in serialized:
                 raise ValueError("Serialized object '{}' has no field with name '{}'".format(serialized, id_field_name))
@@ -78,5 +77,9 @@ class Database(ABC):
         return self._db[collection_name].insert_one(serialized)
 
     def find_by_id(self, id, collection_name: str):
+        doc = self._db[collection_name].find_one({"_id": id})
+        return doc
+
+    def find_all(self, collection_name: str):
         collection = self._db[collection_name]
-        return collection.find_one({"_id": id})
+        return list(collection.find())

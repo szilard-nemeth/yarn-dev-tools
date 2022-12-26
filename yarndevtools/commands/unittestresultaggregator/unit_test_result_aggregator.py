@@ -8,6 +8,7 @@ from yarndevtools.commands.unittestresultaggregator.constants import ExecutionMo
 from yarndevtools.commands.unittestresultaggregator.db.model import (
     UTResultAggregatorDatabase,
     DBWriterEmailContentProcessor,
+    JenkinsJobBuildDataAndEmailContentJoiner,
 )
 from yarndevtools.commands.unittestresultaggregator.db.parser import UnitTestResultAggregatorDatabaseParserParams
 from yarndevtools.commands.unittestresultaggregator.email.common import (
@@ -26,13 +27,7 @@ LOG = logging.getLogger(__name__)
 
 
 class UnitTestResultAggregator(CommandAbs):
-    # TODO yarndevtoolsv2 DB: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
     # TODO yarndevtoolsv2 DB: This class should aggregate email content data (collection: email_data) with Jenkins reports (collection: reports)
-    # TODO yarndevtoolsv2 DB: implement force mode flag that always scans all emails
-    # TODO yarndevtoolsv2 DB: store dates of emails as well to mongodb: Write start date, end date, missing dates between start and end date
-    # TODO yarndevtoolsv2 DB: Do not query gmail if not forced / required: Only query gmail results from a certain date that don't have mongo results
-    # TODO yarndevtoolsv2 DB: Only add DBWriterEmailContentProcessor if execution mode dictates
-    # TODO yarndevtoolsv2 DB: implement DB-based execution
     def __init__(self, args, parser, output_dir: str):
         super().__init__()
         # TODO yarndevtoolsv2 DB: should combine config instances: email + DB
@@ -41,9 +36,9 @@ class UnitTestResultAggregator(CommandAbs):
         self._email_utils.init_gmail()
         self._known_test_failures = self._email_utils.fetch_known_test_failures()
 
-        # TODO yarndevtoolsv2 DB: check for execution mode and only expect mongo config if required
         if self.config.should_use_db:
             self._db = UTResultAggregatorDatabase(self.config.mongo_config)
+            self._joiner = JenkinsJobBuildDataAndEmailContentJoiner(self._db)
 
     @staticmethod
     def create_parser(subparsers):
@@ -80,8 +75,15 @@ class UnitTestResultAggregator(CommandAbs):
         if self.config.should_store_email_content_to_db:
             email_content_processors = [DBWriterEmailContentProcessor(self._db)]
 
+        if (
+            self.config.execution_mode == ExecutionMode.DB_ONLY
+        ):  # TODO should use self.config.should_use_db later and fetch emails first
+            result = EmailContentAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
+            self._joiner.join(result)
+
         if self.config.should_fetch_mails:
             gmail_query_result = self._email_utils.perform_gmail_query()
+            # TODO yarndevtoolv2 DB: Create abstract version of EmailContentAggregationResults with 2 implementations: Email, DB
             result = EmailContentAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
             self._email_utils.process_gmail_results(
                 gmail_query_result,
@@ -98,4 +100,5 @@ class UnitTestResultAggregator(CommandAbs):
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self._known_test_failures.gsheet_wrapper
         )
+        # TODO yarndevtoolsv2 DB: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
         SummaryGenerator.process_aggregation_results(aggr_results, query_result, self.config, output_manager)

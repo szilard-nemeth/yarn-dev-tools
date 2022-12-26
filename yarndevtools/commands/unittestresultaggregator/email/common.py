@@ -1,23 +1,16 @@
 import logging
-import pprint
 from collections import defaultdict
 from pprint import pformat
 from typing import List, Dict, Tuple, Iterable
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
-from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetWrapper
 from pythoncommons.string_utils import RegexUtils
 from pythoncommons.url_utils import UrlUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
-from yarndevtools.commands.unittestresultaggregator.constants import (
-    OperationMode,
-    MATCH_ALL_LINES_EXPRESSION,
-    MatchExpression,
-)
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
     AggregatedTestFailures,
     LatestTestFailures,
@@ -37,7 +30,13 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     AggregatedFailurePropertyFilter,
     EmailContentProcessor,
 )
+from yarndevtools.commands.unittestresultaggregator.constants import (
+    OperationMode,
+    MATCH_ALL_LINES_EXPRESSION,
+    MatchExpression,
+)
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
+from yarndevtools.common.common_model import JenkinsJobUrl
 
 LOG = logging.getLogger(__name__)
 
@@ -116,7 +115,7 @@ class EmailContentAggregationResults:
         # TODO in strict mode, unmatching lines should not be allowed
         return False, None
 
-    def finish_context(self, message: GmailMessage, email_meta):
+    def finish_context(self, email_meta):
         LOG.info("Finishing context...")
         LOG.debug(f"Keys of of matched lines: {self._matched_lines_dict.keys()}")
 
@@ -255,13 +254,14 @@ class EmailUtilsForAggregators:
 
         for message in query_result.threads.messages:
             LOG.debug("Processing message: %s", message.subject)
-            msg_parts = message.get_all_plain_text_parts()
-            for msg_part in msg_parts:
+
+            for msg_part in message.get_all_plain_text_parts():
                 lines = msg_part.body_data.split(split_body_by)
                 lines = list(map(lambda line: line.strip(), lines))
                 email_meta = EmailUtilsForAggregators._create_email_meta(message)
                 for processor in email_content_processors:
                     processor.process(message, email_meta, lines)
+
                 result.start_new_context()
                 for line in lines:
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
@@ -269,7 +269,8 @@ class EmailUtilsForAggregators:
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
                         continue
                     result.match_line(line, message.subject)
-                result.finish_context(message, email_meta)
+
+                result.finish_context(email_meta)
         result.finish_processing_all()
 
     @staticmethod
@@ -277,9 +278,7 @@ class EmailUtilsForAggregators:
         build_url = UrlUtils.extract_from_str(message.subject)
         if not build_url:
             return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, None, None)
-
-        segments = build_url.split("/job/")
-        if len(segments) != 2:
-            raise ValueError("Cannot parse job name from build URL: {}".format(build_url))
-        job_name = segments[1].split("/")[0]
-        return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, build_url, job_name)
+        jenkins_url = JenkinsJobUrl(build_url)
+        return EmailMetaData(
+            message.msg_id, message.thread_id, message.subject, message.date, build_url, jenkins_url.job_name
+        )
