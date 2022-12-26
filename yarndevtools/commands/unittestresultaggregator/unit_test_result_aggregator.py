@@ -42,15 +42,8 @@ class UnitTestResultAggregator(CommandAbs):
         self._known_test_failures = self._email_utils.fetch_known_test_failures()
 
         # TODO yarndevtoolsv2 DB: check for execution mode and only expect mongo config if required
-        # if self.config.
-        self._db = UTResultAggregatorDatabase(self.config.mongo_config)
-
-        self._should_fetch_mails = self.config.execution_mode in (ExecutionMode.EMAIL_ONLY, ExecutionMode.DB_AND_EMAIL)
-        self._should_store_email_content_to_db = self.config.execution_mode in (
-            ExecutionMode.DB_AND_EMAIL,
-            ExecutionMode.DB_ONLY,
-        )
-        self._should_generate_summary = self.config.execution_mode == ExecutionMode.EMAIL_ONLY
+        if self.config.should_use_db:
+            self._db = UTResultAggregatorDatabase(self.config.mongo_config)
 
     @staticmethod
     def create_parser(subparsers):
@@ -84,10 +77,10 @@ class UnitTestResultAggregator(CommandAbs):
         LOG.info(f"Starting Unit test result aggregator. Config: \n{str(self.config)}")
 
         email_content_processors = []
-        if self._should_store_email_content_to_db:
+        if self.config.should_store_email_content_to_db:
             email_content_processors = [DBWriterEmailContentProcessor(self._db)]
 
-        if self._should_fetch_mails:
+        if self.config.should_fetch_mails:
             gmail_query_result = self._email_utils.perform_gmail_query()
             result = EmailContentAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
             self._email_utils.process_gmail_results(
@@ -98,7 +91,7 @@ class UnitTestResultAggregator(CommandAbs):
                 email_content_processors=email_content_processors,
             )
 
-            if self._should_generate_summary:
+            if self.config.should_generate_summary:
                 self._generate_summary_and_outputs(gmail_query_result, result)
 
     def _generate_summary_and_outputs(self, query_result, aggr_results):
