@@ -385,7 +385,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args.tc_filters = tc_filters
         args.skip_mail = skip_sending_mail
         args.disable_file_cache = True
-        args.debug = True
+        args.logging_debug = True
         args.verbose = True
         args.command = CommandType.UNIT_TEST_RESULT_FETCHER.real_name
         args.force_mode = force_mode

@@ -83,15 +83,24 @@ def run():
     YarnDevTools()
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args()
+
+    # TODO use this value later with SimpleLoggingSetup.init_logger instead of passing bool flags
+    # log_level = determine_logging_level(args)
+    debug = getattr(args, "logging_debug", False)
+    trace = getattr(args, "logging_trace", False)
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
         project_name=YARNDEVTOOLS_MODULE_NAME,
         logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
         execution_mode=ExecutionMode.PRODUCTION,
-        console_debug=args.debug,
+        # TODO find 'console_debug' in project and rename
+        console_debug=debug,
+        trace=trace,
         postfix=args.command,
         repos=[YarnDevToolsConfig.UPSTREAM_REPO.repo, YarnDevToolsConfig.DOWNSTREAM_REPO.repo],
         verbose_git_log=args.verbose,
+        with_trace_level=True,
     )
+    # LOG.trace("test trace")
     LOG.info("Logging to files: %s", logging_config.log_file_paths)
     cmd_type = CommandType.from_str(args.command)
     if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
@@ -101,10 +110,26 @@ def run():
             FileUtils.create_symlink_path_dir(link_name, log_file_path, YarnDevToolsConfig.PROJECT_OUT_ROOT)
     else:
         LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
+
     # Call the handler function
     args.func(args, parser=parser)
     end_time = time.time()
     LOG.info("Execution of script took %d seconds", end_time - start_time)
+
+
+def determine_logging_level(args):
+    log_levels = {
+        logging.DEBUG: getattr(args, "logging_debug", False),
+        # TODO
+        # logging.TRACE: getattr(args, "logging_trace", False),
+        logging.INFO: True,  # Info is always on
+    }
+    val = 99999
+    for level_value, enabled in log_levels.items():
+        if level_value < val and enabled:
+            val = level_value
+
+    return logging.getLevelName(val)
 
 
 if __name__ == "__main__":

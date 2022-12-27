@@ -372,7 +372,7 @@ class TestFailuresByFilters(UserDict):
         if tc_key in self._testcase_cache:
             stored_testcase = self._testcase_cache[tc_key]
             # TODO printout seems to be wrong
-            LOG.debug(
+            LOG.trace(
                 f"Found already existing testcase key: {tc_key}. "
                 f"Value: {stored_testcase}, "
                 f"Email data (stored): {stored_testcase.origin()} "

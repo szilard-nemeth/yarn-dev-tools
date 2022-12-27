@@ -25,16 +25,6 @@ class UnitTestResultAggregatorCommonParserParams:
         )
 
         parser.add_argument(
-            "-v",
-            "--verbose",
-            action="store_true",
-            dest="verbose",
-            default=None,
-            required=False,
-            help="More verbose log",
-        )
-
-        parser.add_argument(
             "-m",
             "--match-expression",
             required=False,

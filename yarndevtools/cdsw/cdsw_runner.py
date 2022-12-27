@@ -395,7 +395,7 @@ if __name__ == "__main__":
     #     project_name=CDSW_PROJECT,
     #     logger_name_prefix=CDSW_PROJECT,
     #     execution_mode=ExecutionMode.PRODUCTION,
-    #     console_debug=args.debug,
+    #     console_debug=args.logging_debug,
     #     postfix=args.cmd_type,
     #     verbose_git_log=args.verbose,
     # )

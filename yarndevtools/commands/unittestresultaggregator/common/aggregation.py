@@ -69,7 +69,7 @@ class _PropertyModifierAggregatorPerFilter:
     def perform(self):
         for tc_key, testcases in self._pre_aggr.failures_per_tc_key.items():
             if len(testcases) > 1:
-                # TODO Should be trace logged?
+                # TODO tracelogging: Should be trace logged?
                 LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
                 # LOG.debug(
                 #     "Found %d testcase objects that will be aggregated for TC key: %s", len(testcases), tc_key
@@ -578,11 +578,11 @@ class AggregationResults:
         for match_expression in self._testcase_filter_defs.match_expressions:
             # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
             if RegexUtils.ensure_matches_pattern(testcase, match_expression.pattern):
-                # TODO Should be trace logged
+                # TODO tracelogging: Should be trace logged
                 LOG.debug(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
                 return True, match_expression
 
-        # TODO Should be trace logged
+        # TODO tracelogging: Should be trace logged
         LOG.debug(f"Testcase did not match for any pattern: {testcase}")
         # TODO in strict mode, unmatching testcases should not be allowed
         return False, None
@@ -646,5 +646,5 @@ class AggregationResults:
         for job_name, dates in builds_with_dates.items():
             LOG.debug("Job: %s, builds: %s", job_name, dates)
 
-        # TODO should be trace logged
+        # TODO tracelogging: should be trace logged
         # LOG.debug(f"All failed testcase objects: {self._failed_testcases}")

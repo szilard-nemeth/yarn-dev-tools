@@ -911,11 +911,12 @@ class UnitTestResultFetcher(CommandAbs):
             project_name=CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
             execution_mode=ExecutionMode.PRODUCTION,
-            console_debug=self.config.args.debug,
+            console_debug=self.config.args.logging_debug,
             postfix=None,
             repos=None,
             verbose_git_log=self.config.args.verbose,
             enable_logging_setup_debug_details=False,
+            with_trace_level=True,
         )
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
