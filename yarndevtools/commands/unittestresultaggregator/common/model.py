@@ -467,5 +467,5 @@ class FailedTestCaseFromEmail(FailedTestCase):
 
 class EmailContentProcessor(ABC):
     @abstractmethod
-    def process(self, message: GmailMessage, email_meta: EmailMetaData, lines: List[str]):
+    def process(self, email_meta: EmailMetaData, lines: List[str]):
         pass

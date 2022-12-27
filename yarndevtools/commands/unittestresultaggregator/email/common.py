@@ -108,6 +108,7 @@ class EmailContentAggregationResults:
 
     def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self._testcase_filter_defs.match_expressions:
+            # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
             if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
                 LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
                 return True, match_expression
@@ -253,22 +254,22 @@ class EmailUtilsForAggregators:
             email_content_processors = []
 
         for message in query_result.threads.messages:
-            LOG.debug("Processing message: %s", message.subject)
+            email_meta = EmailUtilsForAggregators._create_email_meta(message)
+            LOG.debug("Processing message: %s", email_meta.subject)
 
             for msg_part in message.get_all_plain_text_parts():
                 lines = msg_part.body_data.split(split_body_by)
                 lines = list(map(lambda line: line.strip(), lines))
-                email_meta = EmailUtilsForAggregators._create_email_meta(message)
+
                 for processor in email_content_processors:
-                    processor.process(message, email_meta, lines)
+                    processor.process(email_meta, lines)
 
                 result.start_new_context()
                 for line in lines:
-                    # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
                     if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
-                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {message.subject}]")
+                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {email_meta.subject}]")
                         continue
-                    result.match_line(line, message.subject)
+                    result.match_line(line, email_meta.subject)
 
                 result.finish_context(email_meta)
         result.finish_processing_all()
