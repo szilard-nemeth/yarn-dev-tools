@@ -5,6 +5,7 @@ from typing import List, Dict, Tuple, Iterable
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
+from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetWrapper
 from pythoncommons.string_utils import RegexUtils
@@ -16,6 +17,7 @@ from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
     LatestTestFailures,
     TestFailureComparison,
     KnownTestFailureChecker,
+    FailedBuildAbs,
 )
 from yarndevtools.commands.unittestresultaggregator.common.model import (
     BuildComparisonResult,
@@ -23,12 +25,12 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     TestCaseFilter,
     TestCaseFilterDefinitions,
     FailedTestCaseAbs,
-    FailedTestCaseFactory,
     FinalAggregationResults,
     EmailMetaData,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
     EmailContentProcessor,
+    FailedTestCaseFromEmail,
 )
 from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,
@@ -121,7 +123,7 @@ class EmailContentAggregationResults:
         # TODO in strict mode, unmatching testcases should not be allowed
         return False, None
 
-    def finish_context(self, email_meta):
+    def finish_context(self, failed_build: FailedBuildAbs):
         LOG.info("Finishing context...")
         LOG.debug(f"Keys of of matched testcases: {self._matched_testcases.keys()}")
 
@@ -129,9 +131,9 @@ class EmailContentAggregationResults:
             if not matched_testcases:
                 continue
             for matched_testcase in matched_testcases:
-                failed_testcase = FailedTestCaseFactory.create_from_email(matched_testcase, email_meta)
+                failed_testcase = FailedTestCaseFromEmail.create_from_failed_build(matched_testcase, failed_build)
                 self._aggregation_results.add_failure(tcf, failed_testcase)
-        self._aggregation_results.save_failed_build(email_meta)
+        self._aggregation_results.save_failed_build(failed_build)
 
         self._aggregation_results.print_keys()
         # Make sure temp dict is not used until next cycle
@@ -260,7 +262,8 @@ class EmailUtilsForAggregators:
 
         for message in query_result.threads.messages:
             email_meta = EmailUtilsForAggregators._create_email_meta(message)
-            LOG.debug("Processing message: %s", email_meta.subject)
+            failed_build = FailedBuildAbs.create_from_email(email_meta)
+            LOG.debug("Processing message: %s", failed_build.origin())
 
             for msg_part in message.get_all_plain_text_parts():
                 lines = msg_part.body_data.split(split_body_by)
@@ -272,15 +275,15 @@ class EmailUtilsForAggregators:
                 result.start_new_context()
                 for line in lines:
                     if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
-                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {email_meta.subject}]")
+                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {failed_build.origin()}]")
                         continue
-                    result.match_testcase(line, email_meta.job_name)
+                    result.match_testcase(line, failed_build.job_name())
 
-                result.finish_context(email_meta)
+                result.finish_context(failed_build)
         result.finish_processing_all()
 
     @staticmethod
-    def _create_email_meta(message):
+    def _create_email_meta(message: GmailMessage):
         build_url = UrlUtils.extract_from_str(message.subject)
         if not build_url:
             return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, None, None)

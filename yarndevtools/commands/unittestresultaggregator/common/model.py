@@ -1,4 +1,5 @@
 import datetime
+import logging
 from abc import ABC, abstractmethod
 from collections import UserDict
 from copy import copy
@@ -6,9 +7,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Dict
 
-from googleapiwrapper.gmail_domain import GmailMessage
 from pythoncommons.string_utils import auto_str, RegexUtils
 
+from yarndevtools.commands.unittestresultaggregator.common.aggregation import FailedBuildAbs
 from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCH_EXPRESSION_SEPARATOR,
     AGGREGATED_WS_POSTFIX,
@@ -17,7 +18,6 @@ from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCHTYPE_ALL_POSTFIX,
     MatchExpression,
 )
-import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -345,14 +345,6 @@ class FailedTestCase(FailedTestCaseAbs):
         return self._parameterized
 
 
-class FailedTestCaseFactory:
-    @staticmethod
-    def create_from_email(testcase, email_meta):
-        return FailedTestCaseFromEmail(testcase, email_meta)
-
-    # TODO yarndevtoolsv2 DB: Implement create_from_jenkins_report
-
-
 class TestFailuresByFilters(UserDict):
     def __init__(self, all_filters: TestCaseFilters):
         super().__init__()
@@ -432,8 +424,8 @@ class FinalAggregationResults:
     def get_aggregated_failures_by_filter(self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter):
         return self._aggregated.get_by_filters(tcf, *prop_filters)
 
-    def save_failed_build(self, email_meta):
-        self._failed_builds.add_build(email_meta)
+    def save_failed_build(self, failed_build: FailedBuildAbs):
+        self._failed_builds.add_build(failed_build)
 
 
 @dataclass
@@ -448,21 +440,26 @@ class EmailMetaData:
 
 @auto_str
 class FailedTestCaseFromEmail(FailedTestCase):
-    def __init__(self, full_name, email_meta: EmailMetaData):
+    def __init__(self, full_name, failed_build: FailedBuildAbs):
         super().__init__(full_name)
-        self.email_meta: EmailMetaData = email_meta
+        self._failed_build: FailedBuildAbs = failed_build
+
+    @classmethod
+    def create_from_failed_build(cls, testcase: str, failed_build: FailedBuildAbs):
+        return FailedTestCaseFromEmail(testcase, failed_build)
+        # TODO yarndevtoolsv2 DB: Implement create_from_jenkins_report
 
     def date(self) -> datetime.datetime:
-        return self.email_meta.date
+        return self._failed_build.date()
 
     def origin(self):
-        return self.email_meta.subject
+        return self._failed_build.origin()
 
     def build_url(self) -> str:
-        return self.email_meta.build_url
+        return self._failed_build.build_url()
 
     def job_name(self) -> str:
-        return self.email_meta.job_name
+        return self._failed_build.job_name()
 
 
 class EmailContentProcessor(ABC):

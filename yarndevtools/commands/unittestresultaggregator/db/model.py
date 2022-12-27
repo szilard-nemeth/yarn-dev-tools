@@ -100,8 +100,7 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
                 email_content.lines = merged_lines
                 self._db.save_email_content(email_content)
         else:
-            email_content = EmailContent.from_message(email_meta, lines)
-            self._db.save_email_content(email_content)
+            self._db.save_email_content(EmailContent.from_message(email_meta, lines))
 
     @staticmethod
     def _merge_lists(l1, l2, return_result_if_first_modified=False):

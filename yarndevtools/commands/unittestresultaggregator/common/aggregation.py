@@ -1,4 +1,5 @@
 import datetime
+from abc import ABC, abstractmethod
 from collections import defaultdict, UserDict
 from typing import List, Dict, Set, Tuple, Callable
 
@@ -265,28 +266,68 @@ class LatestTestFailures(UserDict):
         return start_date
 
 
+class FailedBuildAbs(ABC):
+    @classmethod
+    def create_from_email(cls, email_meta: EmailMetaData):
+        return FailedBuildFromEmail(email_meta)
+
+    @abstractmethod
+    def build_url(self) -> str:
+        pass
+
+    @abstractmethod
+    def job_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def origin(self):
+        pass
+
+    @abstractmethod
+    def date(self) -> datetime.datetime:
+        pass
+
+
+class FailedBuildFromEmail(FailedBuildAbs):
+    # TODO yarndevtoolsv2 DB: Cross check with FailedTestCaseFromEmail for common fields
+    def __init__(self, email_meta: EmailMetaData):
+        self._email_meta: EmailMetaData = email_meta
+
+    def build_url(self) -> str:
+        return self._email_meta.build_url
+
+    def job_name(self) -> str:
+        return self._email_meta.job_name
+
+    def origin(self):
+        return self._email_meta.subject
+
+    def date(self) -> datetime.datetime:
+        return self._email_meta.date
+
+
 class FailedBuilds:
     def __init__(self):
         self._by_build_url = defaultdict(list)
         self._by_date = defaultdict(list)
 
-    def add_build(self, email_meta: EmailMetaData):
-        self._by_build_url[email_meta.build_url].append(email_meta)
-        self._by_date[email_meta.job_name].append(email_meta)
+    def add_build(self, failed_build: FailedBuildAbs):
+        self._by_build_url[failed_build.build_url()].append(failed_build)
+        self._by_date[failed_build.job_name()].append(failed_build)
 
-    def get_by_dates(self) -> Dict[str, List[EmailMetaData]]:
+    def get_by_dates(self) -> Dict[str, List[FailedTestCaseAbs]]:
         res = {}
-        for k, email_metas in self._by_date.items():
-            res[k] = sorted(email_metas, key=lambda m: m.date, reverse=True)
+        for k, failed_builds in self._by_date.items():
+            res[k] = sorted(failed_builds, key=lambda m: m.date(), reverse=True)
         return res
 
     def get_dates(self) -> Dict[str, List[str]]:
-        res = {}
-        for k, email_metas in self._by_date.items():
-            dates = [em.date for em in email_metas]
+        result = {}
+        for job_name, failed_builds in self._by_date.items():
+            dates = [build.date() for build in failed_builds]
             dates = sorted(dates, reverse=True)
-            res[k] = [DateUtils.convert_datetime_to_str(dt, DATEFORMAT_DASH_COLON) for dt in dates]
-        return res
+            result[job_name] = [DateUtils.convert_datetime_to_str(dt, DATEFORMAT_DASH_COLON) for dt in dates]
+        return result
 
 
 class TestFailureComparison(UserDict):
