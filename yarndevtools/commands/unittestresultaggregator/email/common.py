@@ -47,7 +47,7 @@ DEFAULT_LINE_SEP = "\\r\\n"
 class EmailContentAggregationResults:
     # TODO yarndevtoolsv2 refactor: consider extracting common aggregation logic from this class / or create abstraction layer?
     def __init__(self, testcase_filter_defs: TestCaseFilterDefinitions, known_failures: KnownTestFailures):
-        self._match_all_lines: bool = self._should_match_all_lines(testcase_filter_defs)
+        self._match_all_testcases: bool = self._should_match_all_testcases(testcase_filter_defs)
         self._testcase_filter_defs: TestCaseFilterDefinitions = testcase_filter_defs
         self._known_failures: KnownTestFailures = known_failures
         self._aggregation_results: FinalAggregationResults = FinalAggregationResults(
@@ -55,25 +55,25 @@ class EmailContentAggregationResults:
         )
 
         # This is a temporary dict - usually for a context of a message
-        self._matched_lines_dict: Dict[TestCaseFilter, List[str]] = {}
+        self._matched_testcases: Dict[TestCaseFilter, List[str]] = {}
         self._all_matching_tcf = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
 
     @staticmethod
-    def _should_match_all_lines(testcase_filter_defs):
-        match_all_lines: bool = testcase_filter_defs.match_all_lines()
+    def _should_match_all_testcases(testcase_filter_defs):
+        match_all: bool = testcase_filter_defs.match_all_lines()
         LOG.info(
-            "**Matching all lines"
-            if match_all_lines
-            else f"**Matching lines with regex pattern: {testcase_filter_defs.match_expressions}"
+            "**Matching all testcases"
+            if match_all
+            else f"**Matching testcases with regex pattern: {testcase_filter_defs.match_expressions}"
         )
-        return match_all_lines
+        return match_all
 
     def start_new_context(self):
-        # Prepare matched_lines dict with all required empty-lists for ALL filters
-        self._matched_lines_dict = defaultdict(list)
+        # Prepare matched_testcases dict with all required empty-lists for ALL filters
+        self._matched_testcases = defaultdict(list)
         filters: TestCaseFilters = self._testcase_filter_defs.ALL_VALID_FILTERS
         for tcf in filters:
-            self._matched_lines_dict[tcf] = []
+            self._matched_testcases[tcf] = []
 
         # Do sanity check
         generated_keys = [tcf.key() for tcf in filters]
@@ -86,11 +86,11 @@ class EmailContentAggregationResults:
                 f"Unique keys: {unique_keys}."
             )
 
-    def match_line(self, line, job_name: str):
-        matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, job_name)
-        if self._match_all_lines or matches_any_pattern:
-            self._matched_lines_dict[self._all_matching_tcf].append(line)
-            self._add_match_to_matched_lines_dict(line, matched_expression, aggregate_values=[True, False])
+    def match_testcase(self, testcase: str, job_name: str):
+        matches_any_pattern, matched_expression = self._does_testcase_match_any_match_expression(testcase, job_name)
+        if self._match_all_testcases or matches_any_pattern:
+            self._matched_testcases[self._all_matching_tcf].append(testcase)
+            self._add_match(testcase, matched_expression)
 
             for aggr_filter in self._testcase_filter_defs.aggregate_filters:
                 if aggr_filter.val in job_name:
@@ -99,38 +99,43 @@ class EmailContentAggregationResults:
                         f"Jenkins job name: {job_name}"
                     )
                     tcf = TestCaseFilter(matched_expression, aggr_filter, aggregate=True)
-                    self._matched_lines_dict[tcf].append(line)
+                    self._matched_testcases[tcf].append(testcase)
 
-    def _add_match_to_matched_lines_dict(self, line, matched_expression, aggregate_values: List[bool]):
-        for aggr_value in aggregate_values:
+    def _add_match(self, testcase, matched_expression):
+        for aggr_value in [True, False]:
             tcf = TestCaseFilter(matched_expression, aggr_filter=None, aggregate=aggr_value)
-            self._matched_lines_dict[tcf].append(line)
+            self._matched_testcases[tcf].append(testcase)
 
-    def _does_line_match_any_match_expression(self, line, job_name: str) -> Tuple[bool, MatchExpression or None]:
+    def _does_testcase_match_any_match_expression(
+        self, testcase: str, job_name: str
+    ) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self._testcase_filter_defs.match_expressions:
             # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
-            if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
-                LOG.debug(f"[Jenkins job name: {job_name}] Matched line: {line}")
+            if RegexUtils.ensure_matches_pattern(testcase, match_expression.pattern):
+                # TODO Should be trace logged
+                LOG.debug(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
                 return True, match_expression
-        LOG.debug(f"Line did not match for any pattern: {line}")
-        # TODO in strict mode, unmatching lines should not be allowed
+
+        # TODO Should be trace logged
+        LOG.debug(f"Testcase did not match for any pattern: {testcase}")
+        # TODO in strict mode, unmatching testcases should not be allowed
         return False, None
 
     def finish_context(self, email_meta):
         LOG.info("Finishing context...")
-        LOG.debug(f"Keys of of matched lines: {self._matched_lines_dict.keys()}")
+        LOG.debug(f"Keys of of matched testcases: {self._matched_testcases.keys()}")
 
-        for tcf, matched_lines in self._matched_lines_dict.items():
-            if not matched_lines:
+        for tcf, matched_testcases in self._matched_testcases.items():
+            if not matched_testcases:
                 continue
-            for matched_line in matched_lines:
-                failed_testcase = FailedTestCaseFactory.create_from_email(matched_line, email_meta)
+            for matched_testcase in matched_testcases:
+                failed_testcase = FailedTestCaseFactory.create_from_email(matched_testcase, email_meta)
                 self._aggregation_results.add_failure(tcf, failed_testcase)
         self._aggregation_results.save_failed_build(email_meta)
 
         self._aggregation_results.print_keys()
         # Make sure temp dict is not used until next cycle
-        self._matched_lines_dict = None
+        self._matched_testcases = None
 
     def finish_processing_all(self):
         self.print_objects()
@@ -269,7 +274,7 @@ class EmailUtilsForAggregators:
                     if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {email_meta.subject}]")
                         continue
-                    result.match_line(line, email_meta.job_name)
+                    result.match_testcase(line, email_meta.job_name)
 
                 result.finish_context(email_meta)
         result.finish_processing_all()
