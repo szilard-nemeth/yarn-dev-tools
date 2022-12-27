@@ -35,8 +35,8 @@ class EmailContent(DBSerializable):
         self.lines = lines
 
     @staticmethod
-    def from_message(message: GmailMessage, lines: List[str]):
-        return EmailContent(message.msg_id, message.thread_id, message.date, message.subject, lines)
+    def from_message(email_meta: EmailMetaData, lines: List[str]):
+        return EmailContent(email_meta.message_id, email_meta.thread_id, email_meta.date, email_meta.subject, lines)
 
     def serialize(self):
         schema = EmailContentSchema()
@@ -88,8 +88,8 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
     def __init__(self, db: UTResultAggregatorDatabase):
         self._db = db
 
-    def process(self, message: GmailMessage, email_meta: EmailMetaData, lines: List[str]):
-        email_content = self._db.find_and_validate_email_content(message.msg_id)
+    def process(self, email_meta: EmailMetaData, lines: List[str]):
+        email_content = self._db.find_and_validate_email_content(email_meta.message_id)
         # TODO yarndevtoolsv2 DB: Save email meta to DB // store dates of emails as well to mongodb: Write start date, end date, missing dates between start and end date
         #  builds_with_dates = self._aggregation_results._failed_builds.get_dates()
         if email_content:
@@ -100,7 +100,7 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
                 email_content.lines = merged_lines
                 self._db.save_email_content(email_content)
         else:
-            email_content = EmailContent.from_message(message, lines)
+            email_content = EmailContent.from_message(email_meta, lines)
             self._db.save_email_content(email_content)
 
     @staticmethod
