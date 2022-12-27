@@ -94,7 +94,7 @@ class TestCdswRunner(unittest.TestCase):
 
     def _create_args_for_auto_discovery(self, dry_run: bool):
         args = Object()
-        args.debug = True
+        args.logging_debug = True
         args.verbose = True
         args.cmd_type = DEFAULT_COMMAND_TYPE.name
         args.dry_run = dry_run
@@ -108,7 +108,7 @@ class TestCdswRunner(unittest.TestCase):
     def _create_args_for_specified_file(config_file: str, dry_run: bool, override_cmd_type: str = None):
         args = Object()
         args.config_file = config_file
-        args.debug = True
+        args.logging_debug = True
         args.verbose = True
         if override_cmd_type:
             args.cmd_type = override_cmd_type

@@ -76,13 +76,23 @@ class ArgParser:
             help="More verbose log (including gitpython verbose logs)",
         )
         parser.add_argument(
-            "-d",
+            "-lt",
+            "--trace",
+            action="store_true",
+            dest="logging_trace",
+            default=False,
+            required=False,
+            help="Set log level to TRACE",
+        )
+
+        parser.add_argument(
+            "-ld",
             "--debug",
             action="store_true",
-            dest="debug",
-            default=None,
+            dest="logging_debug",
+            default=False,
             required=False,
-            help="Turn on console debug level logs",
+            help="Set log level to DEBUG",
         )
 
         args = parser.parse_args()

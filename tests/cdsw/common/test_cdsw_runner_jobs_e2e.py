@@ -112,7 +112,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
     def _create_args_for_specified_file(config_file: str, cmd_type: CommandType, dry_run: bool = True):
         args = Object()
         args.config_file = config_file
-        args.debug = True
+        args.logging_debug = True
         args.verbose = True
         args.cmd_type = cmd_type.name
         args.dry_run = dry_run
