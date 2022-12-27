@@ -1,41 +1,25 @@
 import logging
-from collections import defaultdict
 from pprint import pformat
-from typing import List, Dict, Tuple, Iterable
+from typing import List, Iterable
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
 from googleapiwrapper.gmail_domain import GmailMessage
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetWrapper
-from pythoncommons.string_utils import RegexUtils
 from pythoncommons.url_utils import UrlUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
-    AggregatedTestFailures,
-    LatestTestFailures,
-    TestFailureComparison,
-    KnownTestFailureChecker,
     FailedBuildAbs,
+    AggregationResults,
 )
 from yarndevtools.commands.unittestresultaggregator.common.model import (
-    BuildComparisonResult,
-    FailedTestCaseAggregated,
-    TestCaseFilter,
-    TestCaseFilterDefinitions,
-    FailedTestCaseAbs,
-    FinalAggregationResults,
     EmailMetaData,
-    TestCaseFilters,
-    AggregatedFailurePropertyFilter,
     EmailContentProcessor,
-    FailedTestCaseFromEmail,
 )
 from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,
-    MATCH_ALL_LINES_EXPRESSION,
-    MatchExpression,
 )
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
 from yarndevtools.common.common_model import JenkinsJobUrl
@@ -44,146 +28,6 @@ LOG = logging.getLogger(__name__)
 
 SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
-
-
-class EmailContentAggregationResults:
-    # TODO yarndevtoolsv2 refactor: consider extracting common aggregation logic from this class / or create abstraction layer?
-    def __init__(self, testcase_filter_defs: TestCaseFilterDefinitions, known_failures: KnownTestFailures):
-        self._match_all_testcases: bool = self._should_match_all_testcases(testcase_filter_defs)
-        self._testcase_filter_defs: TestCaseFilterDefinitions = testcase_filter_defs
-        self._known_failures: KnownTestFailures = known_failures
-        self._aggregation_results: FinalAggregationResults = FinalAggregationResults(
-            self._testcase_filter_defs.ALL_VALID_FILTERS
-        )
-
-        # This is a temporary dict - usually for a context of a message
-        self._matched_testcases: Dict[TestCaseFilter, List[str]] = {}
-        self._all_matching_tcf = TestCaseFilter(MATCH_ALL_LINES_EXPRESSION, None)
-
-    @staticmethod
-    def _should_match_all_testcases(testcase_filter_defs):
-        match_all: bool = testcase_filter_defs.match_all_lines()
-        LOG.info(
-            "**Matching all testcases"
-            if match_all
-            else f"**Matching testcases with regex pattern: {testcase_filter_defs.match_expressions}"
-        )
-        return match_all
-
-    def start_new_context(self):
-        # Prepare matched_testcases dict with all required empty-lists for ALL filters
-        self._matched_testcases = defaultdict(list)
-        filters: TestCaseFilters = self._testcase_filter_defs.ALL_VALID_FILTERS
-        for tcf in filters:
-            self._matched_testcases[tcf] = []
-
-        # Do sanity check
-        generated_keys = [tcf.key() for tcf in filters]
-        unique_keys = set(generated_keys)
-        if len(filters) != len(unique_keys):
-            raise ValueError(
-                "Mismatch in number of testcase filter objects and generated keys. "
-                f"Filters: {filters}, "
-                f"Generated keys: {generated_keys}, "
-                f"Unique keys: {unique_keys}."
-            )
-
-    def match_testcase(self, testcase: str, job_name: str):
-        matches_any_pattern, matched_expression = self._does_testcase_match_any_match_expression(testcase, job_name)
-        if self._match_all_testcases or matches_any_pattern:
-            self._matched_testcases[self._all_matching_tcf].append(testcase)
-            self._add_match(testcase, matched_expression)
-
-            for aggr_filter in self._testcase_filter_defs.aggregate_filters:
-                if aggr_filter.val in job_name:
-                    LOG.debug(
-                        f"Found match in Jenkins job name for aggregation filter '{aggr_filter}': "
-                        f"Jenkins job name: {job_name}"
-                    )
-                    tcf = TestCaseFilter(matched_expression, aggr_filter, aggregate=True)
-                    self._matched_testcases[tcf].append(testcase)
-
-    def _add_match(self, testcase, matched_expression):
-        for aggr_value in [True, False]:
-            tcf = TestCaseFilter(matched_expression, aggr_filter=None, aggregate=aggr_value)
-            self._matched_testcases[tcf].append(testcase)
-
-    def _does_testcase_match_any_match_expression(
-        self, testcase: str, job_name: str
-    ) -> Tuple[bool, MatchExpression or None]:
-        for match_expression in self._testcase_filter_defs.match_expressions:
-            # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
-            if RegexUtils.ensure_matches_pattern(testcase, match_expression.pattern):
-                # TODO Should be trace logged
-                LOG.debug(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
-                return True, match_expression
-
-        # TODO Should be trace logged
-        LOG.debug(f"Testcase did not match for any pattern: {testcase}")
-        # TODO in strict mode, unmatching testcases should not be allowed
-        return False, None
-
-    def finish_context(self, failed_build: FailedBuildAbs):
-        LOG.info("Finishing context...")
-        LOG.debug(f"Keys of of matched testcases: {self._matched_testcases.keys()}")
-
-        for tcf, matched_testcases in self._matched_testcases.items():
-            if not matched_testcases:
-                continue
-            for matched_testcase in matched_testcases:
-                failed_testcase = FailedTestCaseFromEmail.create_from_failed_build(matched_testcase, failed_build)
-                self._aggregation_results.add_failure(tcf, failed_testcase)
-        self._aggregation_results.save_failed_build(failed_build)
-
-        self._aggregation_results.print_keys()
-        # Make sure temp dict is not used until next cycle
-        self._matched_testcases = None
-
-    def finish_processing_all(self):
-        self.print_objects()
-
-        self._aggregation_results._aggregated = AggregatedTestFailures(
-            self._testcase_filter_defs.get_aggregate_filters(),
-            self._aggregation_results.test_failures,
-        )
-        self._aggregation_results._latest_failures = LatestTestFailures(
-            self._testcase_filter_defs.LATEST_FAILURE_FILTERS,
-            self._aggregation_results.test_failures,
-            only_last_results=True,
-        )
-        self._aggregation_results._comparison = TestFailureComparison(
-            self._testcase_filter_defs.LATEST_FAILURE_FILTERS,
-            self._aggregation_results.test_failures,
-            compare_with_last=True,
-        )
-        self._aggregation_results._known_failure_checker = KnownTestFailureChecker(
-            self._testcase_filter_defs.TESTCASES_TO_JIRAS_FILTERS,
-            self._known_failures,
-            self._aggregation_results._aggregated,
-        )
-
-    def get_failures(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
-        return self._aggregation_results.get_failure(tcf)
-
-    def get_latest_failures(self, tcf: TestCaseFilter) -> List[FailedTestCaseAbs]:
-        return self._aggregation_results.get_latest_failures(tcf)
-
-    def get_build_comparison(self, tcf: TestCaseFilter) -> BuildComparisonResult:
-        return self._aggregation_results.get_build_comparison(tcf)
-
-    def get_aggregated_testcases_by_filters(
-        self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter
-    ) -> List[FailedTestCaseAggregated]:
-        return self._aggregation_results.get_aggregated_failures_by_filter(tcf, *prop_filters)
-
-    def print_objects(self):
-        builds_with_dates = self._aggregation_results._failed_builds.get_dates()
-        LOG.debug("Printing available builds per job...")
-        for job_name, dates in builds_with_dates.items():
-            LOG.debug("Job: %s, builds: %s", job_name, dates)
-
-        # TODO should be trace logged
-        # LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
 
 
 class EmailUtilsForAggregators:
@@ -252,7 +96,7 @@ class EmailUtilsForAggregators:
     @staticmethod
     def process_gmail_results(
         query_result: ThreadQueryResults,
-        result: EmailContentAggregationResults,
+        result: AggregationResults,
         split_body_by: str,
         skip_lines_starting_with: List[str],
         email_content_processors: Iterable[EmailContentProcessor] = None,

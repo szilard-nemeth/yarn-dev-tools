@@ -13,8 +13,8 @@ from yarndevtools.commands.unittestresultaggregator.db.model import (
 from yarndevtools.commands.unittestresultaggregator.db.parser import UnitTestResultAggregatorDatabaseParserParams
 from yarndevtools.commands.unittestresultaggregator.email.common import (
     EmailUtilsForAggregators,
-    EmailContentAggregationResults,
 )
+from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
 from yarndevtools.commands.unittestresultaggregator.email.config import UnitTestResultAggregatorConfig
 from yarndevtools.commands.unittestresultaggregator.email.parser import UnitTestResultAggregatorEmailParserParams
 from yarndevtools.commands.unittestresultaggregator.representation import UnitTestResultOutputManager, SummaryGenerator
@@ -77,13 +77,13 @@ class UnitTestResultAggregator(CommandAbs):
         if (
             self.config.execution_mode == ExecutionMode.DB_ONLY
         ):  # TODO should use self.config.should_use_db later and fetch emails first
-            result = EmailContentAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
+            result = AggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
             self._joiner.join(result)
 
         if self.config.should_fetch_mails:
             gmail_query_result = self._email_utils.perform_gmail_query()
             # TODO yarndevtoolv2 DB: Create abstract version of EmailContentAggregationResults with 2 implementations: Email, DB
-            result = EmailContentAggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
+            result = AggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
             self._email_utils.process_gmail_results(
                 gmail_query_result,
                 result,
