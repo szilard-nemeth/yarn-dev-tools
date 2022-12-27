@@ -347,8 +347,8 @@ class FailedTestCase(FailedTestCaseAbs):
 
 class FailedTestCaseFactory:
     @staticmethod
-    def create_from_email(matched_line, email_meta):
-        return FailedTestCaseFromEmail(matched_line, email_meta)
+    def create_from_email(testcase, email_meta):
+        return FailedTestCaseFromEmail(testcase, email_meta)
 
     # TODO yarndevtoolsv2 DB: Implement create_from_jenkins_report
 
