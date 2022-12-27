@@ -86,17 +86,17 @@ class EmailContentAggregationResults:
                 f"Unique keys: {unique_keys}."
             )
 
-    def match_line(self, line, mail_subject: str):
-        matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, mail_subject)
+    def match_line(self, line, job_name: str):
+        matches_any_pattern, matched_expression = self._does_line_match_any_match_expression(line, job_name)
         if self._match_all_lines or matches_any_pattern:
             self._matched_lines_dict[self._all_matching_tcf].append(line)
             self._add_match_to_matched_lines_dict(line, matched_expression, aggregate_values=[True, False])
 
             for aggr_filter in self._testcase_filter_defs.aggregate_filters:
-                if aggr_filter.val in mail_subject:
+                if aggr_filter.val in job_name:
                     LOG.debug(
-                        f"Found matching email subject for aggregation filter '{aggr_filter}': "
-                        f"Subject: {mail_subject}"
+                        f"Found match in Jenkins job name for aggregation filter '{aggr_filter}': "
+                        f"Jenkins job name: {job_name}"
                     )
                     tcf = TestCaseFilter(matched_expression, aggr_filter, aggregate=True)
                     self._matched_lines_dict[tcf].append(line)
@@ -106,11 +106,11 @@ class EmailContentAggregationResults:
             tcf = TestCaseFilter(matched_expression, aggr_filter=None, aggregate=aggr_value)
             self._matched_lines_dict[tcf].append(line)
 
-    def _does_line_match_any_match_expression(self, line, mail_subject: str) -> Tuple[bool, MatchExpression or None]:
+    def _does_line_match_any_match_expression(self, line, job_name: str) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self._testcase_filter_defs.match_expressions:
             # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
             if RegexUtils.ensure_matches_pattern(line, match_expression.pattern):
-                LOG.debug(f"Matched line: {line} [Mail subject: {mail_subject}]")
+                LOG.debug(f"[Jenkins job name: {job_name}] Matched line: {line}")
                 return True, match_expression
         LOG.debug(f"Line did not match for any pattern: {line}")
         # TODO in strict mode, unmatching lines should not be allowed
@@ -269,7 +269,7 @@ class EmailUtilsForAggregators:
                     if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
                         LOG.warning(f"Skipping invalid line: {line} [Mail subject: {email_meta.subject}]")
                         continue
-                    result.match_line(line, email_meta.subject)
+                    result.match_line(line, email_meta.job_name)
 
                 result.finish_context(email_meta)
         result.finish_processing_all()
