@@ -5,7 +5,7 @@ from googleapiwrapper.gmail_domain import GmailMessage
 from marshmallow import fields, Schema, EXCLUDE
 
 from yarndevtools.commands.unittestresultaggregator.common.model import EmailContentProcessor, EmailMetaData
-from yarndevtools.commands.unittestresultaggregator.email.common import EmailContentAggregationResults
+from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
 from yarndevtools.common.common_model import JobBuildData, MONGO_COLLECTION_JENKINS_REPORTS, JobBuildDataSchema
 from yarndevtools.common.db import MongoDbConfig, Database, DBSerializable
 
@@ -122,7 +122,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
     def __init__(self, db: UTResultAggregatorDatabase):
         self._db = db
 
-    def join(self, result: EmailContentAggregationResults):
+    def join(self, result: AggregationResults):
         # TODO yarndevtoolsv2 DB: Invoke aggregation logic here
         # build_data = self._db.find_and_validate_all_build_data()
         # email_content = self._db.find_and_validate_all_email_content()
