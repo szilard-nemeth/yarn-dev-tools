@@ -84,6 +84,24 @@ def run():
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args()
 
+    logging_config = configure_logging(args)
+
+    cmd_type = CommandType.from_str(args.command)
+    if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
+        for log_level, log_file_path in logging_config.log_file_paths.items():
+            log_level_name = logging.getLevelName(log_level)
+            link_name = cmd_type.log_link_name + "-" + log_level_name
+            FileUtils.create_symlink_path_dir(link_name, log_file_path, YarnDevToolsConfig.PROJECT_OUT_ROOT)
+    else:
+        LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
+
+    # Call the handler function
+    args.func(args, parser=parser)
+    end_time = time.time()
+    LOG.info("Execution of script took %d seconds", end_time - start_time)
+
+
+def configure_logging(args):
     # TODO use this value later with SimpleLoggingSetup.init_logger instead of passing bool flags
     # log_level = determine_logging_level(args)
     debug = getattr(args, "logging_debug", False)
@@ -102,19 +120,19 @@ def run():
     )
     # LOG.trace("test trace")
     LOG.info("Logging to files: %s", logging_config.log_file_paths)
-    cmd_type = CommandType.from_str(args.command)
-    if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        for log_level, log_file_path in logging_config.log_file_paths.items():
-            log_level_name = logging.getLevelName(log_level)
-            link_name = cmd_type.log_link_name + "-" + log_level_name
-            FileUtils.create_symlink_path_dir(link_name, log_file_path, YarnDevToolsConfig.PROJECT_OUT_ROOT)
-    else:
-        LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
+    configure_loggers(args)
 
-    # Call the handler function
-    args.func(args, parser=parser)
-    end_time = time.time()
-    LOG.info("Execution of script took %d seconds", end_time - start_time)
+    return logging_config
+
+
+def configure_loggers(args):
+    googleapiwrapper_level = getattr(args, "logging_level_googleapiwrapper", None)
+    pythoncommons_level = getattr(args, "logging_level_pythoncommons", None)
+
+    if googleapiwrapper_level:
+        logging.getLogger("googleapiwrapper").setLevel(googleapiwrapper_level)
+    if pythoncommons_level:
+        logging.getLogger("pythoncommons").setLevel(pythoncommons_level)
 
 
 def determine_logging_level(args):
