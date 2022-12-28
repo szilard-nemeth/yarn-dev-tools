@@ -46,7 +46,7 @@ class TableOutputFormat(Enum):
     REGULAR_WITH_COLORS = "regular_colorized"
 
 
-# TODO yarndevtoolsv2 representation: search for 'subject' in this class
+# TODO yarndevtoolsv2 representation: search for 'subject' in this class for email-specific things
 class TableDataType(Enum):
     MATCHED_LINES = "matched lines per thread"
     MATCHED_LINES_AGGREGATED = "matched lines aggregated"
@@ -72,9 +72,9 @@ class OutputFormatRules:
     truncate_origin_with: str or None
 
 
-# TODO Get rid of this later?
 @auto_str
 class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
+    # TODO Get rid of this class later?
     def __init__(
         self,
         data_type: TableDataType = None,
