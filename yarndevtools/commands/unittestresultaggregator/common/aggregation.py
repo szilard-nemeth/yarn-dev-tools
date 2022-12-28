@@ -1,5 +1,6 @@
 import datetime
 from collections import defaultdict, UserDict
+from pprint import pformat
 from typing import List, Dict, Set, Tuple, Callable
 
 from pythoncommons.date_utils import DateUtils, DATEFORMAT_DASH_COLON
@@ -47,7 +48,7 @@ class _PreAggregationPerFilter:
                 self.failure_freqs[tc_key] = 1
                 self.latest_failures[tc_key] = testcase.date()
             else:
-                LOG.debug(
+                LOG.trace(
                     "Found already stored testcase key. "
                     f"Current testcase: {testcase}, "
                     f"Previously stored testcase failure freq: {self.failure_freqs[tc_key]}, "
@@ -68,11 +69,8 @@ class _PropertyModifierAggregatorPerFilter:
     def perform(self):
         for tc_key, testcases in self._pre_aggr.failures_per_tc_key.items():
             if len(testcases) > 1:
-                # TODO tracelogging: Should be trace logged?
-                LOG.debug(f"Found testcase objects that will be aggregated: {testcases}")
-                # LOG.debug(
-                #     "Found %d testcase objects that will be aggregated for TC key: %s", len(testcases), tc_key
-                # )
+                LOG.trace("Found testcase objects that will be aggregated: %s", pformat(testcases))
+                LOG.debug("Found %d testcase objects that will be aggregated for TC key: %s", len(testcases), tc_key)
                 self._sanity_checker(testcases)
 
             # Full name is N/A because it's ambiguous between testcases.
@@ -487,9 +485,9 @@ class AggregationResults:
     def _should_match_all_testcases(testcase_filter_defs):
         match_all: bool = testcase_filter_defs.match_all_lines()
         LOG.info(
-            "**Matching all testcases"
+            "Matching *ALL* testcases"
             if match_all
-            else f"**Matching testcases with regex pattern: {testcase_filter_defs.match_expressions}"
+            else f"Matching testcases with regex pattern: {testcase_filter_defs.match_expressions}"
         )
         return match_all
 
@@ -512,7 +510,7 @@ class AggregationResults:
             )
 
     def match_testcases(self, testcases: List[str], job_name: str):
-        # TODO yarndevtoolsv2 DB: This could receive FailedTestCaseAbs if that class had failed_testcases field or property
+        # TODO yarndevtoolsv2 DB: This could receive FailedBuildAbs if that class had failed_testcases field or property
         for testcase in testcases:
             self._match_testcase(testcase, job_name)
 
@@ -524,7 +522,7 @@ class AggregationResults:
 
             for aggr_filter in self._testcase_filter_defs.aggregate_filters:
                 if aggr_filter.val in job_name:
-                    LOG.debug(
+                    LOG.trace(
                         f"Found match in Jenkins job name for aggregation filter '{aggr_filter}': "
                         f"Jenkins job name: {job_name}"
                     )
@@ -542,18 +540,16 @@ class AggregationResults:
         for match_expression in self._testcase_filter_defs.match_expressions:
             # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
             if RegexUtils.ensure_matches_pattern(testcase, match_expression.pattern):
-                # TODO tracelogging: Should be trace logged
-                LOG.debug(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
+                LOG.trace(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
                 return True, match_expression
 
-        # TODO tracelogging: Should be trace logged
-        LOG.debug(f"Testcase did not match for any pattern: {testcase}")
+        LOG.trace(f"Testcase did not match for any pattern: {testcase}")
         # TODO in strict mode, unmatching testcases should not be allowed
         return False, None
 
     def finish_context(self, failed_build: FailedBuildAbs):
-        LOG.info("Finishing context...")
-        LOG.debug(f"Keys of of matched testcases: {self._matched_testcases.keys()}")
+        LOG.debug("Finishing context for failed build: %s", failed_build.short_str())
+        LOG.trace(f"Testcase filters in context: {self._matched_testcases.keys()}")
 
         for tcf, matched_testcases in self._matched_testcases.items():
             if not matched_testcases:
@@ -610,5 +606,4 @@ class AggregationResults:
         for job_name, dates in builds_with_dates.items():
             LOG.debug("Job: %s, builds: %s", job_name, dates)
 
-        # TODO tracelogging: should be trace logged
-        # LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
+        LOG.trace(f"All failed testcase objects: {self._aggregation_results.test_failures}")

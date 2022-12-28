@@ -82,8 +82,11 @@ class EmailUtilsForAggregators:
             f"--> Number of threads: {query_result.no_of_threads}\n"
             f"--> Number of messages: {query_result.no_of_messages}\n"
             f"--> Number of unique subjects: {len(query_result.unique_subjects)}\n"
-            f"--> Unique subjects: {pformat(query_result.unique_subjects)}"
         )
+        LOG.trace(
+            f"Gmail thread query result summary:\n" f"--> Unique subjects: {pformat(query_result.unique_subjects)}"
+        )
+
         return query_result
 
     @staticmethod
@@ -141,7 +144,7 @@ class EmailUtilsForAggregators:
             if EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
                 filtered_lines.append(line)
             else:
-                LOG.warning(f"Skipping invalid line: {line} [Mail subject: {failed_build.origin()}]")
+                LOG.trace(f"Skipping invalid line: {line} [Mail subject: {failed_build.origin()}]")
         return filtered_lines
 
     @staticmethod

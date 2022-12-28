@@ -33,6 +33,7 @@ class EmailMetaData:
     build_number: str
 
 
+@auto_str
 class FailedBuildAbs(ABC):
     @classmethod
     def create_from_email(cls, email_meta: EmailMetaData):
@@ -55,12 +56,19 @@ class FailedBuildAbs(ABC):
         pass
 
     @abstractmethod
+    def build_number(self) -> str:
+        pass
+
+    @abstractmethod
     def origin(self):
         pass
 
     @abstractmethod
     def date(self) -> datetime.datetime:
         pass
+
+    def short_str(self):
+        return f"Job: {self.job_name()}\n" f"build number: {self.build_number()}"
 
 
 class FailedBuildFromDbEmailContent(FailedBuildAbs):
@@ -74,6 +82,9 @@ class FailedBuildFromDbEmailContent(FailedBuildAbs):
 
     def job_name(self) -> str:
         return self._email_content.job_name
+
+    def build_number(self) -> str:
+        return self._email_content.build_number
 
     def origin(self):
         return self._email_content.subject
@@ -92,6 +103,9 @@ class FailedBuildFromDbJobBuildData(FailedBuildAbs):
     def job_name(self) -> str:
         return self._job_build_data.job_name
 
+    def build_number(self) -> str:
+        return self._job_build_data.build_number
+
     def origin(self):
         return "failed jenkins build"
 
@@ -108,6 +122,9 @@ class FailedBuildFromEmail(FailedBuildAbs):
 
     def job_name(self) -> str:
         return self._email_meta.job_name
+
+    def build_number(self) -> str:
+        return self._email_meta.build_number
 
     def origin(self):
         return self._email_meta.subject
@@ -420,7 +437,7 @@ class FailedTestCase(FailedTestCaseAbs):
             self._parameterized = True
             self._simple_name = match.group(1)
             self._parameter: str = match.group(2)
-            LOG.info(
+            LOG.debug(
                 f"Found parameterized testcase failure: {self._full_name}. "
                 f"Simple testcase name: {self._simple_name}, "
                 f"Parameter: {self._parameter}"
@@ -465,7 +482,7 @@ class TestFailuresByFilters(UserDict):
         )
         if tc_key in self._testcase_cache:
             stored_testcase = self._testcase_cache[tc_key]
-            # TODO tracelogging: printout seems to be wrong
+            # TODO logging: printout seems to be wrong
             LOG.trace(
                 f"Found already existing testcase key: {tc_key}. "
                 f"Value: {stored_testcase}, "

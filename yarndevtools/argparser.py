@@ -95,6 +95,26 @@ class ArgParser:
             help="Set log level to DEBUG",
         )
 
+        parser.add_argument(
+            "-lp",
+            "--logging-pythoncommons",
+            dest="logging_level_pythoncommons",
+            type=str,
+            default=None,
+            required=False,
+            help="Set log level of pythoncommons",
+        )
+
+        parser.add_argument(
+            "-lg",
+            "--logging-googleapiwrapper",
+            dest="logging_level_googleapiwrapper",
+            type=str,
+            default=None,
+            required=False,
+            help="Set log level of google api wrapper",
+        )
+
         args = parser.parse_args()
         if args.verbose:
             print("Args: " + str(args))
