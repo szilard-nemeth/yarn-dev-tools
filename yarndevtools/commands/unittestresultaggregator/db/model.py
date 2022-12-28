@@ -203,6 +203,16 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
 
         result.finish_processing()
 
+        # TODO yarndevtoolsv2: These 2 should be the same, printout should not happen in this class!
+        #  DEBUG why these 2 dicts are not equal!
+        #  Save email meta to DB // store dates of emails as well to mongodb:
+        #  Write start date, end date, missing dates between start and end date
+        #  builds_with_dates = self._aggregation_results._failed_builds.get_dates()
+        #  Cross-check date-related functionality with JenkinsJobBuildDataAndEmailContentJoiner
+        dates1 = result._aggregation_results._failed_builds.get_dates()
+        dates2 = self.dates
+        assert dates1 == dates2, "Date dictionaries are not equal"
+
     def _is_aggregator_only(self, job_name, build_number):
         if job_name in self.aggregator_only and build_number in self.aggregator_only[job_name]:
             return True

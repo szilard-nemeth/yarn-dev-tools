@@ -270,28 +270,24 @@ class LatestTestFailures(UserDict):
 class FailedBuilds:
     def __init__(self):
         self._by_build_url = defaultdict(list)
-        self._by_date = defaultdict(list)
+        self._by_job_name = defaultdict(list)
 
     def add_build(self, failed_build: FailedBuildAbs):
         self._by_build_url[failed_build.build_url()].append(failed_build)
-        self._by_date[failed_build.job_name()].append(failed_build)
+        self._by_job_name[failed_build.job_name()].append(failed_build)
 
     def get_by_dates(self) -> Dict[str, List[FailedTestCaseAbs]]:
         res = {}
-        for k, failed_builds in self._by_date.items():
+        for k, failed_builds in self._by_job_name.items():
             res[k] = sorted(failed_builds, key=lambda m: m.date(), reverse=True)
         return res
 
-    def get_dates(self) -> Dict[str, List[str]]:
-        # TODO yarndevtoolsv2 DB: Save email meta to DB // store dates of emails as well to mongodb: Write start date, end date, missing dates between start and end date
-        #  builds_with_dates = self._aggregation_results._failed_builds.get_dates()
-        #  Cross-check date-related functionality with JenkinsJobBuildDataAndEmailContentJoiner
-
+    def get_dates(self) -> Dict[str, List[datetime.datetime]]:
         result = {}
-        for job_name, failed_builds in self._by_date.items():
+        for job_name, failed_builds in self._by_job_name.items():
             dates = [build.date() for build in failed_builds]
             dates = sorted(dates, reverse=True)
-            result[job_name] = [DateUtils.convert_datetime_to_str(dt, DATEFORMAT_DASH_COLON) for dt in dates]
+            result[job_name] = dates
         return result
 
 
@@ -602,9 +598,15 @@ class AggregationResults:
         return self._aggregation_results.get_aggregated_failures_by_filter(tcf, *prop_filters)
 
     def print_objects(self):
-        builds_with_dates = self._aggregation_results._failed_builds.get_dates()
+        builds_with_dates_orig = self._aggregation_results._failed_builds.get_dates()
+        builds_with_dates_str = {}
+        for job_name, datetimes in builds_with_dates_orig.items():
+            builds_with_dates_str[job_name] = [
+                DateUtils.convert_datetime_to_str(dt, DATEFORMAT_DASH_COLON) for dt in datetimes
+            ]
+
         LOG.debug("Printing available builds per job...")
-        for job_name, dates in builds_with_dates.items():
+        for job_name, dates in builds_with_dates_str.items():
             LOG.debug("Job: %s, builds: %s", job_name, dates)
 
         LOG.trace(f"All failed testcase objects: {self._aggregation_results.test_failures}")
