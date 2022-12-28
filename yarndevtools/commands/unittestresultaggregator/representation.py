@@ -26,7 +26,6 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     FailedTestCaseAggregated,
     TestCaseFilter,
     FailedTestCaseAbs,
-    FailedTestCaseFromEmail,
     EmailMetaData,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
@@ -615,10 +614,10 @@ class DataConverter:
                 out_fmt, testcase, truncate_origin_by_length, truncate_testcase_by_length
             )
 
-            # TODO yarndevtoolsv2 DB: dirty hack!
+            # TODO yarndevtoolsv2 DB: dirty hack to get email fields
             message_id, thread_id = "", ""
-            if isinstance(testcase, FailedTestCaseFromEmail):
-                failed_build: FailedBuildFromEmail = getattr(testcase, "_failed_build")
+            failed_build: FailedBuildFromEmail = getattr(testcase, "_failed_build")
+            if isinstance(failed_build, FailedBuildFromEmail):
                 email_meta: EmailMetaData = getattr(failed_build, "_email_meta")
                 message_id, thread_id = email_meta.message_id, email_meta.thread_id
 
