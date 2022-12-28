@@ -30,6 +30,7 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     EmailMetaData,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
+    FailedBuildFromEmail,
 )
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
 from yarndevtools.constants import (
@@ -129,6 +130,7 @@ class SummaryGenerator:
     def process_aggregation_results(
         cls, aggr_results: AggregationResults, query_result: ThreadQueryResults, config, output_manager
     ):
+        # TODO yarndevtoolsv2 DB: GSheet should be a secondary 'DB', all data should be written to mongoDB first
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
             # truncate = self.config.operation_mode == OperationMode.PRINT
@@ -618,7 +620,8 @@ class DataConverter:
             # TODO yarndevtoolsv2 DB: dirty hack!
             message_id, thread_id = "", ""
             if isinstance(testcase, FailedTestCaseFromEmail):
-                email_meta: EmailMetaData = getattr(testcase, "email_meta")
+                failed_build: FailedBuildFromEmail = getattr(testcase, "_failed_build")
+                email_meta: EmailMetaData = getattr(failed_build, "_email_meta")
                 message_id, thread_id = email_meta.message_id, email_meta.thread_id
 
             data_table.append(

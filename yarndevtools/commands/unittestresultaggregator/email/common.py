@@ -11,12 +11,12 @@ from pythoncommons.url_utils import UrlUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
-    FailedBuildAbs,
     AggregationResults,
 )
 from yarndevtools.commands.unittestresultaggregator.common.model import (
     EmailMetaData,
     EmailContentProcessor,
+    FailedBuildAbs,
 )
 from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,
@@ -104,8 +104,14 @@ class EmailUtilsForAggregators:
         if not email_content_processors:
             email_content_processors = []
 
+        skipped_emails: List[EmailMetaData] = []
         for message in query_result.threads.messages:
             email_meta = EmailUtilsForAggregators._create_email_meta(message)
+
+            if not email_meta.build_url or not email_meta.job_name:
+                skipped_emails.append(email_meta)
+                continue
+
             failed_build = FailedBuildAbs.create_from_email(email_meta)
             LOG.debug("Processing message: %s", failed_build.origin())
 
@@ -113,25 +119,43 @@ class EmailUtilsForAggregators:
                 lines = msg_part.body_data.split(split_body_by)
                 lines = list(map(lambda line: line.strip(), lines))
 
+                # Email content processor is invoked with original lines from email (except stripping)
                 for processor in email_content_processors:
                     processor.process(email_meta, lines)
 
                 result.start_new_context()
-                for line in lines:
-                    if not EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
-                        LOG.warning(f"Skipping invalid line: {line} [Mail subject: {failed_build.origin()}]")
-                        continue
-                    result.match_testcase(line, failed_build.job_name())
+                filtered_lines = EmailUtilsForAggregators._filter_lines(failed_build, lines, skip_lines_starting_with)
+                result.match_testcases(filtered_lines, failed_build.job_name())
 
                 result.finish_context(failed_build)
-        result.finish_processing_all()
+        result.finish_processing()
+        LOG.warning(
+            "The following emails were skipped because build URL or Jenkins job name was empty: %s",
+            pformat(skipped_emails),
+        )
+
+    @staticmethod
+    def _filter_lines(failed_build, lines, skip_lines_starting_with):
+        filtered_lines = []
+        for line in lines:
+            if EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
+                filtered_lines.append(line)
+            else:
+                LOG.warning(f"Skipping invalid line: {line} [Mail subject: {failed_build.origin()}]")
+        return filtered_lines
 
     @staticmethod
     def _create_email_meta(message: GmailMessage):
         build_url = UrlUtils.extract_from_str(message.subject)
         if not build_url:
-            return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, None, None)
+            return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, None, None, None)
         jenkins_url = JenkinsJobUrl(build_url)
         return EmailMetaData(
-            message.msg_id, message.thread_id, message.subject, message.date, build_url, jenkins_url.job_name
+            message.msg_id,
+            message.thread_id,
+            message.subject,
+            message.date,
+            build_url,
+            jenkins_url.job_name,
+            jenkins_url.build_number,
         )

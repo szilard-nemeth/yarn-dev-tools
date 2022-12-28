@@ -82,7 +82,6 @@ class UnitTestResultAggregator(CommandAbs):
 
         if self.config.should_fetch_mails:
             gmail_query_result = self._email_utils.perform_gmail_query()
-            # TODO yarndevtoolv2 DB: Create abstract version of EmailContentAggregationResults with 2 implementations: Email, DB
             result = AggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
             self._email_utils.process_gmail_results(
                 gmail_query_result,
@@ -99,5 +98,4 @@ class UnitTestResultAggregator(CommandAbs):
         output_manager = UnitTestResultOutputManager(
             self.config.session_dir, self.config.console_mode, self._known_test_failures.gsheet_wrapper
         )
-        # TODO yarndevtoolsv2 DB: Gsheet should be a secondary 'DB', all data should be written to mongoDB first
         SummaryGenerator.process_aggregation_results(aggr_results, query_result, self.config, output_manager)
