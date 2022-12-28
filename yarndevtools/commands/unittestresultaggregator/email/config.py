@@ -13,8 +13,11 @@ from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCHTYPE_ALL_POSTFIX,
     ExecutionMode,
 )
-from yarndevtools.commands.unittestresultaggregator.email.common import DEFAULT_LINE_SEP, LOG
+from yarndevtools.commands.unittestresultaggregator.email.common import DEFAULT_LINE_SEP
 from yarndevtools.common.db import MongoDbConfig
+import logging
+
+LOG = logging.getLogger(__name__)
 
 
 class UnitTestResultAggregatorConfig:

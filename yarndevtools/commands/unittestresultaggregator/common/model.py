@@ -9,7 +9,6 @@ from typing import List, Dict
 
 from pythoncommons.string_utils import auto_str, RegexUtils
 
-from yarndevtools.commands.unittestresultaggregator.common.aggregation import FailedBuildAbs
 from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCH_EXPRESSION_SEPARATOR,
     AGGREGATED_WS_POSTFIX,
@@ -18,8 +17,103 @@ from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCHTYPE_ALL_POSTFIX,
     MatchExpression,
 )
+from yarndevtools.common.common_model import JobBuildData
 
 LOG = logging.getLogger(__name__)
+
+
+@dataclass
+class EmailMetaData:
+    message_id: str
+    thread_id: str
+    subject: str
+    date: datetime.datetime
+    build_url: str
+    job_name: str
+    build_number: str
+
+
+class FailedBuildAbs(ABC):
+    @classmethod
+    def create_from_email(cls, email_meta: EmailMetaData):
+        return FailedBuildFromEmail(email_meta)
+
+    @classmethod
+    def create_from_email_content(cls, email_content):
+        return FailedBuildFromDbEmailContent(email_content)
+
+    @classmethod
+    def create_from_job_build_data(cls, job_build_data: JobBuildData):
+        return FailedBuildFromDbJobBuildData(job_build_data)
+
+    @abstractmethod
+    def build_url(self) -> str:
+        pass
+
+    @abstractmethod
+    def job_name(self) -> str:
+        pass
+
+    @abstractmethod
+    def origin(self):
+        pass
+
+    @abstractmethod
+    def date(self) -> datetime.datetime:
+        pass
+
+
+class FailedBuildFromDbEmailContent(FailedBuildAbs):
+    # TODO yarndevtoolsv2 DB: Cross check with FailedTestCaseFromEmail for common fields
+    #  check 3 classes: FailedBuildFromDbEmailContent, FailedBuildFromDbJobBuildData, FailedBuildFromEmail
+    def __init__(self, email_content):
+        self._email_content = email_content
+
+    def build_url(self) -> str:
+        return self._email_content.build_url
+
+    def job_name(self) -> str:
+        return self._email_content.job_name
+
+    def origin(self):
+        return self._email_content.subject
+
+    def date(self) -> datetime.datetime:
+        return self._email_content.date
+
+
+class FailedBuildFromDbJobBuildData(FailedBuildAbs):
+    def __init__(self, job_build_data: JobBuildData):
+        self._job_build_data: JobBuildData = job_build_data
+
+    def build_url(self) -> str:
+        return self._job_build_data.build_url
+
+    def job_name(self) -> str:
+        return self._job_build_data.job_name
+
+    def origin(self):
+        return "failed jenkins build"
+
+    def date(self) -> datetime.datetime:
+        return self._job_build_data.build_datetime
+
+
+class FailedBuildFromEmail(FailedBuildAbs):
+    def __init__(self, email_meta: EmailMetaData):
+        self._email_meta: EmailMetaData = email_meta
+
+    def build_url(self) -> str:
+        return self._email_meta.build_url
+
+    def job_name(self) -> str:
+        return self._email_meta.job_name
+
+    def origin(self):
+        return self._email_meta.subject
+
+    def date(self) -> datetime.datetime:
+        return self._email_meta.date
 
 
 class AggregatedFailurePropertyFilter(Enum):
@@ -371,7 +465,7 @@ class TestFailuresByFilters(UserDict):
         )
         if tc_key in self._testcase_cache:
             stored_testcase = self._testcase_cache[tc_key]
-            # TODO printout seems to be wrong
+            # TODO tracelogging: printout seems to be wrong
             LOG.trace(
                 f"Found already existing testcase key: {tc_key}. "
                 f"Value: {stored_testcase}, "
@@ -428,16 +522,6 @@ class FinalAggregationResults:
         self._failed_builds.add_build(failed_build)
 
 
-@dataclass
-class EmailMetaData:
-    message_id: str
-    thread_id: str
-    subject: str
-    date: datetime.datetime
-    build_url: str
-    job_name: str
-
-
 @auto_str
 class FailedTestCaseFromEmail(FailedTestCase):
     def __init__(self, full_name, failed_build: FailedBuildAbs):
@@ -447,7 +531,6 @@ class FailedTestCaseFromEmail(FailedTestCase):
     @classmethod
     def create_from_failed_build(cls, testcase: str, failed_build: FailedBuildAbs):
         return FailedTestCaseFromEmail(testcase, failed_build)
-        # TODO yarndevtoolsv2 DB: Implement create_from_jenkins_report
 
     def date(self) -> datetime.datetime:
         return self._failed_build.date()

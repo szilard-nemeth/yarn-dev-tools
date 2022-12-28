@@ -1,5 +1,4 @@
 import datetime
-from abc import ABC, abstractmethod
 from collections import defaultdict, UserDict
 from typing import List, Dict, Set, Tuple, Callable
 
@@ -18,10 +17,10 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     BuildComparisonResult,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
-    EmailMetaData,
     TestCaseFilterDefinitions,
     FinalAggregationResults,
     FailedTestCaseFromEmail,
+    FailedBuildAbs,
 )
 import logging
 
@@ -271,46 +270,6 @@ class LatestTestFailures(UserDict):
         return start_date
 
 
-class FailedBuildAbs(ABC):
-    @classmethod
-    def create_from_email(cls, email_meta: EmailMetaData):
-        return FailedBuildFromEmail(email_meta)
-
-    @abstractmethod
-    def build_url(self) -> str:
-        pass
-
-    @abstractmethod
-    def job_name(self) -> str:
-        pass
-
-    @abstractmethod
-    def origin(self):
-        pass
-
-    @abstractmethod
-    def date(self) -> datetime.datetime:
-        pass
-
-
-class FailedBuildFromEmail(FailedBuildAbs):
-    # TODO yarndevtoolsv2 DB: Cross check with FailedTestCaseFromEmail for common fields
-    def __init__(self, email_meta: EmailMetaData):
-        self._email_meta: EmailMetaData = email_meta
-
-    def build_url(self) -> str:
-        return self._email_meta.build_url
-
-    def job_name(self) -> str:
-        return self._email_meta.job_name
-
-    def origin(self):
-        return self._email_meta.subject
-
-    def date(self) -> datetime.datetime:
-        return self._email_meta.date
-
-
 class FailedBuilds:
     def __init__(self):
         self._by_build_url = defaultdict(list)
@@ -552,7 +511,12 @@ class AggregationResults:
                 f"Unique keys: {unique_keys}."
             )
 
-    def match_testcase(self, testcase: str, job_name: str):
+    def match_testcases(self, testcases: List[str], job_name: str):
+        # TODO yarndevtoolsv2 DB: This could receive FailedTestCaseAbs if that class had failed_testcases field or property
+        for testcase in testcases:
+            self._match_testcase(testcase, job_name)
+
+    def _match_testcase(self, testcase: str, job_name: str):
         matches_any_pattern, matched_expression = self._does_testcase_match_any_match_expression(testcase, job_name)
         if self._match_all_testcases or matches_any_pattern:
             self._matched_testcases[self._all_matching_tcf].append(testcase)
@@ -603,7 +567,7 @@ class AggregationResults:
         # Make sure temp dict is not used until next cycle
         self._matched_testcases = None
 
-    def finish_processing_all(self):
+    def finish_processing(self):
         self.print_objects()
 
         self._aggregation_results._aggregated = AggregatedTestFailures(

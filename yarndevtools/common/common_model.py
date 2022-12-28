@@ -272,5 +272,15 @@ class JenkinsJobUrl:
 
         segments = self._raw_url.split("/job/")
         if len(segments) != 2:
-            raise ValueError("Cannot parse job name from build URL: {}".format(self._raw_url))
-        self.job_name = segments[1].split("/")[0]
+            raise ValueError("Cannot parse job name from Jenkins build URL: {}".format(self._raw_url))
+
+        job_name_and_number = list(filter(lambda i: i, segments[1].split("/")))
+        if len(job_name_and_number) != 2:
+            raise ValueError(
+                "Unexpected Jenkins build URL: {}. Job name and number should be 2-sized list: {}".format(
+                    self._raw_url, job_name_and_number
+                )
+            )
+
+        self.job_name = job_name_and_number[0]
+        self.build_number = job_name_and_number[1]
