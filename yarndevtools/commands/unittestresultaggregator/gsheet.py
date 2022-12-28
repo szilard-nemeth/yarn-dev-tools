@@ -18,8 +18,6 @@ class KnownTestFailureInJira:
 
 
 class KnownTestFailures:
-    # TODO yarndevtoolsv2 DB: this should be capable of using DB instead of Google Sheets
-    # TODO yarndevtoolsv2 DB: Data should be written to mongoDB once with a separate transformer runnable?
     def __init__(self, gsheet_wrapper=None, gsheet_jira_table=None):
         self._testcases_to_jiras: List[KnownTestFailureInJira] = []
         self.gsheet_wrapper = gsheet_wrapper

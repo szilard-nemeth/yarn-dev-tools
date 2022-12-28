@@ -108,8 +108,6 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
 
     def process(self, email_meta: EmailMetaData, lines: List[str]):
         email_content = self._db.find_and_validate_email_content(email_meta.message_id)
-        # TODO yarndevtoolsv2 DB: Save email meta to DB // store dates of emails as well to mongodb: Write start date, end date, missing dates between start and end date
-        #  builds_with_dates = self._aggregation_results._failed_builds.get_dates()
         if email_content:
             merged_lines: List[str] = DBWriterEmailContentProcessor._merge_lists(
                 email_content.lines, lines, return_result_if_first_modified=True
@@ -216,7 +214,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
         return False
 
     @staticmethod
-    # TODO Make this more abstract and move to pythoncommons?
+    # TODO yarndevtoolsv2 DB: Make this more abstract and move to pythoncommons?
     def _get_only_in_first_dict(dic_a, dic_b):
         res: Dict[str, Set[str]] = {}
         for job_name, inner_dict in dic_a.items():
@@ -231,7 +229,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
         return res
 
     @staticmethod
-    # TODO Make this more abstract and move to pythoncommons?
+    # TODO yarndevtoolsv2 DB: this more abstract and move to pythoncommons?
     def _get_from_both_dicts(dic_a, dic_b):
         res: Dict[str, Set[str]] = {}
         for job_name, inner_dict in dic_a.items():
