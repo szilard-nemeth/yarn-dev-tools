@@ -508,7 +508,6 @@ class AggregationResults:
             )
 
     def match_testcases(self, failed_build: FailedBuildAbs):
-        # TODO yarndevtoolsv2 DB: This could receive FailedBuildAbs if that class had failed_testcases field or property
         for testcase in failed_build.failed_testcases():
             self._match_testcase(testcase, failed_build.job_name())
 
@@ -536,8 +535,7 @@ class AggregationResults:
         self, testcase: str, job_name: str
     ) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self._testcase_filter_defs.match_expressions:
-            # TODO yarndevtoolsv2 DB: this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
-            if RegexUtils.ensure_matches_pattern(testcase, match_expression.pattern):
+            if match_expression.regex_obj.match(testcase):
                 LOG.trace(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
                 return True, match_expression
 
