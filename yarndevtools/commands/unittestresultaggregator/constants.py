@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from enum import Enum
 
@@ -27,11 +28,14 @@ VALID_OPERATION_MODES = [OperationMode.PRINT, OperationMode.GSHEET]
 REGEX_EVERYTHING = ".*"
 
 
-@dataclass(eq=True, frozen=True)
+@dataclass(eq=True, unsafe_hash=True)
 class MatchExpression:
     alias: str
     original_expression: str
     pattern: str
+
+    def __post_init__(self):
+        self.regex_obj = re.compile(self.pattern)
 
 
 MATCH_ALL_LINES_EXPRESSION: MatchExpression = MatchExpression("Failed testcases", REGEX_EVERYTHING, REGEX_EVERYTHING)
