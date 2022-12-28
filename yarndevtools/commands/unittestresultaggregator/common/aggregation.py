@@ -507,10 +507,10 @@ class AggregationResults:
                 f"Unique keys: {unique_keys}."
             )
 
-    def match_testcases(self, testcases: List[str], job_name: str):
+    def match_testcases(self, failed_build: FailedBuildAbs):
         # TODO yarndevtoolsv2 DB: This could receive FailedBuildAbs if that class had failed_testcases field or property
-        for testcase in testcases:
-            self._match_testcase(testcase, job_name)
+        for testcase in failed_build.failed_testcases():
+            self._match_testcase(testcase, failed_build.job_name())
 
     def _match_testcase(self, testcase: str, job_name: str):
         matches_any_pattern, matched_expression = self._does_testcase_match_any_match_expression(testcase, job_name)

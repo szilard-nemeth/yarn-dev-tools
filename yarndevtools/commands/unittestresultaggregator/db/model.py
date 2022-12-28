@@ -30,6 +30,7 @@ class EmailContentSchema(Schema):
 
 
 class EmailContent(DBSerializable):
+    # TODO yarndevtoolsv2: Consider merging this with class: EmailMetaData?
     def __init__(self, msg_id, thread_id, date, subject, build_url, job_name, build_number, lines):
         self.msg_id = msg_id
         self.thread_id = thread_id
@@ -41,7 +42,7 @@ class EmailContent(DBSerializable):
         self.lines = lines
 
     @staticmethod
-    def from_message(email_meta: EmailMetaData, lines: List[str]):
+    def from_message(email_meta: EmailMetaData):
         return EmailContent(
             email_meta.message_id,
             email_meta.thread_id,
@@ -50,7 +51,7 @@ class EmailContent(DBSerializable):
             email_meta.build_url,
             email_meta.job_name,
             email_meta.build_number,
-            lines,
+            email_meta.lines,
         )
 
     def serialize(self):
@@ -106,17 +107,17 @@ class DBWriterEmailContentProcessor(EmailContentProcessor):
     def __init__(self, db: UTResultAggregatorDatabase):
         self._db = db
 
-    def process(self, email_meta: EmailMetaData, lines: List[str]):
+    def process(self, email_meta: EmailMetaData):
         email_content = self._db.find_and_validate_email_content(email_meta.message_id)
         if email_content:
             merged_lines: List[str] = DBWriterEmailContentProcessor._merge_lists(
-                email_content.lines, lines, return_result_if_first_modified=True
+                email_content.lines, email_meta.lines, return_result_if_first_modified=True
             )
             if merged_lines:
                 email_content.lines = merged_lines
                 self._db.save_email_content(email_content)
         else:
-            self._db.save_email_content(EmailContent.from_message(email_meta, lines))
+            self._db.save_email_content(EmailContent.from_message(email_meta))
 
     @staticmethod
     def _merge_lists(l1, l2, return_result_if_first_modified=False):
@@ -186,11 +187,12 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
 
         self._print_stats()
 
+        # TODO avoid code duplication
         for job_name, inner_dict in self.aggregator_data_dict.items():
             for build_number, job_build_data in inner_dict.items():
                 item: EmailContent = self.aggregator_data_dict[job_name][build_number]
                 failed_build: FailedBuildAbs = FailedBuildAbs.create_from_email_content(item)
-                self._process_failed_build(result, failed_build, item.lines)
+                self._process_failed_build(result, failed_build)
                 processed.add((job_name, build_number))
 
         for job_name, inner_dict in self.fetcher_data_dict.items():
@@ -199,7 +201,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
                 if key not in processed:
                     item: JobBuildData = self.fetcher_data_dict[job_name][build_number]
                     failed_build: FailedBuildAbs = FailedBuildAbs.create_from_job_build_data(item)
-                    self._process_failed_build(result, failed_build, job_build_data.testcases)
+                    self._process_failed_build(result, failed_build)
 
         result.finish_processing()
 
@@ -287,9 +289,8 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
             )
 
     @staticmethod
-    def _process_failed_build(result: AggregationResults, failed_build: FailedBuildAbs, testcases: List[str]):
+    def _process_failed_build(result: AggregationResults, failed_build: FailedBuildAbs):
         LOG.debug("Processing failed build: %s", failed_build.origin())
-        testcases = list(map(lambda line: line.strip(), testcases))
         result.start_new_context()
-        result.match_testcases(testcases, failed_build.job_name())
+        result.match_testcases(failed_build)
         result.finish_context(failed_build)
