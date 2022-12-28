@@ -90,13 +90,6 @@ class EmailUtilsForAggregators:
         return query_result
 
     @staticmethod
-    def check_if_line_is_valid(line, skip_lines_starting_with):
-        for skip_str in skip_lines_starting_with:
-            if line.startswith(skip_str):
-                return False
-        return True
-
-    @staticmethod
     def process_gmail_results(
         query_result: ThreadQueryResults,
         result: AggregationResults,
@@ -109,28 +102,23 @@ class EmailUtilsForAggregators:
 
         skipped_emails: List[EmailMetaData] = []
         for message in query_result.threads.messages:
-            email_meta = EmailUtilsForAggregators._create_email_meta(message)
-
+            email_meta = EmailUtilsForAggregators._create_email_meta(message, split_body_by)
             if not email_meta.build_url or not email_meta.job_name:
                 skipped_emails.append(email_meta)
                 continue
 
-            failed_build = FailedBuildAbs.create_from_email(email_meta)
+            failed_build: FailedBuildAbs = FailedBuildAbs.create_from_email(email_meta)
             LOG.debug("Processing message: %s", failed_build.origin())
 
-            for msg_part in message.get_all_plain_text_parts():
-                lines = msg_part.body_data.split(split_body_by)
-                lines = list(map(lambda line: line.strip(), lines))
+            # Email content processor is invoked with original lines from email (except stripping)
+            for processor in email_content_processors:
+                processor.process(email_meta)
 
-                # Email content processor is invoked with original lines from email (except stripping)
-                for processor in email_content_processors:
-                    processor.process(email_meta, lines)
+            result.start_new_context()
+            failed_build.filter_testcases(skip_lines_starting_with)
+            result.match_testcases(failed_build)
+            result.finish_context(failed_build)
 
-                result.start_new_context()
-                filtered_lines = EmailUtilsForAggregators._filter_lines(failed_build, lines, skip_lines_starting_with)
-                result.match_testcases(filtered_lines, failed_build.job_name())
-
-                result.finish_context(failed_build)
         result.finish_processing()
         LOG.warning(
             "The following emails were skipped because build URL or Jenkins job name was empty: %s",
@@ -138,26 +126,27 @@ class EmailUtilsForAggregators:
         )
 
     @staticmethod
-    def _filter_lines(failed_build, lines, skip_lines_starting_with):
-        filtered_lines = []
-        for line in lines:
-            if EmailUtilsForAggregators.check_if_line_is_valid(line, skip_lines_starting_with):
-                filtered_lines.append(line)
-            else:
-                LOG.trace(f"Skipping invalid line: {line} [Mail subject: {failed_build.origin()}]")
-        return filtered_lines
+    def _create_email_meta(message: GmailMessage, split_body_by: str):
+        # Extract all lines first (from all message parts)
+        all_lines = []
+        for msg_part in message.get_all_plain_text_parts():
+            lines = msg_part.body_data.split(split_body_by)
+            lines = list(map(lambda line: line.strip(), lines))
+            all_lines.extend(lines)
 
-    @staticmethod
-    def _create_email_meta(message: GmailMessage):
         build_url = UrlUtils.extract_from_str(message.subject)
         if not build_url:
-            return EmailMetaData(message.msg_id, message.thread_id, message.subject, message.date, None, None, None)
+            return EmailMetaData(
+                message.msg_id, message.thread_id, message.subject, message.date, all_lines, None, None, None
+            )
+
         jenkins_url = JenkinsJobUrl(build_url)
         return EmailMetaData(
             message.msg_id,
             message.thread_id,
             message.subject,
             message.date,
+            all_lines,
             build_url,
             jenkins_url.job_name,
             jenkins_url.build_number,

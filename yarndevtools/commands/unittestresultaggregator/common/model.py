@@ -28,6 +28,7 @@ class EmailMetaData:
     thread_id: str
     subject: str
     date: datetime.datetime
+    lines: List[str]
     build_url: str
     job_name: str
     build_number: str
@@ -35,6 +36,10 @@ class EmailMetaData:
 
 @auto_str
 class FailedBuildAbs(ABC):
+    def __init__(self, failed_testcases: List[str]):
+        stripped_failed_testcases = list(map(lambda line: line.strip(), failed_testcases))
+        self._failed_testcases = stripped_failed_testcases
+
     @classmethod
     def create_from_email(cls, email_meta: EmailMetaData):
         return FailedBuildFromEmail(email_meta)
@@ -46,6 +51,12 @@ class FailedBuildAbs(ABC):
     @classmethod
     def create_from_job_build_data(cls, job_build_data: JobBuildData):
         return FailedBuildFromDbJobBuildData(job_build_data)
+
+    def failed_testcases(self) -> List[str]:
+        return self._failed_testcases
+
+    def filter_testcases(self, skip_lines_starting_with: List[str]):
+        pass
 
     @abstractmethod
     def build_url(self) -> str:
@@ -73,6 +84,7 @@ class FailedBuildAbs(ABC):
 
 class FailedBuildFromDbEmailContent(FailedBuildAbs):
     def __init__(self, email_content):
+        super().__init__(self._email_content.lines)
         self._email_content = email_content
 
     def build_url(self) -> str:
@@ -93,6 +105,7 @@ class FailedBuildFromDbEmailContent(FailedBuildAbs):
 
 class FailedBuildFromDbJobBuildData(FailedBuildAbs):
     def __init__(self, job_build_data: JobBuildData):
+        super().__init__(self._job_build_data.testcases)
         self._job_build_data: JobBuildData = job_build_data
 
     def build_url(self) -> str:
@@ -113,7 +126,24 @@ class FailedBuildFromDbJobBuildData(FailedBuildAbs):
 
 class FailedBuildFromEmail(FailedBuildAbs):
     def __init__(self, email_meta: EmailMetaData):
+        super().__init__(self._email_meta.lines)
         self._email_meta: EmailMetaData = email_meta
+
+    def filter_testcases(self, skip_lines_starting_with: List[str]):
+        filtered_lines = []
+        for testcase in self._failed_testcases:
+            if self._check_if_line_is_valid(testcase, skip_lines_starting_with):
+                filtered_lines.append(testcase)
+            else:
+                LOG.trace(f"Skipping invalid line: {testcase} [Mail subject: {self.origin()}]")
+        super()._failed_testcases = filtered_lines
+
+    @staticmethod
+    def _check_if_line_is_valid(line, skip_lines_starting_with):
+        for skip_str in skip_lines_starting_with:
+            if line.startswith(skip_str):
+                return False
+        return True
 
     def build_url(self) -> str:
         return self._email_meta.build_url
@@ -552,5 +582,5 @@ class FinalAggregationResults:
 
 class EmailContentProcessor(ABC):
     @abstractmethod
-    def process(self, email_meta: EmailMetaData, lines: List[str]):
+    def process(self, email_meta: EmailMetaData):
         pass
