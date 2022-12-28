@@ -283,6 +283,10 @@ class FailedBuilds:
         return res
 
     def get_dates(self) -> Dict[str, List[str]]:
+        # TODO yarndevtoolsv2 DB: Save email meta to DB // store dates of emails as well to mongodb: Write start date, end date, missing dates between start and end date
+        #  builds_with_dates = self._aggregation_results._failed_builds.get_dates()
+        #  Cross-check date-related functionality with JenkinsJobBuildDataAndEmailContentJoiner
+
         result = {}
         for job_name, failed_builds in self._by_date.items():
             dates = [build.date() for build in failed_builds]
@@ -467,7 +471,6 @@ class KnownTestFailureChecker:
 
 
 class AggregationResults:
-    # TODO yarndevtoolsv2 refactor: consider extracting common aggregation logic from this class / or create abstraction layer?
     def __init__(self, testcase_filter_defs: TestCaseFilterDefinitions, known_failures: KnownTestFailures):
         self._match_all_testcases: bool = self._should_match_all_testcases(testcase_filter_defs)
         self._testcase_filter_defs: TestCaseFilterDefinitions = testcase_filter_defs
@@ -537,13 +540,12 @@ class AggregationResults:
         self, testcase: str, job_name: str
     ) -> Tuple[bool, MatchExpression or None]:
         for match_expression in self._testcase_filter_defs.match_expressions:
-            # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
+            # TODO yarndevtoolsv2 DB: this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
             if RegexUtils.ensure_matches_pattern(testcase, match_expression.pattern):
                 LOG.trace(f"[Jenkins job name: {job_name}] Matched testcase: {testcase}")
                 return True, match_expression
 
         LOG.trace(f"Testcase did not match for any pattern: {testcase}")
-        # TODO in strict mode, unmatching testcases should not be allowed
         return False, None
 
     def finish_context(self, failed_build: FailedBuildAbs):

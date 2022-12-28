@@ -46,7 +46,6 @@ class TableOutputFormat(Enum):
     REGULAR_WITH_COLORS = "regular_colorized"
 
 
-# TODO yarndevtoolsv2 representation: search for 'subject' in this class for email-specific things
 class TableDataType(Enum):
     MATCHED_LINES = "matched lines per thread"
     MATCHED_LINES_AGGREGATED = "matched lines aggregated"
@@ -74,7 +73,7 @@ class OutputFormatRules:
 
 @auto_str
 class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
-    # TODO Get rid of this class later?
+    # TODO refactor: Get rid of this class later?
     def __init__(
         self,
         data_type: TableDataType = None,
@@ -101,7 +100,7 @@ class UnitTestResultAggregatorTableRenderingConfig(TableRenderingConfig):
         self.table_types = table_types
         self.out_fmt = out_fmt
         self.simple_mode = simple_mode
-        # TODO Debug when these can be None: self.data_type, self.testcase_filters
+        # TODO refactor: Debug when these can be None: self.data_type, self.testcase_filters
         LOG.info(
             f"Testcase filters for data type '{self.data_type}': {[tcf.short_str() for tcf in self.testcase_filters]}"
         )
@@ -130,7 +129,6 @@ class SummaryGenerator:
     def process_aggregation_results(
         cls, aggr_results: AggregationResults, query_result: ThreadQueryResults, config, output_manager
     ):
-        # TODO yarndevtoolsv2 DB: GSheet should be a secondary 'DB', all data should be written to mongoDB first
         if config.summary_mode != SummaryMode.NONE.value:
             # TODO fix
             # truncate = self.config.operation_mode == OperationMode.PRINT
@@ -424,7 +422,7 @@ class SummaryGenerator:
         )
 
 
-# TODO Try to extract this to common class (pythoncommons?), BranchComparator should move to this implementation later.
+# TODO refactor: Try to extract this to common class (pythoncommons?), BranchComparator should move to this implementation later.
 class TableRenderer:
     def __init__(self):
         self._tables: Dict[str, List[GenericTableWithHeader]] = {}
@@ -601,7 +599,7 @@ class UnitTestResultOutputManager:
         )
 
 
-# TODO This should be a simple renderer class without any data business logic
+# TODO refactor: This should be a simple renderer class without any data business logic
 class DataConverter:
     ORIGIN_MAX_LENGTH = 50
     LINE_MAX_LENGTH = 80
