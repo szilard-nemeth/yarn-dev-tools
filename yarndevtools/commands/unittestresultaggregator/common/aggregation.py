@@ -20,8 +20,8 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     AggregatedFailurePropertyFilter,
     TestCaseFilterDefinitions,
     FinalAggregationResults,
-    FailedTestCaseFromEmail,
     FailedBuildAbs,
+    FailedTestCase,
 )
 import logging
 
@@ -556,7 +556,7 @@ class AggregationResults:
             if not matched_testcases:
                 continue
             for matched_testcase in matched_testcases:
-                failed_testcase = FailedTestCaseFromEmail.create_from_failed_build(matched_testcase, failed_build)
+                failed_testcase = FailedTestCase(matched_testcase, failed_build)
                 self._aggregation_results.add_failure(tcf, failed_testcase)
         self._aggregation_results.save_failed_build(failed_build)
 

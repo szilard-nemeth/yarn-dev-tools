@@ -72,8 +72,6 @@ class FailedBuildAbs(ABC):
 
 
 class FailedBuildFromDbEmailContent(FailedBuildAbs):
-    # TODO yarndevtoolsv2 DB: Cross check with FailedTestCaseFromEmail for common fields
-    #  check 3 classes: FailedBuildFromDbEmailContent, FailedBuildFromDbJobBuildData, FailedBuildFromEmail
     def __init__(self, email_content):
         self._email_content = email_content
 
@@ -252,7 +250,7 @@ class TestCaseFilter:
 class TestCaseKey:
     tc_filter: TestCaseFilter
     full_name: str
-    origin: str or None = None  # Can be email subject or ... ?
+    origin: str or None = None
 
     @staticmethod
     def create_from(
@@ -423,8 +421,9 @@ class TestCaseFilterDefinitions:
 
 @auto_str
 class FailedTestCase(FailedTestCaseAbs):
-    def __init__(self, full_name, simple_name=None, parameterized=False, parameter=None):
+    def __init__(self, full_name, failed_build: FailedBuildAbs, simple_name=None, parameterized=False, parameter=None):
         self._full_name = full_name
+        self._failed_build: FailedBuildAbs = failed_build
         self._simple_name = simple_name
         self._parameterized = parameterized
         self._parameter = parameter
@@ -454,6 +453,18 @@ class FailedTestCase(FailedTestCaseAbs):
 
     def parameterized(self) -> bool:
         return self._parameterized
+
+    def date(self) -> datetime.datetime:
+        return self._failed_build.date()
+
+    def origin(self):
+        return self._failed_build.origin()
+
+    def build_url(self) -> str:
+        return self._failed_build.build_url()
+
+    def job_name(self) -> str:
+        return self._failed_build.job_name()
 
 
 class TestFailuresByFilters(UserDict):
@@ -537,29 +548,6 @@ class FinalAggregationResults:
 
     def save_failed_build(self, failed_build: FailedBuildAbs):
         self._failed_builds.add_build(failed_build)
-
-
-@auto_str
-class FailedTestCaseFromEmail(FailedTestCase):
-    def __init__(self, full_name, failed_build: FailedBuildAbs):
-        super().__init__(full_name)
-        self._failed_build: FailedBuildAbs = failed_build
-
-    @classmethod
-    def create_from_failed_build(cls, testcase: str, failed_build: FailedBuildAbs):
-        return FailedTestCaseFromEmail(testcase, failed_build)
-
-    def date(self) -> datetime.datetime:
-        return self._failed_build.date()
-
-    def origin(self):
-        return self._failed_build.origin()
-
-    def build_url(self) -> str:
-        return self._failed_build.build_url()
-
-    def job_name(self) -> str:
-        return self._failed_build.job_name()
 
 
 class EmailContentProcessor(ABC):
