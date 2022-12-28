@@ -86,12 +86,11 @@ class _PropertyModifierAggregatorPerFilter:
             full_name = "N/A" if parameterized_more_testcases else arbitrary_tc.full_name()
             parameter = arbitrary_tc.parameter() if parameterized else None
 
-            # TODO Why parameterized is hardcoded to True?
             self.aggregated_test_failures.append(
                 FailedTestCaseAggregated(
                     full_name=full_name,
                     simple_name=simple_name,
-                    parameterized=True,
+                    parameterized=parameterized,
                     parameter=parameter,
                     latest_failure=self._pre_aggr.latest_failures[tc_key],
                     failure_freq=self._pre_aggr.failure_freqs[tc_key],
