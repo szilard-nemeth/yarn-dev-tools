@@ -262,7 +262,6 @@ class TestCaseFilter:
         return self.aggr_filter.val
 
     def _generate_key(self):
-        # TODO yarndevtoolsv2 refactor: Consider converting this a hashable object and drop str
         if self.match_expr == MATCH_ALL_LINES_EXPRESSION:
             return MATCHTYPE_ALL_POSTFIX + f"_{AGGREGATED_WS_POSTFIX}" if self.aggregate else MATCHTYPE_ALL_POSTFIX
 
