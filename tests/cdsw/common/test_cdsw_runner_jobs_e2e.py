@@ -461,7 +461,6 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             }
         )
 
-        # TODO yarndevtoolsv2 DB: Add testcase for UNIT_TEST_RESULT_AGGREGATOR_DB
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
         cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
         cdsw_runner = FakeCdswRunner(cdsw_runner_config)

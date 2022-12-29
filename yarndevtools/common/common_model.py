@@ -107,7 +107,7 @@ class JobBuildData(DBSerializable):
         build_data = JobBuildData(**normal_keys_dict)
 
         # process special vars
-        # TODO yarndevtoolsv2 DB: How to reconstruct filtered testcases?
+        # TODO yarndevtoolsv2 DB: How to reconstruct filtered testcases? Is this required?
         build_data.unmatched_testcases = dic["unmatched_testcases"]
         build_data.mail_sent = dic["mail_sent"]
         build_data.sent_date = dic["sent_date"]
