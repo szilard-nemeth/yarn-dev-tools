@@ -34,10 +34,6 @@ class FailedBuildAbs(ABC):
         return FailedBuildFromEmail(email_content)
 
     @classmethod
-    def create_from_email_content(cls, email_content):
-        return FailedBuildFromDbEmailContent(email_content)
-
-    @classmethod
     def create_from_job_build_data(cls, job_build_data: JobBuildData):
         return FailedBuildFromDbJobBuildData(job_build_data)
 
@@ -71,27 +67,6 @@ class FailedBuildAbs(ABC):
         return f"Job: {self.job_name()}\n" f"build number: {self.build_number()}"
 
 
-class FailedBuildFromDbEmailContent(FailedBuildAbs):
-    def __init__(self, email_content):
-        super().__init__(self._email_content.lines)
-        self._email_content = email_content
-
-    def build_url(self) -> str:
-        return self._email_content.build_url
-
-    def job_name(self) -> str:
-        return self._email_content.job_name
-
-    def build_number(self) -> str:
-        return self._email_content.build_number
-
-    def origin(self):
-        return self._email_content.subject
-
-    def date(self) -> datetime.datetime:
-        return self._email_content.date
-
-
 class FailedBuildFromDbJobBuildData(FailedBuildAbs):
     def __init__(self, job_build_data: JobBuildData):
         super().__init__(self._job_build_data.testcases)
@@ -114,7 +89,6 @@ class FailedBuildFromDbJobBuildData(FailedBuildAbs):
 
 
 class FailedBuildFromEmail(FailedBuildAbs):
-    # TODO yarndevtoolsv2: Class is almost the same as FailedBuildFromDbEmailContent
     def __init__(self, email_content: EmailContent):
         super().__init__(email_content.lines)
         self._email_content: EmailContent = email_content

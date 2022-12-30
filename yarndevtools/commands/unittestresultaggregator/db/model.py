@@ -179,7 +179,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
         for job_name, inner_dict in self.aggregator_data_dict.items():
             for build_number, job_build_data in inner_dict.items():
                 item: EmailContent = self.aggregator_data_dict[job_name][build_number]
-                failed_build: FailedBuildAbs = FailedBuildAbs.create_from_email_content(item)
+                failed_build: FailedBuildAbs = FailedBuildAbs.create_from_email(item)
                 self._process_failed_build(result, failed_build)
                 processed.add((job_name, build_number))
 
