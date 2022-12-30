@@ -1,4 +1,3 @@
-from yarndevtools.commands.unittestresultaggregator.constants import SummaryMode
 from yarndevtools.commands_common import GSheetArguments, ArgumentParserUtils, MongoArguments
 
 

@@ -7,7 +7,7 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.unittestresultaggregator.common.model import TestCaseFilterDefinitions, TestCaseFilter
-from yarndevtools.commands.unittestresultaggregator.email.common import DEFAULT_LINE_SEP
+from yarndevtools.commands.unittestresultaggregator.email.processor import DEFAULT_LINE_SEP
 from yarndevtools.common.db import MongoDbConfig
 from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,

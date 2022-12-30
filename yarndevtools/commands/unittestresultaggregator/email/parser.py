@@ -1,7 +1,7 @@
 from typing import Callable
 
 from yarndevtools.commands.unittestresultaggregator.constants import SummaryMode
-from yarndevtools.commands.unittestresultaggregator.email.common import DEFAULT_LINE_SEP
+from yarndevtools.commands.unittestresultaggregator.email.processor import DEFAULT_LINE_SEP
 from yarndevtools.commands_common import GSheetArguments, MongoArguments, ArgumentParserUtils
 from yarndevtools.common.shared_command_utils import CommandType
 

@@ -5,13 +5,13 @@ from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.unittestresultaggregator.common.parser import UnitTestResultAggregatorCommonParserParams
 from yarndevtools.commands.unittestresultaggregator.constants import ExecutionMode
-from yarndevtools.commands.unittestresultaggregator.db.model import (
-    UTResultAggregatorDatabase,
+from yarndevtools.commands.unittestresultaggregator.db.persistence import (
     DBWriterEmailContentProcessor,
-    JenkinsJobBuildDataAndEmailContentJoiner,
+    UTResultAggregatorDatabase,
 )
+from yarndevtools.commands.unittestresultaggregator.db.aggregation import JenkinsJobBuildDataAndEmailContentAggregator
 from yarndevtools.commands.unittestresultaggregator.db.parser import UnitTestResultAggregatorDatabaseParserParams
-from yarndevtools.commands.unittestresultaggregator.email.common import (
+from yarndevtools.commands.unittestresultaggregator.email.processor import (
     EmailUtilsForAggregators,
 )
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
@@ -36,7 +36,7 @@ class UnitTestResultAggregator(CommandAbs):
 
         if self.config.should_use_db:
             self._db = UTResultAggregatorDatabase(self.config.mongo_config)
-            self._joiner = JenkinsJobBuildDataAndEmailContentJoiner(self._db)
+            self._db_aggregator = JenkinsJobBuildDataAndEmailContentAggregator(self._db)
 
     @staticmethod
     def create_parser(subparsers):
@@ -75,7 +75,7 @@ class UnitTestResultAggregator(CommandAbs):
 
         if self.config.execution_mode == ExecutionMode.DB_ONLY:
             result = AggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
-            self._joiner.join(result)
+            self._db_aggregator.aggregate(result)
 
         if self.config.should_fetch_mails:
             gmail_query_result = self._email_utils.perform_gmail_query()
