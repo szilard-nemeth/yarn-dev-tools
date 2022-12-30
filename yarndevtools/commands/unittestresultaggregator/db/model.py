@@ -5,11 +5,6 @@ from typing import List, Dict, Set, Tuple
 from marshmallow import fields, Schema, EXCLUDE
 from pythoncommons.date_utils import DateUtils
 
-from yarndevtools.commands.unittestresultaggregator.common.model import (
-    EmailContentProcessor,
-    EmailMetaData,
-    FailedBuildAbs,
-)
 from yarndevtools.common.common_model import JobBuildData, MONGO_COLLECTION_JENKINS_REPORTS, JobBuildDataSchema
 from yarndevtools.common.db import MongoDbConfig, Database, DBSerializable
 import logging
@@ -30,7 +25,6 @@ class EmailContentSchema(Schema):
 
 
 class EmailContent(DBSerializable):
-    # TODO yarndevtoolsv2: Consider merging this with class: EmailMetaData?
     def __init__(self, msg_id, thread_id, date, subject, build_url, job_name, build_number, lines):
         self.msg_id = msg_id
         self.thread_id = thread_id
@@ -40,19 +34,6 @@ class EmailContent(DBSerializable):
         self.job_name = job_name
         self.build_number = build_number
         self.lines = lines
-
-    @staticmethod
-    def from_message(email_meta: EmailMetaData):
-        return EmailContent(
-            email_meta.message_id,
-            email_meta.thread_id,
-            email_meta.date,
-            email_meta.subject,
-            email_meta.build_url,
-            email_meta.job_name,
-            email_meta.build_number,
-            email_meta.lines,
-        )
 
     def serialize(self):
         schema = EmailContentSchema()
@@ -103,21 +84,28 @@ class UTResultAggregatorDatabase(Database):
         return result
 
 
+# TODO yarndevtoolsv2: imports
+from yarndevtools.commands.unittestresultaggregator.common.model import (
+    EmailContentProcessor,
+    FailedBuildAbs,
+)
+
+
 class DBWriterEmailContentProcessor(EmailContentProcessor):
     def __init__(self, db: UTResultAggregatorDatabase):
         self._db = db
 
-    def process(self, email_meta: EmailMetaData):
-        email_content = self._db.find_and_validate_email_content(email_meta.message_id)
+    def process(self, new_email_content: EmailContent):
+        email_content = self._db.find_and_validate_email_content(new_email_content.msg_id)
         if email_content:
             merged_lines: List[str] = DBWriterEmailContentProcessor._merge_lists(
-                email_content.lines, email_meta.lines, return_result_if_first_modified=True
+                email_content.lines, new_email_content.lines, return_result_if_first_modified=True
             )
             if merged_lines:
                 email_content.lines = merged_lines
                 self._db.save_email_content(email_content)
         else:
-            self._db.save_email_content(EmailContent.from_message(email_meta))
+            self._db.save_email_content(new_email_content)
 
     @staticmethod
     def _merge_lists(l1, l2, return_result_if_first_modified=False):

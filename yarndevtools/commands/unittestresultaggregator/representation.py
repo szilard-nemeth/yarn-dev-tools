@@ -26,12 +26,12 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
     FailedTestCaseAggregated,
     TestCaseFilter,
     FailedTestCaseAbs,
-    EmailMetaData,
     TestCaseFilters,
     AggregatedFailurePropertyFilter,
     FailedBuildFromEmail,
 )
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
+from yarndevtools.commands.unittestresultaggregator.db.model import EmailContent
 from yarndevtools.constants import (
     ReportFile,
 )
@@ -618,8 +618,8 @@ class DataConverter:
             message_id, thread_id = "", ""
             failed_build: FailedBuildFromEmail = getattr(testcase, "_failed_build")
             if isinstance(failed_build, FailedBuildFromEmail):
-                email_meta: EmailMetaData = getattr(failed_build, "_email_meta")
-                message_id, thread_id = email_meta.message_id, email_meta.thread_id
+                email_content: EmailContent = getattr(failed_build, "_email_content")
+                message_id, thread_id = email_content.msg_id, email_content.thread_id
 
             data_table.append(
                 [

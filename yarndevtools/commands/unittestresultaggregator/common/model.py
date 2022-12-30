@@ -17,21 +17,10 @@ from yarndevtools.commands.unittestresultaggregator.constants import (
     MATCHTYPE_ALL_POSTFIX,
     MatchExpression,
 )
+from yarndevtools.commands.unittestresultaggregator.db.model import EmailContent
 from yarndevtools.common.common_model import JobBuildData
 
 LOG = logging.getLogger(__name__)
-
-
-@dataclass
-class EmailMetaData:
-    message_id: str
-    thread_id: str
-    subject: str
-    date: datetime.datetime
-    lines: List[str]
-    build_url: str
-    job_name: str
-    build_number: str
 
 
 @auto_str
@@ -41,8 +30,8 @@ class FailedBuildAbs(ABC):
         self._failed_testcases = stripped_failed_testcases
 
     @classmethod
-    def create_from_email(cls, email_meta: EmailMetaData):
-        return FailedBuildFromEmail(email_meta)
+    def create_from_email(cls, email_content: EmailContent):
+        return FailedBuildFromEmail(email_content)
 
     @classmethod
     def create_from_email_content(cls, email_content):
@@ -125,9 +114,10 @@ class FailedBuildFromDbJobBuildData(FailedBuildAbs):
 
 
 class FailedBuildFromEmail(FailedBuildAbs):
-    def __init__(self, email_meta: EmailMetaData):
-        super().__init__(email_meta.lines)
-        self._email_meta: EmailMetaData = email_meta
+    # TODO yarndevtoolsv2: Class is almost the same as FailedBuildFromDbEmailContent
+    def __init__(self, email_content: EmailContent):
+        super().__init__(email_content.lines)
+        self._email_content: EmailContent = email_content
 
     def filter_testcases(self, skip_lines_starting_with: List[str]):
         filtered_lines = []
@@ -146,19 +136,19 @@ class FailedBuildFromEmail(FailedBuildAbs):
         return True
 
     def build_url(self) -> str:
-        return self._email_meta.build_url
+        return self._email_content.build_url
 
     def job_name(self) -> str:
-        return self._email_meta.job_name
+        return self._email_content.job_name
 
     def build_number(self) -> str:
-        return self._email_meta.build_number
+        return self._email_content.build_number
 
     def origin(self):
-        return self._email_meta.subject
+        return self._email_content.subject
 
     def date(self) -> datetime.datetime:
-        return self._email_meta.date
+        return self._email_content.date
 
 
 class AggregatedFailurePropertyFilter(Enum):
@@ -218,7 +208,6 @@ class BuildComparisonResult:
 
 @dataclass
 class FailedTestCaseAggregated:
-    # TODO yarndevtoolsv2 refactor: this is very similar to FailedTestCase, should use composition?
     full_name: str
     simple_name: str
     parameterized: bool
@@ -581,5 +570,5 @@ class FinalAggregationResults:
 
 class EmailContentProcessor(ABC):
     @abstractmethod
-    def process(self, email_meta: EmailMetaData):
+    def process(self, email_content: EmailContent):
         pass
