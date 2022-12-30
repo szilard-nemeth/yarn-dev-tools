@@ -126,7 +126,7 @@ class FailedBuildFromDbJobBuildData(FailedBuildAbs):
 
 class FailedBuildFromEmail(FailedBuildAbs):
     def __init__(self, email_meta: EmailMetaData):
-        super().__init__(self._email_meta.lines)
+        super().__init__(email_meta.lines)
         self._email_meta: EmailMetaData = email_meta
 
     def filter_testcases(self, skip_lines_starting_with: List[str]):
@@ -136,7 +136,7 @@ class FailedBuildFromEmail(FailedBuildAbs):
                 filtered_lines.append(testcase)
             else:
                 LOG.trace(f"Skipping invalid line: {testcase} [Mail subject: {self.origin()}]")
-        super()._failed_testcases = filtered_lines
+        self._failed_testcases = filtered_lines
 
     @staticmethod
     def _check_if_line_is_valid(line, skip_lines_starting_with):
