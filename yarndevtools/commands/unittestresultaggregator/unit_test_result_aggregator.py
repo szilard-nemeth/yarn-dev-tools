@@ -74,7 +74,6 @@ class UnitTestResultAggregator(CommandAbs):
             email_content_processors = [DBWriterEmailContentProcessor(self._db)]
 
         if self.config.execution_mode == ExecutionMode.DB_ONLY:
-            # TODO yarndevtoolsv2 DB: should use self.config.should_use_db later and fetch emails first
             result = AggregationResults(self.config.testcase_filter_defs, self._known_test_failures)
             self._joiner.join(result)
 
