@@ -31,6 +31,12 @@ LOG = logging.getLogger(__name__)
 class _PreAggregationPerFilter:
     def __init__(self, failures):
         self._test_failures: TestFailuresByFilters = failures
+        # TODO TestCaseKey could be replaced with FailedTestCaseAbs if:
+        #   - TestCaseKey wouldn't contain TestCaseFilter
+        #   - FailedTestCaseAbs would be independent from TestCaseFilter
+        #   - One failed testcase would contain which branches / build it failed, so no mapping is required (maybe just for the representations)
+        #   - self.failures_per_tc_key would be set of failed testcases
+        #   - FailedTestCaseAggregated would be simply created from FailedTestCaseAbs or use failed testcase as a field with composition
         self.failure_freqs: Dict[TestCaseKey, int] = {}
         self.latest_failures: Dict[TestCaseKey, datetime.datetime] = {}
         self.failures_per_tc_key: Dict[TestCaseKey, List[FailedTestCaseAbs]] = defaultdict(list)
@@ -77,14 +83,14 @@ class _PropertyModifierAggregatorPerFilter:
             # We expect testcases to be having the same parameterized flags at this point, this was already sanity checked.
             # If not parameterized, full names should be the same.
             # If parameterized, we can't choose between full names.
-            arbitrary_tc = testcases[0]
+            arbitrary_tc: FailedTestCaseAbs = testcases[0]
             parameterized = arbitrary_tc.parameterized()
             parameterized_more_testcases = parameterized and len(testcases) > 1
+            parameter = arbitrary_tc.parameter() if parameterized else None
 
             # Simple names were also sanity checked that they are the same, choose the first.
             simple_name = arbitrary_tc.simple_name()
             full_name = "N/A" if parameterized_more_testcases else arbitrary_tc.full_name()
-            parameter = arbitrary_tc.parameter() if parameterized else None
 
             self.aggregated_test_failures.append(
                 FailedTestCaseAggregated(

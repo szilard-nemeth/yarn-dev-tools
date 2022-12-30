@@ -14,13 +14,13 @@ from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
     AggregationResults,
 )
 from yarndevtools.commands.unittestresultaggregator.common.model import (
-    EmailMetaData,
     EmailContentProcessor,
     FailedBuildAbs,
 )
 from yarndevtools.commands.unittestresultaggregator.constants import (
     OperationMode,
 )
+from yarndevtools.commands.unittestresultaggregator.db.model import EmailContent
 from yarndevtools.commands.unittestresultaggregator.gsheet import KnownTestFailures
 from yarndevtools.common.common_model import JenkinsJobUrl
 
@@ -100,19 +100,19 @@ class EmailUtilsForAggregators:
         if not email_content_processors:
             email_content_processors = []
 
-        skipped_emails: List[EmailMetaData] = []
+        skipped_emails: List[EmailContent] = []
         for message in query_result.threads.messages:
-            email_meta = EmailUtilsForAggregators._create_email_meta(message, split_body_by)
-            if not email_meta.build_url or not email_meta.job_name:
-                skipped_emails.append(email_meta)
+            email_content = EmailUtilsForAggregators._create_email_content(message, split_body_by)
+            if not email_content.build_url or not email_content.job_name:
+                skipped_emails.append(email_content)
                 continue
 
-            failed_build: FailedBuildAbs = FailedBuildAbs.create_from_email(email_meta)
+            failed_build: FailedBuildAbs = FailedBuildAbs.create_from_email(email_content)
             LOG.debug("Processing message: %s", failed_build.origin())
 
             # Email content processor is invoked with original lines from email (except stripping)
             for processor in email_content_processors:
-                processor.process(email_meta)
+                processor.process(email_content)
 
             result.start_new_context()
             failed_build.filter_testcases(skip_lines_starting_with)
@@ -126,7 +126,7 @@ class EmailUtilsForAggregators:
         )
 
     @staticmethod
-    def _create_email_meta(message: GmailMessage, split_body_by: str):
+    def _create_email_content(message: GmailMessage, split_body_by: str):
         # Extract all lines first (from all message parts)
         all_lines = []
         for msg_part in message.get_all_plain_text_parts():
@@ -136,18 +136,18 @@ class EmailUtilsForAggregators:
 
         build_url = UrlUtils.extract_from_str(message.subject)
         if not build_url:
-            return EmailMetaData(
-                message.msg_id, message.thread_id, message.subject, message.date, all_lines, None, None, None
+            return EmailContent(
+                message.msg_id, message.thread_id, message.date, message.subject, None, None, None, all_lines
             )
 
         jenkins_url = JenkinsJobUrl(build_url)
-        return EmailMetaData(
+        return EmailContent(
             message.msg_id,
             message.thread_id,
-            message.subject,
             message.date,
-            all_lines,
+            message.subject,
             build_url,
             jenkins_url.job_name,
             jenkins_url.build_number,
+            all_lines,
         )
