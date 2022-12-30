@@ -287,12 +287,19 @@ class FailedBuilds:
             res[k] = sorted(failed_builds, key=lambda m: m.date(), reverse=True)
         return res
 
-    def get_dates(self) -> Dict[str, List[datetime.datetime]]:
+    def get_datetimes(self) -> Dict[str, List[datetime.datetime]]:
         result = {}
         for job_name, failed_builds in self._by_job_name.items():
-            dates = [build.date() for build in failed_builds]
-            dates = sorted(dates, reverse=True)
-            result[job_name] = dates
+            datetimes: List[datetime.datetime] = [build.date() for build in failed_builds]
+            result[job_name] = sorted(datetimes, reverse=True)
+        return result
+
+    def get_unique_dates(self):
+        result = {}
+        datetimes_dict = self.get_datetimes()
+        for job_name, datetimes in datetimes_dict.items():
+            dates: List[datetime.date] = [dt.date() for dt in datetimes]
+            result[job_name] = sorted(list(set(dates)), reverse=True)
         return result
 
 
@@ -601,7 +608,7 @@ class AggregationResults:
         return self._aggregation_results.get_aggregated_failures_by_filter(tcf, *prop_filters)
 
     def print_objects(self):
-        builds_with_dates_orig = self._aggregation_results._failed_builds.get_dates()
+        builds_with_dates_orig = self._aggregation_results._failed_builds.get_datetimes()
         builds_with_dates_str = {}
         for job_name, datetimes in builds_with_dates_orig.items():
             builds_with_dates_str[job_name] = [
