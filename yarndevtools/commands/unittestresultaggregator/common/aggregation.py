@@ -294,7 +294,7 @@ class FailedBuilds:
             result[job_name] = sorted(datetimes, reverse=True)
         return result
 
-    def get_unique_dates(self):
+    def get_unique_dates(self) -> Dict[str, List[datetime.date]]:
         result = {}
         datetimes_dict = self.get_datetimes()
         for job_name, datetimes in datetimes_dict.items():
@@ -621,6 +621,24 @@ class AggregationResults:
 
         LOG.trace(f"All failed testcase objects: {self._aggregation_results.test_failures}")
 
+    def print_date_stats(self):
+        LOG.debug("Printing date statistics. ")
+        for job_name, dates in self._aggregation_results.get_dates_for_builds().items():
+            sorted_dates = sorted(dates)
+            first_date = sorted_dates[0]
+            last_date = sorted_dates[-1]
+            all_no_of_days = (last_date - first_date).days
+            missing_dates = DateUtils.get_missing_dates(sorted_dates)
+            LOG.debug(
+                "Job: %s, All days: %s, First date: %s, Last date: %s, Sorted dates: %s, Missing dates: %s",
+                job_name,
+                all_no_of_days,
+                first_date,
+                last_date,
+                pformat(sorted_dates),
+                pformat(missing_dates),
+            )
+
 
 class FinalAggregationResults:
     def __init__(self, all_filters: TestCaseFilters):
@@ -654,3 +672,6 @@ class FinalAggregationResults:
 
     def save_failed_build(self, failed_build: FailedBuildAbs):
         self._failed_builds.add_build(failed_build)
+
+    def get_dates_for_builds(self) -> Dict[str, List[datetime.date]]:
+        return self._failed_builds.get_unique_dates()
