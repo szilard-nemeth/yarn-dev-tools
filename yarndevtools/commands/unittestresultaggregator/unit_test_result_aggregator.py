@@ -29,7 +29,6 @@ LOG = logging.getLogger(__name__)
 class UnitTestResultAggregator(CommandAbs):
     def __init__(self, args, parser, output_dir: str):
         super().__init__()
-        # TODO yarndevtoolsv2 DB: should combine config instances: email + DB
         self.config = UnitTestResultAggregatorConfig(parser, args, output_dir)
         self._email_utils = EmailUtilsForAggregators(self.config, CMD)
         self._email_utils.init_gmail()
