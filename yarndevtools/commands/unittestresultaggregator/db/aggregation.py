@@ -82,21 +82,20 @@ class JenkinsJobBuildDataAndEmailContentAggregator:
 
         processed: Set[Tuple[str, str]] = set()  # tuple: (job name, build number)
 
-        # TODO yarndevtoolsv2 DB: avoid code duplication
         for job_name, inner_dict in self.aggregator_data_dict.items():
-            for build_number, job_build_data in inner_dict.items():
+            for build_number in inner_dict.keys():
                 item: EmailContent = self.aggregator_data_dict[job_name][build_number]
                 self._process_failed_build(result, FailedBuildAbs.create_from_email(item))
                 processed.add((job_name, build_number))
 
         for job_name, inner_dict in self.fetcher_data_dict.items():
-            for build_number, job_build_data in inner_dict.items():
-                if (job_name, build_number) not in processed:
+            for build_number in inner_dict.keys():
+                key = (job_name, build_number)
+                if key not in processed:
                     item: JobBuildData = self.fetcher_data_dict[job_name][build_number]
                     self._process_failed_build(result, FailedBuildAbs.create_from_job_build_data(item))
                 else:
-                    pass
-                    # TODO yarndevtoolsv2 DB: Log something
+                    LOG.debug("%s is already processed during aggregation, not storing build again", key)
 
         result.finish_processing()
         self._print_stats(result)
