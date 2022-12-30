@@ -499,49 +499,6 @@ class TestFailuresByFilters(UserDict):
         self.data[tcf].append(failed_testcase)
 
 
-class FinalAggregationResults:
-    def __init__(self, all_filters: TestCaseFilters):
-        # Needs local import to avoid cyclic-import issues
-        from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
-            AggregatedTestFailures,
-            TestFailureComparison,
-            LatestTestFailures,
-            KnownTestFailureChecker,
-            FailedBuilds,
-        )
-
-        self.test_failures = TestFailuresByFilters(all_filters)
-        self._aggregated: AggregatedTestFailures = None
-        self._comparison: TestFailureComparison = None
-        self._latest_failures: LatestTestFailures = None
-        self._known_failure_checker: KnownTestFailureChecker = None
-        self._failed_builds = FailedBuilds()
-
-    def add_failure(self, tcf: TestCaseFilter, failed_testcase: FailedTestCaseAbs):
-        self.test_failures.add(tcf, failed_testcase)
-
-    def get_failure(self, tcf) -> List[FailedTestCaseAbs]:
-        return self.test_failures[tcf]
-
-    def get_latest_failures(self, tcf) -> List[FailedTestCaseAbs]:
-        return self._latest_failures[tcf]
-
-    def get_build_comparison(self, tcf) -> BuildComparisonResult:
-        return self._comparison[tcf]
-
-    def get_aggregated_failures(self, tcf) -> List[FailedTestCaseAggregated]:
-        return self._aggregated[tcf]
-
-    def print_keys(self):
-        LOG.debug(f"Keys of _failed_testcases_by_filter: {self.test_failures.get_filters()}")
-
-    def get_aggregated_failures_by_filter(self, tcf: TestCaseFilter, *prop_filters: AggregatedFailurePropertyFilter):
-        return self._aggregated.get_by_filters(tcf, *prop_filters)
-
-    def save_failed_build(self, failed_build: FailedBuildAbs):
-        self._failed_builds.add_build(failed_build)
-
-
 class EmailContentProcessor(ABC):
     @abstractmethod
     def process(self, email_content: EmailContent):
