@@ -2,6 +2,7 @@ import datetime
 
 from marshmallow import fields, Schema
 
+from yarndevtools.common.common_model import AggregatorEntity
 from yarndevtools.common.db import DBSerializable
 import logging
 
@@ -20,7 +21,7 @@ class EmailContentSchema(Schema):
     lines = fields.List(fields.Str)
 
 
-class EmailContent(DBSerializable):
+class EmailContent(DBSerializable, AggregatorEntity):
     def __init__(self, msg_id, thread_id, date, subject, build_url, job_name, build_number, lines):
         self.msg_id = msg_id
         self.thread_id = thread_id
@@ -35,3 +36,9 @@ class EmailContent(DBSerializable):
         schema = EmailContentSchema()
         output = schema.dump(self)
         return output
+
+    def job_name(self) -> str:
+        return self.job_name
+
+    def build_number(self) -> str:
+        return self.build_number

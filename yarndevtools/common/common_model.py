@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict, Set, Any
@@ -57,7 +58,19 @@ class FilteredResult:
         return s
 
 
-class JobBuildData(DBSerializable):
+class AggregatorEntity(ABC):
+    @property
+    @abstractmethod
+    def job_name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def build_number(self) -> str:
+        pass
+
+
+class JobBuildData(DBSerializable, AggregatorEntity):
     def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, status: JobBuildDataStatus):
         self._failed_build: FailedJenkinsBuild = failed_build
         self.counters = counters
@@ -178,6 +191,12 @@ class JobBuildData(DBSerializable):
     @property
     def tc_filters(self):
         return [res.filter for res in self.filtered_testcases]
+
+    def get_job_name(self) -> str:
+        return self.job_name
+
+    def get_build_number(self) -> str:
+        return self.build_number
 
     def __str__(self):
         if self.is_valid:

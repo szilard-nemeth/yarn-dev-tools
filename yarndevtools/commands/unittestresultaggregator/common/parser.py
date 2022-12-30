@@ -28,7 +28,6 @@ class UnitTestResultAggregatorCommonParserParams:
             "-m",
             "--match-expression",
             required=False,
-            # TODO
             type=ArgumentParserUtils.matches_match_expression_pattern,
             nargs="+",
             help="Line matcher expression, this will be converted to a regex. "
@@ -54,7 +53,6 @@ class UnitTestResultAggregatorCommonParserParams:
             help="Summary file(s) will be written in this mode. Defaults to HTML.",
         )
 
-        # TODO
         parser.add_argument(
             "--aggregate-filters",
             dest="aggregate_filters",

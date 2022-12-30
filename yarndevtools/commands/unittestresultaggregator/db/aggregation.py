@@ -7,7 +7,7 @@ from pythoncommons.date_utils import DateUtils
 from yarndevtools.commands.unittestresultaggregator.common.model import FailedBuildAbs
 from yarndevtools.commands.unittestresultaggregator.db.model import EmailContent, LOG
 from yarndevtools.commands.unittestresultaggregator.db.persistence import UTResultAggregatorDatabase
-from yarndevtools.common.common_model import JobBuildData
+from yarndevtools.common.common_model import JobBuildData, AggregatorEntity
 
 
 class JenkinsJobBuildDataAndEmailContentAggregator:
@@ -37,35 +37,37 @@ class JenkinsJobBuildDataAndEmailContentAggregator:
         # Data from UT result aggregator: email contents
         email_contents: List[EmailContent] = self._db.find_and_validate_all_email_content()
 
-        processed: Set[Tuple[str, str]] = set()  # tuple: (job name, build number)
-        # TODO yarndevtoolsv2: Could simplify code if JobBuildData and EmailContent had a common interface for used fields
-        for bd in build_data:
-            builds_per_job = self.fetcher_data_dict.setdefault(bd.job_name, {})
-
-            key = (bd.job_name, bd.build_number)
-            if key not in processed:
-                builds_per_job.setdefault(bd.build_number, bd)
-                processed.add(key)
-            else:
-                LOG.debug("%s is already processed, not storing build again")
-
         if not email_contents:
             raise ValueError(
                 "Loaded email contents from DB is empty! Please fill DB by running in execution mode: EMAIL_ONLY"
             )
 
-        for ec in email_contents:
-            LOG.debug("Processing email content for aggregation: %s", ec.build_url)
-            builds_per_job = self.aggregator_data_dict.setdefault(ec.job_name, {})
+        # Order is important: We want to digest UT fetcher data first, then UT aggregator data
+        entities: List[AggregatorEntity] = build_data + email_contents
+        self._process_entities(entities)
+        self._do_aggregate(result)
 
-            key = (ec.job_name, ec.build_number)
+    def _process_entities(self, entities: List[AggregatorEntity]):
+        jbd_class_name = JobBuildData.__name__
+        ec_class_name = EmailContent.__name__
+        dicts = {jbd_class_name: self.fetcher_data_dict, ec_class_name: self.aggregator_data_dict}
+
+        processed: Set[Tuple[str, str]] = set()  # tuple: (job name, build number)
+        for e in entities:
+            LOG.trace("Processing entity for aggregation: %s", e)
+            entity_class = type(e).__name__
+            if entity_class not in dicts:
+                raise ValueError("Unexpected entity class: {}. Object: {}".format(entity_class, e))
+
+            target_dict = dicts[entity_class]
+            builds_per_job = target_dict.setdefault(e.job_name, {})
+
+            key = (e.job_name, e.build_number)
             if key not in processed:
-                builds_per_job.setdefault(ec.build_number, ec)
+                builds_per_job.setdefault(e.build_number, e)
                 processed.add(key)
             else:
                 LOG.debug("%s is already processed, not storing build again", key)
-
-        self._do_aggregate(result)
 
     def _do_aggregate(self, result: AggregationResults):
         self.fetcher_only: Dict[str, Set[str]] = self._get_only_in_first_dict(
@@ -80,7 +82,7 @@ class JenkinsJobBuildDataAndEmailContentAggregator:
 
         processed: Set[Tuple[str, str]] = set()  # tuple: (job name, build number)
 
-        # TODO avoid code duplication
+        # TODO yarndevtoolsv2 DB: avoid code duplication
         for job_name, inner_dict in self.aggregator_data_dict.items():
             for build_number, job_build_data in inner_dict.items():
                 item: EmailContent = self.aggregator_data_dict[job_name][build_number]
@@ -94,7 +96,7 @@ class JenkinsJobBuildDataAndEmailContentAggregator:
                     self._process_failed_build(result, FailedBuildAbs.create_from_job_build_data(item))
                 else:
                     pass
-                    # TODO yarndevtoolsv2: Log something
+                    # TODO yarndevtoolsv2 DB: Log something
 
         result.finish_processing()
         self._print_stats(result)
