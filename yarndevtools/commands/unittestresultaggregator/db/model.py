@@ -214,7 +214,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
         return False
 
     @staticmethod
-    # TODO yarndevtoolsv2 DB: Make this more abstract and move to pythoncommons?
+    # TODO: Make this more abstract and move to pythoncommons?
     def _get_only_in_first_dict(dic_a, dic_b):
         res: Dict[str, Set[str]] = {}
         for job_name, inner_dict in dic_a.items():
@@ -229,7 +229,7 @@ class JenkinsJobBuildDataAndEmailContentJoiner:
         return res
 
     @staticmethod
-    # TODO yarndevtoolsv2 DB: this more abstract and move to pythoncommons?
+    # TODO: this more abstract and move to pythoncommons?
     def _get_from_both_dicts(dic_a, dic_b):
         res: Dict[str, Set[str]] = {}
         for job_name, inner_dict in dic_a.items():
