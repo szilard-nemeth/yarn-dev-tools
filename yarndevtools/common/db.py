@@ -56,8 +56,7 @@ class Database(ABC):
         url = "mongodb://{user}:{password}@{hostname}:{port}/{db_name}?authSource=admin".format(
             user=conf.user, password=conf.password, hostname=conf.hostname, port=conf.port, db_name=conf.db_name
         )
-        # TODO yarndevtoolsv2: Do not log password!
-        LOG.info("Using connection URL '%s' for mongodb", url)
+        LOG.info("Using connection URL '%s' for mongodb", url.replace(conf.password, len(conf.password) * "*"))
         self._client = pymongo.MongoClient(url)
 
         if validate_db:
