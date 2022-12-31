@@ -453,10 +453,12 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
             ],
             eval_method=EvaluationMethod.ALL,
         )
-        self._add_all_comits_table(header, all_commits, colorize_conf=color_conf)
-        self._add_all_comits_table(header, all_commits, colorize_conf=None)
+        self._add_all_comits_table(header, all_commits, colorize_conf=color_conf, row_number_in_header=True)
+        self._add_all_comits_table(header, all_commits, colorize_conf=None, row_number_in_header=True)
 
-    def _add_all_comits_table(self, header, all_commits, colorize_conf: ColorizeConfig = None):
+    def _add_all_comits_table(
+        self, header, all_commits, colorize_conf: ColorizeConfig = None, row_number_in_header: bool = False
+    ):
         table_type = BranchComparatorTableType.ALL_COMMITS_MERGED
         colorize = True if colorize_conf else False
 
@@ -472,11 +474,19 @@ class SimpleRenderedSummary(RenderedSummaryAbs):
         )
 
         first_row = all_commits[0]
-        if len(header) != len(first_row):
+        actual_columns = len(first_row)
+        expected_columns = len(header)
+        if row_number_in_header:
+            expected_columns = expected_columns - 1
+
+        if expected_columns != actual_columns:
             raise ValueError(
-                "Header is misaligned! \nlen(header): {}, len(first row): {}, \nHeader: {}, \nFirst row: {}".format(
-                    len(header), len(first_row), header, first_row
-                )
+                "Header is misaligned! \n"
+                "Expected columns: {}, "
+                "Actual columns: {} \n"
+                "Row number in header: {} \n"
+                "Header: {} \n"
+                "First row: {}".format(expected_columns, actual_columns, row_number_in_header, header, first_row)
             )
         gen_tables = ResultPrinter.print_tables(data=all_commits, header=header, render_conf=render_conf)
         for table_fmt, table in gen_tables.items():
