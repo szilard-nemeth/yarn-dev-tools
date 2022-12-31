@@ -6,35 +6,59 @@ from git import Commit
 from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.project_utils import ProjectUtils
 
-from tests.test_utilities import Object, TestUtilities
+from tests.test_utilities import Object, TestUtilities, SANDBOX_REPO_DOWNSTREAM_HOTFIX
 from yarndevtools.commands.branchcomparator.branch_comparator import Branches, CommitMatchingAlgorithm, BranchComparator
 from yarndevtools.commands.branchcomparator.common import BranchType
 from yarndevtools.commands.branchcomparator.group_matching import GroupedMatchingResult
 from yarndevtools.common.shared_command_utils import RepoType, CommandType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, TRUNK
 
 BRANCHES_CLASS_NAME = Branches.__name__
 REPO_PATCH = "yarndevtools.commands.branchcomparator.branch_comparator.{}.send_mail".format(BRANCHES_CLASS_NAME)
 FEATURE_BRANCH = "origin/CDH-7.1-maint"
 MASTER_BRANCH = "origin/cdpd-master"
 DEFAULT_COMMIT_AUTHOR_EXCEPTIONS = "rel-eng@cloudera.com"
+YARN_TEST_BRANCH = TRUNK
 
 LOG = logging.getLogger(__name__)
 
 
 class TestBranchComparator(unittest.TestCase):
+    upstream_repo_wrapper = None
+    downstream_repo_wrapper = None
+    downstream_utils = None
+    upstream_utils = None
+    log_dir = None
+    sandbox_hadoop_repo_path = None
+
     @classmethod
     def setUpClass(cls):
-        # Invoke this to setup main output directory and avoid test failures while initing config
+        # Invoke this to set up main output directory and avoid test failures while initing config
         cls.project_out_root = ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         ProjectUtils.get_test_output_child_dir(CommandType.BRANCH_COMPARATOR.output_dir_name)
+
+        # Upstream
+        cls.upstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
+        cls.upstream_utils.setUpClass(CommandType.BRANCH_COMPARATOR, init_logging=True, console_debug=True)
+        cls.upstream_utils.pull_to_trunk(ff_only=True)
+        cls.upstream_repo_wrapper = cls.upstream_utils.repo_wrapper
+
+        # Downstream
+        cls.downstream_utils = TestUtilities(cls, YARN_TEST_BRANCH)
+        cls.downstream_utils.setUpClass(
+            CommandType.BACKPORT, repo_postfix=SANDBOX_REPO_DOWNSTREAM_HOTFIX, init_logging=False
+        )
+        cls.downstream_utils.pull_to_trunk(ff_only=True)
+        cls.downstream_repo_wrapper = cls.downstream_utils.repo_wrapper
+        # Setup debug logging of git commands
+        cls.downstream_repo_wrapper.enable_debug_logging(full=True)
 
     @classmethod
     def tearDownClass(cls) -> None:
         TestUtilities.tearDownClass(cls.__name__, command_type=CommandType.BRANCH_COMPARATOR)
 
     def setUp(self):
-        pass
+        self.upstream_utils.reset_and_checkout_existing_branch(YARN_TEST_BRANCH, pull=False)
 
     def tearDown(self) -> None:
         pass
@@ -46,16 +70,41 @@ class TestBranchComparator(unittest.TestCase):
         feature_br: str = FEATURE_BRANCH,
         master_br: str = MASTER_BRANCH,
         commit_author_exceptions: str = DEFAULT_COMMIT_AUTHOR_EXCEPTIONS,
+        debug: bool = False,
+        run_legacy_script: bool = False,
     ):
         args = Object()
+        args.debug = debug
         args.algorithm = algorithm
         args.repo_type = repo_type
         args.feature_branch = feature_br
         args.master_branch = master_br
-        args.run_legacy_script = False
+        args.run_legacy_script = run_legacy_script
         if commit_author_exceptions:
             args.commit_author_exceptions = commit_author_exceptions
+
         return args
+
+    @staticmethod
+    def generate_args_e2e():
+        # Full command:
+        # /usr/local/lib/python3.8/site-packages/yarndevtools/yarn_dev_tools.py
+        # --debug
+        # BRANCH_COMPARATOR
+        # simple
+        # --repo-type upstream
+        # origin/branch-3.3 origin/trunk
+        # --commit_author_exceptions rel-eng@cloudera.com
+        return TestBranchComparator.generate_args(
+            debug=True,
+            algorithm=CommitMatchingAlgorithm.SIMPLE,
+            repo_type=RepoType.UPSTREAM.value,
+            feature_br="origin/branch-3.3",
+            master_br="origin/trunk",
+            # TODO Maybe not required for upstream tests
+            commit_author_exceptions="rel-eng@cloudera.com",
+            run_legacy_script=False,
+        )
 
     @property
     def output_dir(self):
@@ -121,3 +170,9 @@ class TestBranchComparator(unittest.TestCase):
         feature_group = comparator.matching_result.matched_groups[index][1]
         self.assertEqual(BranchType.FEATURE, feature_group.br_type)
         self.assertEqual(hashes, master_group.commit_hashes)
+
+    def test_e2e_upstream(self):
+        comparator = BranchComparator(
+            self.generate_args_e2e(), self.downstream_repo_wrapper, self.upstream_repo_wrapper, self.output_dir
+        )
+        comparator.run()
