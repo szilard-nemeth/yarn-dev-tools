@@ -14,8 +14,10 @@ class DBSerializable(ABC):
 
 
 class MongoDbConfig:
-    def __init__(self, args):
+    def __init__(self, args, ensure_db_created=True):
         mongo_vars = {k.replace("mongo.", ""): v for k, v in vars(args).items() if k.startswith("mongo.")}
+        if not mongo_vars:
+            mongo_vars = {k.replace("mongo_", ""): v for k, v in vars(args).items() if k.startswith("mongo_")}
 
         self._validate_arg(args, mongo_vars, "hostname")
         self._validate_arg(args, mongo_vars, "port")
@@ -24,6 +26,14 @@ class MongoDbConfig:
         self._validate_arg(args, mongo_vars, "db_name")
 
         self._dict = mongo_vars
+        self._dict["ensure_db_created"] = ensure_db_created
+        self._dict["force_create_db"] = mongo_vars.get("force_create_db", False)
+        self._post_process()
+
+    def _post_process(self):
+        if self.ensure_db_created and self.force_create_db:
+            LOG.warning("Setting 'ensure_db_created' to False as 'force_create_db' is enabled!")
+            self._dict["ensure_db_created"] = False
 
     @staticmethod
     def _validate_arg(args, mongo_vars, name):
@@ -50,16 +60,24 @@ class MongoDbConfig:
     def db_name(self):
         return self._dict["db_name"]
 
+    @property
+    def force_create_db(self):
+        return self._dict["force_create_db"]
+
+    @property
+    def ensure_db_created(self):
+        return self._dict["ensure_db_created"]
+
 
 class Database(ABC):
-    def __init__(self, conf: MongoDbConfig, validate_db=True):
+    def __init__(self, conf: MongoDbConfig):
         url = "mongodb://{user}:{password}@{hostname}:{port}/{db_name}?authSource=admin".format(
             user=conf.user, password=conf.password, hostname=conf.hostname, port=conf.port, db_name=conf.db_name
         )
         LOG.info("Using connection URL '%s' for mongodb", url.replace(conf.password, len(conf.password) * "*"))
         self._client = pymongo.MongoClient(url)
 
-        if validate_db:
+        if conf.ensure_db_created:
             dbnames = self._client.list_database_names()
             if conf.db_name not in dbnames:
                 raise ValueError("DB with name '{}' does not exist!".format(conf.db_name))

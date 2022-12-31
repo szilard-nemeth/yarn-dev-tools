@@ -395,6 +395,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args.mongo_user = "mongo_user"
         args.mongo_password = "mongo_password"
         args.mongo_db_name = "mongo_db_name"
+        args.mongo_force_create_db = True
         return args
 
     @property
