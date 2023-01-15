@@ -374,6 +374,10 @@ class Cache(ABC):
     def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
         pass
 
+    @abstractmethod
+    def remove_report(self, cached_build_key: CachedBuildKey):
+        pass
+
     @property
     @abstractmethod
     def meta_file_path(self):
@@ -386,6 +390,10 @@ class Cache(ABC):
     @staticmethod
     def escape_job_name(job_name: str):
         return job_name.replace(".", "_")
+
+    @staticmethod
+    def unescape_job_name(job_name: str):
+        return job_name.replace("_", ".")
 
     @staticmethod
     def generate_report_filename(cached_build_key: CachedBuildKey):
@@ -496,6 +504,11 @@ class FileCache(Cache):
         LOG.info(f"Loading cached test report from file: {report_file_path}")
         return JsonFileUtils.load_data_from_json_file(report_file_path)
 
+    def remove_report(self, cached_build_key: CachedBuildKey):
+        report_file_path = self._generate_file_name_for_report(cached_build_key)
+        LOG.info(f"Removing test report from file cache: {report_file_path}")
+        FileUtils.remove_file(report_file_path)
+
     def get_filename_for_report(self, cached_build_key: CachedBuildKey):
         return self._generate_file_name_for_report(cached_build_key)
 
@@ -530,10 +543,13 @@ class GoogleDriveCache(Cache):
         self.drive_reports_basedir = FileUtils.join_path(
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR, "reports"
         )
+        self.all_report_files = []
 
     def initialize(self):
         reports = self.file_cache.initialize()
-        self._sync_from_file_cache()
+        self.all_report_files = self._download_all_reports()
+        if self.config.enable_sync_from_fs_to_drive:
+            self._sync_from_file_cache()
         return reports
 
     @staticmethod
@@ -546,7 +562,6 @@ class GoogleDriveCache(Cache):
         return CachedBuildKey(job_name, int(components[0]))
 
     def _sync_from_file_cache(self):
-        self.all_report_files = self._download_all_reports()
         found_builds: Set[CachedBuildKey] = set()
         for report_drive_file in self.all_report_files:
             build_key = self.create_cached_build_key(report_drive_file)
@@ -602,24 +617,54 @@ class GoogleDriveCache(Cache):
             cached_build_key = self.create_cached_build_key(drive_api_file)
             file_name = drive_api_file.name
             if not self.file_cache.is_build_data_in_cache(cached_build_key):
-                LOG.info("Report '%s' is not cached, downloading...", file_name)
+                LOG.info("Report '%s' is not cached for job '%s', downloading...", file_name, cached_build_key.job_name)
 
-                with tempfile.TemporaryDirectory() as tmp:
-                    downloaded_file = self.drive_wrapper.download_file(drive_api_file.id)
-                    report_file_tmp_path = os.path.join(tmp, "report.json")
-                    FileUtils.write_bytesio_to_file(report_file_tmp_path, downloaded_file)
-                    report_json = JsonFileUtils.load_data_from_json_file(report_file_tmp_path)
-                    report_file_path = self.file_cache.save_report(report_json, cached_build_key)
-                    creation_date = DateUtils.convert_to_datetime(drive_api_file.created_date, DATEFORMAT_GOOGLE_DRIVE)
+                creation_date, report_file_path = self._download_and_write_to_file_cache(
+                    cached_build_key, drive_api_file
+                )
             else:
-                LOG.info("Report '%s' found in cache", file_name)
+                LOG.info("Report '%s' for job '%s' found in cache", file_name, cached_build_key.job_name)
                 report_file_path = self.file_cache.get_filename_for_report(cached_build_key)
+                file_size = os.stat(report_file_path).st_size
+                if file_size < 10:
+                    LOG.debug(
+                        "File size is too small, re-downloading report '%s' for job '%s'. File path: %s",
+                        file_name,
+                        cached_build_key.job_name,
+                        report_file_path,
+                    )
+                    creation_date, report_file_path = self._download_and_write_to_file_cache(
+                        cached_build_key, drive_api_file
+                    )
+                    if file_size < 10:
+                        LOG.debug(
+                            "REMOVING FILE FROM CACHE, as file size is too small after re-downloading report '%s' for job '%s'. File path: %s.",
+                            file_name,
+                            cached_build_key.job_name,
+                            report_file_path,
+                        )
+                        self.file_cache.remove_report(cached_build_key)
+                        continue
+                else:
+                    creation_date = self._determine_creation_date(drive_api_file, report_file_path)
                 file_name = os.path.basename(report_file_path)
-                creation_date = self._determine_creation_date(drive_api_file, report_file_path)
 
             result[report_file_path] = GoogleDriveCache.create_failed_build(file_name, creation_date, cached_build_key)
             downloaded_bytes += int(drive_api_file.size)
         return result
+
+    def _download_and_write_to_file_cache(self, cached_build_key, drive_api_file):
+        with tempfile.TemporaryDirectory() as tmp:
+            downloaded_file = self.drive_wrapper.download_file(drive_api_file.id)
+            report_file_tmp_path = os.path.join(tmp, "report.json")
+            FileUtils.write_bytesio_to_file(report_file_tmp_path, downloaded_file)
+            report_json = JsonFileUtils.load_data_from_json_file(report_file_tmp_path)
+            report_file_path = self.file_cache.save_report(report_json, cached_build_key)
+            creation_date = DateUtils.convert_to_datetime(drive_api_file.created_date, DATEFORMAT_GOOGLE_DRIVE)
+        return creation_date, report_file_path
+
+    def remove_report(self, cached_build_key: CachedBuildKey):
+        raise NotImplementedError("Remove report is not supported by GoogleDriveCache")
 
     @staticmethod
     def _determine_creation_date(drive_api_file, file):
@@ -645,11 +690,11 @@ class GoogleDriveCache(Cache):
     @staticmethod
     def create_failed_build(filename, creation_date, cached_build_key):
         build_number = GoogleDriveCache.get_build_number(filename)
-        timestamp = creation_date.timestamp() * 1000
-        # TODO Hardcoded jenkins master mode
-        build_url = f"{UnitTestResultFetcherMode.JENKINS_MASTER.jenkins_base_url}/job/{cached_build_key.job_name}/{build_number}"
+        timestamp = creation_date.timestamp()
+        fetcher_mode = UnitTestResultFetcherMode.get_mode_by_job_name(cached_build_key.job_name)
+        build_url = f"{fetcher_mode.jenkins_base_url}/job/{cached_build_key.job_name}/{build_number}"
         return FailedJenkinsBuild(
-            full_url_of_job=build_url,
+            full_url_of_job=UrlUtils.sanitize_url(build_url),
             timestamp=timestamp,
             job_name=cached_build_key.job_name,
         )
@@ -705,6 +750,9 @@ class CacheConfig:
         )
         self.enabled: bool = (
             not args.disable_file_cache if hasattr(args, "disable_file_cache") and not force_download_mode else False
+        )
+        self.enable_sync_from_fs_to_drive: bool = (
+            not args.disable_sync_from_fs_to_drive if hasattr(args, "disable_sync_from_fs_to_drive") else True
         )
         if self.cache_type:
             self.enabled = True
@@ -1050,6 +1098,14 @@ class UnitTestResultFetcher(CommandAbs):
             help="Whether to save all cached reports from Google Drive to MongoDB",
         )
 
+        parser.add_argument(
+            "--disable-sync-from-fs-to-drive",
+            dest="disable_sync_from_fs_to_drive",
+            action="store_true",
+            default=False,
+            help="Whether to sync reports from filesystem to Google Drive",
+        )
+
         parser.set_defaults(func=UnitTestResultFetcher.execute)
 
     @staticmethod
@@ -1300,6 +1356,7 @@ class UTResultFetcherDatabase(Database):
     def save_build_data(self, build_data: JobBuildData):
         LOG.debug("Saving build data to Database: %s", build_data)
         doc = super().find_by_id(build_data.build_url, collection_name=MONGO_COLLECTION_JENKINS_REPORTS)
+        # TODO Overwrite of saved fields won't happen here (e.g. mail sent = True)
         if doc:
             return doc
 
