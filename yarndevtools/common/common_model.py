@@ -235,7 +235,7 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         )
 
 
-MONGO_COLLECTION_JENKINS_REPORTS = "reports"
+MONGO_COLLECTION_JENKINS_BUILD_DATA = "jenkins_build_data"
 
 
 class JobBuildDataSchema(Schema):

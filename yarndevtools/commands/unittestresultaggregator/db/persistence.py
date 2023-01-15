@@ -8,7 +8,7 @@ from yarndevtools.commands.unittestresultaggregator.db.model import (
     EmailContentSchema,
     MONGO_COLLECTION_EMAIL_CONTENT,
 )
-from yarndevtools.common.common_model import JobBuildDataSchema, MONGO_COLLECTION_JENKINS_REPORTS, JobBuildData
+from yarndevtools.common.common_model import JobBuildDataSchema, MONGO_COLLECTION_JENKINS_BUILD_DATA, JobBuildData
 from yarndevtools.common.db import Database, MongoDbConfig
 
 
@@ -44,7 +44,7 @@ class UTResultAggregatorDatabase(Database):
         return super().save(email_content, collection_name=MONGO_COLLECTION_EMAIL_CONTENT, id_field_name="msg_id")
 
     def find_all_build_data(self):
-        return super().find_all(collection_name=MONGO_COLLECTION_JENKINS_REPORTS)
+        return super().find_all(collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
 
     def find_and_validate_all_build_data(self):
         result = []
