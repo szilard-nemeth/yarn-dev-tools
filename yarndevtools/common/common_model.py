@@ -81,6 +81,7 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         self.unmatched_testcases: Set[str] = set()
         self.status: JobBuildDataStatus = status
         # TODO Save this to separate pickled object, so when JobBuildData's structure changes, we don't lose sent state for all jobs
+        #  Also, if force download mode is enabled, all reports will be re-sent which is not correct
         self.mail_sent = False
         self.sent_date = None
 
