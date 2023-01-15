@@ -340,7 +340,7 @@ class JenkinsJobReport:
 @dataclass(frozen=True)
 class CachedBuildKey:
     job_name: str
-    build_number: str
+    build_number: int
 
 
 @dataclass
@@ -443,7 +443,7 @@ class FileCache(Cache):
             job_name = comps[0]
             report_filename = comps[1]
             # TODO regex matching here!! ++ Parsing logic duplicated, find: GoogleDriveCache.TEST_REPORT_PATTERN
-            build_number = report_filename.split("-")[0]
+            build_number = int(report_filename.split("-")[0])
             key = CachedBuildKey(job_name, build_number)
             cached_builds[key] = CachedBuild(key, orig_file_path)
         return cached_builds
@@ -543,7 +543,7 @@ class GoogleDriveCache(Cache):
         if len(components) != 2:
             LOG.error("Found test report with unexpected name: %s", job_name)
             return None
-        return CachedBuildKey(job_name, components[0])
+        return CachedBuildKey(job_name, int(components[0]))
 
     def _sync_from_file_cache(self):
         self.all_report_files = self._download_all_reports()
