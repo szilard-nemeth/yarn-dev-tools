@@ -40,7 +40,7 @@ from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands_common import CommandAbs, EmailArguments, MongoArguments
 from yarndevtools.common.common_model import (
     JobBuildData,
-    MONGO_COLLECTION_JENKINS_REPORTS,
+    MONGO_COLLECTION_JENKINS_BUILD_DATA,
     FailedJenkinsBuild,
     JobBuildDataStatus,
     JenkinsTestcaseFilter,
@@ -1350,9 +1350,9 @@ class UTResultFetcherDatabase(Database):
 
     def save_build_data(self, build_data: JobBuildData):
         LOG.debug("Saving build data to Database: %s", build_data)
-        doc = super().find_by_id(build_data.build_url, collection_name=MONGO_COLLECTION_JENKINS_REPORTS)
+        doc = super().find_by_id(build_data.build_url, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
         # TODO Overwrite of saved fields won't happen here (e.g. mail sent = True)
         if doc:
             return doc
 
-        return super().save(build_data, collection_name=MONGO_COLLECTION_JENKINS_REPORTS, id_field_name="build_url")
+        return super().save(build_data, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA, id_field_name="build_url")
