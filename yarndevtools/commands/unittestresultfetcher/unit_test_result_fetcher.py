@@ -1,11 +1,14 @@
 #!/usr/local/bin/python3
 import logging
 import os
+import re
 import sys
+import tempfile
 import time
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Dict, Set, Tuple, Any
 
@@ -22,7 +25,7 @@ from googleapiwrapper.google_drive import (
     DriveApiFile,
 )
 from pythoncommons.constants import ExecutionMode
-from pythoncommons.date_utils import DateUtils
+from pythoncommons.date_utils import DateUtils, DATEFORMAT_GOOGLE_DRIVE
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils, JsonFileUtils, FindResultType
 from pythoncommons.logging_setup import SimpleLoggingSetup
@@ -30,7 +33,7 @@ from pythoncommons.network_utils import NetworkUtils
 from pythoncommons.object_utils import PickleUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, ProjectUtils
-from pythoncommons.string_utils import auto_str
+from pythoncommons.string_utils import auto_str, StringUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands_common import CommandAbs, EmailArguments, MongoArguments
@@ -142,6 +145,8 @@ class JenkinsApiConverter:
             f"in the past {days} days. "
             f"Listing builds: {failed_build_data}"
         )
+        failed_urls = [fb.url for fb in failed_builds]
+        LOG.debug("Detected failed builds for Jenkins job '%s': %s", job_name, failed_urls)
         return failed_builds, total_no_of_builds
 
     @staticmethod
@@ -181,10 +186,10 @@ class JenkinsApiConverter:
         return int(ts / 1000)
 
     @staticmethod
-    def parse_job_data(data, failed_build: FailedJenkinsBuild) -> JobBuildData:
+    def parse_job_data(json_data, failed_build: FailedJenkinsBuild) -> JobBuildData:
         failed_testcases = set()
         found_testcases: int = 0
-        for suite in data["suites"]:
+        for suite in json_data["suites"]:
             for tc in suite["cases"]:
                 found_testcases += 1
                 status = tc["status"]
@@ -200,7 +205,7 @@ class JenkinsApiConverter:
             else:
                 return JobBuildData(failed_build, None, failed_testcases, status=JobBuildDataStatus.EMPTY)
         else:
-            counters = JobBuildDataCounters(data["failCount"], data["passCount"], data["skipCount"])
+            counters = JobBuildDataCounters(json_data["failCount"], json_data["passCount"], json_data["skipCount"])
             return JobBuildData(
                 failed_build, counters, failed_testcases, status=JobBuildDataStatus.HAVE_FAILED_TESTCASES
             )
@@ -356,12 +361,36 @@ class Cache(ABC):
     def generate_report_filename(cached_build_key: CachedBuildKey):
         return f"{cached_build_key.build_number}-testreport.json"
 
+    @abstractmethod
+    def get_all_reports(self) -> List[Any]:
+        pass
+
+    @abstractmethod
+    def download_reports(self):
+        pass
+
 
 class FileCache(Cache):
     def __init__(self, config):
         self.config: CacheConfig = config
 
+    def get_all_reports(self) -> Dict[CachedBuildKey, CachedBuild]:
+        """
+        Returns all report file paths
+        :return:
+        """
+        self._reload_all_cached_builds()
+        return self.cached_builds
+
+    def download_reports(self):
+        # TODO ?
+        pass
+
     def initialize(self) -> Dict[str, JenkinsJobReport]:
+        self._reload_all_cached_builds()
+        return self.load_reports_meta()
+
+    def _reload_all_cached_builds(self):
         report_files = FileUtils.find_files(
             self.config.reports_dir,
             find_type=FindResultType.FILES,
@@ -371,19 +400,19 @@ class FileCache(Cache):
         )
         self.cached_builds: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(report_files)
         LOG.info("Loaded cached builds: %s", self.cached_builds)
-        return self.load_reports_meta()
 
     def _load_cached_builds_from_fs(self, report_files):
         cached_builds: Dict[CachedBuildKey, CachedBuild] = {}
         for report_file in report_files:
             orig_file_path = report_file
-            # Example: CDH-7_1-maint-Hadoop-Common-Unit/1-testreport.json
+            # Example file name: CDH-7_1-maint-Hadoop-Common-Unit/1-testreport.json
             if report_file.startswith(self.config.reports_dir):
                 report_file = report_file[len(self.config.reports_dir) :]
             comps = report_file.split(os.sep)
             comps = [c for c in comps if c]
             job_name = comps[0]
             report_filename = comps[1]
+            # TODO regex matching here!! ++ Parsing logic duplicated, find: GoogleDriveCache.TEST_REPORT_PATTERN
             build_number = report_filename.split("-")[0]
             key = CachedBuildKey(job_name, build_number)
             cached_builds[key] = CachedBuild(key, orig_file_path)
@@ -407,6 +436,7 @@ class FileCache(Cache):
     def load_reports_meta(self) -> Dict[str, JenkinsJobReport]:
         LOG.info("Trying to load cached data from file: %s", self.meta_file_path)
         if FileUtils.does_file_exist(self.meta_file_path):
+            # TODO Replace Pickled data with mongodb persistence
             reports: Dict[str, JenkinsJobReport] = PickleUtils.load(self.meta_file_path)
             LOG.info("Printing email send status for jobs and builds...")
             for job_name, jenkins_job_report in reports.items():
@@ -422,6 +452,7 @@ class FileCache(Cache):
         if log:
             LOG.debug("Final cached data object: %s", reports)
         LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.meta_file_path)
+        # TODO Replace Pickled data with mongodb persistence
         PickleUtils.dump(reports, self.meta_file_path)
 
     def save_report(self, data, cached_build_key: CachedBuildKey):
@@ -435,6 +466,9 @@ class FileCache(Cache):
         LOG.info(f"Loading cached test report from file: {report_file_path}")
         return JsonFileUtils.load_data_from_json_file(report_file_path)
 
+    def get_filename_for_report(self, cached_build_key: CachedBuildKey):
+        return self._generate_file_name_for_report(cached_build_key)
+
     @property
     def meta_file_path(self):
         return self.config.data_file_path
@@ -442,6 +476,8 @@ class FileCache(Cache):
 
 class GoogleDriveCache(Cache):
     DRIVE_FINAL_CACHE_DIR = CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name + "_" + CACHED_DATA_DIRNAME
+    TEST_REPORT_REGEX = "^[0-9]+-testreport.json$"
+    TEST_REPORT_PATTERN = re.compile(TEST_REPORT_REGEX)
     # TODO implement throttling: Too many requests to Google Drive?
 
     def __init__(self, config):
@@ -470,16 +506,22 @@ class GoogleDriveCache(Cache):
         self._sync_from_file_cache()
         return reports
 
+    @staticmethod
+    def create_cached_build_key(drive_file) -> CachedBuildKey:
+        job_name = drive_file._parent.name
+        components = drive_file.name.split("-")
+        if len(components) != 2:
+            LOG.error("Found test report with unexpected name: %s", job_name)
+            return None
+        return CachedBuildKey(job_name, components[0])
+
     def _sync_from_file_cache(self):
-        all_report_files: List[DriveApiFile] = self.drive_wrapper.get_files("*-testreport.json")
+        self.all_report_files = self._download_all_reports()
         found_builds: Set[CachedBuildKey] = set()
-        for report_drive_file in all_report_files:
-            job_name = report_drive_file._parent.name
-            components = report_drive_file.name.split("-")
-            if len(components) != 2:
-                LOG.error("Found test report with unexpected name: %s", job_name)
-                continue
-            found_builds.add(CachedBuildKey(job_name, components[0]))
+        for report_drive_file in self.all_report_files:
+            build_key = self.create_cached_build_key(report_drive_file)
+            if build_key:
+                found_builds.add(build_key)
         LOG.debug("Found %d builds from Google Drive: %s", len(found_builds), found_builds)
         builds_to_check_from_drive = {
             key: value for (key, value) in self.file_cache.cached_builds.items() if key not in found_builds
@@ -503,6 +545,84 @@ class GoogleDriveCache(Cache):
                 self.drive_wrapper.upload_file(
                     cached_build.full_report_file_path, drive_report_file_path, op_settings=settings
                 )
+
+    def get_all_reports(self):
+        if not self.all_report_files:
+            raise ValueError("Please call initialize on the cache, first!")
+        return self.all_report_files
+
+    def _download_all_reports(self):
+        all_report_files: List[DriveApiFile] = self.drive_wrapper.get_files("*-testreport.json")
+        return all_report_files
+
+    def download_reports(self) -> Dict[str, FailedJenkinsBuild]:
+        drive_api_files = self.get_all_reports()
+        LOG.debug("Found %d reports from Google Drive: %s", len(drive_api_files), drive_api_files)
+
+        result = {}
+        # Sum up sizes
+        sum_bytes = sum([int(f.size) for f in drive_api_files])
+        downloaded_bytes = 0
+        LOG.info(
+            "Size of %d report files from Google Drive: %s", len(drive_api_files), StringUtils.format_bytes(sum_bytes)
+        )
+        for idx, drive_api_file in enumerate(drive_api_files):
+            LOG.info("Processing file [ %d / %d ]", idx + 1, len(drive_api_files))
+            LOG.info("Downloaded bytes [ %d / %d ]", downloaded_bytes, sum_bytes)
+            cached_build_key = self.create_cached_build_key(drive_api_file)
+            file_name = drive_api_file.name
+            if not self.file_cache.is_build_data_in_cache(cached_build_key):
+                LOG.info("Report '%s' is not cached, downloading...", file_name)
+
+                with tempfile.TemporaryDirectory() as tmp:
+                    downloaded_file = self.drive_wrapper.download_file(drive_api_file.id)
+                    report_file_tmp_path = os.path.join(tmp, "report.json")
+                    FileUtils.write_bytesio_to_file(report_file_tmp_path, downloaded_file)
+                    report_json = JsonFileUtils.load_data_from_json_file(report_file_tmp_path)
+                    report_file_path = self.file_cache.save_report(report_json, cached_build_key)
+                    creation_date = DateUtils.convert_to_datetime(drive_api_file.created_date, DATEFORMAT_GOOGLE_DRIVE)
+            else:
+                LOG.info("Report '%s' found in cache", file_name)
+                report_file_path = self.file_cache.get_filename_for_report(cached_build_key)
+                file_name = os.path.basename(report_file_path)
+                creation_date = self._determine_creation_date(drive_api_file, report_file_path)
+
+            result[report_file_path] = GoogleDriveCache.create_failed_build(file_name, creation_date, cached_build_key)
+            downloaded_bytes += int(drive_api_file.size)
+        return result
+
+    @staticmethod
+    def _determine_creation_date(drive_api_file, file):
+        # The only way to tell the timestamp of the build that is in file cache is to use creation date of the file
+        creation_date_drive_file = DateUtils.convert_to_datetime(drive_api_file.created_date, DATEFORMAT_GOOGLE_DRIVE)
+        creation_seconds = FileUtils.get_creation_time(file)
+        creation_date_file = datetime.fromtimestamp(creation_seconds, tz=timezone.utc)
+        if creation_date_drive_file < creation_date_file:
+            return creation_date_drive_file
+        return creation_date_file
+
+    @staticmethod
+    def get_build_number(filename):
+        if not GoogleDriveCache.TEST_REPORT_PATTERN.match(filename):
+            raise ValueError(
+                "Expected report file name to be in the following format: {} but actual value was: {}".format(
+                    GoogleDriveCache.TEST_REPORT_REGEX, filename
+                )
+            )
+
+        return int(filename.split("-")[0])
+
+    @staticmethod
+    def create_failed_build(filename, creation_date, cached_build_key):
+        build_number = GoogleDriveCache.get_build_number(filename)
+        timestamp = creation_date.timestamp() * 1000
+        # TODO Hardcoded jenkins master mode
+        build_url = f"{UnitTestResultFetcherMode.JENKINS_MASTER.jenkins_base_url}/job/{cached_build_key.job_name}/{build_number}"
+        return FailedJenkinsBuild(
+            full_url_of_job=build_url,
+            timestamp=timestamp,
+            job_name=cached_build_key.job_name,
+        )
 
     def _generate_file_name_for_report(self, cached_build_key: CachedBuildKey):
         return FileUtils.join_path(
@@ -547,19 +667,24 @@ class GoogleDriveCache(Cache):
 
 
 class CacheConfig:
-    def __init__(self, args, output_dir, force_download_mode=False):
-        self.enabled: bool = (
-            not args.disable_file_cache if hasattr(args, "disable_file_cache") and not force_download_mode else False
-        )
-        self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
-        self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, CACHED_DATA_DIRNAME))
-        self.download_uncached_job_data: bool = (
-            args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
-        )
+    def __init__(self, args, output_dir, force_download_mode=False, load_cached_reports_to_db=False):
         self.cache_type: UnitTestResultFetcherCacheType = (
             UnitTestResultFetcherCacheType(args.cache_type.upper())
             if hasattr(args, "cache_type") and args.cache_type
             else UnitTestResultFetcherCacheType.FILE
+        )
+        self.enabled: bool = (
+            not args.disable_file_cache if hasattr(args, "disable_file_cache") and not force_download_mode else False
+        )
+        if self.cache_type:
+            self.enabled = True
+        if load_cached_reports_to_db:
+            self.enabled = True
+            self.cache_type = UnitTestResultFetcherCacheType.GOOGLE_DRIVE
+        self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
+        self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, CACHED_DATA_DIRNAME))
+        self.download_uncached_job_data: bool = (
+            args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
 
     @property
@@ -638,7 +763,15 @@ class UnitTestResultFetcherConfig:
     def __init__(self, output_dir: str, args):
         self.args = args
         self.force_download_mode = args.force_download_mode if hasattr(args, "force_download_mode") else False
-        self.cache: CacheConfig = CacheConfig(args, output_dir, force_download_mode=self.force_download_mode)
+        self.load_cached_reports_to_db: bool = (
+            args.load_cached_reports_to_db if hasattr(args, "load_cached_reports_to_db") else False
+        )
+        self.cache: CacheConfig = CacheConfig(
+            args,
+            output_dir,
+            force_download_mode=self.force_download_mode,
+            load_cached_reports_to_db=self.load_cached_reports_to_db,
+        )
         self.email: EmailConfig = EmailConfig(args)
         self.request_limit = args.req_limit if hasattr(args, "req_limit") and args.req_limit else 1
         self.jenkins_mode: UnitTestResultFetcherMode = (
@@ -880,6 +1013,13 @@ class UnitTestResultFetcher(CommandAbs):
             help="The type of the cache. Either file or google_drive",
         )
 
+        parser.add_argument(
+            "--load-cached-reports-to-db",
+            dest="load_cached_reports_to_db",
+            action="store_true",
+            help="Whether to save all cached reports from Google Drive to MongoDB",
+        )
+
         parser.set_defaults(func=UnitTestResultFetcher.execute)
 
     @staticmethod
@@ -920,8 +1060,16 @@ class UnitTestResultFetcher(CommandAbs):
         )
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
-        elif self.config.cache.enabled:
+
+        if self.config.cache.enabled:
             self.reports: Dict[str, JenkinsJobReport] = self.cache.initialize()
+        if self.config.load_cached_reports_to_db:
+            reports: Dict[str, FailedJenkinsBuild] = self.cache.download_reports()
+            for file_path, failed_build in reports.items():
+                report_json = JsonFileUtils.load_data_from_json_file(file_path)
+                build_data = JenkinsApiConverter.parse_job_data(report_json, failed_build)
+                self._database.save_build_data(build_data)
+
         for reset_job in self.config.reset_job_build_data_for_jobs:
             LOG.info("Reset job build data for job: %s", reset_job)
             if reset_job in self.reports:
@@ -1111,7 +1259,7 @@ class UnitTestResultFetcher(CommandAbs):
     def _create_testcase_to_fail_count_dict(job_data, tc_to_fail_count: Dict[str, int]):
         if job_data.has_failed_testcases():
             for failed_testcase in job_data.testcases:
-                LOG.info(f"Failed test: {failed_testcase}")
+                LOG.debug(f"Detected failed testcase: {failed_testcase}")
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
 
@@ -1120,6 +1268,7 @@ class UTResultFetcherDatabase(Database):
         super().__init__(conf)
 
     def save_build_data(self, build_data: JobBuildData):
+        LOG.debug("Saving build data to Database: %s", build_data)
         doc = super().find_by_id(build_data.build_url, collection_name=MONGO_COLLECTION_JENKINS_REPORTS)
         if doc:
             return doc
