@@ -759,6 +759,7 @@ class CacheConfig:
         if load_cached_reports_to_db:
             self.enabled = True
             self.cache_type = UnitTestResultFetcherCacheType.GOOGLE_DRIVE
+
         self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
         self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, CACHED_DATA_DIRNAME))
         self.download_uncached_job_data: bool = (
@@ -1197,17 +1198,15 @@ class UnitTestResultFetcher(CommandAbs):
     def process_jenkins_report(self, report: JenkinsJobReport):
         report.start_processing()
         for i, build_data in enumerate(report):
-            self._process_build_data_from_report(build_data, report)
+            self._process_build_data_from_report(build_data)
             self._print_report(build_data, report)
             self._invoke_report_processors(build_data, report)
 
             key = list(report.jobs_by_url.keys())[0]
             build_data = report.jobs_by_url[key]
             self._database.save_build_data(build_data)
-            # TODO fix
-            # self._save_all_reports_to_cache(i, report)
 
-    def _process_build_data_from_report(self, build_data: JobBuildData, report: JenkinsJobReport):
+    def _process_build_data_from_report(self, build_data: JobBuildData):
         LOG.info(f"Processing report of build: {build_data.build_url}")
         should_exit: bool = False
         if build_data.status == JobBuildDataStatus.ALL_GREEN:
@@ -1244,11 +1243,7 @@ class UnitTestResultFetcher(CommandAbs):
     def _invoke_report_processors(self, build_data: JobBuildData, report: JenkinsJobReport):
         self.email.process(build_data, report)
 
-    def _save_all_reports_to_cache(self, i, report: JenkinsJobReport):
-        log_report: bool = i == len(report) - 1
-        self.cache.save_reports_meta(self.reports, log=log_report)
-
-    def create_job_build_data(self, failed_build: FailedJenkinsBuild):
+    def create_job_build_data(self, failed_build: FailedJenkinsBuild) -> JobBuildData:
         """Find the names of any tests which failed in the given build output URL."""
         try:
             data = self.gather_raw_data_for_build(failed_build)
