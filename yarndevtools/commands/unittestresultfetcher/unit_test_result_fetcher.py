@@ -34,6 +34,7 @@ from pythoncommons.object_utils import PickleUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, ProjectUtils
 from pythoncommons.string_utils import auto_str, StringUtils
+from pythoncommons.url_utils import UrlUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands_common import CommandAbs, EmailArguments, MongoArguments
