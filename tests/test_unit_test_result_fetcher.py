@@ -17,6 +17,7 @@ import mongomock
 from coolname import generate_slug
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils
+from pythoncommons.url_utils import UrlUtils
 
 from tests.test_utilities import Object, TestUtilities
 from yarndevtools.common.shared_command_utils import CommandType
@@ -425,7 +426,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
     def _mock_jenkins_report_api(report_json, jenkins_url=JENKINS_MAIN_URL, job_name=DEFAULT_JOB_NAME, build_id=200):
         build_url = TestUnitTestResultFetcher.get_build_url(jenkins_url, job_name, build_id)
         final_url = rf"{build_url}/testReport/api/json.*"
-        final_url = TestUnitTestResultFetcher.sanitize_url(final_url)
+        final_url = UrlUtils.sanitize_url(final_url)
         LOG.info("Mocked URL: %s", final_url)
         httpretty.register_uri(
             httpretty.GET,
@@ -441,7 +442,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
     ):
         job_url = TestUnitTestResultFetcher.get_job_url(jenkins_url, job_name)
         final_url = rf"{job_url}/api/json.*"
-        final_url = TestUnitTestResultFetcher.sanitize_url(final_url)
+        final_url = UrlUtils.sanitize_url(final_url)
         LOG.info("Mocked URL: %s", final_url)
         httpretty.register_uri(
             httpretty.GET,
@@ -453,23 +454,14 @@ class TestUnitTestResultFetcher(unittest.TestCase):
     def get_job_url(jenkins_url: str, job_name: str):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
-        return TestUnitTestResultFetcher.sanitize_url(f"{jenkins_url}/job/{job_name}/")
+        return UrlUtils.sanitize_url(f"{jenkins_url}/job/{job_name}/")
 
     @staticmethod
     def get_build_url(jenkins_url: str, job_name: str, build_id: int):
         if jenkins_url.endswith("/"):
             jenkins_url = jenkins_url[:-1]
         job_url = TestUnitTestResultFetcher.get_job_url(jenkins_url, job_name)
-        return TestUnitTestResultFetcher.sanitize_url(f"{job_url}/{build_id}/")
-
-    @staticmethod
-    def sanitize_url(url: str):
-        if url.startswith("http://"):
-            parts = url.split("http://")
-            fixed = parts[1].replace("//", "/")
-            return "http://" + fixed
-        else:
-            raise ValueError("Unexpected URL: " + url)
+        return UrlUtils.sanitize_url(f"{job_url}/{build_id}/")
 
     def _assert_all_failed_testcases(
         self, reporter: UnitTestResultFetcher, spec, expected_failed_count=-1, job_name=DEFAULT_JOB_NAME
