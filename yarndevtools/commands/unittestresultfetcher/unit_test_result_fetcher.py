@@ -7,6 +7,7 @@ import tempfile
 import time
 import traceback
 from abc import ABC, abstractmethod
+from collections import UserDict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -24,13 +25,13 @@ from googleapiwrapper.google_drive import (
     SearchResultHandlingMode,
     DriveApiFile,
 )
+from marshmallow import Schema, fields, EXCLUDE, post_load, post_dump, pre_load
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.date_utils import DateUtils, DATEFORMAT_GOOGLE_DRIVE
 from pythoncommons.email import EmailService, EmailMimeType
 from pythoncommons.file_utils import FileUtils, JsonFileUtils, FindResultType
 from pythoncommons.logging_setup import SimpleLoggingSetup
 from pythoncommons.network_utils import NetworkUtils
-from pythoncommons.object_utils import PickleUtils
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME, ProjectUtils
 from pythoncommons.string_utils import auto_str, StringUtils
@@ -45,8 +46,9 @@ from yarndevtools.common.common_model import (
     JobBuildDataStatus,
     JenkinsTestcaseFilter,
     JobBuildDataCounters,
+    JobBuildDataSchema,
 )
-from yarndevtools.common.db import MongoDbConfig, Database
+from yarndevtools.common.db import MongoDbConfig, Database, DBSerializable
 from yarndevtools.common.shared_command_utils import FullEmailConfig, CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
@@ -54,7 +56,6 @@ CACHED_DATA_DIRNAME = "cached_data"
 
 LOG = logging.getLogger(__name__)
 EMAIL_SUBJECT_PREFIX = "YARN Daily unit test report:"
-CACHED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
 SECONDS_PER_DAY = 86400
 DEFAULT_REQUEST_LIMIT = 999
 JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL = "jenkins_examine_unlimited_builds"
@@ -268,34 +269,37 @@ class JenkinsApiConverter:
 @auto_str
 class JenkinsJobReport:
     def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
-        self.jobs_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in job_build_datas}
-        # Sort by URL, descending
-        self._job_urls = list(sorted(self.jobs_by_url.keys(), reverse=True))
+        self.job_build_datas: List[JobBuildData] = job_build_datas
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
-        self.actual_num_builds = self._determine_actual_number_of_builds(num_builds_per_config)
+        self.num_builds_per_config: int = num_builds_per_config
+
+        # Projected fields
+        self._jobs_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in self.job_build_datas}
+        self._job_urls = list(sorted(self._jobs_by_url.keys(), reverse=True))  # Sort by URL, descending
+        self._actual_num_builds = self._determine_actual_number_of_builds(self.num_builds_per_config)
         self._index = 0
 
     def start_processing(self):
         LOG.info(f"Report list contains build results: {self._job_urls}")
-        LOG.info(f"Processing {self.actual_num_builds} in Report...")
+        LOG.info(f"Processing {self._actual_num_builds} in Report...")
 
     def __len__(self):
-        return self.actual_num_builds
+        return self._actual_num_builds
 
     def __iter__(self):
         self._index = 0
         return self
 
     def __next__(self):
-        if self._index == self.actual_num_builds:
+        if self._index == self._actual_num_builds:
             raise StopIteration
-        result = self.jobs_by_url[self._job_urls[self._index]]
+        result = self._jobs_by_url[self._job_urls[self._index]]
         self._index += 1
         return result
 
     def _determine_actual_number_of_builds(self, num_builds_per_config):
-        build_data_count = len(self.jobs_by_url)
+        build_data_count = len(self._jobs_by_url)
         total_no_of_builds = self.total_no_of_builds
         if build_data_count < total_no_of_builds:
             LOG.warning(
@@ -310,23 +314,23 @@ class JenkinsJobReport:
 
     @property
     def known_build_urls(self):
-        return self.jobs_by_url.keys()
+        return self._jobs_by_url.keys()
 
     def are_all_mail_sent(self):
-        return all(job_data.mail_sent for job_data in self.jobs_by_url.values())
+        return all(job_data.mail_sent for job_data in self._jobs_by_url.values())
 
     def reset_mail_sent_state(self):
-        for job_data in self.jobs_by_url.values():
+        for job_data in self._jobs_by_url.values():
             job_data.sent_date = None
             job_data.mail_sent = False
 
     def mark_sent(self, build_url):
-        job_data = self.jobs_by_url[build_url]
+        job_data = self._jobs_by_url[build_url]
         job_data.sent_date = DateUtils.get_current_datetime()
         job_data.mail_sent = True
 
     def get_job_data(self, build_url: str):
-        return self.jobs_by_url[build_url]
+        return self._jobs_by_url[build_url]
 
     def print_report(self, build_data):
         LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
@@ -335,6 +339,65 @@ class JenkinsJobReport:
         LOG.info("TESTCASE SUMMARY:")
         for tn in sorted(self.all_failing_tests, key=self.all_failing_tests.get, reverse=True):
             LOG.info(f"{self.all_failing_tests[tn]}: {tn}")
+
+
+class JenkinsJobReportSchema(Schema):
+    job_build_datas = fields.List(fields.Nested(JobBuildDataSchema()))
+    all_failing_tests = fields.Dict(keys=fields.Str, values=fields.Int)
+    total_no_of_builds = fields.Int()
+    num_builds_per_config = fields.Int()
+
+    @post_load
+    def make_report(self, data, **kwargs):
+        return JenkinsJobReport(**data)
+
+
+class JenkinsJobReportsSchema(Schema):
+    data = fields.Dict(keys=fields.Str, values=fields.Nested(JenkinsJobReportSchema()))
+
+    @pre_load
+    def add_data_prop(self, data, **kwargs):
+        # Adding 'data' property to satisfy validation
+        return {"data": data}
+
+    @post_load
+    def make_reports(self, data, **kwargs):
+        return JenkinsJobReports(data["data"])
+
+    @post_dump
+    def post_dump(self, obj, **kwargs):
+        if "data" in obj:
+            return obj["data"]
+        return obj
+
+
+class JenkinsJobReports(DBSerializable, UserDict):
+    def __init__(self, reports):
+        super().__init__()
+        self.data: Dict[str, JenkinsJobReport] = reports
+        self._index = 0
+        self._schema = JenkinsJobReportsSchema()
+
+    def serialize(self):
+        return self._schema.dump(self)
+
+    def __getitem__(self, job_name):
+        return self.data[job_name]
+
+    def __setitem__(self, job_name, report):
+        self.data[job_name] = report
+
+    def __delitem__(self, job_name):
+        del self.data[job_name]
+
+    def __len__(self):
+        return len(self.data)
+
+    def print_email_status(self):
+        LOG.info("Printing email send status for jobs and builds...")
+        for job_name, jenkins_job_report in self.data.items():
+            for job_url, job_build_data in jenkins_job_report._jobs_by_url.items():
+                LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
 
 
 @dataclass(frozen=True)
@@ -359,14 +422,6 @@ class Cache(ABC):
         pass
 
     @abstractmethod
-    def load_reports_meta(self) -> Dict[str, JenkinsJobReport]:
-        pass
-
-    @abstractmethod
-    def save_reports_meta(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
-        pass
-
-    @abstractmethod
     def save_report(self, data, cached_build_key: CachedBuildKey):
         pass
 
@@ -376,11 +431,6 @@ class Cache(ABC):
 
     @abstractmethod
     def remove_report(self, cached_build_key: CachedBuildKey):
-        pass
-
-    @property
-    @abstractmethod
-    def meta_file_path(self):
         pass
 
     @staticmethod
@@ -424,9 +474,8 @@ class FileCache(Cache):
         # TODO ?
         pass
 
-    def initialize(self) -> Dict[str, JenkinsJobReport]:
+    def initialize(self):
         self._reload_all_cached_builds()
-        return self.load_reports_meta()
 
     def _reload_all_cached_builds(self):
         report_files = FileUtils.find_files(
@@ -471,28 +520,6 @@ class FileCache(Cache):
             return True
         return False
 
-    def load_reports_meta(self) -> Dict[str, JenkinsJobReport]:
-        LOG.info("Trying to load cached data from file: %s", self.meta_file_path)
-        if FileUtils.does_file_exist(self.meta_file_path):
-            # TODO Replace Pickled data with mongodb persistence
-            reports: Dict[str, JenkinsJobReport] = PickleUtils.load(self.meta_file_path)
-            LOG.info("Printing email send status for jobs and builds...")
-            for job_name, jenkins_job_report in reports.items():
-                for job_url, job_build_data in jenkins_job_report.jobs_by_url.items():
-                    LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
-            LOG.info("Loaded cached data from: %s", self.meta_file_path)
-            return reports
-        else:
-            LOG.info("Cached data file not found in: %s", self.meta_file_path)
-            return {}
-
-    def save_reports_meta(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
-        if log:
-            LOG.debug("Final cached data object: %s", reports)
-        LOG.info("Dumping %s object to file %s", JenkinsJobReport.__name__, self.meta_file_path)
-        # TODO Replace Pickled data with mongodb persistence
-        PickleUtils.dump(reports, self.meta_file_path)
-
     def save_report(self, data, cached_build_key: CachedBuildKey):
         report_file_path = self._generate_file_name_for_report(cached_build_key)
         LOG.info(f"Saving test report response JSON to file cache: {report_file_path}")
@@ -511,10 +538,6 @@ class FileCache(Cache):
 
     def get_filename_for_report(self, cached_build_key: CachedBuildKey):
         return self._generate_file_name_for_report(cached_build_key)
-
-    @property
-    def meta_file_path(self):
-        return self.config.data_file_path
 
 
 class GoogleDriveCache(Cache):
@@ -537,9 +560,6 @@ class GoogleDriveCache(Cache):
             FileFindMode.JUST_UNTRASHED, DuplicateFileWriteResolutionMode.ADD_NEW_REVISION, enable_path_cache=True
         )
         self.drive_wrapper = DriveApiWrapper(self.authorizer, session_settings=session_settings)
-        self.drive_meta_dir_path = FileUtils.join_path(
-            PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR
-        )
         self.drive_reports_basedir = FileUtils.join_path(
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR, "reports"
         )
@@ -710,16 +730,6 @@ class GoogleDriveCache(Cache):
         # TODO Check in Drive and if not successful, decide based on local file cache
         return self.file_cache.is_build_data_in_cache(cached_build_key)
 
-    def load_reports_meta(self) -> Dict[str, JenkinsJobReport]:
-        # TODO Load from Drive and if not successful, load from local file cache
-        return self.file_cache.load_reports_meta()
-
-    def save_reports_meta(self, reports: Dict[str, JenkinsJobReport], log: bool = False):
-        # TODO implement throttling: Too many requests to Google Drive
-        self.file_cache.save_reports_meta(reports)
-        drive_path = FileUtils.join_path(self.drive_meta_dir_path, CACHED_DATA_FILENAME)
-        self.drive_wrapper.upload_file(self.meta_file_path, drive_path)
-
     def save_report(self, data, cached_build_key: CachedBuildKey):
         saved_report_file_path = self.file_cache.save_report(data, cached_build_key)
         drive_path = self._generate_file_name_for_report(cached_build_key)
@@ -735,10 +745,6 @@ class GoogleDriveCache(Cache):
             # TODO missing return
         # TODO Load from Drive and if not successful, load from local file cache
         # TODO IF report.json is only found in local cache, save it to Drive
-
-    @property
-    def meta_file_path(self):
-        return self.file_cache.meta_file_path
 
 
 class CacheConfig:
@@ -766,10 +772,6 @@ class CacheConfig:
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
 
-    @property
-    def data_file_path(self):
-        return FileUtils.join_path(self.cached_data_dir, CACHED_DATA_FILENAME)
-
 
 class EmailConfig:
     def __init__(self, args):
@@ -796,7 +798,7 @@ class Email:
         self.config: EmailConfig = config
         self.email_service = EmailService(config.full_email_conf.email_conf)
 
-    def initialize(self, reports: Dict[str, JenkinsJobReport]):
+    def initialize(self, reports: JenkinsJobReports):
         # Try to reset email sent state of asked jobs
         if self.config.reset_email_sent_state:
             LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
@@ -925,8 +927,9 @@ class UnitTestResultFetcherConfig:
 # TODO Separate all download functionality: Progress of downloads, code that fetches API, etc.
 class UnitTestResultFetcher(CommandAbs):
     def __init__(self, args, output_dir):
+        super().__init__()
         self.config = UnitTestResultFetcherConfig(output_dir, args)
-        self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
+        self.reports: JenkinsJobReports = None
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
         self.sent_requests: int = 0
@@ -1148,14 +1151,20 @@ class UnitTestResultFetcher(CommandAbs):
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
 
+        self.reports: JenkinsJobReports = self._database.load_reports()
         if self.config.cache.enabled:
-            self.reports: Dict[str, JenkinsJobReport] = self.cache.initialize()
+            self.cache.initialize()
         if self.config.load_cached_reports_to_db:
             reports: Dict[str, FailedJenkinsBuild] = self.cache.download_reports()
+            # TODO Implement force mode to always save everything to DB
             for file_path, failed_build in reports.items():
-                report_json = JsonFileUtils.load_data_from_json_file(file_path)
-                build_data = JenkinsApiConverter.parse_job_data(report_json, failed_build)
-                self._database.save_build_data(build_data)
+                if not self._database.has_build_data(failed_build.url):
+                    report_json = JsonFileUtils.load_data_from_json_file(file_path)
+                    if not report_json:
+                        LOG.error("Cannot load report as its JSON is empty. Job URL: %s", failed_build.url)
+                        continue
+                    build_data = JenkinsApiConverter.parse_job_data(report_json, failed_build)
+                    self._database.save_build_data(build_data)
 
         for reset_job in self.config.reset_job_build_data_for_jobs:
             LOG.info("Reset job build data for job: %s", reset_job)
@@ -1167,11 +1176,12 @@ class UnitTestResultFetcher(CommandAbs):
         self.sent_requests = 0
         for job_name in self.config.job_names:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
+            # TODO self.reports does not contain job_build_datas loaded from Google Drive
             self.reports[job_name] = report
             self.process_jenkins_report(report)
-        self.cache.save_reports_meta(self.reports)
+        self._database.save_reports(self.reports)
 
-    def _get_report_by_job_name(self, job_name):
+    def _get_report_by_job_name(self, job_name) -> JenkinsJobReport:
         return self.reports[job_name]
 
     def get_failed_tests(self, job_name) -> List[str]:
@@ -1181,7 +1191,7 @@ class UnitTestResultFetcher(CommandAbs):
         return list(report.all_failing_tests.keys())
 
     def get_num_build_data(self, job_name):
-        return len(self._get_report_by_job_name(job_name).jobs_by_url)
+        return len(self._get_report_by_job_name(job_name)._jobs_by_url)
 
     @property
     def testcase_filters(self) -> List[str]:
@@ -1202,8 +1212,8 @@ class UnitTestResultFetcher(CommandAbs):
             self._print_report(build_data, report)
             self._invoke_report_processors(build_data, report)
 
-            key = list(report.jobs_by_url.keys())[0]
-            build_data = report.jobs_by_url[key]
+            key = list(report._jobs_by_url.keys())[0]
+            build_data = report._jobs_by_url[key]
             self._database.save_build_data(build_data)
 
     def _process_build_data_from_report(self, build_data: JobBuildData):
@@ -1311,7 +1321,7 @@ class UnitTestResultFetcher(CommandAbs):
                 # If job build data was intentionally reset by config option 'reset_job_build_data_for_jobs',
                 # build data for job is already removed from the dict 'self.reports'
                 if job_name in self.reports:
-                    job_data = self.reports[job_name].jobs_by_url[failed_build.url]
+                    job_data = self.reports[job_name]._jobs_by_url[failed_build.url]
                     job_datas.append(job_data)
                     self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
                     job_added_from_cache = True
@@ -1345,14 +1355,50 @@ class UnitTestResultFetcher(CommandAbs):
 
 
 class UTResultFetcherDatabase(Database):
+    MONGO_COLLECTION_JENKINS_REPORTS = "jenkins_reports"
+
     def __init__(self, conf: MongoDbConfig):
         super().__init__(conf)
+        self._report_schema = JenkinsJobReportSchema()
+        self._reports_schema = JenkinsJobReportsSchema()
+
+    def has_build_data(self, build_url):
+        doc = super().find_by_id(build_url, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
+        return True if doc else False
 
     def save_build_data(self, build_data: JobBuildData):
-        LOG.debug("Saving build data to Database: %s", build_data)
+        # TODO trace logging
+        # LOG.debug("Saving build data to Database: %s", build_data)
         doc = super().find_by_id(build_data.build_url, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
         # TODO Overwrite of saved fields won't happen here (e.g. mail sent = True)
         if doc:
             return doc
-
         return super().save(build_data, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA, id_field_name="build_url")
+
+    def save_reports(self, reports: JenkinsJobReports, log: bool = False):
+        LOG.info("Saving Jenkins reports to Database")
+        if log:
+            LOG.debug("Final cached data object: %s", reports)
+        super().save(reports, collection_name=UTResultFetcherDatabase.MONGO_COLLECTION_JENKINS_REPORTS)
+
+    def load_reports(self) -> JenkinsJobReports:
+        LOG.info("Trying to load Jenkins reports from Database")
+        reports_dic: Dict[str, JenkinsJobReport] = super().find_one(
+            collection_name=UTResultFetcherDatabase.MONGO_COLLECTION_JENKINS_REPORTS
+        )
+        if not reports_dic:
+            reports_dic = {}
+        if "_id" in reports_dic:
+            del reports_dic["_id"]
+        reports = self._reports_schema.load(reports_dic)
+        reports.print_email_status()
+        LOG.info("Loaded cached data from Database. Length of collection: %d", len(reports))
+        return reports
+
+    def find_and_validate_all_reports(self):
+        result = []
+        docs = self.load_reports()
+        for doc in docs:
+            dic = self._reports_schema.load(doc, unknown=EXCLUDE)
+            result.append(JenkinsJobReport.deserialize(dic))
+        return result

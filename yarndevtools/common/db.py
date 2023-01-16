@@ -101,3 +101,10 @@ class Database(ABC):
     def find_all(self, collection_name: str):
         collection = self._db[collection_name]
         return list(collection.find())
+
+    def find_one(self, collection_name: str):
+        collection = self._db[collection_name]
+        res = collection.find_one()
+        if not res:
+            return None
+        return res
