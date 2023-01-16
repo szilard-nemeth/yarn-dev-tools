@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Dict, Set, Any
 
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, post_load
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.string_utils import auto_str
 
@@ -87,50 +87,6 @@ class JobBuildData(DBSerializable, AggregatorEntity):
 
         self._schema = JobBuildDataSchema()
 
-    @staticmethod
-    def deserialize(dic: Dict[Any, Any]):
-        # TODO Is there a best practice over this manual field mapping?
-        special_vars = [
-            "failed_count",
-            "passed_count",
-            "skipped_count",
-            "build_number",
-            "build_url",
-            "is_valid",
-            "job_name",
-            "mail_sent",
-            "sent_date",
-            "tc_filters",
-            "no_of_failed_filtered_tc",
-            "filtered_testcases_by_expr",
-            "filtered_testcases",
-            "unmatched_testcases",
-            "build_timestamp",
-        ]
-        normal_keys = set(dic.keys()).difference(special_vars)
-        normal_keys_dict = {k: dic[k] for k in normal_keys}
-        normal_keys_dict["counters"] = JobBuildDataCounters(
-            dic["failed_count"], dic["passed_count"], dic["skipped_count"]
-        )
-
-        normal_keys_dict["failed_build"] = FailedJenkinsBuild(
-            full_url_of_job=dic["build_url"],
-            timestamp=dic["build_timestamp"],
-            job_name=dic["job_name"],
-        )
-        build_data = JobBuildData(**normal_keys_dict)
-
-        # process special vars
-        # TODO yarndevtoolsv2 DB: How to reconstruct filtered testcases? Is this required?
-        build_data.unmatched_testcases = dic["unmatched_testcases"]
-        build_data.mail_sent = dic["mail_sent"]
-        build_data.sent_date = dic["sent_date"]
-        build_data.no_of_failed_filtered_tc = dic["no_of_failed_filtered_tc"]
-        build_data.filtered_testcases = dic["filtered_testcases"]
-        build_data.filtered_testcases_by_expr = dic["filtered_testcases_by_expr"]
-
-        return build_data
-
     def serialize(self):
         return self._schema.dump(self)
 
@@ -151,14 +107,20 @@ class JobBuildData(DBSerializable, AggregatorEntity):
 
     @property
     def failed_count(self):
+        if not self.counters:
+            return -1
         return self.counters.failed
 
     @property
     def passed_count(self):
+        if not self.counters:
+            return -1
         return self.counters.passed
 
     @property
     def skipped_count(self):
+        if not self.counters:
+            return -1
         return self.counters.skipped
 
     @property
@@ -258,6 +220,54 @@ class JobBuildDataSchema(Schema):
     mail_sent_date = fields.Str(attribute="sent_date")
     tc_filters = fields.List(fields.Str)
     job_name = fields.Str(required=True)
+
+    @post_load
+    def make_job_build_data(self, data, **kwargs):
+        return self.deserialize(data)
+
+    @staticmethod
+    def deserialize(dic: Dict[Any, Any]):
+        # TODO Is there a best practice over this manual field mapping?
+        special_vars = [
+            "failed_count",
+            "passed_count",
+            "skipped_count",
+            "build_number",
+            "build_url",
+            "is_valid",
+            "job_name",
+            "mail_sent",
+            "sent_date",
+            "tc_filters",
+            "no_of_failed_filtered_tc",
+            "filtered_testcases_by_expr",
+            "filtered_testcases",
+            "unmatched_testcases",
+            "build_timestamp",
+        ]
+        normal_keys = set(dic.keys()).difference(special_vars)
+        normal_keys_dict = {k: dic[k] for k in normal_keys}
+        normal_keys_dict["counters"] = JobBuildDataCounters(
+            dic["failed_count"], dic["passed_count"], dic["skipped_count"]
+        )
+
+        normal_keys_dict["failed_build"] = FailedJenkinsBuild(
+            full_url_of_job=dic["build_url"],
+            timestamp=dic["build_timestamp"],
+            job_name=dic["job_name"],
+        )
+        build_data = JobBuildData(**normal_keys_dict)
+
+        # process special vars
+        # TODO yarndevtoolsv2 DB: How to reconstruct filtered testcases? Is this required?
+        build_data.unmatched_testcases = dic["unmatched_testcases"]
+        build_data.mail_sent = dic["mail_sent"]
+        build_data.sent_date = dic["sent_date"]
+        build_data.no_of_failed_filtered_tc = dic["no_of_failed_filtered_tc"]
+        build_data.filtered_testcases = dic["filtered_testcases"]
+        build_data.filtered_testcases_by_expr = dic["filtered_testcases_by_expr"]
+
+        return build_data
 
 
 class JenkinsJobInstanceUrls:
