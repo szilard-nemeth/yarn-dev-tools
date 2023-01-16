@@ -206,19 +206,22 @@ class JobBuildDataSchema(Schema):
     build_timestamp = fields.Int(required=True)
     status = fields.Enum(JobBuildDataStatus, required=True)
     failed_testcases = fields.List(fields.Str, attribute="testcases")
+
+    # TODO Consider not storing: filtered_testcases, filtered_testcases_by_expression, unmatched_testcases, tc_filters, no_of_failed_filtered_tc
     filtered_testcases = fields.List(fields.Str, required=True)
     filtered_testcases_by_expression = fields.List(fields.Str, required=True, attribute="filtered_testcases_by_expr")
     unmatched_testcases = fields.List(fields.Str, required=True)
+    tc_filters = fields.List(fields.Str)
+    no_of_failed_filtered_tc = fields.Int(required=True)
+
     failed_count = fields.Int(required=True)
     passed_count = fields.Int(required=True)
     skipped_count = fields.Int(required=True)
-    no_of_failed_filtered_tc = fields.Int(required=True)
     is_valid = fields.Boolean()
     mail_sent = fields.Boolean()
     # TODO Convert to DateTime?
     # mail_sent_date = fields.DateTime(attribute="sent_date")
     mail_sent_date = fields.Str(attribute="sent_date")
-    tc_filters = fields.List(fields.Str)
     job_name = fields.Str(required=True)
 
     @post_load
