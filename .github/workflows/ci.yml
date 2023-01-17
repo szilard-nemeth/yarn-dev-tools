@@ -1,4 +1,4 @@
-name: CI for YARN dev tools (pip)
+name: 'CI'
 on: [push]
 # TODO Remove this later --> Caused test failures
 env:
@@ -9,7 +9,7 @@ defaults:
     working-directory: ./
 
 jobs:
-  build:
+  build-and-test:
     strategy:
       matrix:
         python-version: [3.8]
