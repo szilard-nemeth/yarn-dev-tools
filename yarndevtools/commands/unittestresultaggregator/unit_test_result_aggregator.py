@@ -35,8 +35,8 @@ class UnitTestResultAggregator(CommandAbs):
         self._known_test_failures = self._email_utils.fetch_known_test_failures()
 
         if self.config.should_use_db:
-            self._db = UTResultAggregatorDatabase(self.config.mongo_config)
-            self._db_aggregator = JenkinsJobBuildDataAndEmailContentAggregator(self._db)
+            db = UTResultAggregatorDatabase(self.config.mongo_config)
+            self._db_aggregator = JenkinsJobBuildDataAndEmailContentAggregator(db)
 
     @staticmethod
     def create_parser(subparsers):

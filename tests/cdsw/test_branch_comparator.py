@@ -69,6 +69,7 @@ class ContainerDirs:
     CDSW_SECRET_DIR = FileUtils.join_path("/root", ".secret", "projects", "cloudera", CDSW_DIRNAME)
 
 
+# TODO Verify if Docker-based test should be replaced with https://docs.pyfilesystem.org/en/latest/index.html
 class DockerBasedTestConfig:
     GLOBAL_SITE_COMMAND = f"{PYTHON3} -c 'import site; print(site.getsitepackages()[0])'"
     USER_SITE_COMMAND = f"{PYTHON3} -m site --user-site"

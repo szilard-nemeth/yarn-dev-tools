@@ -92,7 +92,8 @@ class Database(ABC):
             serialized["_id"] = serialized[id_field_name]
         LOG.debug("Serialized object to MongoDB:", serialized)
 
-        return self._db[collection_name].insert_one(serialized)
+        # TODO bypass added to avoid: bson.errors.InvalidDocument: key 'Mawo-UT-hadoop-CDPD-7.x' must not contain '.'
+        return self._db[collection_name].insert_one(serialized, bypass_document_validation=True)
 
     def find_by_id(self, id, collection_name: str):
         doc = self._db[collection_name].find_one({"_id": id})

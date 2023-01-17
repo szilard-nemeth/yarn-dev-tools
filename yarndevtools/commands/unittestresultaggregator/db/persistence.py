@@ -51,7 +51,7 @@ class UTResultAggregatorDatabase(Database):
         docs = self.find_all_build_data()
         for doc in docs:
             dic = self._build_data_schema.load(doc, unknown=EXCLUDE)
-            result.append(JobBuildData.deserialize(dic))
+            result.append(JobBuildDataSchema.deserialize(dic))
         return result
 
 
