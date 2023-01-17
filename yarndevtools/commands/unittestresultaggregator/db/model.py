@@ -22,6 +22,7 @@ class EmailContentSchema(Schema):
 
 
 class EmailContent(DBSerializable, AggregatorEntity):
+    # TODO should eliminate this class and use JobBuildData instead, msg_id, thread_id, date, subject should be added to Source object as a field
     def __init__(self, msg_id, thread_id, date, subject, build_url, job_name, build_number, lines):
         self.msg_id = msg_id
         self.thread_id = thread_id

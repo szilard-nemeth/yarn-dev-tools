@@ -14,7 +14,7 @@ class JenkinsJobBuildDataAndEmailContentAggregator:
     from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
 
     def __init__(self, db: UTResultAggregatorDatabase):
-        self._db = db
+        self._db: UTResultAggregatorDatabase = db
         # key: job name, value: Dict[build number, JobBuildData]
         self.fetcher_data_dict: Dict[str, Dict[str, JobBuildData]] = {}
         # key: job name, value: Dict[build number, EmailContent]
