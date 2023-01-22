@@ -77,6 +77,7 @@ class UTResultFetcherDatabase(Database):
         super().__init__(conf)
         self._report_schema = JenkinsJobReportSchema()
         self._reports_schema = JenkinsJobReportsSchema()
+        self.coll = UTResultFetcherDatabase.MONGO_COLLECTION_JENKINS_REPORTS
 
     def has_build_data(self, build_url):
         doc = super().find_by_id(build_url, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
@@ -95,13 +96,15 @@ class UTResultFetcherDatabase(Database):
         LOG.info("Saving Jenkins reports to Database")
         if log:
             LOG.debug("Final cached data object: %s", reports)
-        super().save(reports, collection_name=UTResultFetcherDatabase.MONGO_COLLECTION_JENKINS_REPORTS)
+        super().save(reports, collection_name=self.coll)
 
     def load_reports(self) -> JenkinsJobReports:
         LOG.info("Trying to load Jenkins reports from Database")
-        reports_dic: Dict[str, JenkinsJobReport] = super().find_one(
-            collection_name=UTResultFetcherDatabase.MONGO_COLLECTION_JENKINS_REPORTS
-        )
+        count = super().count(self.coll)
+        if count > 1:
+            raise ValueError("Expected count of collection '{}' is 1. Actual count: {}".format(self.coll, count))
+
+        reports_dic: Dict[str, JenkinsJobReport] = super().find_one(collection_name=self.coll)
         if not reports_dic:
             reports_dic = {}
         if "_id" in reports_dic:

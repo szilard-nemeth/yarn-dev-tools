@@ -109,3 +109,6 @@ class Database(ABC):
         if not res:
             return None
         return res
+
+    def count(self, collection_name: str):
+        return self._db[collection_name].count_documents({})
