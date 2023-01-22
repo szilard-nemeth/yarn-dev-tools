@@ -21,7 +21,7 @@ from yarndevtools.commands.unittestresultfetcher.cache import (
     UnitTestResultFetcherCacheType,
     CacheConfig,
 )
-from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode
+from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode, FileNameUtils
 from yarndevtools.commands.unittestresultfetcher.db import JenkinsJobReports, UTResultFetcherDatabase
 from yarndevtools.commands.unittestresultfetcher.email import Email, EmailConfig
 from yarndevtools.commands.unittestresultfetcher.model import JenkinsJobReport, CachedBuildKey
@@ -298,7 +298,7 @@ class UnitTestResultFetcher(CommandAbs):
         # Cached build data is stored in dirs with dots replaced by underscores,
         # make CachedBuildKey to follow the dir name pattern, so job_names are always consistent when used in
         # CachedBuildKey.
-        job_name = Cache.escape_job_name(failed_build.job_name)
+        job_name = FileNameUtils.escape_job_name(failed_build.job_name)
         return CachedBuildKey(job_name, failed_build.build_number)
 
     @staticmethod
