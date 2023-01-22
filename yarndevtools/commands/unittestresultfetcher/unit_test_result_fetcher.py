@@ -280,7 +280,7 @@ class UnitTestResultFetcher(CommandAbs):
     def _invoke_report_processors(self, build_data: JobBuildData, report: JenkinsJobReport):
         self.email.process(build_data, report)
 
-    def create_job_build_data(self, failed_build: FailedJenkinsBuild) -> JobBuildData:
+    def fetch_and_parse_data(self, failed_build: FailedJenkinsBuild) -> JobBuildData:
         """Find the names of any tests which failed in the given build output URL."""
         try:
             data = self.fetch_raw_data_for_build(failed_build)
@@ -357,7 +357,7 @@ class UnitTestResultFetcher(CommandAbs):
             # 1. job is not found in cache and config.download_uncached_job_data is True OR
             # 2. when job data is not found in file cache.
             if download_build or not job_added_from_cache:
-                job_data = self.create_job_build_data(failed_build)
+                job_data = self.fetch_and_parse_data(failed_build)
                 if not job_added_from_cache:
                     job_data.filter_testcases(self.config.tc_filters)
                     job_datas.append(job_data)
