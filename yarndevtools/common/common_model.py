@@ -7,8 +7,6 @@ from marshmallow import Schema, fields, post_load
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.common.db import DBSerializable
-
 
 @dataclass
 class JenkinsTestcaseFilter:
@@ -80,11 +78,17 @@ class AggregatorEntity(ABC):
         pass
 
 
+class DBSerializable(ABC):
+    @abstractmethod
+    def serialize(self):
+        pass
+
+
 class JobBuildData(DBSerializable, AggregatorEntity):
-    def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, status: JobBuildDataStatus):
+    def __init__(self, failed_build: FailedJenkinsBuild, counters, failed_testcases, status: JobBuildDataStatus):
         self._failed_build: FailedJenkinsBuild = failed_build
         self.counters = counters
-        self.failed_testcases: List[str] = testcases
+        self.failed_testcases: List[str] = failed_testcases
         self.filtered_testcases: List[FilteredResult] = []
         self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
         self.no_of_failed_filtered_tc = None
@@ -210,9 +214,6 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         )
 
 
-MONGO_COLLECTION_JENKINS_BUILD_DATA = "jenkins_build_data"
-
-
 class JobBuildDataSchema(Schema):
     build_number = fields.Int(required=True)
     build_url = fields.Str(required=True)
@@ -225,7 +226,7 @@ class JobBuildDataSchema(Schema):
     mail_sent = fields.Boolean()
     # TODO Convert to DateTime?
     # mail_sent_date = fields.DateTime(attribute="sent_date")
-    mail_sent_date = fields.Str(attribute="sent_date")
+    mail_sent_date = fields.Str(attribute="sent_date", allow_none=True)
     job_name = fields.Str(required=True)
 
     @post_load

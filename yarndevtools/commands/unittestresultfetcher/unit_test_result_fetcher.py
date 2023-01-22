@@ -180,6 +180,8 @@ class UnitTestResultFetcher(CommandAbs):
         self.job_results: JenkinsJobResults = self._database.load_job_results()
         if self.config.cache.enabled:
             self.cache.initialize()
+
+        # TODO yarndevtoolsv2 self.job_results does not contain job_build_datas loaded from Google Drive
         if self.config.load_cached_reports_to_db:
             reports: Dict[str, FailedJenkinsBuild] = self.cache.download_reports()
             for file_path, failed_build in reports.items():
@@ -201,7 +203,6 @@ class UnitTestResultFetcher(CommandAbs):
 
         for job_name in self.config.job_names:
             job_result: JenkinsJobResult = self._create_jenkins_job_result(job_name)
-            # TODO yarndevtoolsv2 self.reports does not contain job_build_datas loaded from Google Drive
             self.job_results[job_name] = job_result
             self.process_job_result(job_result)
         self._database.save_job_results(self.job_results)

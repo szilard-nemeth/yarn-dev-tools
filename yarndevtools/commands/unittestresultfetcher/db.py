@@ -2,53 +2,18 @@ import logging
 from collections import UserDict
 from typing import Dict
 
-from marshmallow import Schema, fields, post_load, post_dump, pre_load, EXCLUDE
-
 from yarndevtools.commands.unittestresultfetcher.model import JenkinsJobResult
-from yarndevtools.common.common_model import JobBuildDataSchema, MONGO_COLLECTION_JENKINS_BUILD_DATA, JobBuildData
-from yarndevtools.common.db import DBSerializable, Database, MongoDbConfig
+from yarndevtools.common.common_model import JobBuildData
+from yarndevtools.common.db import Database, MongoDbConfig, JenkinsBuildDatabase
 
 LOG = logging.getLogger(__name__)
 
 
-class JenkinsJobResultSchema(Schema):
-    builds = fields.List(fields.Nested(JobBuildDataSchema()))
-    failure_count_by_testcase = fields.Dict(keys=fields.Str, values=fields.Int)
-    total_num_of_builds = fields.Int()
-
-    @post_load
-    def make_job_result_obj(self, data, **kwargs):
-        return JenkinsJobResult(**data)
-
-
-class JenkinsJobResultsSchema(Schema):
-    data = fields.Dict(keys=fields.Str, values=fields.Nested(JenkinsJobResultSchema()))
-
-    @pre_load
-    def add_data_prop(self, data, **kwargs):
-        # Adding 'data' property to satisfy validation
-        return {"data": data}
-
-    @post_load
-    def make_job_results_obj(self, data, **kwargs):
-        return JenkinsJobResults(data["data"])
-
-    @post_dump
-    def post_dump(self, obj, **kwargs):
-        if "data" in obj:
-            return obj["data"]
-        return obj
-
-
-class JenkinsJobResults(DBSerializable, UserDict):
+class JenkinsJobResults(UserDict):
     def __init__(self, job_results):
         super().__init__()
         self.data: Dict[str, JenkinsJobResult] = job_results  # key: Jenkins job name
         self._index = 0
-        self._schema = JenkinsJobResultsSchema()
-
-    def serialize(self):
-        return self._schema.dump(self)
 
     def __getitem__(self, job_name):
         return self.data[job_name]
@@ -73,53 +38,44 @@ class JenkinsJobResults(DBSerializable, UserDict):
 
 
 class UTResultFetcherDatabase(Database):
-    MONGO_COLLECTION_JENKINS_JOB_RESULTS = "jenkins_job_results"
-
     def __init__(self, conf: MongoDbConfig):
         super().__init__(conf)
-        self._job_result_schema = JenkinsJobResultSchema()
-        self._job_results_schema = JenkinsJobResultsSchema()
-        self._coll = UTResultFetcherDatabase.MONGO_COLLECTION_JENKINS_JOB_RESULTS
+        self._jenkins_build_data_db = JenkinsBuildDatabase(conf)
 
     def has_build_data(self, build_url):
-        doc = super().find_by_id(build_url, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
-        return True if doc else False
+        return self._jenkins_build_data_db.has_build_data(build_url)
 
     def save_build_data(self, build_data: JobBuildData):
-        # TODO trace logging
-        # LOG.debug("Saving build data to Database: %s", build_data)
-        doc = super().find_by_id(build_data.build_url, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
-        # TODO yarndevtoolsv2 Overwrite of saved fields won't happen here (e.g. mail sent = True)
-        if doc:
-            return doc
-        return super().save(build_data, collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA, id_field_name="build_url")
+        self._jenkins_build_data_db.save_build_data(build_data)
 
     def save_job_results(self, job_results: JenkinsJobResults, log: bool = False):
         LOG.info("Saving Jenkins job results to Database")
         if log:
             LOG.debug("Final job results object: %s", job_results)
-        super().save(job_results, collection_name=self._coll)
+
+        job_build_datas = []
+        job_result_lst = job_results.data.values()
+        for job_result in job_result_lst:
+            # TODO mongodb: Is there a more efficient save method for collections?
+            for build in job_result.builds:
+                job_build_datas.append(build)
+        self._jenkins_build_data_db.save_all_build_data(job_build_datas)
 
     def load_job_results(self) -> JenkinsJobResults:
         LOG.info("Trying to load Jenkins job results from Database")
-        count = super().count(self._coll)
-        if count > 1:
-            raise ValueError("Expected count of collection '{}' is 1. Actual count: {}".format(self._coll, count))
+        job_build_data_objs = self._jenkins_build_data_db.find_and_validate_all_build_data()
 
-        job_results_dict: Dict[str, JenkinsJobResult] = super().find_one(collection_name=self._coll)
-        if not job_results_dict:
-            job_results_dict = {}
-        if "_id" in job_results_dict:
-            del job_results_dict["_id"]
-        job_results = self._job_results_schema.load(job_results_dict)
+        job_results_dict = {}
+        # TODO dummy values passed
+        for build_data in job_build_data_objs:
+            if build_data.job_name not in job_results_dict:
+                job_results_dict[build_data.job_name] = JenkinsJobResult.create_empty(-1, -1)
+            job_results_dict[build_data.job_name].add_build(build_data)
+
+        for job_result in job_results_dict.values():
+            job_result.finalize()
+
+        job_results = JenkinsJobResults(job_results_dict)
         job_results.print_email_status()
-        LOG.info("Loaded Jenkins job results from Database. " "Length of collection: %d", len(job_results))
+        LOG.info("Loaded Jenkins job results from Database. Length of collection: %d", len(job_results))
         return job_results
-
-    def find_and_validate_all_job_results(self):
-        all_job_results = []
-        docs = self.load_job_results()
-        for doc in docs:
-            dic = self._job_results_schema.load(doc, unknown=EXCLUDE)
-            all_job_results.append(JenkinsJobResult.deserialize(dic))
-        return all_job_results

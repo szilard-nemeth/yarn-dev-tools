@@ -1,16 +1,15 @@
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import List, Any
 
 import pymongo
 
 import logging
 
+from marshmallow import EXCLUDE
+
+from yarndevtools.common.common_model import JobBuildDataSchema, JobBuildData, DBSerializable
+
 LOG = logging.getLogger(__name__)
-
-
-class DBSerializable(ABC):
-    @abstractmethod
-    def serialize(self):
-        pass
 
 
 class MongoDbConfig:
@@ -83,17 +82,48 @@ class Database(ABC):
                 raise ValueError("DB with name '{}' does not exist!".format(conf.db_name))
         self._db = self._client[conf.db_name]
 
-    def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None):
+    def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None, log_obj=False):
+        serialized = self._serialize_obj(obj, id_field_name=id_field_name, log_obj=log_obj)
+        # TODO bypass added to avoid: bson.errors.InvalidDocument: key 'Mawo-UT-hadoop-CDPD-7.x' must not contain '.'
+        return self._db[collection_name].insert_one(serialized, bypass_document_validation=True)
+
+    @staticmethod
+    def _serialize_obj(obj, id_field_name=None, log_obj=False):
         serialized = obj.serialize()
         if id_field_name:
             if id_field_name not in serialized:
                 raise ValueError("Serialized object '{}' has no field with name '{}'".format(serialized, id_field_name))
             # Manually add _id field for MongoDB.
             serialized["_id"] = serialized[id_field_name]
-        LOG.debug("Serialized object to MongoDB:", serialized)
+        if log_obj:
+            LOG.debug("Serialized object to MongoDB: %s", serialized)
+        return serialized
 
-        # TODO bypass added to avoid: bson.errors.InvalidDocument: key 'Mawo-UT-hadoop-CDPD-7.x' must not contain '.'
-        return self._db[collection_name].insert_one(serialized, bypass_document_validation=True)
+    def save_many(
+        self, obj_list: List[Any], collection_name: str, id_field_name: str = None, log_obj=False, force_mode=False
+    ):
+        # TODO Implement force_mode
+        filtered_objs = self._filter_objs_by_ids(collection_name, id_field_name, obj_list)
+        serialized_objs = []
+        for obj in filtered_objs:
+            serialized = self._serialize_obj(obj, id_field_name=id_field_name, log_obj=log_obj)
+            serialized_objs.append(serialized)
+        res = self._db[collection_name].insert_many(serialized_objs)
+        LOG.debug("Inserted IDs: %d into collection: %s", len(res.inserted_ids), collection_name)
+
+    def _filter_objs_by_ids(self, collection_name, id_field_name, obj_list):
+        if not id_field_name:
+            raise ValueError("id_field_name is not specified, ID filtering cannot work without it!")
+        ids = set(self._get_all_ids(collection_name))
+        LOG.debug("Found %d ids in collection %s", len(ids), collection_name)
+        filtered_objs = []
+        for obj in obj_list:
+            id = getattr(obj, id_field_name)
+            if id not in ids:
+                filtered_objs.append(obj)
+
+        LOG.debug("Found %d objects with unknown IDs", len(filtered_objs))
+        return filtered_objs
 
     def find_by_id(self, id, collection_name: str):
         doc = self._db[collection_name].find_one({"_id": id})
@@ -112,3 +142,42 @@ class Database(ABC):
 
     def count(self, collection_name: str):
         return self._db[collection_name].count_documents({})
+
+    def _get_all_ids(self, collection_name: str):
+        return self._db[collection_name].find().distinct("_id")
+
+
+class JenkinsBuildDatabase(Database):
+    MONGO_COLLECTION_JENKINS_BUILD_DATA = "jenkins_build_data"
+
+    def __init__(self, conf: MongoDbConfig):
+        super().__init__(conf)
+        self._build_data_schema = JobBuildDataSchema()
+        self._coll = JenkinsBuildDatabase.MONGO_COLLECTION_JENKINS_BUILD_DATA
+
+    def has_build_data(self, build_url):
+        doc = super().find_by_id(build_url, collection_name=self._coll)
+        return True if doc else False
+
+    def find_all_build_data(self):
+        return super().find_all(collection_name=self._coll)
+
+    def find_and_validate_all_build_data(self) -> List[JobBuildData]:
+        result = []
+        docs = self.find_all_build_data()
+        for doc in docs:
+            job_build_data = self._build_data_schema.load(doc, unknown=EXCLUDE)
+            result.append(job_build_data)
+        return result
+
+    def save_all_build_data(self, build_data_list: List[JobBuildData]):
+        super().save_many(build_data_list, collection_name=self._coll, id_field_name="build_url")
+
+    def save_build_data(self, build_data: JobBuildData):
+        # TODO trace logging
+        # LOG.debug("Saving build data to Database: %s", build_data)
+        doc = super().find_by_id(build_data.build_url, collection_name=self._coll)
+        # TODO yarndevtoolsv2 Overwrite of saved fields won't happen here (e.g. mail sent = True)
+        if doc:
+            return doc
+        return super().save(build_data, collection_name=self._coll, id_field_name="build_url")
