@@ -26,20 +26,28 @@ class CachedBuild:
 class JenkinsJobResult:
     def __init__(self, builds, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
         self.builds: List[JobBuildData] = builds
-        self.all_failing_tests: Dict[str, int] = all_failing_tests
-        self.total_no_of_builds: int = total_no_of_builds
+        self.failure_count_by_testcase: Dict[str, int] = all_failing_tests
+        self.total_num_of_builds: int = total_no_of_builds
         self.num_builds_per_config: int = num_builds_per_config
-
-        # Projected fields
-        self._tc_to_fail_count = {}
-        self._builds_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in self.builds}
-        self._job_urls = list(sorted(self._builds_by_url.keys(), reverse=True))  # Sort by URL, descending
-        self._actual_num_builds = self._determine_actual_number_of_builds(self.num_builds_per_config)
         self._index = 0
+
+        # Computed fields
+        self._builds_by_url = None
+        self._job_urls = None
+        self._actual_num_builds = -1
+        self._compute_dynamic_fields()
 
     @staticmethod
     def create_empty(total_no_of_builds, num_builds_per_config):
-        return JenkinsJobResult([], 0, total_no_of_builds, num_builds_per_config)
+        return JenkinsJobResult([], {}, total_no_of_builds, num_builds_per_config)
+
+    def _compute_dynamic_fields(self):
+        self._builds_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in self.builds}
+        self._job_urls = list(sorted(self._builds_by_url.keys(), reverse=True))  # Sort by URL, descending
+        self._actual_num_builds = self._determine_actual_number_of_builds(self.num_builds_per_config)
+
+    def finalize(self):
+        self._compute_dynamic_fields()
 
     def start_processing(self):
         LOG.info(f"Jenkins job result contains the following results: {self._job_urls}")
@@ -65,7 +73,7 @@ class JenkinsJobResult:
 
     def _determine_actual_number_of_builds(self, num_builds_per_config):
         build_data_count = len(self._builds_by_url)
-        total_no_of_builds = self.total_no_of_builds
+        total_no_of_builds = self.total_num_of_builds
         if build_data_count < total_no_of_builds:
             LOG.warning(
                 "Jenkins job result contains less builds than total number of builds. " "Actual: %d, Total: %d",
@@ -74,14 +82,16 @@ class JenkinsJobResult:
             )
             actual_num_builds = min(num_builds_per_config, build_data_count)
         else:
-            actual_num_builds = min(num_builds_per_config, self.total_no_of_builds)
+            actual_num_builds = min(num_builds_per_config, self.total_num_of_builds)
         return actual_num_builds
 
     def _update_testcase_to_fail_count_dict(self, job_data):
         if job_data.has_failed_testcases():
-            for failed_testcase in job_data.testcases:
+            for failed_testcase in job_data.failed_testcases:
                 LOG.debug(f"Detected failed testcase: {failed_testcase}")
-                self._tc_to_fail_count[failed_testcase] = self._tc_to_fail_count.get(failed_testcase, 0) + 1
+                self.failure_count_by_testcase[failed_testcase] = (
+                    self.failure_count_by_testcase.get(failed_testcase, 0) + 1
+                )
 
     @property
     def known_build_urls(self):
@@ -105,8 +115,8 @@ class JenkinsJobResult:
 
     def print(self, build_data):
         LOG.info(f"\nPRINTING JOB RESULT: \n\n{build_data}")
-        LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
+        LOG.info(f"\nAmong {self.total_num_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
         # Print summary section: all failed tests sorted by how many times they failed
         LOG.info("TESTCASE SUMMARY:")
-        for tn in sorted(self.all_failing_tests, key=self.all_failing_tests.get, reverse=True):
-            LOG.info(f"{self.all_failing_tests[tn]}: {tn}")
+        for tn in sorted(self.failure_count_by_testcase, key=self.failure_count_by_testcase.get, reverse=True):
+            LOG.info(f"{self.failure_count_by_testcase[tn]}: {tn}")

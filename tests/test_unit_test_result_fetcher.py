@@ -616,14 +616,14 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         report_dict, spec = JenkinsTestReport.get_arbitrary()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApi.parse_job_data(report_dict, failed_jenkins_build)
-        self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
+        self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.failed_testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_regression_testcases(self):
         report_dict, spec = JenkinsTestReport.get_with_regression()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
         job_build_data = JenkinsApi.parse_job_data(report_dict, failed_jenkins_build)
-        self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
+        self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.failed_testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_counters(self):
