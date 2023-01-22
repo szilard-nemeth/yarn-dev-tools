@@ -96,11 +96,14 @@ class JobBuildData(DBSerializable, AggregatorEntity):
     def filter_testcases(self, tc_filters: List[JenkinsTestcaseFilter]):
         matched_testcases = set()
         for tcf in tc_filters:
-            matched_for_filter = list(filter(lambda tc: tcf.filter_expr in tc, self.testcases))
+            filter_expr = tcf.filter_expr
+            matched_for_filter = list(filter(lambda tc: filter_expr in tc, self.testcases))
             self.filtered_testcases.append(FilteredResult(tcf, matched_for_filter))
-            if tcf.filter_expr not in self.filtered_testcases_by_expr:
-                self.filtered_testcases_by_expr[tcf.filter_expr] = []
-            self.filtered_testcases_by_expr[tcf.filter_expr].extend(matched_for_filter)
+
+            if filter_expr not in self.filtered_testcases_by_expr:
+                self.filtered_testcases_by_expr[filter_expr] = []
+
+            self.filtered_testcases_by_expr[filter_expr].extend(matched_for_filter)
             matched_testcases.update(matched_for_filter)
         self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
         self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
