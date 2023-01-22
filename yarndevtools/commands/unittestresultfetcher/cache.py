@@ -27,7 +27,11 @@ from pythoncommons.string_utils import StringUtils
 from pythoncommons.url_utils import UrlUtils
 
 from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
-from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode, CACHED_DATA_DIRNAME
+from yarndevtools.commands.unittestresultfetcher.common import (
+    UnitTestResultFetcherMode,
+    CACHED_DATA_DIRNAME,
+    FileNameUtils,
+)
 from yarndevtools.commands.unittestresultfetcher.model import CachedBuild, JenkinsJobReport, CachedBuildKey
 from yarndevtools.common.common_model import FailedJenkinsBuild
 from yarndevtools.common.shared_command_utils import CommandType
@@ -64,15 +68,7 @@ class Cache(ABC):
 
     @staticmethod
     def generate_job_dirname(cached_build_key: CachedBuildKey):
-        return Cache.escape_job_name(cached_build_key.job_name)
-
-    @staticmethod
-    def escape_job_name(job_name: str):
-        return job_name.replace(".", "_")
-
-    @staticmethod
-    def unescape_job_name(job_name: str):
-        return job_name.replace("_", ".")
+        return FileNameUtils.escape_job_name(cached_build_key.job_name)
 
     @staticmethod
     def generate_report_filename(cached_build_key: CachedBuildKey):
@@ -282,40 +278,13 @@ class GoogleDriveCache(Cache):
     def create_failed_build(filename, creation_date, cached_build_key):
         build_number = GoogleDriveCache.get_build_number(filename)
         timestamp = creation_date.timestamp()
-        fetcher_mode = GoogleDriveCache.get_mode_by_job_name(cached_build_key.job_name)
+        fetcher_mode = UnitTestResultFetcherMode.get_mode_by_job_name(cached_build_key.job_name)
         build_url = f"{fetcher_mode.jenkins_base_url}/job/{cached_build_key.job_name}/{build_number}"
         return FailedJenkinsBuild(
             full_url_of_job=UrlUtils.sanitize_url(build_url),
             timestamp=timestamp,
             job_name=cached_build_key.job_name,
         )
-
-    @staticmethod
-    def get_mode_by_job_name(job_name_param):
-        if not UnitTestResultFetcherMode.__job_names_by_mode__:
-            d = {}
-            for m in UnitTestResultFetcherMode:
-                for job_name in m.job_names:
-                    d[job_name] = m
-            UnitTestResultFetcherMode.__job_names_by_mode__ = d
-
-        d = UnitTestResultFetcherMode.__job_names_by_mode__
-        escaped_job_name = Cache.escape_job_name(job_name_param)
-        unescaped_job_name = Cache.unescape_job_name(job_name_param)
-
-        found_escaped = escaped_job_name in d
-        found_unescaped = unescaped_job_name in d
-        if not found_escaped and not found_unescaped:
-            raise ValueError(
-                "Unrecognized job name (original): {}. \n"
-                "Escaped job name: {}\n"
-                "Unescaped job name: {}\n"
-                "Known job names: {}".format(job_name_param, escaped_job_name, unescaped_job_name, d.keys())
-            )
-        if found_escaped:
-            return d[escaped_job_name]
-        elif found_unescaped:
-            return d[unescaped_job_name]
 
     def _generate_file_name_for_report(self, cached_build_key: CachedBuildKey):
         return FileUtils.join_path(
