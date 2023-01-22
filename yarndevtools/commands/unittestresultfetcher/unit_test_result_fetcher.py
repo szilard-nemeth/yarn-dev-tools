@@ -71,12 +71,12 @@ class JenkinsJobUrls:
         return f"{jenkins_url}/job/{job_name}/api/json?tree=builds[url,result,timestamp]"
 
 
-class JenkinsApiConverter:
+class JenkinsApi:
     @staticmethod
-    def convert(job_name: str, jenkins_urls: JenkinsJobUrls, days: int):
-        all_builds: List[Dict[str, str]] = JenkinsApiConverter._list_builds(jenkins_urls)
-        last_n_builds: List[Dict[str, str]] = JenkinsApiConverter._filter_builds_last_n_days(all_builds, days=days)
-        last_n_failed_build_tuples: List[Tuple[str, int]] = JenkinsApiConverter._get_failed_build_urls_with_timestamps(
+    def list_builds_for_job(job_name: str, jenkins_urls: JenkinsJobUrls, days: int):
+        all_builds: List[Dict[str, str]] = JenkinsApi._list_builds(jenkins_urls)
+        last_n_builds: List[Dict[str, str]] = JenkinsApi._filter_builds_last_n_days(all_builds, days=days)
+        last_n_failed_build_tuples: List[Tuple[str, int]] = JenkinsApi._get_failed_build_urls_with_timestamps(
             last_n_builds
         )
         failed_build_data: List[Tuple[str, int]] = sorted(
@@ -85,7 +85,7 @@ class JenkinsApiConverter:
         failed_builds = [
             FailedJenkinsBuild(
                 full_url_of_job=tup[0],
-                timestamp=JenkinsApiConverter._convert_to_unix_timestamp(tup[1]),
+                timestamp=JenkinsApi._convert_to_unix_timestamp(tup[1]),
                 job_name=job_name,
             )
             for tup in failed_build_data
@@ -108,7 +108,7 @@ class JenkinsApiConverter:
         url = urls.list_builds
         try:
             LOG.info("Fetching builds from Jenkins in url: %s", url)
-            data = JenkinsApiConverter.safe_fetch_json(url)
+            data = JenkinsApi.safe_fetch_json(url)
             # In case job does not exist (HTTP 404), data will be None
             if data:
                 return data["builds"]
@@ -121,7 +121,7 @@ class JenkinsApiConverter:
     def _filter_builds_last_n_days(builds, days):
         # Select only those in the last N days
         min_time = int(time.time()) - SECONDS_PER_DAY * days
-        return [b for b in builds if (JenkinsApiConverter._convert_to_unix_timestamp_from_json(b)) > min_time]
+        return [b for b in builds if (JenkinsApi._convert_to_unix_timestamp_from_json(b)) > min_time]
 
     @staticmethod
     def _get_failed_build_urls_with_timestamps(builds):
@@ -130,7 +130,7 @@ class JenkinsApiConverter:
     @staticmethod
     def _convert_to_unix_timestamp_from_json(build_json):
         timestamp_str = build_json["timestamp"]
-        return JenkinsApiConverter._convert_to_unix_timestamp(int(timestamp_str))
+        return JenkinsApi._convert_to_unix_timestamp(int(timestamp_str))
 
     @staticmethod
     def _convert_to_unix_timestamp(ts: int):
@@ -167,13 +167,13 @@ class JenkinsApiConverter:
     def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
         url = failed_build.urls.test_report_api_json_url
         LOG.info(f"Loading test report from URL: {url}. Download progress: {download_progress.short_str()}")
-        return JenkinsApiConverter.safe_fetch_json(url)
+        return JenkinsApi.safe_fetch_json(url)
 
     @staticmethod
     def safe_fetch_json(url):
         def retry_fetch(url):
             LOG.error("URL '%s' cannot be fetched (HTTP 502 Proxy Error):", url)
-            JenkinsApiConverter.safe_fetch_json(url)
+            JenkinsApi.safe_fetch_json(url)
 
         # HTTP 404 should be logged
         # HTTP Error 502: Proxy Error is just calls this function again (retry) with the same args, indefinitely
@@ -338,7 +338,7 @@ class UnitTestResultFetcher(CommandAbs):
                     if not report_json:
                         LOG.error("Cannot load report as its JSON is empty. Job URL: %s", failed_build.url)
                         continue
-                    build_data = JenkinsApiConverter.parse_job_data(report_json, failed_build)
+                    build_data = JenkinsApi.parse_job_data(report_json, failed_build)
                     self._database.save_build_data(build_data)
 
         for reset_job in self.config.reset_job_build_data_for_jobs:
@@ -431,7 +431,7 @@ class UnitTestResultFetcher(CommandAbs):
     def create_job_build_data(self, failed_build: FailedJenkinsBuild) -> JobBuildData:
         """Find the names of any tests which failed in the given build output URL."""
         try:
-            data = self.gather_raw_data_for_build(failed_build)
+            data = self.fetch_raw_data_for_build(failed_build)
         except Exception:
             traceback.print_exc()
             LOG.error(
@@ -444,23 +444,23 @@ class UnitTestResultFetcher(CommandAbs):
         if not data or len(data) == 0:
             return JobBuildData(failed_build, None, [], status=JobBuildDataStatus.NO_JSON_DATA_FOUND)
 
-        return JenkinsApiConverter.parse_job_data(data, failed_build)
+        return JenkinsApi.parse_job_data(data, failed_build)
 
-    def gather_raw_data_for_build(self, failed_build: FailedJenkinsBuild):
+    def fetch_raw_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
             cache_build_key = self._convert_to_cache_build_key(failed_build)
             cache_hit = self.cache.is_build_data_in_cache(cache_build_key)
             if cache_hit:
                 return self.cache.load_report(cache_build_key)
             else:
-                return self._download_build_data(failed_build)
+                return self._fetch_build_data(failed_build)
         else:
-            return self._download_build_data(failed_build)
+            return self._fetch_build_data(failed_build)
 
-    def _download_build_data(self, failed_build):
+    def _fetch_build_data(self, failed_build):
         fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
         LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
-        data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
+        data = JenkinsApi.download_test_report(failed_build, self.download_progress)
         self.sent_requests += 1
         if self.config.cache.enabled:
             self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
@@ -470,7 +470,7 @@ class UnitTestResultFetcher(CommandAbs):
         """Iterate runs of specified job within num_builds and collect results"""
         # TODO Discrepancy: request limit vs. days parameter
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
-        self.failed_builds, self.total_no_of_builds = JenkinsApiConverter.convert(
+        self.failed_builds, self.total_no_of_builds = JenkinsApi.list_builds_for_job(
             job_name, jenkins_urls, days=DEFAULT_REQUEST_LIMIT
         )
         job_datas: List[JobBuildData] = []
