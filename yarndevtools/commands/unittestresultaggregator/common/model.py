@@ -69,7 +69,7 @@ class FailedBuildAbs(ABC):
 
 class FailedBuildFromDbJobBuildData(FailedBuildAbs):
     def __init__(self, job_build_data: JobBuildData):
-        super().__init__(job_build_data.testcases)
+        super().__init__(job_build_data.failed_testcases)
         self._job_build_data: JobBuildData = job_build_data
 
     def build_url(self) -> str:

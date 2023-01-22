@@ -23,11 +23,21 @@ class JenkinsTestcaseFilter:
 @auto_str
 class FailedJenkinsBuild:
     def __init__(self, full_url_of_job: str, timestamp: int, job_name):
+        split = full_url_of_job.strip("/").rsplit("/")
+        self.server_name = self._parse_server_name(full_url_of_job, split)
+
         self.url = full_url_of_job
         self.urls = JenkinsJobInstanceUrls(full_url_of_job)
-        self.build_number = int(full_url_of_job.strip("/").rsplit("/")[-1])
+        self.build_number = int(split[-1])
         self.timestamp = timestamp
         self.job_name: str = job_name
+
+    @staticmethod
+    def _parse_server_name(url, split):
+        for s in split:
+            if not s.startswith("http") and s:
+                return s
+        raise ValueError("Failed to parse server name from URL: {}".format(url))
 
     @property
     def datetime(self):
@@ -74,7 +84,7 @@ class JobBuildData(DBSerializable, AggregatorEntity):
     def __init__(self, failed_build: FailedJenkinsBuild, counters, testcases, status: JobBuildDataStatus):
         self._failed_build: FailedJenkinsBuild = failed_build
         self.counters = counters
-        self.testcases: List[str] = testcases
+        self.failed_testcases: List[str] = testcases
         self.filtered_testcases: List[FilteredResult] = []
         self.filtered_testcases_by_expr: Dict[str, List[str]] = {}
         self.no_of_failed_filtered_tc = None
@@ -91,13 +101,13 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         return self._schema.dump(self)
 
     def has_failed_testcases(self):
-        return len(self.testcases) > 0
+        return len(self.failed_testcases) > 0
 
     def filter_testcases(self, tc_filters: List[JenkinsTestcaseFilter]):
         matched_testcases = set()
         for tcf in tc_filters:
             filter_expr = tcf.filter_expr
-            matched_for_filter = list(filter(lambda tc: filter_expr in tc, self.testcases))
+            matched_for_filter = list(filter(lambda tc: filter_expr in tc, self.failed_testcases))
             self.filtered_testcases.append(FilteredResult(tcf, matched_for_filter))
 
             if filter_expr not in self.filtered_testcases_by_expr:
@@ -106,7 +116,7 @@ class JobBuildData(DBSerializable, AggregatorEntity):
             self.filtered_testcases_by_expr[filter_expr].extend(matched_for_filter)
             matched_testcases.update(matched_for_filter)
         self.no_of_failed_filtered_tc = sum([len(fr.testcases) for fr in self.filtered_testcases])
-        self.unmatched_testcases = set(self.testcases).difference(matched_testcases)
+        self.unmatched_testcases = set(self.failed_testcases).difference(matched_testcases)
 
     @property
     def failed_count(self):
@@ -185,7 +195,7 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         if filtered_testcases:
             filtered_testcases = f"\n{filtered_testcases}\n"
 
-        all_failed_testcases = "\n".join(self.testcases)
+        all_failed_testcases = "\n".join(self.failed_testcases)
         unmatched_testcases = "\n".join(self.unmatched_testcases)
         return (
             f"Counters:\n"
@@ -208,19 +218,10 @@ class JobBuildDataSchema(Schema):
     build_url = fields.Str(required=True)
     build_timestamp = fields.Int(required=True)
     status = fields.Enum(JobBuildDataStatus, required=True)
-    failed_testcases = fields.List(fields.Str, attribute="testcases")
-
-    # TODO Consider not storing: filtered_testcases, filtered_testcases_by_expression, unmatched_testcases, tc_filters, no_of_failed_filtered_tc
-    filtered_testcases = fields.List(fields.Str, required=True)
-    filtered_testcases_by_expression = fields.List(fields.Str, required=True, attribute="filtered_testcases_by_expr")
-    unmatched_testcases = fields.List(fields.Str, required=True)
-    tc_filters = fields.List(fields.Str)
-    no_of_failed_filtered_tc = fields.Int(required=True)
-
+    failed_testcases = fields.List(fields.Str)
     failed_count = fields.Int(required=True)
     passed_count = fields.Int(required=True)
     skipped_count = fields.Int(required=True)
-    is_valid = fields.Boolean()
     mail_sent = fields.Boolean()
     # TODO Convert to DateTime?
     # mail_sent_date = fields.DateTime(attribute="sent_date")
@@ -240,15 +241,9 @@ class JobBuildDataSchema(Schema):
             "skipped_count",
             "build_number",
             "build_url",
-            "is_valid",
             "job_name",
             "mail_sent",
             "sent_date",
-            "tc_filters",
-            "no_of_failed_filtered_tc",
-            "filtered_testcases_by_expr",
-            "filtered_testcases",
-            "unmatched_testcases",
             "build_timestamp",
         ]
         normal_keys = set(dic.keys()).difference(special_vars)
@@ -266,12 +261,8 @@ class JobBuildDataSchema(Schema):
 
         # process special vars
         # TODO yarndevtoolsv2 DB: How to reconstruct filtered testcases? Is this required?
-        build_data.unmatched_testcases = dic["unmatched_testcases"]
         build_data.mail_sent = dic["mail_sent"]
         build_data.sent_date = dic["sent_date"]
-        build_data.no_of_failed_filtered_tc = dic["no_of_failed_filtered_tc"]
-        build_data.filtered_testcases = dic["filtered_testcases"]
-        build_data.filtered_testcases_by_expr = dic["filtered_testcases_by_expr"]
 
         return build_data
 

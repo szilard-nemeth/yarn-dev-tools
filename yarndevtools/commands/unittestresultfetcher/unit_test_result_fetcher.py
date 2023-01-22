@@ -155,10 +155,10 @@ class UnitTestResultFetcher(CommandAbs):
     @staticmethod
     def _create_cache(config: UnitTestResultFetcherConfig):
         if config.cache.cache_type == UnitTestResultFetcherCacheType.FILE:
-            LOG.info("Using file cache.")
+            LOG.info("Using file cache")
             return FileCache(config.cache)
         elif config.cache.cache_type == UnitTestResultFetcherCacheType.GOOGLE_DRIVE:
-            LOG.info("Using Google Drive cache.")
+            LOG.info("Using Google Drive cache")
             return GoogleDriveCache(config.cache)
 
     def run(self):
@@ -213,7 +213,7 @@ class UnitTestResultFetcher(CommandAbs):
         result = self._get_job_result_by_job_name(job_name)
         if not result:
             raise ValueError("Job result is not queried yet or it is None!")
-        return list(result.all_failing_tests.keys())
+        return list(result.failure_count_by_testcase.keys())
 
     def get_num_build_data(self, job_name):
         return len(self._get_job_result_by_job_name(job_name)._builds_by_url)
@@ -226,7 +226,7 @@ class UnitTestResultFetcher(CommandAbs):
         return [
             tc
             for filtered_res in self._get_job_result_by_job_name(job_name).get_job_data(build_url).filtered_testcases
-            for tc in filtered_res.testcases
+            for tc in filtered_res.failed_testcases
             if package in tc
         ]
 
@@ -346,6 +346,7 @@ class UnitTestResultFetcher(CommandAbs):
                 # build data for job is already removed from the dict 'self.job_results'
                 if job_name in self.job_results:
                     job_data = self.job_results.get_by_job_and_url(job_name, failed_build.url)
+                    job_data.filter_testcases(self.config.tc_filters)
                     job_result.add_build(job_data)
                     job_added_from_cache = True
 
@@ -358,6 +359,7 @@ class UnitTestResultFetcher(CommandAbs):
                     job_data.filter_testcases(self.config.tc_filters)
                     job_result.add_build(job_data)
                 self.download_progress.process_next_build()
+        job_result.finalize()
 
         return job_result
 

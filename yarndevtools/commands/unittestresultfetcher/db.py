@@ -12,10 +12,9 @@ LOG = logging.getLogger(__name__)
 
 
 class JenkinsJobResultSchema(Schema):
-    job_build_datas = fields.List(fields.Nested(JobBuildDataSchema()))
-    all_failing_tests = fields.Dict(keys=fields.Str, values=fields.Int)
-    total_no_of_builds = fields.Int()
-    num_builds_per_config = fields.Int()
+    builds = fields.List(fields.Nested(JobBuildDataSchema()))
+    failure_count_by_testcase = fields.Dict(keys=fields.Str, values=fields.Int)
+    total_num_of_builds = fields.Int()
 
     @post_load
     def make_job_result_obj(self, data, **kwargs):
@@ -44,7 +43,7 @@ class JenkinsJobResultsSchema(Schema):
 class JenkinsJobResults(DBSerializable, UserDict):
     def __init__(self, job_results):
         super().__init__()
-        self.data: Dict[str, JenkinsJobResult] = job_results
+        self.data: Dict[str, JenkinsJobResult] = job_results  # key: Jenkins job name
         self._index = 0
         self._schema = JenkinsJobResultsSchema()
 
