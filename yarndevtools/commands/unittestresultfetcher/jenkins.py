@@ -52,7 +52,9 @@ class JenkinsJobUrls:
 
 class JenkinsApi:
     @staticmethod
-    def list_builds_for_job(job_name: str, jenkins_urls: JenkinsJobUrls, days: int):
+    def list_builds_for_job(
+        job_name: str, jenkins_urls: JenkinsJobUrls, days: int
+    ) -> Tuple[List[FailedJenkinsBuild], int]:
         all_builds: List[Dict[str, str]] = JenkinsApi._list_builds(jenkins_urls)
         last_n_builds: List[Dict[str, str]] = JenkinsApi._filter_builds_last_n_days(all_builds, days=days)
         last_n_failed_build_tuples: List[Tuple[str, int]] = JenkinsApi._get_failed_build_urls_with_timestamps(

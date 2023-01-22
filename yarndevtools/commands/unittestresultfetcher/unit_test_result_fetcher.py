@@ -216,7 +216,7 @@ class UnitTestResultFetcher(CommandAbs):
         return list(result.all_failing_tests.keys())
 
     def get_num_build_data(self, job_name):
-        return len(self._get_job_result_by_job_name(job_name)._jobs_by_url)
+        return len(self._get_job_result_by_job_name(job_name)._builds_by_url)
 
     @property
     def testcase_filters(self) -> List[str]:
@@ -237,8 +237,8 @@ class UnitTestResultFetcher(CommandAbs):
             self._print_job_result(build_data, job_result)
             self._invoke_job_result_processors(build_data, job_result)
 
-            key = list(job_result._jobs_by_url.keys())[0]
-            build_data = job_result._jobs_by_url[key]
+            key = list(job_result._builds_by_url.keys())[0]
+            build_data = job_result._builds_by_url[key]
             self._database.save_build_data(build_data)
 
     def _process_build_data_from_job_result(self, build_data: JobBuildData):
@@ -320,15 +320,15 @@ class UnitTestResultFetcher(CommandAbs):
         """Iterate runs of specified job within num_builds and collect results"""
         # TODO Discrepancy: request limit vs. days parameter
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
-        self.failed_builds, self.total_no_of_builds = JenkinsApi.list_builds_for_job(
+        failed_builds, total_no_of_builds = JenkinsApi.list_builds_for_job(
             job_name, jenkins_urls, days=DEFAULT_REQUEST_LIMIT
         )
-        job_datas: List[JobBuildData] = []
-        tc_to_fail_count: Dict[str, int] = {}
         # TODO This seems to be wrong, len(failed_builds) is not the same number of builds that should be downloaded
         #  as some of the builds can be cached. TODO: Take the cache into account
-        self.download_progress = DownloadProgress(len(self.failed_builds), self.config.request_limit)
-        for failed_build in self.failed_builds:
+        self.download_progress = DownloadProgress(len(failed_builds), self.config.request_limit)
+        job_result: JenkinsJobResult = JenkinsJobResult.create_empty(total_no_of_builds, self.config.num_builds)
+
+        for failed_build in failed_builds:
             if not self.download_progress.check_limits():
                 break
 
@@ -341,13 +341,12 @@ class UnitTestResultFetcher(CommandAbs):
 
             # Try to get build data from cache, if found, jump to next build URL
             if self._should_load_build_data_from_cache(failed_build):
-                LOG.info("Found build in cache, skipping: %s", failed_build.url)
+                LOG.info("Found build in cache, skipping download: %s", failed_build.url)
                 # If job build data was intentionally reset by config option 'reset_job_build_data_for_jobs',
-                # build data for job is already removed from the dict 'self.reports'
+                # build data for job is already removed from the dict 'self.job_results'
                 if job_name in self.job_results:
-                    job_data = self.job_results[job_name]._jobs_by_url[failed_build.url]
-                    job_datas.append(job_data)
-                    self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
+                    job_data = self.job_results.get_by_job_and_url(job_name, failed_build.url)
+                    job_result.add_build(job_data)
                     job_added_from_cache = True
 
             # We would like to download job data if:
@@ -357,11 +356,10 @@ class UnitTestResultFetcher(CommandAbs):
                 job_data = self.fetch_and_parse_data(failed_build)
                 if not job_added_from_cache:
                     job_data.filter_testcases(self.config.tc_filters)
-                    job_datas.append(job_data)
-                    self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
+                    job_result.add_build(job_data)
                 self.download_progress.process_next_build()
 
-        return JenkinsJobResult(job_datas, tc_to_fail_count, self.total_no_of_builds, self.config.num_builds)
+        return job_result
 
     def _should_load_build_data_from_cache(self, failed_build: FailedJenkinsBuild):
         return (
@@ -369,10 +367,3 @@ class UnitTestResultFetcher(CommandAbs):
             and failed_build.job_name in self.job_results
             and failed_build.url in self.job_results[failed_build.job_name].known_build_urls
         )
-
-    @staticmethod
-    def _create_testcase_to_fail_count_dict(job_data, tc_to_fail_count: Dict[str, int]):
-        if job_data.has_failed_testcases():
-            for failed_testcase in job_data.testcases:
-                LOG.debug(f"Detected failed testcase: {failed_testcase}")
-                tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
