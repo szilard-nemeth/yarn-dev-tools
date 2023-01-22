@@ -66,8 +66,11 @@ class JenkinsJobResults(DBSerializable, UserDict):
     def print_email_status(self):
         LOG.info("Printing email send status for jobs and builds...")
         for job_name, job_result in self.data.items():
-            for job_url, job_build_data in job_result._jobs_by_url.items():
+            for job_url, job_build_data in job_result._builds_by_url.items():
                 LOG.info("Job URL: %s, email sent: %s", job_url, job_build_data.mail_sent)
+
+    def get_by_job_and_url(self, job_name, url):
+        return self.data[job_name]._builds_by_url[url]
 
 
 class UTResultFetcherDatabase(Database):

@@ -24,21 +24,30 @@ class CachedBuild:
 
 @auto_str
 class JenkinsJobResult:
-    def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
-        self.job_build_datas: List[JobBuildData] = job_build_datas
+    def __init__(self, builds, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
+        self.builds: List[JobBuildData] = builds
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
         self.num_builds_per_config: int = num_builds_per_config
 
         # Projected fields
-        self._jobs_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in self.job_build_datas}
-        self._job_urls = list(sorted(self._jobs_by_url.keys(), reverse=True))  # Sort by URL, descending
+        self._tc_to_fail_count = {}
+        self._builds_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in self.builds}
+        self._job_urls = list(sorted(self._builds_by_url.keys(), reverse=True))  # Sort by URL, descending
         self._actual_num_builds = self._determine_actual_number_of_builds(self.num_builds_per_config)
         self._index = 0
+
+    @staticmethod
+    def create_empty(total_no_of_builds, num_builds_per_config):
+        return JenkinsJobResult([], 0, total_no_of_builds, num_builds_per_config)
 
     def start_processing(self):
         LOG.info(f"Jenkins job result contains the following results: {self._job_urls}")
         LOG.info(f"Processing {self._actual_num_builds} builds..")
+
+    def add_build(self, job_data):
+        self.builds.append(job_data)
+        self._update_testcase_to_fail_count_dict(job_data)
 
     def __len__(self):
         return self._actual_num_builds
@@ -50,12 +59,12 @@ class JenkinsJobResult:
     def __next__(self):
         if self._index == self._actual_num_builds:
             raise StopIteration
-        result = self._jobs_by_url[self._job_urls[self._index]]
+        result = self._builds_by_url[self._job_urls[self._index]]
         self._index += 1
         return result
 
     def _determine_actual_number_of_builds(self, num_builds_per_config):
-        build_data_count = len(self._jobs_by_url)
+        build_data_count = len(self._builds_by_url)
         total_no_of_builds = self.total_no_of_builds
         if build_data_count < total_no_of_builds:
             LOG.warning(
@@ -68,25 +77,31 @@ class JenkinsJobResult:
             actual_num_builds = min(num_builds_per_config, self.total_no_of_builds)
         return actual_num_builds
 
+    def _update_testcase_to_fail_count_dict(self, job_data):
+        if job_data.has_failed_testcases():
+            for failed_testcase in job_data.testcases:
+                LOG.debug(f"Detected failed testcase: {failed_testcase}")
+                self._tc_to_fail_count[failed_testcase] = self._tc_to_fail_count.get(failed_testcase, 0) + 1
+
     @property
     def known_build_urls(self):
-        return self._jobs_by_url.keys()
+        return self._builds_by_url.keys()
 
     def are_all_mail_sent(self):
-        return all(job_data.mail_sent for job_data in self._jobs_by_url.values())
+        return all(job_data.mail_sent for job_data in self._builds_by_url.values())
 
     def reset_mail_sent_state(self):
-        for job_data in self._jobs_by_url.values():
+        for job_data in self._builds_by_url.values():
             job_data.sent_date = None
             job_data.mail_sent = False
 
     def mark_sent(self, build_url):
-        job_data = self._jobs_by_url[build_url]
+        job_data = self._builds_by_url[build_url]
         job_data.sent_date = DateUtils.get_current_datetime()
         job_data.mail_sent = True
 
     def get_job_data(self, build_url: str):
-        return self._jobs_by_url[build_url]
+        return self._builds_by_url[build_url]
 
     def print(self, build_data):
         LOG.info(f"\nPRINTING JOB RESULT: \n\n{build_data}")
