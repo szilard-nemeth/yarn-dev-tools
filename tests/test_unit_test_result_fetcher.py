@@ -25,13 +25,11 @@ from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import (
     UnitTestResultFetcher,
     Email,
-    JenkinsApi,
-    JenkinsJobUrls,
-    DownloadProgress,
     CacheConfig,
     UnitTestResultFetcherCacheType,
     EmailConfig,
 )
+from yarndevtools.commands.unittestresultfetcher.jenkins import JenkinsJobUrls, JenkinsApi, DownloadProgress
 from yarndevtools.common.common_model import FailedJenkinsBuild, JobBuildDataStatus, JobBuildDataCounters
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
 
