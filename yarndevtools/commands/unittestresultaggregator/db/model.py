@@ -2,8 +2,7 @@ import datetime
 
 from marshmallow import fields, Schema
 
-from yarndevtools.common.common_model import AggregatorEntity
-from yarndevtools.common.db import DBSerializable
+from yarndevtools.common.common_model import AggregatorEntity, DBSerializable
 import logging
 
 MONGO_COLLECTION_EMAIL_CONTENT = "email_data"

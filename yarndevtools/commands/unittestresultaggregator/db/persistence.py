@@ -8,15 +8,14 @@ from yarndevtools.commands.unittestresultaggregator.db.model import (
     EmailContentSchema,
     MONGO_COLLECTION_EMAIL_CONTENT,
 )
-from yarndevtools.common.common_model import JobBuildDataSchema, MONGO_COLLECTION_JENKINS_BUILD_DATA, JobBuildData
-from yarndevtools.common.db import Database, MongoDbConfig
+from yarndevtools.common.db import Database, MongoDbConfig, JenkinsBuildDatabase
 
 
 class UTResultAggregatorDatabase(Database):
     def __init__(self, conf: MongoDbConfig):
         super().__init__(conf)
         self._email_content_schema = EmailContentSchema()
-        self._build_data_schema = JobBuildDataSchema()
+        self._jenkins_build_data_db = JenkinsBuildDatabase(conf)
 
     def find_email_content(self, id: str):
         return super().find_by_id(id, collection_name=MONGO_COLLECTION_EMAIL_CONTENT)
@@ -44,15 +43,10 @@ class UTResultAggregatorDatabase(Database):
         return super().save(email_content, collection_name=MONGO_COLLECTION_EMAIL_CONTENT, id_field_name="msg_id")
 
     def find_all_build_data(self):
-        return super().find_all(collection_name=MONGO_COLLECTION_JENKINS_BUILD_DATA)
+        return self._jenkins_build_data_db.find_all_build_data()
 
     def find_and_validate_all_build_data(self):
-        result = []
-        docs = self.find_all_build_data()
-        for doc in docs:
-            dic = self._build_data_schema.load(doc, unknown=EXCLUDE)
-            result.append(JobBuildDataSchema.deserialize(dic))
-        return result
+        return self._jenkins_build_data_db.find_and_validate_all_build_data()
 
 
 class DBWriterEmailContentProcessor(EmailContentProcessor):

@@ -24,11 +24,13 @@ class CachedBuild:
 
 @auto_str
 class JenkinsJobResult:
-    def __init__(self, builds, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
+    num_builds_per_config = -1
+
+    def __init__(self, builds, all_failing_tests: Dict[str, int], total_no_of_builds: int, num_builds_per_config: int):
+        JenkinsJobResult.num_builds_per_config = num_builds_per_config
         self.builds: List[JobBuildData] = builds
         self.failure_count_by_testcase: Dict[str, int] = all_failing_tests
         self.total_num_of_builds: int = total_no_of_builds
-        self.num_builds_per_config: int = num_builds_per_config
         self._index = 0
 
         # Computed fields
@@ -44,7 +46,9 @@ class JenkinsJobResult:
     def _compute_dynamic_fields(self):
         self._builds_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in self.builds}
         self._job_urls = list(sorted(self._builds_by_url.keys(), reverse=True))  # Sort by URL, descending
-        self._actual_num_builds = self._determine_actual_number_of_builds(self.num_builds_per_config)
+        self._actual_num_builds = self._determine_actual_number_of_builds(JenkinsJobResult.num_builds_per_config)
+        if self.total_num_of_builds == -1:
+            self.total_num_of_builds = self._actual_num_builds
 
     def finalize(self):
         self._compute_dynamic_fields()
