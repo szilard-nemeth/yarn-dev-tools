@@ -19,10 +19,10 @@ from yarndevtools.commands.unittestresultfetcher.cache import (
     CacheConfig,
 )
 from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode, FileNameUtils
-from yarndevtools.commands.unittestresultfetcher.db import JenkinsJobReports, UTResultFetcherDatabase
+from yarndevtools.commands.unittestresultfetcher.db import JenkinsJobResults, UTResultFetcherDatabase
 from yarndevtools.commands.unittestresultfetcher.email import Email, EmailConfig
 from yarndevtools.commands.unittestresultfetcher.jenkins import JenkinsJobUrls, JenkinsApi, DownloadProgress
-from yarndevtools.commands.unittestresultfetcher.model import JenkinsJobReport, CachedBuildKey
+from yarndevtools.commands.unittestresultfetcher.model import JenkinsJobResult, CachedBuildKey
 from yarndevtools.commands.unittestresultfetcher.parser import UnitTestResultFetcherParser
 from yarndevtools.commands_common import CommandAbs
 from yarndevtools.common.common_model import (
@@ -69,9 +69,9 @@ class UnitTestResultFetcherConfig:
         ]
         self.full_cmd: str = OsUtils.determine_full_command_filtered(filter_password=True)
         self.omit_job_summary: bool = args.omit_job_summary if hasattr(args, "omit_job_summary") else False
-        self.fail_on_all_green_report: bool = False  # TODO hardcoded
-        self.fail_on_empty_report: bool = False  # TODO hardcoded
-        self.fail_reports_with_no_data: bool = False  # TODO hardcoded
+        self.fail_on_all_green_job_result: bool = False  # TODO hardcoded
+        self.fail_on_empty_job_result: bool = False  # TODO hardcoded
+        self.fail_on_no_data_job_result: bool = False  # TODO hardcoded
         self.reset_job_build_data_for_jobs: List[str] = (
             args.reset_job_build_data_for_jobs if hasattr(args, "reset_job_build_data_for_jobs") else []
         )
@@ -129,7 +129,7 @@ class UnitTestResultFetcher(CommandAbs):
     def __init__(self, args, output_dir):
         super().__init__()
         self.config = UnitTestResultFetcherConfig(output_dir, args)
-        self.reports: JenkinsJobReports = None
+        self.job_results: JenkinsJobResults = None
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
         self._database = UTResultFetcherDatabase(self.config.mongo_config)
@@ -177,7 +177,7 @@ class UnitTestResultFetcher(CommandAbs):
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
 
-        self.reports: JenkinsJobReports = self._database.load_reports()
+        self.job_results: JenkinsJobResults = self._database.load_job_results()
         if self.config.cache.enabled:
             self.cache.initialize()
         if self.config.load_cached_reports_to_db:
@@ -193,30 +193,30 @@ class UnitTestResultFetcher(CommandAbs):
                     self._database.save_build_data(build_data)
 
         for reset_job in self.config.reset_job_build_data_for_jobs:
-            LOG.info("Reset job build data for job: %s", reset_job)
-            if reset_job in self.reports:
-                del self.reports[reset_job]
+            LOG.info("Reset job results for job: %s", reset_job)
+            if reset_job in self.job_results:
+                del self.job_results[reset_job]
 
-        self.email.initialize(self.reports)
+        self.email.initialize(self.job_results)
 
         for job_name in self.config.job_names:
-            report: JenkinsJobReport = self._create_jenkins_report(job_name)
+            job_result: JenkinsJobResult = self._create_jenkins_job_result(job_name)
             # TODO yarndevtoolsv2 self.reports does not contain job_build_datas loaded from Google Drive
-            self.reports[job_name] = report
-            self.process_jenkins_report(report)
-        self._database.save_reports(self.reports)
+            self.job_results[job_name] = job_result
+            self.process_job_result(job_result)
+        self._database.save_job_results(self.job_results)
 
-    def _get_report_by_job_name(self, job_name) -> JenkinsJobReport:
-        return self.reports[job_name]
+    def _get_job_result_by_job_name(self, job_name) -> JenkinsJobResult:
+        return self.job_results[job_name]
 
     def get_failed_tests(self, job_name) -> List[str]:
-        report = self._get_report_by_job_name(job_name)
-        if not report:
-            raise ValueError("Report is not queried yet or it is None!")
-        return list(report.all_failing_tests.keys())
+        result = self._get_job_result_by_job_name(job_name)
+        if not result:
+            raise ValueError("Job result is not queried yet or it is None!")
+        return list(result.all_failing_tests.keys())
 
     def get_num_build_data(self, job_name):
-        return len(self._get_report_by_job_name(job_name)._jobs_by_url)
+        return len(self._get_job_result_by_job_name(job_name)._jobs_by_url)
 
     @property
     def testcase_filters(self) -> List[str]:
@@ -225,58 +225,58 @@ class UnitTestResultFetcher(CommandAbs):
     def get_filtered_testcases_from_build(self, build_url: str, package: str, job_name: str):
         return [
             tc
-            for filtered_res in self._get_report_by_job_name(job_name).get_job_data(build_url).filtered_testcases
+            for filtered_res in self._get_job_result_by_job_name(job_name).get_job_data(build_url).filtered_testcases
             for tc in filtered_res.testcases
             if package in tc
         ]
 
-    def process_jenkins_report(self, report: JenkinsJobReport):
-        report.start_processing()
-        for i, build_data in enumerate(report):
-            self._process_build_data_from_report(build_data)
-            self._print_report(build_data, report)
-            self._invoke_report_processors(build_data, report)
+    def process_job_result(self, job_result: JenkinsJobResult):
+        job_result.start_processing()
+        for i, build_data in enumerate(job_result):
+            self._process_build_data_from_job_result(build_data)
+            self._print_job_result(build_data, job_result)
+            self._invoke_job_result_processors(build_data, job_result)
 
-            key = list(report._jobs_by_url.keys())[0]
-            build_data = report._jobs_by_url[key]
+            key = list(job_result._jobs_by_url.keys())[0]
+            build_data = job_result._jobs_by_url[key]
             self._database.save_build_data(build_data)
 
-    def _process_build_data_from_report(self, build_data: JobBuildData):
-        LOG.info(f"Processing report of build: {build_data.build_url}")
+    def _process_build_data_from_job_result(self, build_data: JobBuildData):
+        LOG.info(f"Processing job result of build: {build_data.build_url}")
         should_exit: bool = False
         if build_data.status == JobBuildDataStatus.ALL_GREEN:
             LOG.error(
-                "Report with URL %s does exist but does not contain any failed tests as all testcases are green. ",
+                "Job result with URL %s does exist but does not contain any failed tests as all testcases are green. ",
                 build_data.build_url,
             )
-            if self.config.fail_on_all_green_report:
+            if self.config.fail_on_all_green_job_result:
                 should_exit = True
         elif build_data.status == JobBuildDataStatus.EMPTY:
             LOG.info(
-                "Report with URL %s is valid but does not contain any testcase data, A.K.A. empty.",
+                "Job result with URL %s is valid but does not contain any testcase data, A.K.A. empty.",
                 build_data.build_url,
             )
-            if self.config.fail_on_empty_report:
+            if self.config.fail_on_empty_job_result:
                 should_exit = True
         elif build_data.status in (JobBuildDataStatus.NO_JSON_DATA_FOUND, JobBuildDataStatus.CANNOT_FETCH):
-            LOG.info("Report with URL %s but couldn't fetch build or JSON data.", build_data.build_url)
-            if self.config.fail_reports_with_no_data:
+            LOG.info("Job result with URL %s but couldn't fetch build or JSON data.", build_data.build_url)
+            if self.config.fail_on_no_data_job_result:
                 should_exit = True
 
         if should_exit:
-            LOG.info("Will not process more reports, exiting...")
+            LOG.info("Will not process more job results, exiting...")
             raise SystemExit(0)
 
-    def _print_report(self, build_data: JobBuildData, report: JenkinsJobReport):
+    def _print_job_result(self, build_data: JobBuildData, job_result: JenkinsJobResult):
         if build_data.is_valid:
-            LOG.info("Report of build %s contains failed tests!", build_data.build_url)
+            LOG.info("Job result of build %s contains failed tests!", build_data.build_url)
         else:
-            LOG.info("Report of build %s is not valid! Details: %s", build_data.build_url, build_data.status.value)
+            LOG.info("Job result of build %s is not valid! Details: %s", build_data.build_url, build_data.status.value)
         if not self.config.omit_job_summary and build_data.is_valid:
-            report.print_report(build_data)
+            job_result.print(build_data)
 
-    def _invoke_report_processors(self, build_data: JobBuildData, report: JenkinsJobReport):
-        self.email.process(build_data, report)
+    def _invoke_job_result_processors(self, build_data: JobBuildData, job_result: JenkinsJobResult):
+        self.email.process(build_data, job_result)
 
     def fetch_and_parse_data(self, failed_build: FailedJenkinsBuild) -> JobBuildData:
         """Find the names of any tests which failed in the given build output URL."""
@@ -285,7 +285,7 @@ class UnitTestResultFetcher(CommandAbs):
         except Exception:
             traceback.print_exc()
             LOG.error(
-                "Could not open test report, check %s for reason why it was reported failed",
+                "Could not fetch / load Jenkins test report, check %s for reason why it was reported as failed",
                 failed_build.urls.job_console_output_url,
             )
             return JobBuildData(failed_build, None, set(), status=JobBuildDataStatus.CANNOT_FETCH)
@@ -310,13 +310,13 @@ class UnitTestResultFetcher(CommandAbs):
     def _fetch_build_data(self, failed_build):
         fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
         LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
-        data = JenkinsApi.download_test_report(failed_build, self.download_progress)
+        data = JenkinsApi.download_job_result(failed_build, self.download_progress)
         self.download_progress.incr_sent_requests()
         if self.config.cache.enabled:
             self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
         return data
 
-    def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
+    def _create_jenkins_job_result(self, job_name: str) -> JenkinsJobResult:
         """Iterate runs of specified job within num_builds and collect results"""
         # TODO Discrepancy: request limit vs. days parameter
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
@@ -344,8 +344,8 @@ class UnitTestResultFetcher(CommandAbs):
                 LOG.info("Found build in cache, skipping: %s", failed_build.url)
                 # If job build data was intentionally reset by config option 'reset_job_build_data_for_jobs',
                 # build data for job is already removed from the dict 'self.reports'
-                if job_name in self.reports:
-                    job_data = self.reports[job_name]._jobs_by_url[failed_build.url]
+                if job_name in self.job_results:
+                    job_data = self.job_results[job_name]._jobs_by_url[failed_build.url]
                     job_datas.append(job_data)
                     self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
                     job_added_from_cache = True
@@ -361,13 +361,13 @@ class UnitTestResultFetcher(CommandAbs):
                     self._create_testcase_to_fail_count_dict(job_data, tc_to_fail_count)
                 self.download_progress.process_next_build()
 
-        return JenkinsJobReport(job_datas, tc_to_fail_count, self.total_no_of_builds, self.config.num_builds)
+        return JenkinsJobResult(job_datas, tc_to_fail_count, self.total_no_of_builds, self.config.num_builds)
 
     def _should_load_build_data_from_cache(self, failed_build: FailedJenkinsBuild):
         return (
             not self.config.force_download_mode
-            and failed_build.job_name in self.reports
-            and failed_build.url in self.reports[failed_build.job_name].known_build_urls
+            and failed_build.job_name in self.job_results
+            and failed_build.url in self.job_results[failed_build.job_name].known_build_urls
         )
 
     @staticmethod

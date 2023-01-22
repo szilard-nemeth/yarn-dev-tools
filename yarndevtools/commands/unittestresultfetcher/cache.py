@@ -32,7 +32,7 @@ from yarndevtools.commands.unittestresultfetcher.common import (
     CACHED_DATA_DIRNAME,
     FileNameUtils,
 )
-from yarndevtools.commands.unittestresultfetcher.model import CachedBuild, JenkinsJobReport, CachedBuildKey
+from yarndevtools.commands.unittestresultfetcher.model import CachedBuild, JenkinsJobResult, CachedBuildKey
 from yarndevtools.common.common_model import FailedJenkinsBuild
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
@@ -47,32 +47,32 @@ class UnitTestResultFetcherCacheType(Enum):
 
 class Cache(ABC):
     @abstractmethod
-    def initialize(self) -> Dict[str, JenkinsJobReport]:
+    def initialize(self) -> Dict[str, JenkinsJobResult]:
         pass
 
     @abstractmethod
-    def is_build_data_in_cache(self, cached_build_key: CachedBuildKey):
+    def is_build_data_in_cache(self, key: CachedBuildKey):
         pass
 
     @abstractmethod
-    def save_report(self, data, cached_build_key: CachedBuildKey):
+    def save_report(self, data, key: CachedBuildKey):
         pass
 
     @abstractmethod
-    def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
+    def load_report(self, key: CachedBuildKey) -> Dict[Any, Any]:
         pass
 
     @abstractmethod
-    def remove_report(self, cached_build_key: CachedBuildKey):
+    def remove_report(self, key: CachedBuildKey):
         pass
 
     @staticmethod
-    def generate_job_dirname(cached_build_key: CachedBuildKey):
-        return FileNameUtils.escape_job_name(cached_build_key.job_name)
+    def generate_job_dirname(key: CachedBuildKey):
+        return FileNameUtils.escape_job_name(key.job_name)
 
     @staticmethod
-    def generate_report_filename(cached_build_key: CachedBuildKey):
-        return f"{cached_build_key.build_number}-testreport.json"
+    def generate_report_filename(key: CachedBuildKey):
+        return f"{key.build_number}-testreport.json"
 
     @abstractmethod
     def get_all_reports(self) -> List[Any]:
@@ -130,39 +130,39 @@ class FileCache(Cache):
             cached_builds[key] = CachedBuild(key, orig_file_path)
         return cached_builds
 
-    def _generate_file_name_for_report(self, cached_build_key: CachedBuildKey):
-        job_dir_path = FileUtils.join_path(self.config.reports_dir, self.generate_job_dirname(cached_build_key))
+    def _generate_file_name_for_report(self, key: CachedBuildKey):
+        job_dir_path = FileUtils.join_path(self.config.reports_dir, self.generate_job_dirname(key))
         job_dir_path = FileUtils.ensure_dir_created(job_dir_path)
-        return FileUtils.join_path(job_dir_path, self.generate_report_filename(cached_build_key))
+        return FileUtils.join_path(job_dir_path, self.generate_report_filename(key))
 
-    def is_build_data_in_cache(self, cached_build_key: CachedBuildKey):
-        if cached_build_key in self.cached_builds:
+    def is_build_data_in_cache(self, key: CachedBuildKey):
+        if key in self.cached_builds:
             LOG.debug(
                 "Build found in cache. Job name: %s, Build number: %s",
-                cached_build_key.job_name,
-                cached_build_key.build_number,
+                key.job_name,
+                key.build_number,
             )
             return True
         return False
 
-    def save_report(self, data, cached_build_key: CachedBuildKey):
-        report_file_path = self._generate_file_name_for_report(cached_build_key)
+    def save_report(self, data, key: CachedBuildKey):
+        report_file_path = self._generate_file_name_for_report(key)
         LOG.info(f"Saving test report response JSON to file cache: {report_file_path}")
         JsonFileUtils.write_data_to_file_as_json(report_file_path, data)
         return report_file_path
 
-    def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
-        report_file_path = self._generate_file_name_for_report(cached_build_key)
+    def load_report(self, key: CachedBuildKey) -> Dict[Any, Any]:
+        report_file_path = self._generate_file_name_for_report(key)
         LOG.info(f"Loading cached test report from file: {report_file_path}")
         return JsonFileUtils.load_data_from_json_file(report_file_path)
 
-    def remove_report(self, cached_build_key: CachedBuildKey):
-        report_file_path = self._generate_file_name_for_report(cached_build_key)
+    def remove_report(self, key: CachedBuildKey):
+        report_file_path = self._generate_file_name_for_report(key)
         LOG.info(f"Removing test report from file cache: {report_file_path}")
         FileUtils.remove_file(report_file_path)
 
-    def get_filename_for_report(self, cached_build_key: CachedBuildKey):
-        return self._generate_file_name_for_report(cached_build_key)
+    def get_filename_for_report(self, key: CachedBuildKey):
+        return self._generate_file_name_for_report(key)
 
 
 class GoogleDriveCache(Cache):
@@ -221,8 +221,8 @@ class GoogleDriveCache(Cache):
 
         # TODO yarndevtoolsv2 Implement sync from GDrive -> Filesystem (other way around)
         # TODO Create progressTracker object to show current status of Google Drive uploads / queries
-        for cached_build_key, cached_build in builds_to_check_from_drive.items():
-            drive_report_file_path = self._generate_file_name_for_report(cached_build_key)
+        for key, cached_build in builds_to_check_from_drive.items():
+            drive_report_file_path = self._generate_file_name_for_report(key)
             settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
                 file_find_mode=None,
                 duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST,
@@ -250,7 +250,7 @@ class GoogleDriveCache(Cache):
         drive_api_files = self.get_all_reports()
         return self.downloader.download_reports(drive_api_files)
 
-    def remove_report(self, cached_build_key: CachedBuildKey):
+    def remove_report(self, key: CachedBuildKey):
         raise NotImplementedError("Remove report is not supported by GoogleDriveCache")
 
     @staticmethod
@@ -275,39 +275,39 @@ class GoogleDriveCache(Cache):
         return int(filename.split("-")[0])
 
     @staticmethod
-    def create_failed_build(filename, creation_date, cached_build_key):
+    def create_failed_build(filename, creation_date, key: CachedBuildKey):
         build_number = GoogleDriveCache.get_build_number(filename)
         timestamp = creation_date.timestamp()
-        fetcher_mode = UnitTestResultFetcherMode.get_mode_by_job_name(cached_build_key.job_name)
-        build_url = f"{fetcher_mode.jenkins_base_url}/job/{cached_build_key.job_name}/{build_number}"
+        fetcher_mode = UnitTestResultFetcherMode.get_mode_by_job_name(key.job_name)
+        build_url = f"{fetcher_mode.jenkins_base_url}/job/{key.job_name}/{build_number}"
         return FailedJenkinsBuild(
             full_url_of_job=UrlUtils.sanitize_url(build_url),
             timestamp=timestamp,
-            job_name=cached_build_key.job_name,
+            job_name=key.job_name,
         )
 
-    def _generate_file_name_for_report(self, cached_build_key: CachedBuildKey):
+    def _generate_file_name_for_report(self, key: CachedBuildKey):
         return FileUtils.join_path(
             self.drive_reports_basedir,
-            self.generate_job_dirname(cached_build_key),
-            self.generate_report_filename(cached_build_key),
+            self.generate_job_dirname(key),
+            self.generate_report_filename(key),
         )
 
-    def is_build_data_in_cache(self, cached_build_key: CachedBuildKey):
+    def is_build_data_in_cache(self, key: CachedBuildKey):
         # TODO yarndevtoolsv2 Check in Drive and if not successful, decide based on local file cache
-        return self.file_cache.is_build_data_in_cache(cached_build_key)
+        return self.file_cache.is_build_data_in_cache(key)
 
-    def save_report(self, data, cached_build_key: CachedBuildKey):
-        saved_report_file_path = self.file_cache.save_report(data, cached_build_key)
-        drive_path = self._generate_file_name_for_report(cached_build_key)
+    def save_report(self, data, key: CachedBuildKey):
+        saved_report_file_path = self.file_cache.save_report(data, key)
+        drive_path = self._generate_file_name_for_report(key)
         self.drive_wrapper.upload_file(saved_report_file_path, drive_path)
 
-    def load_report(self, cached_build_key: CachedBuildKey) -> Dict[Any, Any]:
-        cache_hit = self.file_cache.is_build_data_in_cache(cached_build_key)
+    def load_report(self, key: CachedBuildKey) -> Dict[Any, Any]:
+        cache_hit = self.file_cache.is_build_data_in_cache(key)
         if cache_hit:
-            return self.file_cache.load_report(cached_build_key)
+            return self.file_cache.load_report(key)
         else:
-            filename = self._generate_file_name_for_report(cached_build_key)
+            filename = self._generate_file_name_for_report(key)
             self.drive_wrapper.get_file(filename)
             # TODO missing return
         # TODO yarndevtoolsv2 Load from Drive and if not successful, load from local file cache
@@ -365,41 +365,39 @@ class GoogleFileDownloader:
         for idx, drive_api_file in enumerate(drive_api_files):
             LOG.info("Processing file [ %d / %d ]", idx + 1, len(drive_api_files))
             LOG.info("Downloaded bytes [ %d / %d ]", downloaded_bytes, sum_bytes)
-            cached_build_key = GoogleDriveCache.create_cached_build_key(drive_api_file)
+            key = GoogleDriveCache.create_cached_build_key(drive_api_file)
             file_name = drive_api_file.name
-            if not self.file_cache.is_build_data_in_cache(cached_build_key):
-                LOG.info("Report '%s' is not cached for job '%s', downloading...", file_name, cached_build_key.job_name)
+            if not self.file_cache.is_build_data_in_cache(key):
+                LOG.info("Report '%s' is not cached for job '%s', downloading...", file_name, key.job_name)
 
-                creation_date, report_file_path = self.download_and_write_to_file_cache(
-                    cached_build_key, drive_api_file
-                )
+                creation_date, report_file_path = self.download_and_write_to_file_cache(key, drive_api_file)
             else:
-                LOG.info("Report '%s' for job '%s' found in cache", file_name, cached_build_key.job_name)
-                report_file_path = self.file_cache.get_filename_for_report(cached_build_key)
-                report_file_path = self._check_file_size(cached_build_key, drive_api_file, report_file_path)
+                LOG.info("Report '%s' for job '%s' found in cache", file_name, key.job_name)
+                report_file_path = self.file_cache.get_filename_for_report(key)
+                report_file_path = self._check_file_size(key, drive_api_file, report_file_path)
                 creation_date = GoogleDriveCache.determine_creation_date(drive_api_file, report_file_path)
             file_name = os.path.basename(report_file_path)
-            reports[report_file_path] = GoogleDriveCache.create_failed_build(file_name, creation_date, cached_build_key)
+            reports[report_file_path] = GoogleDriveCache.create_failed_build(file_name, creation_date, key)
             downloaded_bytes += int(drive_api_file.size)
 
         return reports
 
-    def _check_file_size(self, cached_build_key, drive_api_file, report_file_path):
-        check_result = self.file_size_checker.check_file_size(drive_api_file, cached_build_key, report_file_path)
+    def _check_file_size(self, key: CachedBuildKey, drive_api_file, report_file_path):
+        check_result = self.file_size_checker.check_file_size(drive_api_file, key, report_file_path)
         if check_result == FileSizeCheckerResult.SMALL_SIZE_REDOWNLOAD:
-            creation_date, report_file_path = self.download_and_write_to_file_cache(cached_build_key, drive_api_file)
-            check_result = self.file_size_checker.check_file_size(drive_api_file, cached_build_key, report_file_path)
+            creation_date, report_file_path = self.download_and_write_to_file_cache(key, drive_api_file)
+            check_result = self.file_size_checker.check_file_size(drive_api_file, key, report_file_path)
             if check_result == FileSizeCheckerResult.SMALL_SIZE_AFTER_REDOWNLOAD:
-                self.file_cache.remove_report(cached_build_key)
+                self.file_cache.remove_report(key)
         return report_file_path
 
-    def download_and_write_to_file_cache(self, cached_build_key, drive_api_file):
+    def download_and_write_to_file_cache(self, key, drive_api_file):
         with tempfile.TemporaryDirectory() as tmp:
             downloaded_file = self.drive_wrapper.download_file(drive_api_file.id)
             report_file_tmp_path = os.path.join(tmp, "report.json")
             FileUtils.write_bytesio_to_file(report_file_tmp_path, downloaded_file)
             report_json = JsonFileUtils.load_data_from_json_file(report_file_tmp_path)
-            report_file_path = self.file_cache.save_report(report_json, cached_build_key)
+            report_file_path = self.file_cache.save_report(report_json, key)
             creation_date = DateUtils.convert_to_datetime(drive_api_file.created_date, DATEFORMAT_GOOGLE_DRIVE)
         return creation_date, report_file_path
 
@@ -408,8 +406,8 @@ class FileSizeChecker:
     def __init__(self):
         self._check_count = defaultdict(int)
 
-    def check_file_size(self, drive_api_file, cached_build_key, report_file_path):
-        check_count = self._check_count[cached_build_key]
+    def check_file_size(self, drive_api_file, key: CachedBuildKey, report_file_path):
+        check_count = self._check_count[key]
         file_size = self._get_local_file_size(report_file_path)
         file_name = drive_api_file.name
         if file_size >= 10:
@@ -419,7 +417,7 @@ class FileSizeChecker:
             LOG.debug(
                 "File size is too small, re-downloading report '%s' for job '%s'. File path: %s",
                 file_name,
-                cached_build_key.job_name,
+                key.job_name,
                 report_file_path,
             )
             return FileSizeCheckerResult.SMALL_SIZE_REDOWNLOAD
@@ -427,14 +425,12 @@ class FileSizeChecker:
             LOG.debug(
                 "REMOVING FILE FROM CACHE, as file size is too small after re-downloading report '%s' for job '%s'. File path: %s.",
                 file_name,
-                cached_build_key.job_name,
+                key.job_name,
                 report_file_path,
             )
             return FileSizeCheckerResult.SMALL_SIZE_AFTER_REDOWNLOAD
         else:
-            raise ValueError(
-                "Unexpected state! Encountered cached_build_key more than twice: {}".format(cached_build_key)
-            )
+            raise ValueError("Unexpected state! Encountered cached_build_key more than twice: {}".format(key))
 
     @staticmethod
     def _get_local_file_size(report_file_path):

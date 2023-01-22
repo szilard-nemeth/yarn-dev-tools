@@ -694,7 +694,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         failed_build = FailedJenkinsBuild("http://full/url/of/job/42", 1244525, "test_job")
         mock_fetch_json.return_value = builds_dict
 
-        act_test_report = JenkinsApi.download_test_report(failed_build, Mock(spec=DownloadProgress))
+        act_test_report = JenkinsApi.download_job_result(failed_build, Mock(spec=DownloadProgress))
 
         LOG.debug("Call args list: %s", mock_fetch_json.call_args_list)
         self.assertEqual(builds_dict, act_test_report)

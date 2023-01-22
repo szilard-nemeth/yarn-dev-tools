@@ -23,7 +23,7 @@ class CachedBuild:
 
 
 @auto_str
-class JenkinsJobReport:
+class JenkinsJobResult:
     def __init__(self, job_build_datas, all_failing_tests, total_no_of_builds: int, num_builds_per_config: int):
         self.job_build_datas: List[JobBuildData] = job_build_datas
         self.all_failing_tests: Dict[str, int] = all_failing_tests
@@ -37,8 +37,8 @@ class JenkinsJobReport:
         self._index = 0
 
     def start_processing(self):
-        LOG.info(f"Report list contains build results: {self._job_urls}")
-        LOG.info(f"Processing {self._actual_num_builds} in Report...")
+        LOG.info(f"Jenkins job result contains the following results: {self._job_urls}")
+        LOG.info(f"Processing {self._actual_num_builds} builds..")
 
     def __len__(self):
         return self._actual_num_builds
@@ -59,7 +59,7 @@ class JenkinsJobReport:
         total_no_of_builds = self.total_no_of_builds
         if build_data_count < total_no_of_builds:
             LOG.warning(
-                "Report contains less builds than total number of builds. " "Report has: %d, Total: %d",
+                "Jenkins job result contains less builds than total number of builds. " "Actual: %d, Total: %d",
                 build_data_count,
                 total_no_of_builds,
             )
@@ -88,8 +88,8 @@ class JenkinsJobReport:
     def get_job_data(self, build_url: str):
         return self._jobs_by_url[build_url]
 
-    def print_report(self, build_data):
-        LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
+    def print(self, build_data):
+        LOG.info(f"\nPRINTING JOB RESULT: \n\n{build_data}")
         LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
         # Print summary section: all failed tests sorted by how many times they failed
         LOG.info("TESTCASE SUMMARY:")

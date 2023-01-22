@@ -143,9 +143,9 @@ class JenkinsApi:
             )
 
     @staticmethod
-    def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
+    def download_job_result(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
         url = failed_build.urls.test_report_api_json_url
-        LOG.info(f"Loading test report from URL: {url}. Download progress: {download_progress.short_str()}")
+        LOG.info(f"Loading job result from URL: {url}. Download progress: {download_progress.short_str()}")
         return JenkinsApi.safe_fetch_json(url)
 
     @staticmethod
