@@ -16,12 +16,23 @@ SECONDS_PER_DAY = 86400
 class DownloadProgress:
     # TODO Store awaiting download / awaiting cache load separately
     # TODO Decide on startup: What build need to be downloaded, what is in the cache, etc.
-    def __init__(self, number_of_failed_builds):
+    def __init__(self, number_of_failed_builds, request_limit):
         self.all_builds: int = number_of_failed_builds
         self.current_build_idx = 0
+        self.sent_requests = 0
+        self._request_limit = request_limit
 
     def process_next_build(self):
         self.current_build_idx += 1
+
+    def incr_sent_requests(self):
+        self.sent_requests += 1
+
+    def check_limits(self):
+        if self.sent_requests >= self._request_limit:
+            LOG.error(f"Reached request limit: {self.sent_requests}")
+            return False
+        return True
 
     def short_str(self):
         return f"{self.current_build_idx + 1}/{self.all_builds}"

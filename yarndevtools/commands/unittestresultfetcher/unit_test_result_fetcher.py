@@ -132,7 +132,6 @@ class UnitTestResultFetcher(CommandAbs):
         self.reports: JenkinsJobReports = None
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
-        self.sent_requests: int = 0
         self._database = UTResultFetcherDatabase(self.config.mongo_config)
 
     @staticmethod
@@ -183,8 +182,8 @@ class UnitTestResultFetcher(CommandAbs):
             self.cache.initialize()
         if self.config.load_cached_reports_to_db:
             reports: Dict[str, FailedJenkinsBuild] = self.cache.download_reports()
-            # TODO yarndevtoolsv2 Implement force mode to always save everything to DB
             for file_path, failed_build in reports.items():
+                # TODO yarndevtoolsv2 Implement force mode to always save everything to DB
                 if not self._database.has_build_data(failed_build.url):
                     report_json = JsonFileUtils.load_data_from_json_file(file_path)
                     if not report_json:
@@ -200,7 +199,6 @@ class UnitTestResultFetcher(CommandAbs):
 
         self.email.initialize(self.reports)
 
-        self.sent_requests = 0
         for job_name in self.config.job_names:
             report: JenkinsJobReport = self._create_jenkins_report(job_name)
             # TODO yarndevtoolsv2 self.reports does not contain job_build_datas loaded from Google Drive
@@ -313,7 +311,7 @@ class UnitTestResultFetcher(CommandAbs):
         fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
         LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
         data = JenkinsApi.download_test_report(failed_build, self.download_progress)
-        self.sent_requests += 1
+        self.download_progress.incr_sent_requests()
         if self.config.cache.enabled:
             self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
         return data
@@ -329,10 +327,9 @@ class UnitTestResultFetcher(CommandAbs):
         tc_to_fail_count: Dict[str, int] = {}
         # TODO This seems to be wrong, len(failed_builds) is not the same number of builds that should be downloaded
         #  as some of the builds can be cached. TODO: Take the cache into account
-        self.download_progress = DownloadProgress(len(self.failed_builds))
+        self.download_progress = DownloadProgress(len(self.failed_builds), self.config.request_limit)
         for failed_build in self.failed_builds:
-            if self.sent_requests >= self.config.request_limit:
-                LOG.error(f"Reached request limit: {self.sent_requests}")
+            if not self.download_progress.check_limits():
                 break
 
             download_build = False
