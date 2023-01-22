@@ -54,9 +54,7 @@ class UTResultFetcherDatabase(Database):
             LOG.debug("Final job results object: %s", job_results)
 
         job_build_datas = []
-        job_result_lst = job_results.data.values()
-        for job_result in job_result_lst:
-            # TODO mongodb: Is there a more efficient save method for collections?
+        for job_result in job_results.data.values():
             for build in job_result.builds:
                 job_build_datas.append(build)
         self._jenkins_build_data_db.save_all_build_data(job_build_datas)

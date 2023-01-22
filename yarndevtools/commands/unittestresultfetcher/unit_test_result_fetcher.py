@@ -191,13 +191,14 @@ class UnitTestResultFetcher(CommandAbs):
                     if not report_json:
                         LOG.error("Cannot load report as its JSON is empty. Job URL: %s", failed_build.url)
                         continue
-                    build_data = JenkinsApi.parse_job_data(report_json, failed_build)
+                    build_data: JobBuildData = JenkinsApi.parse_job_data(report_json, failed_build)
                     self._database.save_build_data(build_data)
 
         for reset_job in self.config.reset_job_build_data_for_jobs:
             LOG.info("Reset job results for job: %s", reset_job)
             if reset_job in self.job_results:
                 del self.job_results[reset_job]
+                # TODO Remove from DB as well
 
         self.email.initialize(self.job_results)
 
@@ -237,10 +238,6 @@ class UnitTestResultFetcher(CommandAbs):
             self._process_build_data_from_job_result(build_data)
             self._print_job_result(build_data, job_result)
             self._invoke_job_result_processors(build_data, job_result)
-
-            key = list(job_result._builds_by_url.keys())[0]
-            build_data = job_result._builds_by_url[key]
-            self._database.save_build_data(build_data)
 
     def _process_build_data_from_job_result(self, build_data: JobBuildData):
         LOG.info(f"Processing job result of build: {build_data.build_url}")
