@@ -516,9 +516,6 @@ class TestUnitTestResultFetcher(unittest.TestCase):
 
     @patch(SEND_MAIL_PATCH_PATH)
     @mongomock.patch(servers=(("mongo.example.com", 27017),))
-    @pytest.mark.skip(
-        reason="Mongomock does not support BSON keys with 'dot', see: https://github.com/mongomock/mongomock/issues/720"
-    )
     def test_successful_api_response_verify_failed_testcases(self, mock_send_mail_call):
         # TODO Re-enable test once mongomock PR is merged / created
         spec = JenkinsReportJsonSpec(
@@ -546,9 +543,6 @@ class TestUnitTestResultFetcher(unittest.TestCase):
 
     @patch(SEND_MAIL_PATCH_PATH)
     @mongomock.patch(servers=(("mongo.example.com", 27017),))
-    @pytest.mark.skip(
-        reason="Mongomock does not support BSON keys with 'dot', see: https://github.com/mongomock/mongomock/issues/720"
-    )
     def test_successful_api_response_verify_filtered_testcases(self, mock_send_mail_call):
         # TODO Re-enable test once mongomock PR is merged / created
         spec = JenkinsReportJsonSpec(
@@ -577,9 +571,6 @@ class TestUnitTestResultFetcher(unittest.TestCase):
 
     @patch(SEND_MAIL_PATCH_PATH)
     @mongomock.patch(servers=(("mongo.example.com", 27017),))
-    @pytest.mark.skip(
-        reason="Mongomock does not support BSON keys with 'dot', see: https://github.com/mongomock/mongomock/issues/720"
-    )
     def test_successful_api_response_verify_multi_filtered(self, mock_send_mail_call):
         # TODO Re-enable test once mongomock PR is merged / created
         spec = JenkinsReportJsonSpec.get_arbitrary()

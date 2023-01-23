@@ -82,10 +82,18 @@ class Database(ABC):
                 raise ValueError("DB with name '{}' does not exist!".format(conf.db_name))
         self._db = self._client[conf.db_name]
 
-    def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None, log_obj=False):
+    def save(self, obj: DBSerializable, collection_name: str, id_field_name: str = None, replace=False, log_obj=False):
         serialized = self._serialize_obj(obj, id_field_name=id_field_name, log_obj=log_obj)
         # TODO bypass added to avoid: bson.errors.InvalidDocument: key 'Mawo-UT-hadoop-CDPD-7.x' must not contain '.'
-        return self._db[collection_name].insert_one(serialized, bypass_document_validation=True)
+        if replace:
+            if not id_field_name:
+                raise ValueError("'id_field_name' must be specified for replace!")
+            real_id = serialized[id_field_name]
+
+            if self.find_by_id(real_id, collection_name=collection_name):
+                return self._db[collection_name].replace_one({"_id": real_id}, serialized)
+
+        return self._db[collection_name].insert_one(serialized)
 
     @staticmethod
     def _serialize_obj(obj, id_field_name=None, log_obj=False):
@@ -102,20 +110,29 @@ class Database(ABC):
     def save_many(
         self, obj_list: List[Any], collection_name: str, id_field_name: str = None, log_obj=False, force_mode=False
     ):
+        if not obj_list:
+            raise ValueError("Cannot save a non-empty list to DB!")
         # TODO Implement force_mode
         filtered_objs = self._filter_objs_by_ids(collection_name, id_field_name, obj_list)
+
+        if not filtered_objs:
+            LOG.warning(
+                "Received %d objects, not persisting any of them as they were all persisted into the DB.", len(obj_list)
+            )
+            return
+
         serialized_objs = []
         for obj in filtered_objs:
             serialized = self._serialize_obj(obj, id_field_name=id_field_name, log_obj=log_obj)
             serialized_objs.append(serialized)
         res = self._db[collection_name].insert_many(serialized_objs)
-        LOG.debug("Inserted IDs: %d into collection: %s", len(res.inserted_ids), collection_name)
+        LOG.debug("Inserted %d documents into collection: %s", len(res.inserted_ids), collection_name)
 
     def _filter_objs_by_ids(self, collection_name, id_field_name, obj_list):
         if not id_field_name:
             raise ValueError("id_field_name is not specified, ID filtering cannot work without it!")
         ids = set(self._get_all_ids(collection_name))
-        LOG.debug("Found %d ids in collection %s", len(ids), collection_name)
+        LOG.debug("Found %d documents in collection %s", len(ids), collection_name)
         filtered_objs = []
         for obj in obj_list:
             id = getattr(obj, id_field_name)

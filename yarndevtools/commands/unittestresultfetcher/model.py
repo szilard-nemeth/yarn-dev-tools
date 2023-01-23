@@ -137,19 +137,6 @@ class JenkinsJobResult:
     def known_build_urls(self):
         return self._builds_by_url.keys()
 
-    def are_all_mail_sent(self):
-        return all(job_data.mail_sent for job_data in self._builds_by_url.values())
-
-    def reset_mail_sent_state(self):
-        for job_data in self._builds_by_url.values():
-            job_data.sent_date = None
-            job_data.mail_sent = False
-
-    def mark_sent(self, build_url):
-        job_data = self._builds_by_url[build_url]
-        job_data.sent_date = DateUtils.get_current_datetime()
-        job_data.mail_sent = True
-
     def get_job_data(self, build_url: str):
         return self._builds_by_url[build_url]
 

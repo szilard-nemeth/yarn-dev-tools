@@ -30,7 +30,7 @@ from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultfetcher.common import (
     UnitTestResultFetcherMode,
     CACHED_DATA_DIRNAME,
-    FileNameUtils,
+    JobNameUtils,
 )
 from yarndevtools.commands.unittestresultfetcher.model import CachedBuild, JenkinsJobResult, CachedBuildKey
 from yarndevtools.common.common_model import FailedJenkinsBuild
@@ -68,7 +68,7 @@ class Cache(ABC):
 
     @staticmethod
     def generate_job_dirname(key: CachedBuildKey):
-        return FileNameUtils.escape_job_name(key.job_name)
+        return JobNameUtils.escape_job_name(key.job_name)
 
     @staticmethod
     def generate_report_filename(key: CachedBuildKey):

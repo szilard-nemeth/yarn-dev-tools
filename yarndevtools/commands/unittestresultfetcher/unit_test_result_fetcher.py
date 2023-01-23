@@ -18,8 +18,12 @@ from yarndevtools.commands.unittestresultfetcher.cache import (
     UnitTestResultFetcherCacheType,
     CacheConfig,
 )
-from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode, FileNameUtils
-from yarndevtools.commands.unittestresultfetcher.db import JenkinsJobResults, UTResultFetcherDatabase
+from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode, JobNameUtils
+from yarndevtools.commands.unittestresultfetcher.db import (
+    JenkinsJobResults,
+    UTResultFetcherDatabase,
+    MailSendDataForJob,
+)
 from yarndevtools.commands.unittestresultfetcher.email import Email, EmailConfig
 from yarndevtools.commands.unittestresultfetcher.jenkins import JenkinsJobUrls, JenkinsApi, DownloadProgress
 from yarndevtools.commands.unittestresultfetcher.model import JenkinsJobResult, CachedBuildKey
@@ -101,6 +105,9 @@ class UnitTestResultFetcherConfig:
 
         self.email.validate(self.job_names)
 
+        # From now on, job_names should be always escaped!
+        self.job_names = [JobNameUtils.escape_job_name(jn) for jn in self.job_names]
+
     @staticmethod
     def _determine_number_of_builds_to_examine(config_value, request_limit) -> int:
         if config_value == JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL:
@@ -149,7 +156,7 @@ class UnitTestResultFetcher(CommandAbs):
         # Cached build data is stored in dirs with dots replaced by underscores,
         # make CachedBuildKey to follow the dir name pattern, so job_names are always consistent when used in
         # CachedBuildKey.
-        job_name = FileNameUtils.escape_job_name(failed_build.job_name)
+        job_name = JobNameUtils.escape_job_name(failed_build.job_name)
         return CachedBuildKey(job_name, failed_build.build_number)
 
     @staticmethod
@@ -177,11 +184,13 @@ class UnitTestResultFetcher(CommandAbs):
         if self.config.force_download_mode:
             LOG.info("FORCE DOWNLOAD MODE is on")
 
+        self.email.load_send_state_from_db(self._database)
         self.job_results: JenkinsJobResults = self._database.load_job_results()
         if self.config.cache.enabled:
             self.cache.initialize()
 
         if self.config.load_cached_reports_to_db:
+            # TODO yarndevtoolsv2: This should be smarter, from a certain date, we should trust DB and only list newer files from Drive to save requests
             reports: Dict[str, FailedJenkinsBuild] = self.cache.download_reports()
             for file_path, failed_build in reports.items():
                 # TODO yarndevtoolsv2: Implement force mode to always save everything to DB
@@ -191,9 +200,11 @@ class UnitTestResultFetcher(CommandAbs):
                         LOG.error("Cannot load report as its JSON is empty. Job URL: %s", failed_build.url)
                         continue
                     build_data: JobBuildData = JenkinsApi.parse_job_data(report_json, failed_build)
-                    # TODO yarndevtoolsv2: hardcoded mail sent data for all reports found in Drive --> Can we make this better?
-                    build_data.mail_sent = True
                     self._database.save_build_data(build_data)
+                # TODO yarndevtoolsv2: hardcoded mail sent data for all reports found in Drive --> Can we make this better?
+                #   -->  Problematic because even if a report.json is saved to Google Drive, it doesn't automatically mean mail sending was successful!
+                self.email.mark_sent(failed_build.url, failed_build.job_name, self.email.recipients)
+            self.job_results: JenkinsJobResults = self._database.load_job_results()
 
         for reset_job in self.config.reset_job_build_data_for_jobs:
             LOG.info("Reset job results for job: %s", reset_job)
@@ -201,14 +212,17 @@ class UnitTestResultFetcher(CommandAbs):
                 del self.job_results[reset_job]
                 # TODO Remove from DB as well
 
-        self.email.initialize(self.job_results)
-
         for job_name in self.config.job_names:
             jenkins_job_result: JenkinsJobResult = self._create_jenkins_job_result(job_name)
             old_job_result: JenkinsJobResult = self.job_results[job_name]
             new_job_result = old_job_result.merge_with(jenkins_job_result)
             self.job_results[job_name] = new_job_result
-            self.process_job_result(new_job_result)
+
+        if self.email.config.reset_email_sent_state:
+            self._database.reset_email_sent_state(
+                self.email._mail_sent_tracker, job_names=self.email.config.reset_email_sent_state
+            )
+        self.process_job_results()
         self._database.save_job_results(self.job_results)
 
     def _get_job_result_by_job_name(self, job_name) -> JenkinsJobResult:
@@ -235,12 +249,14 @@ class UnitTestResultFetcher(CommandAbs):
             if package in tc
         ]
 
-    def process_job_result(self, job_result: JenkinsJobResult):
-        job_result.start_processing()
-        for i, build_data in enumerate(job_result):
-            self._process_build_data_from_job_result(build_data)
-            self._print_job_result(build_data, job_result)
-            self._invoke_job_result_processors(build_data, job_result)
+    def process_job_results(self):
+        for job_result in self.job_results.values():
+            job_result.start_processing()
+            for i, build_data in enumerate(job_result):
+                self._process_build_data_from_job_result(build_data)
+                self._print_job_result(build_data, job_result)
+                mail_send_data_for_job: MailSendDataForJob = self.email.process(build_data)
+                self._database.save_email_sent_state(mail_send_data_for_job)
 
     def _process_build_data_from_job_result(self, build_data: JobBuildData):
         LOG.info(f"Processing job result of build: {build_data.build_url}")
@@ -275,9 +291,6 @@ class UnitTestResultFetcher(CommandAbs):
             LOG.info("Job result of build %s is not valid! Details: %s", build_data.build_url, build_data.status.value)
         if not self.config.omit_job_summary and build_data.is_valid:
             job_result.print(build_data)
-
-    def _invoke_job_result_processors(self, build_data: JobBuildData, job_result: JenkinsJobResult):
-        self.email.process(build_data, job_result)
 
     def fetch_and_parse_data(self, failed_build: FailedJenkinsBuild) -> JobBuildData:
         """Find the names of any tests which failed in the given build output URL."""
