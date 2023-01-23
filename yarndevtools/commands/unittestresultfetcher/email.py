@@ -35,7 +35,7 @@ class EmailConfig:
 class Email:
     def __init__(self, config):
         self.config: EmailConfig = config
-        self.email_service = EmailService(config.full_email_conf.email_conf)
+        self.email_service = EmailService(config.full_email_conf.email_conf, batch_mode=True)
 
     def initialize(self, job_results: JenkinsJobResults):
         # Try to reset email sent state of asked jobs

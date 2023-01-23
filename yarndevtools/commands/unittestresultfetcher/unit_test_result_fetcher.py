@@ -181,17 +181,18 @@ class UnitTestResultFetcher(CommandAbs):
         if self.config.cache.enabled:
             self.cache.initialize()
 
-        # TODO yarndevtoolsv2 self.job_results does not contain job_build_datas loaded from Google Drive
         if self.config.load_cached_reports_to_db:
             reports: Dict[str, FailedJenkinsBuild] = self.cache.download_reports()
             for file_path, failed_build in reports.items():
-                # TODO yarndevtoolsv2 Implement force mode to always save everything to DB
+                # TODO yarndevtoolsv2: Implement force mode to always save everything to DB
                 if not self._database.has_build_data(failed_build.url):
                     report_json = JsonFileUtils.load_data_from_json_file(file_path)
                     if not report_json:
                         LOG.error("Cannot load report as its JSON is empty. Job URL: %s", failed_build.url)
                         continue
                     build_data: JobBuildData = JenkinsApi.parse_job_data(report_json, failed_build)
+                    # TODO yarndevtoolsv2: hardcoded mail sent data for all reports found in Drive --> Can we make this better?
+                    build_data.mail_sent = True
                     self._database.save_build_data(build_data)
 
         for reset_job in self.config.reset_job_build_data_for_jobs:
@@ -203,9 +204,11 @@ class UnitTestResultFetcher(CommandAbs):
         self.email.initialize(self.job_results)
 
         for job_name in self.config.job_names:
-            job_result: JenkinsJobResult = self._create_jenkins_job_result(job_name)
-            self.job_results[job_name] = job_result
-            self.process_job_result(job_result)
+            jenkins_job_result: JenkinsJobResult = self._create_jenkins_job_result(job_name)
+            old_job_result: JenkinsJobResult = self.job_results[job_name]
+            new_job_result = old_job_result.merge_with(jenkins_job_result)
+            self.job_results[job_name] = new_job_result
+            self.process_job_result(new_job_result)
         self._database.save_job_results(self.job_results)
 
     def _get_job_result_by_job_name(self, job_name) -> JenkinsJobResult:
