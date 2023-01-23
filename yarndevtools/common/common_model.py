@@ -94,11 +94,6 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         self.no_of_failed_filtered_tc = None
         self.unmatched_testcases: Set[str] = set()
         self.status: JobBuildDataStatus = status
-        # TODO Save this to separate pickled object, so when JobBuildData's structure changes, we don't lose sent state for all jobs
-        #  Also, if force download mode is enabled, all reports will be re-sent which is not correct
-        self.mail_sent = False
-        self.sent_date = None
-
         self._schema = JobBuildDataSchema()
 
     def serialize(self):
@@ -165,10 +160,6 @@ class JobBuildData(DBSerializable, AggregatorEntity):
         return self.status == JobBuildDataStatus.HAVE_FAILED_TESTCASES
 
     @property
-    def is_mail_sent(self):
-        return self.mail_sent
-
-    @property
     def tc_filters(self):
         return [res.filter for res in self.filtered_testcases]
 
@@ -223,10 +214,6 @@ class JobBuildDataSchema(Schema):
     failed_count = fields.Int(required=True)
     passed_count = fields.Int(required=True)
     skipped_count = fields.Int(required=True)
-    mail_sent = fields.Boolean()
-    # TODO Convert to DateTime?
-    # mail_sent_date = fields.DateTime(attribute="sent_date")
-    mail_sent_date = fields.Str(attribute="sent_date", allow_none=True)
     job_name = fields.Str(required=True)
 
     @post_load
@@ -243,8 +230,6 @@ class JobBuildDataSchema(Schema):
             "build_number",
             "build_url",
             "job_name",
-            "mail_sent",
-            "sent_date",
             "build_timestamp",
         ]
         normal_keys = set(dic.keys()).difference(special_vars)
@@ -262,8 +247,6 @@ class JobBuildDataSchema(Schema):
 
         # process special vars
         # TODO yarndevtoolsv2 DB: How to reconstruct filtered testcases? Is this required?
-        build_data.mail_sent = dic["mail_sent"]
-        build_data.sent_date = dic["sent_date"]
 
         return build_data
 

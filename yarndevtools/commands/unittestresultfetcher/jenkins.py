@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Any
 from pythoncommons.network_utils import NetworkUtils
 from pythoncommons.string_utils import auto_str
 
+from yarndevtools.commands.unittestresultfetcher.common import JobNameUtils
 from yarndevtools.common.common_model import FailedJenkinsBuild, JobBuildData, JobBuildDataStatus, JobBuildDataCounters
 
 import logging
@@ -67,7 +68,7 @@ class JenkinsApi:
             FailedJenkinsBuild(
                 full_url_of_job=tup[0],
                 timestamp=JenkinsApi._convert_to_unix_timestamp(tup[1]),
-                job_name=job_name,
+                job_name=JobNameUtils.escape_job_name(job_name),
             )
             for tup in failed_build_data
         ]

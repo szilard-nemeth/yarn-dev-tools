@@ -1,11 +1,11 @@
-from typing import List
+import logging
+from typing import List, Set
 
 from pythoncommons.email import EmailService, EmailMimeType
 
-from yarndevtools.commands.unittestresultfetcher.db import JenkinsJobResults
+from yarndevtools.commands.unittestresultfetcher.db import MailSentTracker, MailSendDataForJob
 from yarndevtools.common.common_model import JobBuildData
 from yarndevtools.common.shared_command_utils import FullEmailConfig
-import logging
 
 LOG = logging.getLogger(__name__)
 
@@ -36,27 +36,23 @@ class Email:
     def __init__(self, config):
         self.config: EmailConfig = config
         self.email_service = EmailService(config.full_email_conf.email_conf, batch_mode=True)
+        self._mail_sent_tracker: MailSentTracker = None
 
-    def initialize(self, job_results: JenkinsJobResults):
-        # Try to reset email sent state of asked jobs
-        if self.config.reset_email_sent_state:
-            LOG.info("Resetting email sent state to False on these jobs: %s", self.config.reset_email_sent_state)
-            for job_name in self.config.reset_email_sent_state:
-                # Jenkins job result can be empty at this point if cache was empty for this job or not found
-                if job_name in job_results:
-                    job_results[job_name].reset_mail_sent_state()
-
-    def send_mail(self, build_data: JobBuildData):
-        # TODO Add MailSendProgress class to track how many emails were sent
+    def send_mail(self, build_data: JobBuildData, recipients: Set[str]):
+        # TODO Add MailSendProgress class to track how many emails were sent in current session
         LOG.info("Sending report in email for job: %s", build_data.build_url)
         self.email_service.send_mail(
             sender=self.config.full_email_conf.sender,
             subject=self._get_email_subject(build_data),
             body=str(build_data),
-            recipients=self.config.full_email_conf.recipients,
+            recipients=list(recipients),
             body_mimetype=EmailMimeType.PLAIN,
         )
         LOG.info("Finished sending report in email for job: %s", build_data.build_url)
+
+    @property
+    def recipients(self):
+        return self.config.full_email_conf.recipients
 
     @staticmethod
     def _get_email_subject(build_data: JobBuildData):
@@ -66,14 +62,35 @@ class Email:
             email_subject = f"{EMAIL_SUBJECT_PREFIX} Error, build is invalid: {build_data.build_url}"
         return email_subject
 
-    def process(self, build_data, job_result):
+    def process(self, build_data) -> MailSendDataForJob or None:
+        self._verify_tracker_state()
         if self.config.send_mail:
-            if not build_data.is_mail_sent or self.config.force_send_email:
-                self.send_mail(build_data)
-                job_result.mark_sent(build_data.build_url)
+            send_to_recipients = self._mail_sent_tracker.is_mail_sent(build_data.build_url, self.recipients)
+            if send_to_recipients or self.config.force_send_email:
+                self.send_mail(build_data, send_to_recipients)
+                self.mark_sent(build_data.build_url, build_data.job_name, send_to_recipients)
             else:
                 LOG.info(
-                    "Not sending report of job URL %s, as it was already sent before on %s.",
+                    "Not sending report of job URL %s, as it was already sent before "
+                    "for all of these recipients: %s",
                     build_data.build_url,
-                    build_data.sent_date,
+                    self.recipients,
                 )
+            return self._get_send_state(build_data)
+        return None
+
+    def mark_sent(self, build_url, job_name, recipients):
+        self._verify_tracker_state()
+        self._mail_sent_tracker.mark_sent(build_url, job_name, recipients)
+
+    def load_send_state_from_db(self, db):
+        mail_send_data_for_all_jobs: List[MailSendDataForJob] = db.load_email_sent_state()
+        self._mail_sent_tracker = MailSentTracker(mail_send_data_for_all_jobs)
+
+    def _get_send_state(self, build_data) -> MailSendDataForJob:
+        self._verify_tracker_state()
+        return self._mail_sent_tracker.get_val(build_data.build_url, build_data.job_name)
+
+    def _verify_tracker_state(self):
+        if self._mail_sent_tracker is None:
+            raise ValueError("Should call 'load_send_state_from_db' method first!")

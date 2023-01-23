@@ -4,6 +4,12 @@ from typing import List
 CACHED_DATA_DIRNAME = "cached_data"
 
 
+class JobNameUtils:
+    @staticmethod
+    def escape_job_name(job_name: str):
+        return job_name.replace(".", "_")
+
+
 class UnitTestResultFetcherMode(Enum):
     __job_names_by_mode__ = {}
 
@@ -30,7 +36,7 @@ class UnitTestResultFetcherMode(Enum):
     def __init__(self, mode_name: str, jenkins_base_url: str, job_names: List[str]):
         self.mode_name = mode_name
         self.jenkins_base_url = jenkins_base_url
-        self.job_names = job_names
+        self.job_names = [JobNameUtils.escape_job_name(jn) for jn in job_names]
 
     @staticmethod
     def get_mode_by_job_name(job_name_param):
@@ -42,29 +48,14 @@ class UnitTestResultFetcherMode(Enum):
             UnitTestResultFetcherMode.__job_names_by_mode__ = d
 
         d = UnitTestResultFetcherMode.__job_names_by_mode__
-        escaped_job_name = FileNameUtils.escape_job_name(job_name_param)
-        unescaped_job_name = FileNameUtils.unescape_job_name(job_name_param)
+        escaped_job_name = JobNameUtils.escape_job_name(job_name_param)
+        found = escaped_job_name in d
 
-        found_escaped = escaped_job_name in d
-        found_unescaped = unescaped_job_name in d
-        if not found_escaped and not found_unescaped:
+        if not found:
             raise ValueError(
                 "Unrecognized job name (original): {}. \n"
                 "Escaped job name: {}\n"
-                "Unescaped job name: {}\n"
-                "Known job names: {}".format(job_name_param, escaped_job_name, unescaped_job_name, d.keys())
+                "Known job names: {}".format(job_name_param, escaped_job_name, d.keys())
             )
-        if found_escaped:
+        if found:
             return d[escaped_job_name]
-        elif found_unescaped:
-            return d[unescaped_job_name]
-
-
-class FileNameUtils:
-    @staticmethod
-    def escape_job_name(job_name: str):
-        return job_name.replace(".", "_")
-
-    @staticmethod
-    def unescape_job_name(job_name: str):
-        return job_name.replace("_", ".")
