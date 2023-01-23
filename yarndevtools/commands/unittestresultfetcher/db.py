@@ -67,7 +67,7 @@ class UTResultFetcherDatabase(Database):
         # TODO dummy values passed
         for build_data in job_build_data_objs:
             if build_data.job_name not in job_results_dict:
-                job_results_dict[build_data.job_name] = JenkinsJobResult.create_empty(-1, -1)
+                job_results_dict[build_data.job_name] = JenkinsJobResult.create_empty()
             job_results_dict[build_data.job_name].add_build(build_data)
 
         for job_result in job_results_dict.values():
