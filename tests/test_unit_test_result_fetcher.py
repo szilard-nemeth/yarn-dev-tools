@@ -729,7 +729,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         config = EmailConfig(args)
         self.assertFalse(config.force_send_email)
         self.assertTrue(config.send_mail)
-        self.assertEqual([], config.reset_email_sent_state)
+        self.assertEqual([], config.reset_email_send_state)
 
     def test_email_config_with_skip_email_and_without_force_sending_email(self):
         args = self._create_args_for_full_email_config()
@@ -738,7 +738,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         config = EmailConfig(args)
         self.assertFalse(config.force_send_email)
         self.assertFalse(config.send_mail)
-        self.assertEqual([], config.reset_email_sent_state)
+        self.assertEqual([], config.reset_email_send_state)
 
     def test_email_config_with_skip_email_and_with_force_sending_email(self):
         args = self._create_args_for_full_email_config()
@@ -747,7 +747,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         config = EmailConfig(args)
         self.assertTrue(config.force_send_email)
         self.assertTrue(config.send_mail)
-        self.assertEqual([], config.reset_email_sent_state)
+        self.assertEqual([], config.reset_email_send_state)
 
     def test_email_config_validate_job_names_to_reset_state_for_unknown_job(self):
         args = self._create_args_for_full_email_config()
