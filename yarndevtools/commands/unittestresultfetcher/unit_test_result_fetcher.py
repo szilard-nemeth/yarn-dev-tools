@@ -22,7 +22,7 @@ from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFet
 from yarndevtools.commands.unittestresultfetcher.db import (
     JenkinsJobResults,
     UTResultFetcherDatabase,
-    MailSendDataForJob,
+    MailSendStateForJob,
 )
 from yarndevtools.commands.unittestresultfetcher.email import Email, EmailConfig
 from yarndevtools.commands.unittestresultfetcher.jenkins import JenkinsJobUrls, JenkinsApi, DownloadProgress
@@ -218,9 +218,9 @@ class UnitTestResultFetcher(CommandAbs):
             new_job_result = old_job_result.merge_with(jenkins_job_result)
             self.job_results[job_name] = new_job_result
 
-        if self.email.config.reset_email_sent_state:
-            self._database.reset_email_sent_state(
-                self.email._mail_sent_tracker, job_names=self.email.config.reset_email_sent_state
+        if self.email.config.reset_email_send_state:
+            self._database.reset_email_send_state(
+                self.email._mail_send_tracker, job_names=self.email.config.reset_email_send_state
             )
         self.process_job_results()
         self._database.save_job_results(self.job_results)
@@ -255,8 +255,8 @@ class UnitTestResultFetcher(CommandAbs):
             for i, build_data in enumerate(job_result):
                 self._process_build_data_from_job_result(build_data)
                 self._print_job_result(build_data, job_result)
-                mail_send_data_for_job: MailSendDataForJob = self.email.process(build_data)
-                self._database.save_email_sent_state(mail_send_data_for_job)
+                mail_send_state_for_job: MailSendStateForJob = self.email.process(build_data)
+                self._database.save_email_send_state(mail_send_state_for_job)
 
     def _process_build_data_from_job_result(self, build_data: JobBuildData):
         LOG.info(f"Processing job result of build: {build_data.build_url}")
@@ -325,7 +325,7 @@ class UnitTestResultFetcher(CommandAbs):
         fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
         LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
         data = JenkinsApi.download_job_result(failed_build, self.download_progress)
-        self.download_progress.incr_sent_requests()
+        self.download_progress.incr_performed_requests()
         if self.config.cache.enabled:
             self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
         return data

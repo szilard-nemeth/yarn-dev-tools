@@ -20,18 +20,18 @@ class DownloadProgress:
     def __init__(self, number_of_failed_builds, request_limit):
         self.all_builds: int = number_of_failed_builds
         self.current_build_idx = 0
-        self.sent_requests = 0
+        self.performed_requests = 0
         self._request_limit = request_limit
 
     def process_next_build(self):
         self.current_build_idx += 1
 
-    def incr_sent_requests(self):
-        self.sent_requests += 1
+    def incr_performed_requests(self):
+        self.performed_requests += 1
 
     def check_limits(self):
-        if self.sent_requests >= self._request_limit:
-            LOG.error(f"Reached request limit: {self.sent_requests}")
+        if self.performed_requests >= self._request_limit:
+            LOG.error(f"Reached request limit: {self.performed_requests}")
             return False
         return True
 

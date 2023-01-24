@@ -67,12 +67,12 @@ class UnitTestResultFetcherParser:
         )
 
         parser.add_argument(
-            "--reset-sent-state-for-jobs",
+            "--reset-send-state-for-jobs",
             nargs="+",
             type=str,
-            dest="reset_sent_state_for_jobs",
+            dest="reset_send_state_for_jobs",
             default=[],
-            help="Reset email sent state for these jobs.",
+            help="Reset email send state for these jobs.",
         )
 
         parser.add_argument(
