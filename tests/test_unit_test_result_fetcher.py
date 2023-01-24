@@ -6,6 +6,7 @@ import random
 import re
 import tempfile
 import unittest
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -155,7 +156,7 @@ class JenkinsBuilds:
 
 @dataclass
 class JenkinsReportJsonSpec:
-    # Key package, value: number of testcases with result type
+    # Key: package, value: number of testcases with result type
     failed: Dict[str, int]
     passed: Dict[str, int]
     skipped: Dict[str, int]
@@ -163,51 +164,68 @@ class JenkinsReportJsonSpec:
     allow_empty: bool = False
 
     def __post_init__(self):
-        self.failed_count = sum(self.failed.values())
-        self.passed_count = sum(self.passed.values())
-        self.skipped_count = sum(self.skipped.values())
-        self.no_of_all_tcs: int = self.failed_count + self.passed_count + self.skipped_count
+        self._counts_per_status: Dict[TestCaseStatus, Dict[str, int]] = {
+            TestCaseStatus.FAILED: self.failed,
+            TestCaseStatus.PASSED: self.passed,
+            TestCaseStatus.SKIPPED: self.skipped,
+            TestCaseStatus.REGRESSION: self.regression,
+        }
+        self._counts = {tcs: sum(self._counts_per_status[tcs].values()) for tcs in TestCaseStatus}
 
-        if not self.allow_empty and self.no_of_all_tcs < 5:
+        self._num_all_testcases: int = sum(self._counts.values())
+
+        if not self.allow_empty and self._num_all_testcases < 5:
             raise ValueError("Minimum required value of all testcases is 5!")
 
-        self.failed_test_classnames = [self._generate_classname() for _ in range(5)]
-        self.passed_test_classnames = [self._generate_classname() for _ in range(5)]
-        self.skipped_test_classnames = [self._generate_classname() for _ in range(5)]
+        self._test_classnames: Dict[TestCaseStatus, List[str]] = {}
+        for tcs in TestCaseStatus:
+            self._test_classnames[tcs] = [self._generate_classname() for _ in range(5)]
 
-        # Key: testcase FQN, value: status
-        self.testcase_statuses: Dict[str, str] = {}
+        self._add_to_result_dict()
 
-        self.testcases_by_suites: Dict[str, List[Tuple[str, TestCaseStatus]]] = {}
-
-        self._add_to_result_dict(TestCaseStatus.FAILED)
-        self._add_to_result_dict(TestCaseStatus.PASSED)
-        self._add_to_result_dict(TestCaseStatus.SKIPPED)
-
-        if len(self.testcase_statuses) != self.no_of_all_tcs:
+        actual_all_testcases = sum([len(i) for i in self._testcases_by_status.values()])
+        if actual_all_testcases != self._num_all_testcases:
             raise ValueError(
-                "Size of dict should be equal to number of all testcases!"
-                f"Size of dict: {len(self.testcase_statuses)}"
-                f"All testcases: {self.no_of_all_tcs}"
+                "Size of dict should be equal to number of all testcases!\n"
+                f"Size of dict: {len(self._testcases_by_status)}\n"
+                f"All testcases: {self._num_all_testcases}"
             )
 
+    @property
+    def failed_count(self):
+        return self._counts[TestCaseStatus.FAILED]
+
+    @property
+    def passed_count(self):
+        return self._counts[TestCaseStatus.PASSED]
+
+    @property
+    def skipped_count(self):
+        return self._counts[TestCaseStatus.SKIPPED]
+
     def get_failed_testcases(self, package: str):
-        return [
-            k
-            for k, v in self.testcase_statuses.items()
-            if k.startswith(package) and v == TestCaseStatus.FAILED.name.upper()
-        ]
+        testcases = self._get_by_statuses(TestCaseStatus.FAILED)
+        filtered_testcases = list(filter(lambda tc: tc.startswith(package), testcases))
+        return filtered_testcases
 
     def get_all_failed_testcases(self):
-        return [
-            k
-            for k, v in self.testcase_statuses.items()
-            if v in (TestCaseStatus.FAILED.name.upper(), TestCaseStatus.REGRESSION.name.upper())
-        ]
+        testcases = self._get_by_statuses(TestCaseStatus.FAILED, TestCaseStatus.REGRESSION)
+        return testcases
+
+    def _get_by_statuses(self, *statuses):
+        if len(statuses) == 1:
+            return self._testcases_by_status[statuses[0]]
+        else:
+            res = []
+            for status in statuses:
+                if status not in self._testcases_by_status:
+                    LOG.warning("Testcases for status '%s' are not stored for JenkinsReportJsonSpec", status)
+                res += self._testcases_by_status[status]
+            return res
 
     @property
     def len_testcases(self):
-        return len(self.testcase_statuses)
+        return len(self._testcases_by_status)
 
     @staticmethod
     def _generate_classname(words=3):
@@ -215,26 +233,30 @@ class JenkinsReportJsonSpec:
         comps = gen.split("-")
         return "".join([f"{c[0].upper()}{c[1:]}" for c in comps])
 
-    def _add_to_result_dict(self, status: TestCaseStatus):
-        if status == TestCaseStatus.FAILED:
-            package_to_count, classnames = self.failed, self.failed_test_classnames
-        elif status == TestCaseStatus.PASSED:
-            package_to_count, classnames = self.passed, self.passed_test_classnames
-        elif status == TestCaseStatus.SKIPPED:
-            package_to_count, classnames = self.skipped, self.skipped_test_classnames
-        else:
-            raise ValueError("Unknown test case status: " + str(status))
+    def _add_to_result_dict(self):
+        self._testcases_by_status: Dict[TestCaseStatus, List[str]] = defaultdict(
+            list
+        )  # Key: testcase FQN, value: status
+        self.testcases_by_suites: Dict[str, List[Tuple[str, TestCaseStatus]]] = defaultdict(
+            list
+        )  # Key: class name FQN, value:
 
-        for package, no_of_tcs in package_to_count.items():
-            for idx in range(0, no_of_tcs):
-                tc_name = f"tc-{generate_slug(2)}"
-                class_name = classnames[idx % 5]
-                class_name_fqn: str = f"{package}.{class_name}"
-                tc_fqn: str = f"{class_name_fqn}.{tc_name}"
-                self.testcase_statuses[tc_fqn] = status.name.upper()
-                if class_name_fqn not in self.testcases_by_suites:
-                    self.testcases_by_suites[class_name_fqn] = []
-                self.testcases_by_suites[class_name_fqn].append((tc_name, status))
+        for status in TestCaseStatus:
+            package_to_count = self._counts_per_status[status]
+            classnames = self._test_classnames[status]
+            for package, num_testcases in package_to_count.items():
+                for idx in range(0, num_testcases):
+                    class_name_fqn, tc_fqn, tc_name = self._generate_testcase_fqn(status, classnames, idx, package)
+                    self._testcases_by_status[status].append(tc_fqn)
+                    self.testcases_by_suites[class_name_fqn].append((tc_name, status))
+
+    @staticmethod
+    def _generate_testcase_fqn(status, classnames, idx, package):
+        tc_name = f"{status.name.lower()}-tc-{generate_slug(2)}"
+        class_name = classnames[idx % 5]
+        class_name_fqn = f"{package}.{class_name}"
+        tc_fqn = f"{class_name_fqn}.{tc_name}"
+        return class_name_fqn, tc_fqn, tc_name
 
     @staticmethod
     def get_arbitrary():
@@ -753,7 +775,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args = self._create_args_for_full_email_config()
         args.skip_email = True
         args.force_send_email = True
-        args.reset_sent_state_for_jobs = "job3"
+        args.reset_send_state_for_jobs = "job3"
         config = EmailConfig(args)
         with self.assertRaises(ValueError):
             config.validate(["job1", "job2"])
@@ -762,7 +784,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args = self._create_args_for_full_email_config()
         args.skip_email = True
         args.force_send_email = True
-        args.reset_sent_state_for_jobs = ["job1", "job2"]
+        args.reset_send_state_for_jobs = ["job1", "job2"]
         config = EmailConfig(args)
         config.validate(["job1", "job2"])
 
@@ -770,7 +792,7 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args = self._create_args_for_full_email_config()
         args.skip_email = True
         args.force_send_email = True
-        args.reset_sent_state_for_jobs = ["job1", "job2", "job999"]
+        args.reset_send_state_for_jobs = ["job1", "job2", "job999"]
         config = EmailConfig(args)
         with self.assertRaises(ValueError):
             config.validate(["job1", "job2"])

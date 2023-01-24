@@ -214,9 +214,13 @@ class UnitTestResultFetcher(CommandAbs):
 
         for job_name in self.config.job_names:
             jenkins_job_result: JenkinsJobResult = self._create_jenkins_job_result(job_name)
-            old_job_result: JenkinsJobResult = self.job_results[job_name]
-            new_job_result = old_job_result.merge_with(jenkins_job_result)
-            self.job_results[job_name] = new_job_result
+            if job_name not in self.job_results:
+                LOG.info("Discovered new Jenkins job results, job name: %s", job_name)
+                self.job_results[job_name] = jenkins_job_result
+            else:
+                old_job_result: JenkinsJobResult = self.job_results[job_name]
+                new_job_result = old_job_result.merge_with(jenkins_job_result)
+                self.job_results[job_name] = new_job_result
 
         if self.email.config.reset_email_send_state:
             self._database.reset_email_send_state(
@@ -229,23 +233,38 @@ class UnitTestResultFetcher(CommandAbs):
         return self.job_results[job_name]
 
     def get_failed_tests(self, job_name) -> List[str]:
-        result = self._get_job_result_by_job_name(job_name)
+        """
+        Used by tests only
+        :param job_name:
+        :return:
+        """
+        escaped_job_name = JobNameUtils.escape_job_name(job_name)
+        result = self._get_job_result_by_job_name(escaped_job_name)
         if not result:
             raise ValueError("Job result is not queried yet or it is None!")
         return list(result.failure_count_by_testcase.keys())
 
     def get_num_build_data(self, job_name):
-        return len(self._get_job_result_by_job_name(job_name)._builds_by_url)
+        """
+        Used by tests only
+        :param job_name:
+        :return:
+        """
+        escaped_job_name = JobNameUtils.escape_job_name(job_name)
+        return len(self._get_job_result_by_job_name(escaped_job_name)._builds_by_url)
 
     @property
     def testcase_filters(self) -> List[str]:
         return [tcf.as_filter_spec for tcf in self.config.tc_filters]
 
     def get_filtered_testcases_from_build(self, build_url: str, package: str, job_name: str):
+        escaped_job_name = JobNameUtils.escape_job_name(job_name)
         return [
             tc
-            for filtered_res in self._get_job_result_by_job_name(job_name).get_job_data(build_url).filtered_testcases
-            for tc in filtered_res.failed_testcases
+            for filtered_res in self._get_job_result_by_job_name(escaped_job_name)
+            .get_job_data(build_url)
+            .filtered_testcases
+            for tc in filtered_res.testcases
             if package in tc
         ]
 

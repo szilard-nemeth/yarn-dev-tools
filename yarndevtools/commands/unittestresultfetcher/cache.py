@@ -321,23 +321,45 @@ class CacheConfig:
             if hasattr(args, "cache_type") and args.cache_type
             else UnitTestResultFetcherCacheType.FILE
         )
-        self.enabled: bool = (
-            not args.disable_file_cache if hasattr(args, "disable_file_cache") and not force_download_mode else False
-        )
+        self._explicitly_disable_file_cache = args.disable_file_cache if hasattr(args, "disable_file_cache") else False
+        self.enabled = not self._explicitly_disable_file_cache
+
         self.enable_sync_from_fs_to_drive: bool = (
             not args.disable_sync_from_fs_to_drive if hasattr(args, "disable_sync_from_fs_to_drive") else True
         )
-        if self.cache_type:
-            self.enabled = True
-        if load_cached_reports_to_db:
-            self.enabled = True
-            self.cache_type = UnitTestResultFetcherCacheType.GOOGLE_DRIVE
+
+        self.enabled = self._verify_cache_enabled(force_download_mode, load_cached_reports_to_db)
 
         self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
         self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, CACHED_DATA_DIRNAME))
         self.download_uncached_job_data: bool = (
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
+
+    def _verify_cache_enabled(self, force_download_mode, load_cached_reports_to_db):
+        orig_val = self.enabled
+
+        if force_download_mode:
+            reason = "force download mode is enabled"
+            new_val = True
+        if self.cache_type:
+            reason = "cache type is set to: " + str(self.cache_type)
+            # TODO do not change because of cache type
+            # new_val = True
+            new_val = orig_val
+        if load_cached_reports_to_db:
+            reason = "load cached reports to db is enabled"
+            new_val = True
+            self.cache_type = UnitTestResultFetcherCacheType.GOOGLE_DRIVE
+
+        if orig_val != new_val:
+            raise ValueError(
+                "Conflicting cache settings! Original enabled value: {}, new enabled value: {}, reason: {}".format(
+                    orig_val, new_val, reason
+                )
+            )
+
+        return new_val
 
 
 class FileSizeCheckerResult(Enum):
