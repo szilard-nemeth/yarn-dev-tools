@@ -93,6 +93,7 @@ class Database(ABC):
             if self.find_by_id(real_id, collection_name=collection_name):
                 return self._db[collection_name].replace_one({"_id": real_id}, serialized)
 
+        LOG.debug("Saving to collection '%s', document: %s", collection_name, serialized)
         return self._db[collection_name].insert_one(serialized)
 
     @staticmethod
