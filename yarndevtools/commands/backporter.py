@@ -14,7 +14,7 @@ WARNING_MESSAGE = (
     "!! Remember to build project to verify the backported commit compiles !!"
     f"Run this command to build the project: {DEFAULT_MAVEN_COMMAND}"
 )
-DEFAULT_REMOTE = "cauldron"
+DEFAULT_REMOTE = "gerrit"
 
 LOG = logging.getLogger(__name__)
 
@@ -66,6 +66,7 @@ class Backporter(CommandAbs):
         self.fetch_repos: bool = not self.args.no_fetch
         self.upstream_repo = upstream_repo
         self.downstream_repo: GitWrapper = downstream_repo
+        # TODO Make remote configurable with CLI switch (search for: "DEFAULT_REMOTE" in this file)
 
         gerrit_push_cmd = (
             "Run this command to push to gerrit: "
