@@ -601,50 +601,56 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         return filter.split(":")[-1]
 
     def test_jenkins_api_converter_parse_job_data_check_failed_testcases(self):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         report_dict, spec = JenkinsTestReport.get_arbitrary()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
-        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        job_build_data = jenkins_api_converter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_regression_testcases(self):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         report_dict, spec = JenkinsTestReport.get_with_regression()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
-        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        job_build_data = jenkins_api_converter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertEqual(set(spec.get_all_failed_testcases()), job_build_data.testcases)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_counters(self):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         report_dict, spec = JenkinsTestReport.get_arbitrary()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
-        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        job_build_data = jenkins_api_converter.parse_job_data(report_dict, failed_jenkins_build)
 
         exp_counter = JobBuildDataCounters(failed=45, passed=30, skipped=30)
         self.assertEqual(exp_counter, job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.HAVE_FAILED_TESTCASES, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_status_counters_all_green_job(self):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         report_dict, spec = JenkinsTestReport.get_all_green()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
-        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        job_build_data = jenkins_api_converter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.ALL_GREEN, job_build_data.status)
 
     def test_jenkins_api_converter_parse_job_data_check_status_counters_empty_job(self):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         report_dict, spec = JenkinsTestReport.get_empty()
         failed_jenkins_build = FailedJenkinsBuild(TestUnitTestResultFetcher.get_arbitrary_build_url(), 12345, "testJob")
-        job_build_data = JenkinsApiConverter.parse_job_data(report_dict, failed_jenkins_build)
+        job_build_data = jenkins_api_converter.parse_job_data(report_dict, failed_jenkins_build)
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.EMPTY, job_build_data.status)
 
     @patch(NETWORK_UTILS_PATCH_PATH)
     def test_jenkins_api_converter_convert_latest_job(self, mock_fetch_json):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
         sorted_builds_desc = sorted(builds_dict["builds"], key=lambda x: x["url"], reverse=True)
         mock_fetch_json.return_value = builds_dict
         job_name = "test_job"
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(JENKINS_MAIN_URL, job_name)
-        failed_builds, total_no_of_builds = JenkinsApiConverter.convert(job_name, jenkins_urls, days=1)
+        failed_builds, total_no_of_builds = jenkins_api_converter.convert(job_name, jenkins_urls, days=1)
         # fetch_builds_url = mock_fetch_json.call_args_list[0]
         # self.assertEqual("'http://jenkins_base_url/job/test_job/api/json?tree=builds[url,result,timestamp]'", fetch_builds_url)
         self.assertEqual(1, len(failed_builds))
@@ -658,12 +664,13 @@ class TestUnitTestResultFetcher(unittest.TestCase):
 
     @patch(NETWORK_UTILS_PATCH_PATH)
     def test_jenkins_api_converter_convert_more_jobs(self, mock_fetch_json):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
         sorted_builds_desc = sorted(builds_dict["builds"], key=lambda x: x["url"], reverse=True)
         mock_fetch_json.return_value = builds_dict
         job_name = "test_job"
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(JENKINS_MAIN_URL, job_name)
-        failed_builds, total_no_of_builds = JenkinsApiConverter.convert(job_name, jenkins_urls, days=16)
+        failed_builds, total_no_of_builds = jenkins_api_converter.convert(job_name, jenkins_urls, days=16)
         # fetch_builds_url = mock_fetch_json.call_args_list[0]
         # self.assertEqual("'http://jenkins_base_url/job/test_job/api/json?tree=builds[url,result,timestamp]'", fetch_builds_url)
         self.assertEqual(16, len(failed_builds))
@@ -678,11 +685,12 @@ class TestUnitTestResultFetcher(unittest.TestCase):
 
     @patch(NETWORK_UTILS_PATCH_PATH)
     def test_jenkins_api_converter_download_test_report(self, mock_fetch_json: Mock):
+        jenkins_api_converter = JenkinsApiConverter(None, None)
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
         failed_build = FailedJenkinsBuild("http://full/url/of/job", 1244525, "test_job")
         mock_fetch_json.return_value = builds_dict
 
-        act_test_report = JenkinsApiConverter.download_test_report(failed_build, Mock(spec=DownloadProgress))
+        act_test_report = jenkins_api_converter.download_test_report(failed_build, Mock(spec=DownloadProgress))
 
         LOG.debug("Call args list: %s", mock_fetch_json.call_args_list)
         self.assertEqual(builds_dict, act_test_report)

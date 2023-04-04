@@ -1,13 +1,17 @@
 #!/usr/local/bin/python3
+import json
 import logging
 import os
 import sys
 import time
 import traceback
+import urllib
+import urllib.request
+import urllib.error as url_error
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict, Set, Tuple, Any
+from typing import List, Dict, Set, Tuple, Any, Callable
 
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
@@ -237,9 +241,12 @@ class JenkinsJobInstanceUrls:
 
 
 class JenkinsApiConverter:
-    @staticmethod
-    def convert(job_name: str, jenkins_urls: JenkinsJobUrls, days: int):
-        all_builds: List[Dict[str, str]] = JenkinsApiConverter._list_builds(jenkins_urls)
+    def __init__(self, user, password):
+        self.user = user
+        self.password = password
+
+    def convert(self, job_name: str, jenkins_urls: JenkinsJobUrls, days: int):
+        all_builds: List[Dict[str, str]] = self._list_builds(jenkins_urls)
         last_n_builds: List[Dict[str, str]] = JenkinsApiConverter._filter_builds_last_n_days(all_builds, days=days)
         last_n_failed_build_tuples: List[Tuple[str, int]] = JenkinsApiConverter._get_failed_build_urls_with_timestamps(
             last_n_builds
@@ -265,13 +272,12 @@ class JenkinsApiConverter:
         )
         return failed_builds, total_no_of_builds
 
-    @staticmethod
-    def _list_builds(urls: JenkinsJobUrls) -> List[Any]:
-        """ List all builds of the target project. """
+    def _list_builds(self, urls: JenkinsJobUrls) -> List[Any]:
+        """List all builds of the target project."""
         url = urls.list_builds
         try:
             LOG.info("Fetching builds from Jenkins in url: %s", url)
-            data = JenkinsApiConverter.safe_fetch_json(url)
+            data = self.safe_fetch_json(url)
             # In case job does not exist (HTTP 404), data will be None
             if data:
                 return data["builds"]
@@ -326,22 +332,22 @@ class JenkinsApiConverter:
                 failed_build, counters, failed_testcases, status=JobBuildDataStatus.HAVE_FAILED_TESTCASES
             )
 
-    @staticmethod
-    def download_test_report(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
+    def download_test_report(self, failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
         url = failed_build.urls.test_report_api_json_url
         LOG.info(f"Loading test report from URL: {url}. Download progress: {download_progress.short_str()}")
-        return JenkinsApiConverter.safe_fetch_json(url)
+        return self.safe_fetch_json(url)
 
-    @staticmethod
-    def safe_fetch_json(url):
+    def safe_fetch_json(self, url):
         def retry_fetch(url):
             LOG.error("URL '%s' cannot be fetched (HTTP 502 Proxy Error):", url)
-            JenkinsApiConverter.safe_fetch_json(url)
+            self.safe_fetch_json(url)
 
         # HTTP 404 should be logged
         # HTTP Error 502: Proxy Error is just calls this function again (retry) with the same args, indefinitely
-        data = NetworkUtils.fetch_json(
+        data = JenkinsApiConverter.fetch_json(
             url,
+            user=self.user,
+            password=self.password,
             do_not_raise_http_statuses={404, 502},
             http_callbacks={
                 404: lambda: LOG.error("URL '%s' cannot be fetched (HTTP 404):", url),
@@ -349,6 +355,42 @@ class JenkinsApiConverter:
             },
         )
         return data
+
+    # TODO Could be moved to network_utils (pythoncommons)
+    @staticmethod
+    def fetch_json(
+        url,
+        user=None,
+        password=None,
+        strict=False,
+        do_not_raise_http_statuses: Set[int] = None,
+        http_callbacks: Dict[int, Callable] = None,
+    ):
+        """Load data from specified url"""
+        try:
+            LOG.debug("Making request to URL: %s", url)
+            auth_handler = urllib.request.HTTPBasicAuthHandler(
+                password_mgr=urllib.request.HTTPPasswordMgrWithPriorAuth()
+            )
+            auth_handler.add_password(
+                realm="test",
+                uri=UnitTestResultFetcherMode.JENKINS_MASTER.jenkins_base_url,
+                user=user,
+                passwd=password,
+                is_authenticated=True,
+            )
+            opener = urllib.request.build_opener(auth_handler)
+            ourl = opener.open(url)
+            codec = ourl.info().get_param("charset")
+            content = ourl.read().decode(codec)
+        except urllib.error.HTTPError as e:
+            if do_not_raise_http_statuses and e.code in do_not_raise_http_statuses:
+                if http_callbacks and e.code in http_callbacks:
+                    http_callbacks[e.code]()
+                return {}
+            else:
+                raise e
+        return json.loads(content, strict=strict)
 
 
 @dataclass
@@ -802,6 +844,11 @@ class UnitTestResultFetcherConfig:
             args.reset_job_build_data_for_jobs if hasattr(args, "reset_job_build_data_for_jobs") else []
         )
 
+        self.jenkins_user = args.jenkins_user if hasattr(args, "jenkins_user") and args.jenkins_user else None
+        self.jenkins_password = (
+            args.jenkins_password if hasattr(args, "jenkins_password") and args.jenkins_password else None
+        )
+
         # Validation
         if not self.tc_filters:
             LOG.warning("TESTCASE FILTER IS NOT SET!")
@@ -823,6 +870,11 @@ class UnitTestResultFetcherConfig:
                 "Not all jobs are recognized while trying to reset job build data for jobs! "
                 "Valid job names: {}, Current job names: {}".format(self.job_names, self.reset_job_build_data_for_jobs)
             )
+
+        if not self.jenkins_user:
+            raise ValueError("Jenkins user should be specified for API authentication")
+        if not self.jenkins_password:
+            raise ValueError("Jenkins password should be specified for API authentication")
 
         self.email.validate(self.job_names)
 
@@ -853,6 +905,7 @@ class UnitTestResultFetcherConfig:
 class UnitTestResultFetcher(CommandAbs):
     def __init__(self, args, output_dir):
         self.config = UnitTestResultFetcherConfig(output_dir, args)
+        self.jenkins_api_converter = JenkinsApiConverter(self.config.jenkins_user, self.config.jenkins_password)
         self.reports: Dict[str, JenkinsJobReport] = {}  # key is the Jenkins job name
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
@@ -1017,6 +1070,18 @@ class UnitTestResultFetcher(CommandAbs):
             help="The type of the cache. Either file or google_drive",
         )
 
+        parser.add_argument(
+            "--jenkins-user",
+            type=str,
+            help="Jenkins user for API authentication",
+        )
+
+        parser.add_argument(
+            "--jenkins-password",
+            type=str,
+            help="Jenkins password for API authentication",
+        )
+
         parser.set_defaults(func=UnitTestResultFetcher.execute)
 
     @staticmethod
@@ -1147,7 +1212,7 @@ class UnitTestResultFetcher(CommandAbs):
         self.cache.save_reports_meta(self.reports, log=log_report)
 
     def create_job_build_data(self, failed_build: FailedJenkinsBuild):
-        """ Find the names of any tests which failed in the given build output URL. """
+        """Find the names of any tests which failed in the given build output URL."""
         try:
             data = self.gather_raw_data_for_build(failed_build)
         except Exception:
@@ -1162,7 +1227,7 @@ class UnitTestResultFetcher(CommandAbs):
         if not data or len(data) == 0:
             return JobBuildData(failed_build, None, [], status=JobBuildDataStatus.NO_JSON_DATA_FOUND)
 
-        return JenkinsApiConverter.parse_job_data(data, failed_build)
+        return self.jenkins_api_converter.parse_job_data(data, failed_build)
 
     def gather_raw_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
@@ -1178,17 +1243,17 @@ class UnitTestResultFetcher(CommandAbs):
     def _download_build_data(self, failed_build):
         fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
         LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
-        data = JenkinsApiConverter.download_test_report(failed_build, self.download_progress)
+        data = self.jenkins_api_converter.download_test_report(failed_build, self.download_progress)
         self.sent_requests += 1
         if self.config.cache.enabled:
             self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
         return data
 
     def _create_jenkins_report(self, job_name: str) -> JenkinsJobReport:
-        """ Iterate runs of specified job within num_builds and collect results """
+        """Iterate runs of specified job within num_builds and collect results"""
         # TODO Discrepancy: request limit vs. days parameter
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
-        self.failed_builds, self.total_no_of_builds = JenkinsApiConverter.convert(
+        self.failed_builds, self.total_no_of_builds = self.jenkins_api_converter.convert(
             job_name, jenkins_urls, days=DEFAULT_REQUEST_LIMIT
         )
         job_datas: List[JobBuildData] = []
