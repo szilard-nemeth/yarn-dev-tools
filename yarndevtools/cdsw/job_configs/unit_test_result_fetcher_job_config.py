@@ -13,7 +13,7 @@ config = {
     "job_name": "Unit test result fetcher",
     "command_type": CommandType.UNIT_TEST_RESULT_FETCHER,
     "env_sanitize_exceptions": [],
-    "mandatory_env_vars": ["MAIL_ACC_USER", "MAIL_ACC_PASSWORD"],
+    "mandatory_env_vars": ["MAIL_ACC_USER", "MAIL_ACC_PASSWORD", "JENKINS_USER", "JENKINS_PASSWORD"],
     "optional_env_vars": ["BUILD_PROCESSING_LIMIT", "FORCE_SENDING_MAIL", "RESET_JOB_BUILD_DATA"],
     "yarn_dev_tools_arguments": [
         lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
@@ -22,6 +22,8 @@ config = {
         lambda conf: f"--smtp_port {conf.var('smtp_port')}",
         lambda conf: f"--account_user {conf.env('MAIL_ACC_USER')}",
         lambda conf: f"--account_password {conf.env('MAIL_ACC_PASSWORD')}",
+        lambda conf: f"--jenkins-user {conf.env('JENKINS_USER')}",
+        lambda conf: f"--jenkins-password {conf.env('JENKINS_PASSWORD')}",
         lambda conf: f"--sender {conf.var('sender')}",
         lambda conf: f"--recipients {conf.var('recipients')}",
         lambda conf: f"--mode {conf.var('mode')}",
