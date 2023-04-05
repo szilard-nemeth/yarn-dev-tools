@@ -103,6 +103,16 @@ class UnitTestResultFetcherParser:
             default="http://build.infra.cloudera.com/",
         )
         parser.add_argument(
+            "--jenkins-user",
+            type=str,
+            help="Jenkins user for API authentication",
+        )
+        parser.add_argument(
+            "--jenkins-password",
+            type=str,
+            help="Jenkins password for API authentication",
+        )
+        parser.add_argument(
             "-j",
             "--job-names",
             type=str,

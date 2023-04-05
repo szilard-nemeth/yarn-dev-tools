@@ -1,10 +1,13 @@
+import json
 import time
-from typing import List, Dict, Tuple, Any
-
+from typing import List, Dict, Tuple, Any, Callable, Set
+import urllib
+import urllib.request
+import urllib.error as url_error
 from pythoncommons.network_utils import NetworkUtils
 from pythoncommons.string_utils import auto_str
 
-from yarndevtools.commands.unittestresultfetcher.common import JobNameUtils
+from yarndevtools.commands.unittestresultfetcher.common import JobNameUtils, UnitTestResultFetcherMode
 from yarndevtools.common.common_model import FailedJenkinsBuild, JobBuildData, JobBuildDataStatus, JobBuildDataCounters
 
 import logging
@@ -52,11 +55,14 @@ class JenkinsJobUrls:
 
 
 class JenkinsApi:
-    @staticmethod
+    def __init__(self, user, password):
+        self.user = user
+        self.password = password
+
     def list_builds_for_job(
-        job_name: str, jenkins_urls: JenkinsJobUrls, days: int
+        self, job_name: str, jenkins_urls: JenkinsJobUrls, days: int
     ) -> Tuple[List[FailedJenkinsBuild], int]:
-        all_builds: List[Dict[str, str]] = JenkinsApi._list_builds(jenkins_urls)
+        all_builds: List[Dict[str, str]] = self._list_builds(jenkins_urls)
         last_n_builds: List[Dict[str, str]] = JenkinsApi._filter_builds_last_n_days(all_builds, days=days)
         last_n_failed_build_tuples: List[Tuple[str, int]] = JenkinsApi._get_failed_build_urls_with_timestamps(
             last_n_builds
@@ -84,13 +90,12 @@ class JenkinsApi:
         LOG.debug("Detected failed builds for Jenkins job '%s': %s", job_name, failed_urls)
         return failed_builds, total_no_of_builds
 
-    @staticmethod
-    def _list_builds(urls: JenkinsJobUrls) -> List[Any]:
+    def _list_builds(self, urls: JenkinsJobUrls) -> List[Any]:
         """List all builds of the target project."""
         url = urls.list_builds
         try:
             LOG.info("Fetching builds from Jenkins in url: %s", url)
-            data = JenkinsApi.safe_fetch_json(url)
+            data = self.safe_fetch_json(url)
             # In case job does not exist (HTTP 404), data will be None
             if data:
                 return data["builds"]
@@ -145,22 +150,22 @@ class JenkinsApi:
                 failed_build, counters, failed_testcases, status=JobBuildDataStatus.HAVE_FAILED_TESTCASES
             )
 
-    @staticmethod
-    def download_job_result(failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
+    def download_job_result(self, failed_build: FailedJenkinsBuild, download_progress: DownloadProgress):
         url = failed_build.urls.test_report_api_json_url
         LOG.info(f"Loading job result from URL: {url}. Download progress: {download_progress.short_str()}")
-        return JenkinsApi.safe_fetch_json(url)
+        return self.safe_fetch_json(url)
 
-    @staticmethod
-    def safe_fetch_json(url):
+    def safe_fetch_json(self, url):
         def retry_fetch(url):
             LOG.error("URL '%s' cannot be fetched (HTTP 502 Proxy Error):", url)
-            JenkinsApi.safe_fetch_json(url)
+            self.safe_fetch_json(url)
 
         # HTTP 404 should be logged
         # HTTP Error 502: Proxy Error is just calls this function again (retry) with the same args, indefinitely
-        data = NetworkUtils.fetch_json(
+        data = self.fetch_json(
             url,
+            self.user,
+            self.password,
             do_not_raise_http_statuses={404, 502},
             http_callbacks={
                 404: lambda: LOG.error("URL '%s' cannot be fetched (HTTP 404):", url),
@@ -168,3 +173,39 @@ class JenkinsApi:
             },
         )
         return data
+
+    # TODO Could be moved to network_utils (pythoncommons)
+    @staticmethod
+    def fetch_json(
+        url,
+        user,
+        password,
+        strict=False,
+        do_not_raise_http_statuses: Set[int] = None,
+        http_callbacks: Dict[int, Callable] = None,
+    ):
+        """Load data from specified url"""
+        try:
+            LOG.debug("Making request to URL: %s", url)
+            auth_handler = urllib.request.HTTPBasicAuthHandler(
+                password_mgr=urllib.request.HTTPPasswordMgrWithPriorAuth()
+            )
+            auth_handler.add_password(
+                realm="test",
+                uri=UnitTestResultFetcherMode.JENKINS_MASTER.jenkins_base_url,
+                user=user,
+                passwd=password,
+                is_authenticated=True,
+            )
+            opener = urllib.request.build_opener(auth_handler)
+            ourl = opener.open(url)
+            codec = ourl.info().get_param("charset")
+            content = ourl.read().decode(codec)
+        except urllib.error.HTTPError as e:
+            if do_not_raise_http_statuses and e.code in do_not_raise_http_statuses:
+                if http_callbacks and e.code in http_callbacks:
+                    http_callbacks[e.code]()
+                return {}
+            else:
+                raise e
+        return json.loads(content, strict=strict)

@@ -65,6 +65,11 @@ class UnitTestResultFetcherConfig:
             else None
         )
         self.jenkins_base_url = args.jenkins_url
+        self.jenkins_user = args.jenkins_user if hasattr(args, "jenkins_user") and args.jenkins_user else None
+        self.jenkins_password = (
+            args.jenkins_password if hasattr(args, "jenkins_password") and args.jenkins_password else None
+        )
+
         self.job_names: List[str] = args.job_names.split(",")
         self.num_builds: int = self._determine_number_of_builds_to_examine(args.num_builds, self.request_limit)
         tc_filters_raw = args.tc_filters if hasattr(args, "tc_filters") and args.tc_filters else []
@@ -105,6 +110,11 @@ class UnitTestResultFetcherConfig:
 
         self.email.validate(self.job_names)
 
+        if not self.jenkins_user:
+            raise ValueError("Jenkins user should be specified for API authentication")
+        if not self.jenkins_password:
+            raise ValueError("Jenkins password should be specified for API authentication")
+
         # From now on, job_names should be always escaped!
         self.job_names = [JobNameUtils.escape_job_name(jn) for jn in self.job_names]
 
@@ -140,6 +150,7 @@ class UnitTestResultFetcher(CommandAbs):
         self.cache: Cache = self._create_cache(self.config)
         self.email: Email = Email(self.config.email)
         self._database = UTResultFetcherDatabase(self.config.mongo_config)
+        self.jenkins_api = JenkinsApi(self.config.jenkins_user, self.config.jenkins_password)
 
     @staticmethod
     def create_parser(subparsers):
@@ -343,7 +354,7 @@ class UnitTestResultFetcher(CommandAbs):
     def _fetch_build_data(self, failed_build):
         fmt_timestamp: str = DateUtils.format_unix_timestamp(failed_build.timestamp)
         LOG.debug(f"Downloading job data from URL: {failed_build.urls.test_report_url}, timestamp: ({fmt_timestamp})")
-        data = JenkinsApi.download_job_result(failed_build, self.download_progress)
+        data = self.jenkins_api.download_job_result(failed_build, self.download_progress)
         self.download_progress.incr_performed_requests()
         if self.config.cache.enabled:
             self.cache.save_report(data, self._convert_to_cache_build_key(failed_build))
@@ -353,7 +364,7 @@ class UnitTestResultFetcher(CommandAbs):
         """Iterate runs of specified job within num_builds and collect results"""
         # TODO Discrepancy: request limit vs. days parameter
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(self.config.jenkins_base_url, job_name)
-        failed_builds, total_no_of_builds = JenkinsApi.list_builds_for_job(
+        failed_builds, total_no_of_builds = self.jenkins_api.list_builds_for_job(
             job_name, jenkins_urls, days=DEFAULT_REQUEST_LIMIT
         )
         # TODO This seems to be wrong, len(failed_builds) is not the same number of builds that should be downloaded
