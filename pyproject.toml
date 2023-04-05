@@ -17,7 +17,7 @@ exclude = '''
 
 [tool.poetry]
 name = "yarn-dev-tools"
-version = "1.1.5"
+version = "1.1.6"
 description = ""
 authors = ["Szilard Nemeth <szilard.nemeth88@gmail.com>"]
 keywords = ["YARN", "development", "dev environment"]
@@ -66,6 +66,7 @@ google-api-wrapper2 = { path = "../google-api-wrapper", develop = false }
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
 
 
 
