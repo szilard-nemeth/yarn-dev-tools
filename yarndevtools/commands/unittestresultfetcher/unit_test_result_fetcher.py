@@ -389,6 +389,8 @@ class JenkinsApiConverter:
                     http_callbacks[e.code]()
                 return {}
             else:
+                error_message = e.read()
+                LOG.error("Printing error response received from server: %s", error_message)
                 raise e
         return json.loads(content, strict=strict)
 
