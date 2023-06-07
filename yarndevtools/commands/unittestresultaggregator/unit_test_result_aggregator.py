@@ -531,7 +531,7 @@ class FailedTestCases:
         reference_date: datetime.datetime = sorted_testcases[0].email_meta.date
         # Find all testcases for latest build
         start_idx = 0
-        while True:
+        while start_idx < len(sorted_testcases):
             tc = sorted_testcases[start_idx]
             if tc.email_meta.date == reference_date:
                 latest_testcases[tc.simple_name] = tc
@@ -554,6 +554,10 @@ class FailedTestCases:
                 if not stored_delta:
                     stored_delta = delta_days
                 to_compare_testcases[tc.simple_name] = tc
+
+        if not to_compare_testcases and start_idx == len(sorted_testcases):
+            LOG.warning("Found 0 testcases to compare with. Sorted testcases: %s", sorted_testcases)
+            return latest_testcases, to_compare_testcases
 
         # If we haven't found any other testcase, it means delta_days haven't reached the given number of days.
         # Relax criteria
