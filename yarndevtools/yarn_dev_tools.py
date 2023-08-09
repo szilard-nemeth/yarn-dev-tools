@@ -33,6 +33,7 @@ class YarnDevTools:
         self.setup_dirs(execution_mode=execution_mode)
         self.init_repos()
 
+    # TODO move this to pythoncommons?
     def setup_dirs(self, execution_mode: ExecutionMode = ExecutionMode.PRODUCTION):
         strategy = None
         if execution_mode == ExecutionMode.PRODUCTION:
