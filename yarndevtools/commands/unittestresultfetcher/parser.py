@@ -190,4 +190,12 @@ class UnitTestResultFetcherParser:
             help="Whether to sync reports from filesystem to Google Drive",
         )
 
+        parser.add_argument(
+            "--remove-small-reports",
+            dest="remove_small_reports",
+            action="store_true",
+            default=False,
+            help="Whether to remove small reports from FS and Google Drive caches",
+        )
+
         parser.set_defaults(func=func)

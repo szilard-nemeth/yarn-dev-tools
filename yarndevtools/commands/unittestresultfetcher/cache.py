@@ -110,8 +110,19 @@ class FileCache(Cache):
             full_path_result=True,
             extension="json",
         )
-        self.cached_builds: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(report_files)
+        small_reports, remaining_reports = self._remove_small_reports(report_files)
+        self.cached_builds: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(remaining_reports)
+        self.small_reports: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(small_reports)
         LOG.info("Loaded cached builds: %s", self.cached_builds)
+
+    @staticmethod
+    def _remove_small_reports(report_files):
+        # TODO yarndevtoolsv2: test this manually
+        small_reports = FileUtils.filter_files_less_than_size(10, report_files)
+        for report in small_reports:
+            FileUtils.remove_file(report)
+        remaining_reports = set(report_files).difference(set(small_reports))
+        return small_reports, remaining_reports
 
     def _load_cached_builds_from_fs(self, report_files):
         cached_builds: Dict[CachedBuildKey, CachedBuild] = {}
@@ -188,14 +199,17 @@ class GoogleDriveCache(Cache):
         self.drive_reports_basedir = FileUtils.join_path(
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR, "reports"
         )
-        self.all_report_files = []
+        self.all_report_files: List[DriveApiFile] = []
         self.downloader = GoogleFileDownloader(self.drive_wrapper, self.file_cache)
 
     def initialize(self):
+        # TODO yarndevtoolsv2: Return value of file_cache.initialize is not defined!
         reports = self.file_cache.initialize()
         self.all_report_files = self._download_all_reports()
         if self.config.enable_sync_from_fs_to_drive:
             self._sync_from_file_cache()
+        if self.config.remove_small_reports:
+            self._remove_small_reports()
         return reports
 
     @staticmethod
@@ -313,6 +327,20 @@ class GoogleDriveCache(Cache):
         # TODO yarndevtoolsv2 Load from Drive and if not successful, load from local file cache
         # TODO If report.json is only found in local cache, save it to Drive
 
+    def _remove_small_reports(self):
+        drive_files_dict: Dict[CachedBuildKey, DriveApiFile] = {}
+        for report_drive_file in self.all_report_files:
+            build_key = self.create_cached_build_key(report_drive_file)
+            if build_key:
+                drive_files_dict[build_key] = report_drive_file
+        LOG.debug("Found builds to remove from Google Drive (small report size): %s", drive_files_dict)
+        cached_build_keys = self.file_cache.small_reports.keys()
+        for key in cached_build_keys:
+            if key in drive_files_dict:
+                # TODO yarndevtoolsv2 test remove drive file functonality manually
+                drive_api_file = drive_files_dict[key]
+                self.drive_wrapper.remove_file(drive_api_file)
+
 
 class CacheConfig:
     def __init__(self, args, output_dir, force_download_mode=False, load_cached_reports_to_db=False):
@@ -335,6 +363,7 @@ class CacheConfig:
         self.download_uncached_job_data: bool = (
             args.download_uncached_job_data if hasattr(args, "download_uncached_job_data") else False
         )
+        self.remove_small_reports: bool = args.remove_small_reports if hasattr(args, "remove_small_reports") else False
 
     def _verify_cache_enabled(self, force_download_mode, load_cached_reports_to_db):
         orig_val = self.enabled
