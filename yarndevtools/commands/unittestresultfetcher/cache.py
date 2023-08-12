@@ -33,6 +33,7 @@ from yarndevtools.commands.unittestresultfetcher.common import (
     JobNameUtils,
 )
 from yarndevtools.commands.unittestresultfetcher.model import CachedBuild, JenkinsJobResult, CachedBuildKey
+from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import UnitTestResultFetcherConfig
 from yarndevtools.common.common_model import FailedJenkinsBuild
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
@@ -45,7 +46,7 @@ class UnitTestResultFetcherCacheType(Enum):
     GOOGLE_DRIVE = "GOOGLE_DRIVE"
 
 
-class Cache(ABC):
+class CacheAbs(ABC):
     @abstractmethod
     def initialize(self) -> Dict[str, JenkinsJobResult]:
         pass
@@ -83,7 +84,35 @@ class Cache(ABC):
         pass
 
 
-class FileCache(Cache):
+class Cache:
+    def __init__(self, config: UnitTestResultFetcherConfig):
+        self.active_cache = None
+        if config.cache.cache_type == UnitTestResultFetcherCacheType.FILE:
+            LOG.info("Using file cache")
+            self.file_cache = FileCache(config.cache)
+            self.active_cache = self.file_cache
+        elif config.cache.cache_type == UnitTestResultFetcherCacheType.GOOGLE_DRIVE:
+            LOG.info("Using Google Drive cache")
+            self.google_drive_cache = GoogleDriveCache(config.cache)
+            self.active_cache = self.google_drive_cache
+
+    def initialize(self):
+        self.active_cache.initialize()
+
+    def download_reports(self):
+        return self.active_cache.download_reports()
+
+    def is_build_data_in_cache(self, key: CachedBuildKey):
+        return self.active_cache.is_build_data_in_cache(key)
+
+    def load_report(self, key: CachedBuildKey):
+        return self.active_cache.load_report(key)
+
+    def save_report(self, data, key: CachedBuildKey):
+        self.active_cache.save_report(data, key)
+
+
+class FileCache(CacheAbs):
     def __init__(self, config):
         self.config: CacheConfig = config
 
@@ -176,7 +205,7 @@ class FileCache(Cache):
         return self._generate_file_name_for_report(key)
 
 
-class GoogleDriveCache(Cache):
+class GoogleDriveCache(CacheAbs):
     DRIVE_FINAL_CACHE_DIR = CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name + "_" + CACHED_DATA_DIRNAME
     TEST_REPORT_REGEX = "^[0-9]+-testreport.json$"
     TEST_REPORT_PATTERN = re.compile(TEST_REPORT_REGEX)

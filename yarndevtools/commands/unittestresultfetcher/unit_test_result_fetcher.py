@@ -12,11 +12,8 @@ from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils
 
 from yarndevtools.commands.unittestresultfetcher.cache import (
-    Cache,
-    GoogleDriveCache,
-    FileCache,
-    UnitTestResultFetcherCacheType,
     CacheConfig,
+    Cache,
 )
 from yarndevtools.commands.unittestresultfetcher.common import UnitTestResultFetcherMode, JobNameUtils
 from yarndevtools.commands.unittestresultfetcher.db import (
@@ -172,12 +169,7 @@ class UnitTestResultFetcher(CommandAbs):
 
     @staticmethod
     def _create_cache(config: UnitTestResultFetcherConfig):
-        if config.cache.cache_type == UnitTestResultFetcherCacheType.FILE:
-            LOG.info("Using file cache")
-            return FileCache(config.cache)
-        elif config.cache.cache_type == UnitTestResultFetcherCacheType.GOOGLE_DRIVE:
-            LOG.info("Using Google Drive cache")
-            return GoogleDriveCache(config.cache)
+        return Cache(config)
 
     def run(self):
         LOG.info("Starting Jenkins test reporter. Details: %s", str(self.config))
@@ -342,7 +334,7 @@ class UnitTestResultFetcher(CommandAbs):
 
     def fetch_raw_data_for_build(self, failed_build: FailedJenkinsBuild):
         if self.config.cache.enabled:
-            cache_build_key = self._convert_to_cache_build_key(failed_build)
+            cache_build_key: CachedBuildKey = self._convert_to_cache_build_key(failed_build)
             cache_hit = self.cache.is_build_data_in_cache(cache_build_key)
             if cache_hit:
                 return self.cache.load_report(cache_build_key)
