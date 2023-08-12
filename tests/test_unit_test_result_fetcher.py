@@ -730,13 +730,11 @@ class TestUnitTestResultFetcher(unittest.TestCase):
             self.assertEqual(cache_config.cached_data_dir, os.path.join(tmp_dir, "cached_data"))
 
             self.assertFalse(cache_config.download_uncached_job_data)
-            self.assertEqual(cache_config.cache_type, UnitTestResultFetcherCacheType.FILE)
 
     def test_cache_config_with_settings(self):
         args = Object()
         args.disable_file_cache = False
         args.download_uncached_job_data = True
-        args.cache_type = "google_drive"
         with tempfile.TemporaryDirectory() as tmp_dir:
             cache_config = CacheConfig(args, tmp_dir)
             self.assertTrue(cache_config.enabled)
@@ -747,7 +745,6 @@ class TestUnitTestResultFetcher(unittest.TestCase):
             self.assertEqual(cache_config.cached_data_dir, os.path.join(tmp_dir, "cached_data"))
 
             self.assertTrue(cache_config.download_uncached_job_data)
-            self.assertEqual(cache_config.cache_type, UnitTestResultFetcherCacheType.GOOGLE_DRIVE)
 
     def test_email_config_with_default_settings(self):
         args = self._create_args_for_full_email_config()

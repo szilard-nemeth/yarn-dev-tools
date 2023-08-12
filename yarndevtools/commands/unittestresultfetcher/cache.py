@@ -86,30 +86,72 @@ class CacheAbs(ABC):
 
 class Cache:
     def __init__(self, config: UnitTestResultFetcherConfig):
-        self.active_cache = None
-        if config.cache.cache_type == UnitTestResultFetcherCacheType.FILE:
-            LOG.info("Using file cache")
-            self.file_cache = FileCache(config.cache)
-            self.active_cache = self.file_cache
-        elif config.cache.cache_type == UnitTestResultFetcherCacheType.GOOGLE_DRIVE:
-            LOG.info("Using Google Drive cache")
-            self.google_drive_cache = GoogleDriveCache(config.cache)
-            self.active_cache = self.google_drive_cache
+        self.config = config.cache
+        self.file_cache = FileCache(config.cache)
+        self.google_drive_cache = GoogleDriveCache(config.cache)
 
     def initialize(self):
-        self.active_cache.initialize()
+        self.file_cache.initialize()
+        self.google_drive_cache.initialize()
+
+        if self.config.enable_sync_from_fs_to_drive:
+            self._sync_from_file_cache_to_drive_cache()
+        if self.config.remove_small_reports:
+            self.google_drive_cache.remove_small_reports()
+
+    def _sync_from_file_cache_to_drive_cache(self):
+        # TODO yarndevtoolsv2 too much of GoogleDriveCache internals shared in this method
+        found_builds: Set[CachedBuildKey] = set()
+        for report_drive_file in self.google_drive_cache.all_report_files:
+            build_key = GoogleDriveCache.create_cached_build_key(report_drive_file)
+            if build_key:
+                found_builds.add(build_key)
+        LOG.debug("Found %d builds from Google Drive: %s", len(found_builds), found_builds)
+        builds_to_check_from_drive = {
+            key: value for (key, value) in self.file_cache.cached_builds.items() if key not in found_builds
+        }
+        LOG.debug("Will check these builds in Google Drive: %s", builds_to_check_from_drive)
+
+        # TODO yarndevtoolsv2 Implement sync from GDrive -> Filesystem (other way around)
+        # TODO yarndevtoolsv2 Create progressTracker object to show current status of Google Drive uploads / queries
+        for key, cached_build in builds_to_check_from_drive.items():
+            drive_report_file_path = self.google_drive_cache.generate_file_name_for_report(key)
+            settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
+                file_find_mode=None,
+                duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST,
+                search_result_handling_mode=SearchResultHandlingMode.SINGLE_FILE_PER_SEARCH_RESULT,
+            )
+            exist = self.google_drive_cache.drive_wrapper.does_file_exist(drive_report_file_path, op_settings=settings)
+            if not exist:
+                settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
+                    file_find_mode=None, duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST
+                )
+                self.google_drive_cache.drive_wrapper.upload_file(
+                    cached_build.full_report_file_path, drive_report_file_path, op_settings=settings
+                )
 
     def download_reports(self):
-        return self.active_cache.download_reports()
+        return self.google_drive_cache.download_reports()
 
     def is_build_data_in_cache(self, key: CachedBuildKey):
-        return self.active_cache.is_build_data_in_cache(key)
+        # TODO yarndevtoolsv2 Check in Drive and if not successful, decide based on local file cache
+        found_in_file_cache = self.file_cache.is_build_data_in_cache(key)
+        return found_in_file_cache
 
     def load_report(self, key: CachedBuildKey):
-        return self.active_cache.load_report(key)
+        fs_cache_hit = self.file_cache.is_build_data_in_cache(key)
+        if fs_cache_hit:
+            return self.file_cache.load_report(key)
+        raise NotImplementedError("Fetching Google Drive api file contents is not implemented yet!")
+
+        # TODO yarndevtoolsv2 Load from Drive and if not successful, load from local file cache
+        # TODO yarndevtoolsv2 If report.json is only found in local cache, save it to Drive
+        # loaded_report_from_drive = self.google_drive_cache.load_report(key)
 
     def save_report(self, data, key: CachedBuildKey):
-        self.active_cache.save_report(data, key)
+        # TODO yarndevtoolsv2 Save to Google Drive cache first?º
+        saved_report_file_path = self.file_cache.save_report(data, key)
+        self.google_drive_cache.save_report(data, key, saved_report_file_path)
 
 
 class FileCache(CacheAbs):
@@ -141,7 +183,10 @@ class FileCache(CacheAbs):
         )
         small_reports, remaining_reports = self._remove_small_reports(report_files)
         self.cached_builds: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(remaining_reports)
-        self.small_reports: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(small_reports)
+        if self.config.remove_small_reports:
+            self.small_reports: Dict[CachedBuildKey, CachedBuild] = self._load_cached_builds_from_fs(small_reports)
+        else:
+            self.small_reports = {}
         LOG.info("Loaded cached builds: %s", self.cached_builds)
 
     @staticmethod
@@ -233,13 +278,7 @@ class GoogleDriveCache(CacheAbs):
 
     def initialize(self):
         # TODO yarndevtoolsv2: Return value of file_cache.initialize is not defined!
-        reports = self.file_cache.initialize()
         self.all_report_files = self._download_all_reports()
-        if self.config.enable_sync_from_fs_to_drive:
-            self._sync_from_file_cache()
-        if self.config.remove_small_reports:
-            self._remove_small_reports()
-        return reports
 
     @staticmethod
     def create_cached_build_key(drive_file) -> CachedBuildKey:
@@ -249,36 +288,6 @@ class GoogleDriveCache(CacheAbs):
             LOG.error("Found test report with unexpected name: %s", job_name)
             return None
         return CachedBuildKey(job_name, int(components[0]))
-
-    def _sync_from_file_cache(self):
-        found_builds: Set[CachedBuildKey] = set()
-        for report_drive_file in self.all_report_files:
-            build_key = self.create_cached_build_key(report_drive_file)
-            if build_key:
-                found_builds.add(build_key)
-        LOG.debug("Found %d builds from Google Drive: %s", len(found_builds), found_builds)
-        builds_to_check_from_drive = {
-            key: value for (key, value) in self.file_cache.cached_builds.items() if key not in found_builds
-        }
-        LOG.debug("Will check these builds in Google Drive: %s", builds_to_check_from_drive)
-
-        # TODO yarndevtoolsv2 Implement sync from GDrive -> Filesystem (other way around)
-        # TODO Create progressTracker object to show current status of Google Drive uploads / queries
-        for key, cached_build in builds_to_check_from_drive.items():
-            drive_report_file_path = self._generate_file_name_for_report(key)
-            settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
-                file_find_mode=None,
-                duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST,
-                search_result_handling_mode=SearchResultHandlingMode.SINGLE_FILE_PER_SEARCH_RESULT,
-            )
-            exist = self.drive_wrapper.does_file_exist(drive_report_file_path, op_settings=settings)
-            if not exist:
-                settings: DriveApiWrapperSingleOperationSettings = DriveApiWrapperSingleOperationSettings(
-                    file_find_mode=None, duplicate_file_handling_mode=DuplicateFileWriteResolutionMode.FAIL_FAST
-                )
-                self.drive_wrapper.upload_file(
-                    cached_build.full_report_file_path, drive_report_file_path, op_settings=settings
-                )
 
     def get_all_reports(self):
         if not self.all_report_files:
@@ -329,7 +338,7 @@ class GoogleDriveCache(CacheAbs):
             job_name=key.job_name,
         )
 
-    def _generate_file_name_for_report(self, key: CachedBuildKey):
+    def generate_file_name_for_report(self, key: CachedBuildKey):
         return FileUtils.join_path(
             self.drive_reports_basedir,
             self.generate_job_dirname(key),
@@ -337,26 +346,24 @@ class GoogleDriveCache(CacheAbs):
         )
 
     def is_build_data_in_cache(self, key: CachedBuildKey):
-        # TODO yarndevtoolsv2 Check in Drive and if not successful, decide based on local file cache
-        return self.file_cache.is_build_data_in_cache(key)
+        # TODO yarndevtoolsv2 implement
+        raise NotImplementedError("not implemented")
 
-    def save_report(self, data, key: CachedBuildKey):
-        saved_report_file_path = self.file_cache.save_report(data, key)
-        drive_path = self._generate_file_name_for_report(key)
+    def save_report(self, data, key: CachedBuildKey, saved_report_file_path):
+        drive_path = self.generate_file_name_for_report(key)
         self.drive_wrapper.upload_file(saved_report_file_path, drive_path)
 
     def load_report(self, key: CachedBuildKey) -> Dict[Any, Any]:
-        cache_hit = self.file_cache.is_build_data_in_cache(key)
-        if cache_hit:
-            return self.file_cache.load_report(key)
-        else:
-            filename = self._generate_file_name_for_report(key)
-            self.drive_wrapper.get_file(filename)
-            # TODO missing return
-        # TODO yarndevtoolsv2 Load from Drive and if not successful, load from local file cache
-        # TODO If report.json is only found in local cache, save it to Drive
+        filename = self.generate_file_name_for_report(key)
+        files = self.drive_wrapper.get_file(filename)
+        # TODO yarndevtoolsv2 What if multiple files found?
+        if len(files) > 1:
+            raise ValueError("Edge case not handled")
+        # TODO yarndevtoolsv2 get json report content from DriveApiFile
+        # return files[0].
+        return {}
 
-    def _remove_small_reports(self):
+    def remove_small_reports(self):
         drive_files_dict: Dict[CachedBuildKey, DriveApiFile] = {}
         for report_drive_file in self.all_report_files:
             build_key = self.create_cached_build_key(report_drive_file)
@@ -373,11 +380,6 @@ class GoogleDriveCache(CacheAbs):
 
 class CacheConfig:
     def __init__(self, args, output_dir, force_download_mode=False, load_cached_reports_to_db=False):
-        self.cache_type: UnitTestResultFetcherCacheType = (
-            UnitTestResultFetcherCacheType(args.cache_type.upper())
-            if hasattr(args, "cache_type") and args.cache_type
-            else UnitTestResultFetcherCacheType.FILE
-        )
         self.enable_sync_from_fs_to_drive: bool = (
             not args.disable_sync_from_fs_to_drive if hasattr(args, "disable_sync_from_fs_to_drive") else True
         )
@@ -394,19 +396,14 @@ class CacheConfig:
         disable_cache = args.disable_file_cache if hasattr(args, "disable_file_cache") else False
         enabled = not disable_cache
         orig_enabled = enabled
+        new_enabled = enabled
 
         if force_download_mode:
             reason = "force download mode is enabled"
             new_enabled = True
-        if self.cache_type:
-            reason = "cache type is set to: " + str(self.cache_type)
-            # TODO do not change because of cache type
-            # new_enabled = True
-            new_enabled = orig_enabled
         if load_cached_reports_to_db:
             reason = "load cached reports to db is enabled"
             new_enabled = True
-            self.cache_type = UnitTestResultFetcherCacheType.GOOGLE_DRIVE
 
         if orig_enabled != new_enabled:
             raise ValueError(

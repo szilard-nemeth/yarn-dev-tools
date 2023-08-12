@@ -169,15 +169,6 @@ class UnitTestResultFetcherParser:
         )
 
         parser.add_argument(
-            "-ct",
-            "--cache-type",
-            type=str,
-            dest="cache_type",
-            choices=[ct.name.lower() for ct in UnitTestResultFetcherCacheType],
-            help="The type of the cache. Either file or google_drive",
-        )
-
-        parser.add_argument(
             "--load-cached-reports-to-db",
             dest="load_cached_reports_to_db",
             action="store_true",
