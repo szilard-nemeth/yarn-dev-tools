@@ -378,15 +378,11 @@ class CacheConfig:
             if hasattr(args, "cache_type") and args.cache_type
             else UnitTestResultFetcherCacheType.FILE
         )
-        self._explicitly_disable_file_cache = args.disable_file_cache if hasattr(args, "disable_file_cache") else False
-        self.enabled = not self._explicitly_disable_file_cache
-
         self.enable_sync_from_fs_to_drive: bool = (
             not args.disable_sync_from_fs_to_drive if hasattr(args, "disable_sync_from_fs_to_drive") else True
         )
 
-        self.enabled = self._verify_cache_enabled(force_download_mode, load_cached_reports_to_db)
-
+        self.enabled = self._is_caching_enabled(args, force_download_mode, load_cached_reports_to_db)
         self.reports_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, "reports"))
         self.cached_data_dir = FileUtils.ensure_dir_created(FileUtils.join_path(output_dir, CACHED_DATA_DIRNAME))
         self.download_uncached_job_data: bool = (
@@ -394,30 +390,32 @@ class CacheConfig:
         )
         self.remove_small_reports: bool = args.remove_small_reports if hasattr(args, "remove_small_reports") else False
 
-    def _verify_cache_enabled(self, force_download_mode, load_cached_reports_to_db):
-        orig_val = self.enabled
+    def _is_caching_enabled(self, args, force_download_mode, load_cached_reports_to_db):
+        disable_cache = args.disable_file_cache if hasattr(args, "disable_file_cache") else False
+        enabled = not disable_cache
+        orig_enabled = enabled
 
         if force_download_mode:
             reason = "force download mode is enabled"
-            new_val = True
+            new_enabled = True
         if self.cache_type:
             reason = "cache type is set to: " + str(self.cache_type)
             # TODO do not change because of cache type
-            # new_val = True
-            new_val = orig_val
+            # new_enabled = True
+            new_enabled = orig_enabled
         if load_cached_reports_to_db:
             reason = "load cached reports to db is enabled"
-            new_val = True
+            new_enabled = True
             self.cache_type = UnitTestResultFetcherCacheType.GOOGLE_DRIVE
 
-        if orig_val != new_val:
+        if orig_enabled != new_enabled:
             raise ValueError(
                 "Conflicting cache settings! Original enabled value: {}, new enabled value: {}, reason: {}".format(
-                    orig_val, new_val, reason
+                    orig_enabled, new_enabled, reason
                 )
             )
 
-        return new_val
+        return new_enabled
 
 
 class FileSizeCheckerResult(Enum):

@@ -45,13 +45,6 @@ class UnitTestResultFetcherParser:
         )
 
         parser.add_argument(
-            "--download-uncached-job-data",
-            action="store_true",
-            dest="download_uncached_job_data",
-            help="Download data for all builds that are not in cache yet or was removed from the cache, for any reason.",
-        )
-
-        parser.add_argument(
             "--force-sending-email",
             action="store_true",
             dest="force_send_email",
@@ -157,6 +150,15 @@ class UnitTestResultFetcherParser:
             help="Testcase filters in format: <project:filter statement>",
         )
 
+        # CACHE RELATED ARGS
+
+        parser.add_argument(
+            "--download-uncached-job-data",
+            action="store_true",
+            dest="download_uncached_job_data",
+            help="Download data for all builds that are not in cache yet or was removed from the cache, for any reason.",
+        )
+
         # TODO change this to disable cache
         parser.add_argument(
             "-d",
@@ -197,5 +199,7 @@ class UnitTestResultFetcherParser:
             default=False,
             help="Whether to remove small reports from FS and Google Drive caches",
         )
+
+        # END OF CACHE RELATED ARGS
 
         parser.set_defaults(func=func)
