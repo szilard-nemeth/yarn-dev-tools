@@ -88,7 +88,9 @@ class Cache:
     def __init__(self, config: UnitTestResultFetcherConfig):
         self.config = config.cache
         self.file_cache = FileCache(config.cache)
-        self.google_drive_cache = GoogleDriveCache(config.cache)
+        # TODO yarndevtoolsv2: Should call self.file_cache.initialize() first?
+        cached_filenames: Dict[CachedBuildKey, str] = self.file_cache.get_cached_filenames()
+        self.google_drive_cache = GoogleDriveCache(config.cache, cached_filenames)
 
     def initialize(self):
         self.file_cache.initialize()
@@ -97,7 +99,8 @@ class Cache:
         if self.config.enable_sync_from_fs_to_drive:
             self._sync_from_file_cache_to_drive_cache()
         if self.config.remove_small_reports:
-            self.google_drive_cache.remove_small_reports()
+            cached_build_keys = self.file_cache.small_reports.keys()
+            self.google_drive_cache.remove_small_reports(cached_build_keys)
 
     def _sync_from_file_cache_to_drive_cache(self):
         # TODO yarndevtoolsv2 too much of GoogleDriveCache internals shared in this method
@@ -131,7 +134,10 @@ class Cache:
                 )
 
     def download_reports(self):
-        return self.google_drive_cache.download_reports()
+        reports, remove_fs_reports = self.google_drive_cache.download_reports()
+        for key in remove_fs_reports:
+            self.file_cache.remove_report(key)
+        return reports
 
     def is_build_data_in_cache(self, key: CachedBuildKey):
         # TODO yarndevtoolsv2 Check in Drive and if not successful, decide based on local file cache
@@ -249,6 +255,12 @@ class FileCache(CacheAbs):
     def get_filename_for_report(self, key: CachedBuildKey):
         return self._generate_file_name_for_report(key)
 
+    def get_cached_filenames(self):
+        res: Dict[CachedBuildKey, str] = {}
+        for key, cached_build in self.cached_builds.items():
+            res[key] = self.get_filename_for_report(key)
+        return res
+
 
 class GoogleDriveCache(CacheAbs):
     DRIVE_FINAL_CACHE_DIR = CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name + "_" + CACHED_DATA_DIRNAME
@@ -256,9 +268,8 @@ class GoogleDriveCache(CacheAbs):
     TEST_REPORT_PATTERN = re.compile(TEST_REPORT_REGEX)
     # TODO implement throttling: Too many requests to Google Drive?
 
-    def __init__(self, config):
+    def __init__(self, config, cached_filenames):
         self.config: CacheConfig = config
-        self.file_cache: FileCache = FileCache(config)
         self.authorizer = GoogleApiAuthorizer(
             ServiceType.DRIVE,
             project_name=CommandType.UNIT_TEST_RESULT_FETCHER.output_dir_name,
@@ -274,7 +285,8 @@ class GoogleDriveCache(CacheAbs):
             PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME, self.DRIVE_FINAL_CACHE_DIR, "reports"
         )
         self.all_report_files: List[DriveApiFile] = []
-        self.downloader = GoogleFileDownloader(self.drive_wrapper, self.file_cache)
+
+        self.downloader = GoogleFileDownloader(self.drive_wrapper, cached_filenames)
 
     def initialize(self):
         # TODO yarndevtoolsv2: Return value of file_cache.initialize is not defined!
@@ -300,7 +312,8 @@ class GoogleDriveCache(CacheAbs):
 
     def download_reports(self) -> Dict[str, FailedJenkinsBuild]:
         drive_api_files = self.get_all_reports()
-        return self.downloader.download_reports(drive_api_files)
+        reports, remove_fs_reports = self.downloader.download_reports(drive_api_files)
+        return reports, remove_fs_reports
 
     def remove_report(self, key: CachedBuildKey):
         raise NotImplementedError("Remove report is not supported by GoogleDriveCache")
@@ -363,14 +376,13 @@ class GoogleDriveCache(CacheAbs):
         # return files[0].
         return {}
 
-    def remove_small_reports(self):
+    def remove_small_reports(self, cached_build_keys):
         drive_files_dict: Dict[CachedBuildKey, DriveApiFile] = {}
         for report_drive_file in self.all_report_files:
             build_key = self.create_cached_build_key(report_drive_file)
             if build_key:
                 drive_files_dict[build_key] = report_drive_file
         LOG.debug("Found builds to remove from Google Drive (small report size): %s", drive_files_dict)
-        cached_build_keys = self.file_cache.small_reports.keys()
         for key in cached_build_keys:
             if key in drive_files_dict:
                 # TODO yarndevtoolsv2 test remove drive file functonality manually
@@ -422,9 +434,9 @@ class FileSizeCheckerResult(Enum):
 
 
 class GoogleFileDownloader:
-    def __init__(self, drive_wrapper, file_cache):
+    def __init__(self, drive_wrapper, cached_fs_filenames: Dict[CachedBuildKey, str]):
+        self.cached_fs_filenames = cached_fs_filenames
         self.drive_wrapper = drive_wrapper
-        self.file_cache = file_cache
         self.file_size_checker = FileSizeChecker()
 
     def download_reports(self, drive_api_files):
@@ -437,34 +449,38 @@ class GoogleFileDownloader:
         LOG.info(
             "Size of %d report files from Google Drive: %s", len(drive_api_files), StringUtils.format_bytes(sum_bytes)
         )
+        remove_fs_reports: Set[CachedBuildKey] = set()
         for idx, drive_api_file in enumerate(drive_api_files):
             LOG.info("Processing file [ %d / %d ]", idx + 1, len(drive_api_files))
             LOG.info("Downloaded bytes [ %d / %d ]", downloaded_bytes, sum_bytes)
             key = GoogleDriveCache.create_cached_build_key(drive_api_file)
             file_name = drive_api_file.name
-            if not self.file_cache.is_build_data_in_cache(key):
+            if key not in self.cached_fs_filenames:
                 LOG.info("Report '%s' is not cached for job '%s', downloading...", file_name, key.job_name)
 
                 creation_date, report_file_path = self.download_and_write_to_file_cache(key, drive_api_file)
             else:
                 LOG.info("Report '%s' for job '%s' found in cache", file_name, key.job_name)
-                report_file_path = self.file_cache.get_filename_for_report(key)
-                report_file_path = self._check_file_size(key, drive_api_file, report_file_path)
+                report_file_path = self.cached_fs_filenames[key]
+                report_file_path, remove_fs_report = self._check_file_size(key, drive_api_file, report_file_path)
                 creation_date = GoogleDriveCache.determine_creation_date(drive_api_file, report_file_path)
+                if remove_fs_report:
+                    remove_fs_reports.add(key)
             file_name = os.path.basename(report_file_path)
             reports[report_file_path] = GoogleDriveCache.create_failed_build(file_name, creation_date, key)
             downloaded_bytes += int(drive_api_file.size)
 
-        return reports
+        return reports, remove_fs_reports
 
     def _check_file_size(self, key: CachedBuildKey, drive_api_file, report_file_path):
+        remove_fs_report = False
         check_result = self.file_size_checker.check_file_size(drive_api_file, key, report_file_path)
         if check_result == FileSizeCheckerResult.SMALL_SIZE_REDOWNLOAD:
             creation_date, report_file_path = self.download_and_write_to_file_cache(key, drive_api_file)
             check_result = self.file_size_checker.check_file_size(drive_api_file, key, report_file_path)
             if check_result == FileSizeCheckerResult.SMALL_SIZE_AFTER_REDOWNLOAD:
-                self.file_cache.remove_report(key)
-        return report_file_path
+                remove_fs_report = True
+        return report_file_path, remove_fs_report
 
     def download_and_write_to_file_cache(self, key, drive_api_file):
         with tempfile.TemporaryDirectory() as tmp:
