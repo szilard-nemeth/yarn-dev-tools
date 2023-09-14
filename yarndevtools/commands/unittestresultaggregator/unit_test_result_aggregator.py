@@ -45,6 +45,7 @@ LOG = logging.getLogger(__name__)
 
 SUBJECT = "subject:"
 DEFAULT_LINE_SEP = "\\r\\n"
+SUSPICIOUS_MESSAGE_LIMIT = 10
 
 
 class UnitTestResultAggregatorConfig:
@@ -326,7 +327,7 @@ class FailedTestCases:
         return self._aggregated_test_failures[tcf]
 
     def print_keys(self):
-        LOG.debug(f"Keys of _failed_testcases_by_filter: {self._failed_tcs.keys()}")
+        LOG.debug(f"Keys of _failed_testcases_by_filter: {set(self._failed_tcs.keys())}")
 
     def aggregate(self, testcase_filters: List[TestCaseFilter]):
         for tcf in testcase_filters:
@@ -651,7 +652,7 @@ class TestcaseFilterResults:
 
     def finish_context(self, message: GmailMessage):
         LOG.info("Finishing context...")
-        LOG.debug(f"Keys of _matched_lines_dict: {self._matched_lines_dict.keys()}")
+        LOG.debug(f"Keys of _matched_lines_dict: {set(self._matched_lines_dict.keys())}")
         for key, matched_lines in self._matched_lines_dict.items():
             if not matched_lines:
                 continue
@@ -721,6 +722,21 @@ class TestcaseFilterResults:
 
     def print_objects(self):
         LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
+
+
+class EmailMessageChecker:
+    def __init__(self):
+        self.short_messages = {}
+        self.limit = SUSPICIOUS_MESSAGE_LIMIT
+
+    def check(self, message, lines):
+        if len(lines) <= 1:
+            self.short_messages[message.subject] = lines
+            if len(self.short_messages) == SUSPICIOUS_MESSAGE_LIMIT:
+                raise ValueError(
+                    "Raised short / suspicious message limit of {}. "
+                    "Messages with zero or one lines: {}".format(SUSPICIOUS_MESSAGE_LIMIT, self.short_messages)
+                )
 
 
 class UnitTestResultAggregator(CommandAbs):
@@ -942,11 +958,15 @@ class UnitTestResultAggregator(CommandAbs):
         self, query_result: ThreadQueryResults, testcases_to_jiras: List[KnownTestFailureInJira]
     ) -> TestcaseFilterResults:
         tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, testcases_to_jiras)
+
+        email_message_checker = EmailMessageChecker()
         for message in query_result.threads.messages:
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
+                email_message_checker.check(message, lines)
                 tc_filter_results.start_new_context()
+                # TODO fix lines separator giving one line
                 for line in lines:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
