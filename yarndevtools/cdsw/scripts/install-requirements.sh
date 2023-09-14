@@ -15,8 +15,9 @@ if [ $# -ne 1 ]; then
     echo "Example: $0 upstream --> Uses execution mode: 'upstream'"
     exit 1
 fi
-
 EXEC_MODE="$1"
+
+YARNDEVTOOLS_VERSION="1.1.9"
 echo "Installing package: yarn-dev-tools"
-pip3 install yarn-dev-tools --force-reinstall
+pip3 install yarn-dev-tools==$YARNDEVTOOLS_VERSION --force-reinstall
 pip3 show yarn-dev-tools
