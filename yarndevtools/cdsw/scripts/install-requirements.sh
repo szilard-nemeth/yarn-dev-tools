@@ -17,7 +17,10 @@ if [ $# -ne 1 ]; then
 fi
 EXEC_MODE="$1"
 
-YARNDEVTOOLS_VERSION="1.1.9"
+
 echo "Installing package: yarn-dev-tools"
-pip3 install yarn-dev-tools==$YARNDEVTOOLS_VERSION --force-reinstall
+# YARNDEVTOOLS_VERSION="1.1.9"
+# pip3 install yarn-dev-tools==$YARNDEVTOOLS_VERSION --force-reinstall
+# TODO This is assuming that the 1.x.x version is uploaded to pypi as the latest...
+pip3 install yarn-dev-tools --force-reinstall
 pip3 show yarn-dev-tools
