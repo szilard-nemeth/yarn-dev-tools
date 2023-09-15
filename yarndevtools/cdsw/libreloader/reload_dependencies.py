@@ -158,7 +158,9 @@ class Reloader:
 
         LOG.info("Running script: %s", script)
         # TODO CDSW-new  Should we pass YARNDEVTOOLS_VERSION and other env vars here?
-        proc = subprocess.Popen(["/bin/bash", "-x", script, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(
+            ["/bin/bash", "-x", script, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         _ = proc.communicate()
         if proc.returncode != 0 and exit_on_nonzero_exitcode:
             raise ValueError(f"Failed to execute {script}")
