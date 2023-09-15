@@ -733,7 +733,8 @@ class TestcaseFilterResults:
 
 
 class EmailMessageInspector:
-    def __init__(self):
+    def __init__(self, debug_enabled=True):
+        self.debug_enabled = debug_enabled
         self.short_messages = {}
         self.limit = SUSPICIOUS_MESSAGE_LIMIT
         self._debug_set_of_subjects = set()
@@ -747,7 +748,7 @@ class EmailMessageInspector:
 
     def check(self, message, lines):
         self._check_for_short_messages(lines, message)
-        if self._debug_set_of_subjects or self._debug_subject_to_line_substrings:
+        if self.debug_enabled and (self._debug_set_of_subjects or self._debug_subject_to_line_substrings):
             self._check_for_subject_and_lines(message, lines)
 
     def print_debug_stats(self):
@@ -1050,7 +1051,7 @@ class UnitTestResultAggregator(CommandAbs):
     ) -> TestcaseFilterResults:
         tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, testcases_to_jiras)
 
-        email_message_checker = EmailMessageInspector()
+        email_message_checker = EmailMessageInspector(debug_enabled=False)
         email_message_checker.debug(subject_sub_strs=["7.1.x", "7.x"], line_sub_strs=["yarn", "mapreduce"])
 
         for message in query_result.threads.messages:
