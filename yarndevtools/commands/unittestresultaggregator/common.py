@@ -79,6 +79,10 @@ class BuildComparisonResult:
     still_failing: List[FailedTestCase]
     new_failures: List[FailedTestCase]
 
+    @staticmethod
+    def create_empty():
+        return BuildComparisonResult([], [], [])
+
 
 @dataclass
 class FailedTestCaseAggregated:

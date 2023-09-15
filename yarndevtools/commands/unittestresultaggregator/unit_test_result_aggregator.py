@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -293,6 +294,10 @@ class FailedTestCases:
         self._latest_testcases: Dict[TestCaseFilter, List[FailedTestCase]] = defaultdict(list)
         self._build_comparison_results: Dict[TestCaseFilter, BuildComparisonResult] = {}
 
+    def init_with_filters(self, filters: List[TestCaseFilter]):
+        for tcf in filters:
+            self._failed_tcs[tcf] = []
+
     def _add_known_failed_testcase(self, tc_key: TestCaseKey, ftc: FailedTestCase):
         self._tc_keys[tc_key] = ftc
 
@@ -506,7 +511,9 @@ class FailedTestCases:
             failed_testcases = self._failed_tcs[tcf]
             sorted_testcases = sorted(failed_testcases, key=lambda ftc: ftc.email_meta.date, reverse=True)
             if not sorted_testcases:
-                return []
+                LOG.warning("No failed testcases found for filter: %s", tcf)
+                self._build_comparison_results[tcf] = BuildComparisonResult.create_empty()
+                continue
 
             latest_tcs, old_build_tcs = self._get_comparable_testcase_lists(sorted_testcases, last_n_days)
             latest_tc_keys: Set[str] = set(latest_tcs.keys())
@@ -579,6 +586,7 @@ class TestcaseFilterResults:
         self.testcase_filters: TestCaseFilters = testcase_filters
         self.match_all_lines: bool = self._should_match_all_lines()
         self._failed_testcases: FailedTestCases = FailedTestCases()
+        self._failed_testcases.init_with_filters(testcase_filters.get_aggregate_filters())
 
         # This is a temporary dict - usually for a context of a message
         self._matched_lines_dict: Dict[str, List[str]] = {}
@@ -724,12 +732,38 @@ class TestcaseFilterResults:
         LOG.debug(f"All failed testcase objects: {self._failed_testcases}")
 
 
-class EmailMessageChecker:
+class EmailMessageInspector:
     def __init__(self):
         self.short_messages = {}
         self.limit = SUSPICIOUS_MESSAGE_LIMIT
+        self._debug_set_of_subjects = set()
+        self._debug_subject_to_line_substrings = defaultdict(list)
+        self._debug_found_message_by_subject = defaultdict(list)
+        self._debug_found_message_by_line = defaultdict(list)
+        self._debug_found_message_by_subject_and_line: Dict[
+            Tuple[str, str], List[Tuple[GmailMessage, List[str]]]
+        ] = defaultdict(list)
+        self._debug_found_all_lines_matching = set()
 
     def check(self, message, lines):
+        self._check_for_short_messages(lines, message)
+        if self._debug_set_of_subjects or self._debug_subject_to_line_substrings:
+            self._check_for_subject_and_lines(message, lines)
+
+    def print_debug_stats(self):
+        LOG.debug(
+            "Found debug message results. "
+            "message_by_subject: %s, "
+            "message_by_line: %s, "
+            "message_by_subject_and_line: %s,"
+            "all_matching_lines: %s",
+            self._debug_found_message_by_subject,
+            self._debug_found_message_by_line,
+            self._debug_found_message_by_subject_and_line,
+            self._debug_found_all_lines_matching,
+        )
+
+    def _check_for_short_messages(self, lines, message):
         if len(lines) <= 1:
             self.short_messages[message.subject] = lines
             if len(self.short_messages) == SUSPICIOUS_MESSAGE_LIMIT:
@@ -737,6 +771,63 @@ class EmailMessageChecker:
                     "Raised short / suspicious message limit of {}. "
                     "Messages with zero or one lines: {}".format(SUSPICIOUS_MESSAGE_LIMIT, self.short_messages)
                 )
+
+    def debug(self, subject_sub_strs=None, line_sub_strs=None):
+        """
+        Example input:
+        subject_sub_strs = ["7.1.x", "7.x"], line_sub_strs = ["yarn", "mapreduce"]
+
+        1. itertools.product(subject_sub_strs, line_sub_strs)
+            Generates Cartesian product: [("7.1.x", "yarn"), ("7.x", "yarn"), ("7.1.x", "mapreduce"), ("7.x", "mapreduce")]
+
+        2. Creates set of subjects:
+            self._debug_set_of_subjects = set(["7.1.x", "7.x"])
+
+        3. Creates subject to set of line substring mappings:
+            self._debug_subject_to_line_substrings = {
+                                                        "7.1.x": set("yarn", "mapreduce"),
+                                                        "7.x": set("yarn", "mapreduce")
+                                                    }
+
+        :param subject_sub_strs: List of subject substrings to match
+        :param line_sub_strs: List of line substrings to match
+        :return:
+        """
+
+        if not subject_sub_strs:
+            subject_sub_strs = []
+        if not line_sub_strs:
+            line_sub_strs = []
+        if not subject_sub_strs and not line_sub_strs:
+            return
+
+        for tup in itertools.product(subject_sub_strs, line_sub_strs):
+            self._debug_set_of_subjects.add(tup[0])
+            self._debug_subject_to_line_substrings[tup[0]].append(tup[1])
+
+    def _check_for_subject_and_lines(self, message, lines):
+        for subject in self._debug_set_of_subjects:
+            if subject in message.subject:
+                LOG.debug(
+                    "Found matching message with subject substring: %s, full message subject: %s",
+                    subject,
+                    message.subject,
+                )
+                line_sub_strs = self._debug_subject_to_line_substrings[subject]
+                self._debug_found_message_by_subject[subject].append(message)
+                for to_match in line_sub_strs:
+                    for line in lines:
+                        if to_match in line:
+                            LOG.debug(
+                                "Found matching message with subject substring: %s, full message subject: %s, line substring: %s, full line: %s",
+                                subject,
+                                message.subject,
+                                to_match,
+                                line,
+                            )
+                            self._debug_found_message_by_line[to_match].append((message, line))
+                            self._debug_found_message_by_subject_and_line[(subject, to_match)].append((message, lines))
+                            self._debug_found_all_lines_matching.add(line)
 
 
 class UnitTestResultAggregator(CommandAbs):
@@ -959,14 +1050,16 @@ class UnitTestResultAggregator(CommandAbs):
     ) -> TestcaseFilterResults:
         tc_filter_results = TestcaseFilterResults(self.config.testcase_filters, testcases_to_jiras)
 
-        email_message_checker = EmailMessageChecker()
+        email_message_checker = EmailMessageInspector()
+        email_message_checker.debug(subject_sub_strs=["7.1.x", "7.x"], line_sub_strs=["yarn", "mapreduce"])
+
         for message in query_result.threads.messages:
+            LOG.debug("Processing message: %s", message.subject)
             msg_parts = message.get_all_plain_text_parts()
             for msg_part in msg_parts:
                 lines = msg_part.body_data.split(self.config.email_content_line_sep)
                 email_message_checker.check(message, lines)
                 tc_filter_results.start_new_context()
-                # TODO fix lines separator giving one line
                 for line in lines:
                     line = line.strip()
                     # TODO this compiles the pattern over and over again --> Create a new helper function that receives a compiled pattern
@@ -975,6 +1068,7 @@ class UnitTestResultAggregator(CommandAbs):
                         continue
                     tc_filter_results.match_line(line, message.subject)
                 tc_filter_results.finish_context(message)
+        email_message_checker.print_debug_stats()
         tc_filter_results.print_objects()
         tc_filter_results.finish_processing_all()
         return tc_filter_results
