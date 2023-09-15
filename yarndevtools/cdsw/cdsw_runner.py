@@ -217,6 +217,7 @@ class CdswRunner:
         self._execute_preparation_steps(setup_result)
 
         for run in self.job_config.runs:
+            # TODO CDSW-new error handling here: Always upload logs to Drive, even for failed jobs
             self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))
             if self.command_type.session_based:
                 self.execute_command_data_zipper(self.command_type, debug=True)
