@@ -7,7 +7,6 @@ import subprocess
 import sys
 from typing import List
 
-YARNDEVTOOLS_VERSION_ENV_VAR = "YARNDEVTOOLS_VERSION"
 
 LOG = logging.getLogger(__name__)
 CDSW_BASEDIR = os.path.join("/home", "cdsw")
@@ -19,6 +18,7 @@ ACCEPTED_PYTHON_MODULE_MODES = [MODULE_MODE_USER, MODULE_MODE_GLOBAL]  # Same as
 PYTHON_MODULE_MODE_ENV_VAR = "PYTHON_MODULE_MODE"  # Same as CdswEnvVar.PYTHON_MODULE_MODE
 INSTALL_REQUIREMENTS_ENV_VAR = "INSTALL_REQUIREMENTS"  # Same as CdswEnvVar.INSTALL_REQUIREMENTS
 TEST_EXECUTION_MODE_ENV_VAR = "TEST_EXEC_MODE"  # Same as CdswEnvVar.TEST_EXECUTION_MODE
+YARNDEVTOOLS_VERSION_ENV_VAR = "YARNDEVTOOLS_VERSION"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
 DEFAULT_TEST_EXECUTION_MODE = "cloudera"  # Same as TestExecMode.CLOUDERA.value
 
@@ -145,19 +145,21 @@ class Reloader:
 
     @classmethod
     def _run_script(cls, script, args: List[str], exit_on_nonzero_exitcode=True):
-        # TODO CDSW-new YARNDEVTOOLS_VERSION_ENV_VAR=latest should be a fallback here
-        if YARNDEVTOOLS_VERSION_ENV_VAR not in os.environ:
-            raise ValueError("'{}' should be set as project env var!".format(YARNDEVTOOLS_VERSION_ENV_VAR))
-        else:
-            yarndevtools_version = os.environ[YARNDEVTOOLS_VERSION_ENV_VAR]
-            print(
-                "Detected yarndevtools_version={} (from env var: {})".format(
-                    yarndevtools_version, YARNDEVTOOLS_VERSION_ENV_VAR
-                )
+        var = YARNDEVTOOLS_VERSION_ENV_VAR
+        if var not in os.environ:
+            raise ValueError(
+                "'{}' should be set as project env var! "
+                "To use the latest version from pypi, set env var as {}=latest".format(var, var)
             )
+        else:
+            yarndevtools_version = os.environ[var]
+            print("Detected {}={} (from env var: {})".format(yarndevtools_version, var, var))
 
         LOG.info("Running script: %s", script)
-        # TODO CDSW-new  Should we pass YARNDEVTOOLS_VERSION and other env vars here?
+        # TODO CDSW-new: Why no output is visible when 'stderr=subprocess.PIPE' was enabled?
+        # Default behavior for Popen is to inherit environment
+        # https://docs.python.org/3.8/library/subprocess.html#subprocess.Popen
+        # https://stackoverflow.com/a/20669704/1106893
         proc = subprocess.Popen(
             ["/bin/bash", "-x", script, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )

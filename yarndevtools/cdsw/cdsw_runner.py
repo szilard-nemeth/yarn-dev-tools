@@ -223,6 +223,7 @@ class CdswRunner:
                 self.execute_command_data_zipper(self.command_type, debug=True)
                 drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
                 self._send_email_if_required(run, drive_link_html_text)
+                # TODO CDSW-new Introduce optional env var to remove all log files, log_file_paths are determined in: CdswSetup.initial_setup
 
     def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
         if not self.is_drive_integration_enabled:

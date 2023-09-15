@@ -53,7 +53,11 @@ function install-yarndevtools {
     exit 2
   fi
 
-  pip3 install yarn-dev-tools=="$YARNDEVTOOLS_VERSION" --force-reinstall
+  if [[ ${$YARNDEVTOOLS_VERSION} == 'latest' ]]; then
+    pip3 install yarn-dev-tools --force-reinstall
+  else
+    pip3 install yarn-dev-tools=="$YARNDEVTOOLS_VERSION" --force-reinstall
+  fi
   pip3 show yarn-dev-tools
 }
 
