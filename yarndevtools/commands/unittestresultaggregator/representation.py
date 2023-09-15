@@ -464,6 +464,7 @@ class TableRenderer:
                 )
 
         render_conf = UnitTestResultAggregatorTableRenderingConfig(
+            data_type=dtype,
             row_callback=lambda row: row,
             print_result=False,
             max_width=200,
