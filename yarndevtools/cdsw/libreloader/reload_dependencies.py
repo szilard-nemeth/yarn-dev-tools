@@ -7,6 +7,8 @@ import subprocess
 import sys
 from typing import List
 
+YARNDEVTOOLS_VERSION_ENV_VAR = "YARNDEVTOOLS_VERSION"
+
 LOG = logging.getLogger(__name__)
 CDSW_BASEDIR = os.path.join("/home", "cdsw")
 YARN_DEV_TOOLS_JOBS_BASEDIR = os.path.join(CDSW_BASEDIR, "jobs")  # Same as CommonDirs.YARN_DEV_TOOLS_JOBS_BASEDIR
@@ -143,7 +145,19 @@ class Reloader:
 
     @classmethod
     def _run_script(cls, script, args: List[str], exit_on_nonzero_exitcode=True):
+        # TODO CDSW-new YARNDEVTOOLS_VERSION_ENV_VAR=latest should be a fallback here
+        if YARNDEVTOOLS_VERSION_ENV_VAR not in os.environ:
+            raise ValueError("'{}' should be set as project env var!".format(YARNDEVTOOLS_VERSION_ENV_VAR))
+        else:
+            yarndevtools_version = os.environ[YARNDEVTOOLS_VERSION_ENV_VAR]
+            print(
+                "Detected yarndevtools_version={} (from env var: {})".format(
+                    yarndevtools_version, YARNDEVTOOLS_VERSION_ENV_VAR
+                )
+            )
+
         LOG.info("Running script: %s", script)
+        # TODO CDSW-new  Should we pass YARNDEVTOOLS_VERSION and other env vars here?
         proc = subprocess.Popen(["/bin/bash", "-x", script, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         _ = proc.communicate()
         if proc.returncode != 0 and exit_on_nonzero_exitcode:
