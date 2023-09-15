@@ -44,7 +44,7 @@ VALID_OPERATION_MODES = [OperationMode.PRINT, OperationMode.GSHEET]
 LOG = logging.getLogger(__name__)
 
 SUBJECT = "subject:"
-DEFAULT_LINE_SEP = "\\r\\n"
+DEFAULT_LINE_SEP = "\r\n"
 SUSPICIOUS_MESSAGE_LIMIT = 10
 
 
