@@ -215,14 +215,24 @@ class CdswRunner:
         self.output_basedir = setup_result.output_basedir
         self._execute_preparation_steps(setup_result)
 
+        failed = False
         for run in self.job_config.runs:
-            # TODO CDSW-new error handling here: Always upload logs to Drive, even for failed jobs
-            self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))
-            if self.command_type.session_based:
-                self.execute_command_data_zipper(self.command_type, debug=True)
-                drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
-                self._send_email_if_required(run, drive_link_html_text)
-                # TODO CDSW-new Introduce optional env var to remove all log files, log_file_paths are determined in: CdswSetup.initial_setup
+            try:
+                self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))
+            except Exception:
+                failed = True
+                LOG.exception("Failed to execute run. Details: {}".format(run), exc_info=True)
+            self._post_run_actions(run)
+            if failed:
+                LOG.info("Previous run failed, not going to continue processing more runs.")
+                break
+
+    def _post_run_actions(self, run):
+        if self.command_type.session_based:
+            self.execute_command_data_zipper(self.command_type, debug=True)
+            drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
+            self._send_email_if_required(run, drive_link_html_text)
+            # TODO CDSW-new Introduce optional env var to remove all log files, log_file_paths are determined in: CdswSetup.initial_setup
 
     def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
         if not self.is_drive_integration_enabled:
