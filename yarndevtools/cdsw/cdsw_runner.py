@@ -335,9 +335,11 @@ class CdswRunner:
         if self.dry_run:
             LOG.info("[DRY-RUN] Would run command: %s", cmd)
         else:
-            SubprocessCommandRunner.run_and_follow_stdout_stderr(
-                cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=True
+            process = SubprocessCommandRunner.run_and_follow_stdout_stderr(
+                cmd, stdout_logger=CMD_LOG, exit_on_nonzero_exitcode=False
             )
+            if process.returncode != 0:
+                raise ValueError("Process execution failed, command was: {}".format(cmd))
 
     @staticmethod
     def current_date_formatted():
