@@ -101,6 +101,8 @@ class ReviewSync(CommandAbs):
         if self.issue_fetch_mode == JiraFetchMode.GSHEET:
             self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(args.gsheet_options)
         self.data = ReviewsyncData()
+        # simulate error temporarily
+        raise ValueError("ReviewSync ERROR")
 
     @staticmethod
     def create_parser(subparsers):

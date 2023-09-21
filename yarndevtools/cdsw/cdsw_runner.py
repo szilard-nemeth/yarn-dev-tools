@@ -218,6 +218,7 @@ class CdswRunner:
         failed = False
         for run in self.job_config.runs:
             try:
+                LOG.info("***test")
                 self.execute_yarndevtools_script(" ".join(run.yarn_dev_tools_arguments))
             except Exception:
                 failed = True
