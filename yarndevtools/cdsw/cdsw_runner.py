@@ -213,7 +213,6 @@ class CdswRunner:
         )
         self.command_type = self._determine_command_type()
         self.output_basedir = setup_result.output_basedir
-        LOG.info("Setup result: %s", setup_result)
         self._execute_preparation_steps(setup_result)
 
         for run in self.job_config.runs:

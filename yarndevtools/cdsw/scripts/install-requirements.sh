@@ -53,8 +53,13 @@ function install-yarndevtools {
     exit 2
   fi
 
-  if [[ ${$YARNDEVTOOLS_VERSION} == 'latest' ]]; then
+  if [[ ${YARNDEVTOOLS_VERSION} == 'latest' ]]; then
     pip3 install yarn-dev-tools --force-reinstall
+  elif [[ ${YARNDEVTOOLS_VERSION} == 'repo' ]]; then
+    git_branch="cloudera-mirror-version" # harcode this for now
+    # pip3 install git+ssh://git@github.com/szilard-nemeth/yarn-dev-tools.git
+    # pip install git+https://github.com/<username>/<repo>.git@<branchname>
+    pip3 install git+https://github.com/szilard-nemeth/yarn-dev-tools.git@$git_branch
   else
     pip3 install yarn-dev-tools=="$YARNDEVTOOLS_VERSION" --force-reinstall
   fi
