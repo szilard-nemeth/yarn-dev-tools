@@ -153,6 +153,9 @@ class DockerBasedTestConfig:
             p_common: {
                 get_str(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR): FileUtils.join_path("home", CDSW_DIRNAME),
                 get_str(CdswEnvVar.MAIL_RECIPIENTS): "nsziszy@gmail.com",
+                get_str(CdswEnvVar.MAIL_ACC_USER): "mail_acc_user",
+                get_str(CdswEnvVar.MAIL_ACC_PASSWORD): "mail_acc_password",
+                get_str(CdswEnvVar.YARNDEVTOOLS_VERSION): "repo",
                 get_str(CdswEnvVar.TEST_EXECUTION_MODE): self.exec_mode.value,
                 get_str(CdswEnvVar.INSTALL_REQUIREMENTS): self.install_requirements,
                 # Always disable restarts when running tests
@@ -362,6 +365,11 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
 
     @classmethod
     def exec_initial_cdsw_setup_script(cls, args_list: List[str] = None, env: Dict[str, str] = None):
+        default_env = {CdswEnvVar.YARNDEVTOOLS_VERSION.value: "repo"}
+        if not env:
+            env = {}
+        env.update(default_env)
+
         if not args_list:
             args_list = []
         args_list.extend([cls.config.python_module_mode.value, cls.config.exec_mode.value])

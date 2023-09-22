@@ -49,7 +49,10 @@ function install-yarndevtools {
   echo "Installing package: yarn-dev-tools"
   echo "Detected env var YARNDEVTOOLS_VERSION=$YARNDEVTOOLS_VERSION"
   if [ -z ${YARNDEVTOOLS_VERSION+x} ]; then
-    echo "YARNDEVTOOLS_VERSION env var not set! To use the latest version from pypi, set env var as YARNDEVTOOLS_VERSION=latest"
+    echo "YARNDEVTOOLS_VERSION env var not set!"
+    echo "To use the latest packaged version from pypi, set env var as YARNDEVTOOLS_VERSION=latest"
+    echo "To use the latest packaged version from the repo (https://github.com/szilard-nemeth/yarn-dev-tools), set env var as YARNDEVTOOLS_VERSION=repo"
+    echo "Exiting..."
     exit 2
   fi
 
