@@ -39,6 +39,9 @@ SEND_MAIL_PATCH_PATH = "yarndevtools.commands.unittestresultfetcher.unit_test_re
     EMAIL_CLASS_NAME
 )
 NETWORK_UTILS_PATCH_PATH = "pythoncommons.network_utils.NetworkUtils.fetch_json"
+NETWORK_UTILS_PATCH_PATH2 = (
+    "yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher.JenkinsApiConverter.fetch_json"
+)
 
 DEFAULT_LATEST_BUILD_NUM = 215
 DEFAULT_NUM_BUILDS = 51
@@ -381,6 +384,8 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         args.subject = "Test email subject"
         args.force_send_email = force_sending_mail
         args.jenkins_url = jenkins_url
+        args.jenkins_user = "jenkins_user"
+        args.jenkins_password = "jenkins_pwd"
         args.job_names = job_names
         args.num_builds = num_builds
         args.tc_filters = tc_filters
@@ -642,13 +647,15 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         self.assertIsNone(job_build_data.counters)
         self.assertEqual(JobBuildDataStatus.EMPTY, job_build_data.status)
 
-    @patch(NETWORK_UTILS_PATCH_PATH)
-    def test_jenkins_api_converter_convert_latest_job(self, mock_fetch_json):
+    def test_jenkins_api_converter_convert_latest_job(self):
         jenkins_api_converter = JenkinsApiConverter(None, None)
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
         sorted_builds_desc = sorted(builds_dict["builds"], key=lambda x: x["url"], reverse=True)
-        mock_fetch_json.return_value = builds_dict
+
         job_name = "test_job"
+        builds_json = json.dumps(builds_dict, indent=4)
+        self._mock_jenkins_build_api(builds_json, job_name=job_name)
+
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(JENKINS_MAIN_URL, job_name)
         failed_builds, total_no_of_builds = jenkins_api_converter.convert(job_name, jenkins_urls, days=1)
         # fetch_builds_url = mock_fetch_json.call_args_list[0]
@@ -662,13 +669,15 @@ class TestUnitTestResultFetcher(unittest.TestCase):
         self.assertEqual(exp_latest_build["url"], act_latest_build.url)
         self.assertEqual(DEFAULT_NUM_BUILDS, total_no_of_builds)
 
-    @patch(NETWORK_UTILS_PATCH_PATH)
-    def test_jenkins_api_converter_convert_more_jobs(self, mock_fetch_json):
+    def test_jenkins_api_converter_convert_more_jobs(self):
         jenkins_api_converter = JenkinsApiConverter(None, None)
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
         sorted_builds_desc = sorted(builds_dict["builds"], key=lambda x: x["url"], reverse=True)
-        mock_fetch_json.return_value = builds_dict
+
         job_name = "test_job"
+        builds_json = json.dumps(builds_dict, indent=4)
+        self._mock_jenkins_build_api(builds_json, job_name=job_name)
+
         jenkins_urls: JenkinsJobUrls = JenkinsJobUrls(JENKINS_MAIN_URL, job_name)
         failed_builds, total_no_of_builds = jenkins_api_converter.convert(job_name, jenkins_urls, days=16)
         # fetch_builds_url = mock_fetch_json.call_args_list[0]
@@ -683,20 +692,18 @@ class TestUnitTestResultFetcher(unittest.TestCase):
             self.assertEqual(int(int(exp_build["timestamp"]) / 1000), int(act_build.timestamp))
             self.assertEqual(exp_build["url"], act_build.url)
 
-    @patch(NETWORK_UTILS_PATCH_PATH)
-    def test_jenkins_api_converter_download_test_report(self, mock_fetch_json: Mock):
-        jenkins_api_converter = JenkinsApiConverter(None, None)
+    def test_jenkins_api_converter_download_test_report(self):
         builds_dict = self._get_default_jenkins_builds_as_dict(build_id=200)
-        failed_build = FailedJenkinsBuild("http://full/url/of/job", 1244525, "test_job")
-        mock_fetch_json.return_value = builds_dict
+        failed_build = FailedJenkinsBuild(f"{JENKINS_MAIN_URL}/job/testjob/200", 1244525, "test_job")
 
-        act_test_report = jenkins_api_converter.download_test_report(failed_build, Mock(spec=DownloadProgress))
+        builds_json = json.dumps(builds_dict, indent=4)
+        self._mock_jenkins_report_api(builds_json, JENKINS_MAIN_URL, job_name="testjob")
+        # Mocked URL: http://build.infra.cloudera.com/job/testjob/200/testReport/api/json.*
+        # Making request to URL: http://build.infra.cloudera.com/job/testjob/200/testReport/api/json?pretty=true
 
-        LOG.debug("Call args list: %s", mock_fetch_json.call_args_list)
-        self.assertEqual(builds_dict, act_test_report)
-        self.assertEqual(
-            "http://full/url/of/job/testReport/api/json?pretty=true", mock_fetch_json.call_args_list[0].args[0]
-        )
+        jenkins_api_converter = JenkinsApiConverter(None, None)
+        actual_test_report = jenkins_api_converter.download_test_report(failed_build, Mock(spec=DownloadProgress))
+        self.assertEqual(builds_dict, actual_test_report)
 
     def test_cache_config_without_any_setting(self):
         args = Object()
