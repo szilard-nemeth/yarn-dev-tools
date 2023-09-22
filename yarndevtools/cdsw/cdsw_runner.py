@@ -23,7 +23,7 @@ from yarndevtools.cdsw.cdsw_common import (
     MAIL_ADDR_YARN_ENG_BP,
     CommonMailConfig,
 )
-from yarndevtools.cdsw.cdsw_config import CdswJobConfigReader, CdswJobConfig, CdswRun
+from yarndevtools.cdsw.cdsw_config import CdswJobConfigReader, CdswJobConfig, DriveApiUploadSettings, EmailSettings
 from yarndevtools.cdsw.constants import CdswEnvVar, BranchComparatorEnvVar
 from yarndevtools.common.shared_command_utils import CommandType, RepoType
 
@@ -228,29 +228,36 @@ class CdswRunner:
                 break
 
     def _post_run_actions(self, run):
+        # TODO CDSW-new Introduce optional env var to remove all log files, log_file_paths are determined in: CdswSetup.initial_setup
         if self.command_type.session_based:
             self.execute_command_data_zipper(self.command_type, debug=True)
-            drive_link_html_text = self._upload_command_data_to_google_drive_if_required(run)
-            self._send_email_if_required(run, drive_link_html_text)
-            # TODO CDSW-new Introduce optional env var to remove all log files, log_file_paths are determined in: CdswSetup.initial_setup
+            drive_link_html_text = self._upload_command_data_to_google_drive_if_required(
+                run.name, run.drive_api_upload_settings
+            )
+            self._send_email_if_required(run.name, run.email_settings, drive_link_html_text)
+            # TODO CDSW-new now the zip file can be removed
+            # _get_command_data_zip_file_path
 
-    def _upload_command_data_to_google_drive_if_required(self, run: CdswRun):
+    def _upload_command_data_to_google_drive_if_required(self, run_name: str, settings: DriveApiUploadSettings):
         if not self.is_drive_integration_enabled:
             LOG.info(
                 "Google Drive integration is disabled with env var '%s'!",
                 CdswEnvVar.ENABLE_GOOGLE_DRIVE_INTEGRATION.value,
             )
             return
-        if not run.drive_api_upload_settings:
-            LOG.info("Google Drive upload settings is not defined for run: %s", run.name)
+        if not settings:
+            LOG.info("Google Drive upload settings is not defined for run: %s", run_name)
             return
-        if not run.drive_api_upload_settings.enabled:
-            LOG.info("Google Drive upload is disabled for run: %s", run.name)
+        if not settings.enabled:
+            LOG.info("Google Drive upload is disabled for run: %s", run_name)
             return
 
-        drive_filename = run.drive_api_upload_settings.file_name
+        drive_filename = settings.file_name
         if not self.dry_run:
-            drive_api_file: DriveApiFile = self.upload_command_data_to_drive(self.command_type, drive_filename)
+            local_file = self._get_command_data_zip_file_path(self.command_type)
+            drive_api_file: DriveApiFile = self.upload_command_data_to_drive(
+                self.command_type, local_file, drive_filename
+            )
             self.google_drive_uploads.append((self.command_type, drive_filename, drive_api_file))
             return f'<a href="{drive_api_file.link}">Command data file: {drive_filename}</a>'
         else:
@@ -261,17 +268,17 @@ class CdswRunner:
             )
             return f'<a href="dummy_link">Command data file: {drive_filename}</a>'
 
-    def _send_email_if_required(self, run: CdswRun, drive_link_html_text: str or None):
-        if not run.email_settings:
-            LOG.info("Email settings is not defined for run: %s", run.name)
+    def _send_email_if_required(self, run_name: str, settings: EmailSettings, drive_link_html_text: str or None):
+        if not settings:
+            LOG.info("Email settings is not defined for run: %s", run_name)
             return
-        if not run.email_settings.enabled:
-            LOG.info("Email sending is disabled for run: %s", run.name)
+        if not settings.enabled:
+            LOG.info("Email sending is disabled for run: %s", run_name)
             return
 
         kwargs = {
-            "attachment_filename": run.email_settings.attachment_file_name,
-            "email_body_file": run.email_settings.email_body_file_from_command_data,
+            "attachment_filename": settings.attachment_file_name,
+            "email_body_file": settings.email_body_file_from_command_data,
             "send_attachment": True,
         }
         if drive_link_html_text:
@@ -279,8 +286,8 @@ class CdswRunner:
 
         LOG.debug("kwargs for email: %s", kwargs)
         self.send_latest_command_data_in_email(
-            sender=run.email_settings.sender,
-            subject=run.email_settings.subject,
+            sender=settings.sender,
+            subject=settings.subject,
             **kwargs,
         )
 
@@ -345,6 +352,7 @@ class CdswRunner:
         return DateUtils.get_current_datetime()
 
     def execute_command_data_zipper(self, command_type: CommandType, debug=False, ignore_filetypes: str = "java js"):
+        # TODO CDSW-new add argument to zipper to remove zipped origin files
         debug_mode = "--debug" if debug else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
@@ -353,9 +361,12 @@ class CdswRunner:
             f"--ignore-filetypes {ignore_filetypes}"
         )
 
-    def upload_command_data_to_drive(self, cmd_type: CommandType, drive_filename: str) -> DriveApiFile:
+    def upload_command_data_to_drive(self, cmd_type: CommandType, local_file: str, drive_filename: str) -> DriveApiFile:
+        return self.drive_cdsw_helper.upload(cmd_type, local_file, drive_filename)
+
+    def _get_command_data_zip_file_path(self, cmd_type):
         full_file_path_of_cmd_data = FileUtils.join_path(self.output_basedir, cmd_type.command_data_zip_name)
-        return self.drive_cdsw_helper.upload(cmd_type, full_file_path_of_cmd_data, drive_filename)
+        return full_file_path_of_cmd_data
 
     def send_latest_command_data_in_email(
         self,
