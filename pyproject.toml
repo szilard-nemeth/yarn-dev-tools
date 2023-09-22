@@ -49,7 +49,7 @@ python-dotenv = "1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 requests = "*"
-flake8 = "*"
+flake8 = "5.0.4"
 pytest = "*"
 pytest-html = "*"
 pytest-cov = "*"
