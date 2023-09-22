@@ -4,6 +4,7 @@ import unittest
 from enum import Enum
 from typing import Dict, List
 
+from dotenv import dotenv_values
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode, DockerMountMode, DockerMount
 from pythoncommons.file_utils import FileUtils, FindResultType
@@ -102,13 +103,18 @@ class DockerBasedTestConfig:
         self.cdsw_testing_commons = CdswTestingCommons()
         if self.github_ci_execution:
             self.mount_cdsw_dirs_from_local = False
-        self.env_dict = self.setup_env_vars()
+        secrets = self.load_secrets()
+        self.env_dict = self.setup_env_vars(secrets)
         self.dockerfile = "Dockerfile"
         self.docker_mounts: List[DockerMount] = self.setup_docker_mounts()
 
         self.validate()
         LOG.info("Container files: %s", ObjUtils.get_static_fields_with_values(ContainerFiles))
         LOG.info("Container dirs: %s", ObjUtils.get_static_fields_with_values(ContainerDirs))
+
+    @classmethod
+    def load_secrets(cls):
+        return dotenv_values(verbose=True)
 
     @property
     def github_ci_execution(self):
@@ -133,7 +139,7 @@ class DockerBasedTestConfig:
         else:
             raise ValueError("Unknown Python module mode: {}".format(self.python_module_mode))
 
-    def setup_env_vars(self) -> Dict[str, str]:
+    def setup_env_vars(self, secrets: Dict[str, str]) -> Dict[str, str]:
         def get_str(key):
             if isinstance(key, str):
                 return key
@@ -153,8 +159,8 @@ class DockerBasedTestConfig:
             p_common: {
                 get_str(ProjectUtilsEnvVar.OVERRIDE_USER_HOME_DIR): FileUtils.join_path("home", CDSW_DIRNAME),
                 get_str(CdswEnvVar.MAIL_RECIPIENTS): "nsziszy@gmail.com",
-                get_str(CdswEnvVar.MAIL_ACC_USER): "mail_acc_user",
-                get_str(CdswEnvVar.MAIL_ACC_PASSWORD): "mail_acc_password",
+                get_str(CdswEnvVar.MAIL_ACC_USER): secrets["MAIL_ACC_USER"],
+                get_str(CdswEnvVar.MAIL_ACC_PASSWORD): secrets["MAIL_ACC_PASSWORD"],
                 get_str(CdswEnvVar.YARNDEVTOOLS_VERSION): "repo",
                 get_str(CdswEnvVar.TEST_EXECUTION_MODE): self.exec_mode.value,
                 get_str(CdswEnvVar.INSTALL_REQUIREMENTS): self.install_requirements,

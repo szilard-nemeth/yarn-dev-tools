@@ -44,6 +44,7 @@ bs4 = "*"
 jira = "*"
 dataclasses-json = "*"
 dacite = "*"
+python-dotenv = "1.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
