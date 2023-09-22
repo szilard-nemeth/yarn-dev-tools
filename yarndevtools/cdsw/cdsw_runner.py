@@ -366,12 +366,12 @@ class CdswRunner:
 
     def execute_command_data_zipper(self, command_type: CommandType, debug=False, ignore_filetypes: str = "java js"):
         debug_mode = "--debug" if debug else ""
-        remove_files = "--remove-zipped-files" if self.cdsw_runner_config.remove_command_data_files else ""
+        remove_files = "--remove-zipped-files " if self.cdsw_runner_config.remove_command_data_files else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
             f"{CommandType.ZIP_LATEST_COMMAND_DATA.name} {command_type.name} "
             f"--dest_dir /tmp "
-            f"{remove_files} "
+            f"{remove_files}"
             f"--ignore-filetypes {ignore_filetypes}"
         )
 

@@ -10,7 +10,7 @@ from unittest.mock import patch, Mock, call as mock_call
 from googleapiwrapper.google_drive import DriveApiFile
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.os_utils import OsUtils
-from pythoncommons.project_utils import ProjectUtils
+from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 from pythoncommons.string_utils import StringUtils
 
 from tests.cdsw.common.testutils.cdsw_testing_common import (
@@ -69,6 +69,7 @@ class TestCdswRunner(unittest.TestCase):
 
         # TODO Investigate this later to check why number of loggers are not correct
         OsUtils.set_env_value("ENABLE_LOGGER_HANDLER_SANITY_CHECK", "False")
+        ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
 
         # We need the value of 'CommonFiles.YARN_DEV_TOOLS_SCRIPT'
         CdswSetup._setup_python_module_root_and_yarndevtools_path()
@@ -98,6 +99,7 @@ class TestCdswRunner(unittest.TestCase):
         args.verbose = True
         args.cmd_type = DEFAULT_COMMAND_TYPE.name
         args.dry_run = dry_run
+        args.remove_command_data_files = False
         self.tmp_dir_name = tempfile.TemporaryDirectory()
         args.config_dir = self.tmp_dir_name.name
         reviewsync_config_file_path = FileUtils.join_path(self.tmp_dir_name.name, REVIEWSYNC_CONFIG_FILE_NAME)
@@ -115,6 +117,7 @@ class TestCdswRunner(unittest.TestCase):
         else:
             args.cmd_type = DEFAULT_COMMAND_TYPE.name
         args.dry_run = dry_run
+        args.remove_command_data_files = False
         return args
 
     def _create_cdsw_runner_with_mock_config(self, args, mock_job_config):
@@ -254,6 +257,8 @@ class TestCdswRunner(unittest.TestCase):
         mock_google_drive_cdsw_helper_upload,
         mock_subprocess_runner,
     ):
+        mock_subprocess_runner.return_value.returncode = 0
+
         mock_google_drive_cdsw_helper_upload.return_value = self.create_mock_drive_api_file(
             "http://googledrive/link-of-file-in-google-drive"
         )
@@ -328,6 +333,7 @@ class TestCdswRunner(unittest.TestCase):
         mock_google_drive_cdsw_helper_upload,
         mock_subprocess_runner,
     ):
+        mock_subprocess_runner.return_value.returncode = 0
         mock_run1 = self._create_mock_cdsw_run(
             "run1",
             email_enabled=True,
@@ -362,6 +368,7 @@ class TestCdswRunner(unittest.TestCase):
     def test_google_drive_settings_and_email_settings_are_defined_but_disabled(
         self, mock_google_drive_cdsw_helper_upload, mock_subprocess_runner
     ):
+        mock_subprocess_runner.return_value.returncode = 0
         mock_google_drive_cdsw_helper_upload.return_value = self.create_mock_drive_api_file(
             "http://googledrive/link-of-file-in-google-drive"
         )
@@ -458,6 +465,8 @@ class TestCdswRunner(unittest.TestCase):
     @patch(SUBPROCESSRUNNER_RUN_METHOD_PATH)
     @patch(DRIVE_API_WRAPPER_UPLOAD_PATH)
     def test_upload_command_data_to_drive(self, mock_drive_api_wrapper_upload, mock_subprocess_runner):
+        mock_subprocess_runner.return_value.returncode = 0
+
         mock_drive_api_wrapper_upload.return_value = self.create_mock_drive_api_file("testLink")
         mock_run1 = self._create_mock_cdsw_run(
             "run1", email_enabled=True, google_drive_upload_enabled=True, add_google_drive_settings=True

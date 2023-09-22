@@ -67,14 +67,12 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         self.cdsw_testing_commons = CdswTestingCommons()
         CdswTestingCommons.mock_google_drive()
 
-        self.exp_command_clone_downstream_repos = (
-            CommandExpectations(self)
-            .with_exact_command_expectation(f"{BASHX} /home/cdsw/scripts/clone_downstream_repos.sh")
+        self.exp_command_clone_downstream_repos = CommandExpectations(self).with_exact_command_expectation(
+            f"{BASHX} /home/cdsw/scripts/clone_downstream_repos.sh"
         )
 
-        self.exp_command_clone_upstream_repos = (
-            CommandExpectations(self)
-            .with_exact_command_expectation(f"{BASHX} /home/cdsw/scripts/clone_upstream_repos.sh")
+        self.exp_command_clone_upstream_repos = CommandExpectations(self).with_exact_command_expectation(
+            f"{BASHX} /home/cdsw/scripts/clone_upstream_repos.sh"
         )
         if not USE_LIVE_JIRA_SERVER:
             httpretty.enable()
@@ -118,6 +116,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         args.verbose = True
         args.cmd_type = cmd_type.name
         args.dry_run = dry_run
+        args.remove_command_data_files = False
         return args
 
     @staticmethod
@@ -306,6 +305,8 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             {
                 "MAIL_ACC_USER": "testMailUser",
                 "MAIL_ACC_PASSWORD": "testMailPassword",
+                "JENKINS_USER": "jenkins_user",
+                "JENKINS_PASSWORD": "jenkins_pw",
             }
         )
         wrap_d = StringUtils.wrap_to_quotes
@@ -327,6 +328,8 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--sender", param=wrap_d("YARN unit test result fetcher"))
             .add_expected_arg("--recipients", param="yarn_eng_bp@cloudera.com")
             .add_expected_arg("--mode", param="jenkins_master")
+            .add_expected_arg("--jenkins-user", param="jenkins_user")
+            .add_expected_arg("--jenkins-password", param="jenkins_pw")
             .add_expected_arg(
                 "--testcase-filter",
                 param="YARN:org.apache.hadoop.yarn "
@@ -416,7 +419,12 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         expectations = [
             self.exp_command_clone_downstream_repos,
             self.exp_command_clone_upstream_repos,
-            exp_command_1,exp_command_2, exp_command_3, exp_command_4, exp_command_5, exp_command_6
+            exp_command_1,
+            exp_command_2,
+            exp_command_3,
+            exp_command_4,
+            exp_command_5,
+            exp_command_6,
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
@@ -591,7 +599,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             exp_command_1_3,
             exp_command_2_1,
             exp_command_2_2,
-            exp_command_2_3
+            exp_command_2_3,
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
