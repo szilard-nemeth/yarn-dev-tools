@@ -84,9 +84,6 @@ def run():
     # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
     args, parser = ArgParser.parse_args()
 
-    # TODO CDSW-new Figure out if this is a correct log file path on CDSW?
-    #   2023-09-15 02:10:46,265 - INFO - __main__ - Logging to files: {20: '/home/cdsw/snemeth-dev-projects/yarndevtools/logs/yarndevtools-UNIT_TEST_RESULT_AGGREGATOR-INFO-20230915_021046', 10: '/home/cdsw/snemeth-dev-projects/yarndevtools/logs/yarndevtools-UNIT_TEST_RESULT_AGGREGATOR-DEBUG-20230915_021046'}
-    #  Job URL: https://cdsw.edh.cloudera.com/YARN/yarn-cdsw/jobs/3110/latest
     logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
         project_name=YARNDEVTOOLS_MODULE_NAME,
         logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,

@@ -76,6 +76,14 @@ class ArgParser:
             default=False,
             help="Dry run",
         )
+        parser.add_argument(
+            "--remove-command-data-files",
+            dest="remove_command_data_files",
+            action="store_true",
+            default=False,
+            help="Remove command data files when zipped. Also remove zipped file if sent in email and uploaded to Google Drive",
+        )
+
         parser.add_argument("--config-file", type=str, help="Full path to job config file (JSON format)")
         parser.add_argument("--config-dir", type=str, help="Full path to the directory of the configs")
 
@@ -104,6 +112,7 @@ class CdswRunnerConfig:
         self.execution_mode = self.determine_execution_mode(args)
         self.job_config_file = self._determine_job_config_file_location(args)
         self.dry_run = args.dry_run
+        self.remove_command_data_files = args.remove_command_data_files
         self.config_reader = config_reader
         self.hadoop_cloudera_basedir = hadoop_cloudera_basedir
 
@@ -188,6 +197,7 @@ class CdswRunner:
         self.common_mail_config = CommonMailConfig()
         self._setup_google_drive()
         self.cdsw_runner_config = config
+        # TODO remove this property, can be used directly from self.cdsw_runner_config.dry_run
         self.dry_run = config.dry_run
 
         # Dynamic fields
@@ -228,15 +238,18 @@ class CdswRunner:
                 break
 
     def _post_run_actions(self, run):
-        # TODO CDSW-new Introduce optional env var to remove all log files, log_file_paths are determined in: CdswSetup.initial_setup
         if self.command_type.session_based:
             self.execute_command_data_zipper(self.command_type, debug=True)
             drive_link_html_text = self._upload_command_data_to_google_drive_if_required(
                 run.name, run.drive_api_upload_settings
             )
             self._send_email_if_required(run.name, run.email_settings, drive_link_html_text)
-            # TODO CDSW-new now the zip file can be removed
-            # _get_command_data_zip_file_path
+
+            # Only remove zip file if google drive upload was successful and email was sent
+            if self.cdsw_runner_config.remove_command_data_files:
+                zip_file = self._get_command_data_zip_file_path(self.command_type)
+                LOG.info("Removing command data zip file as per configuration. File path: %s", zip_file)
+                FileUtils.remove_file(zip_file)
 
     def _upload_command_data_to_google_drive_if_required(self, run_name: str, settings: DriveApiUploadSettings):
         if not self.is_drive_integration_enabled:
@@ -352,12 +365,13 @@ class CdswRunner:
         return DateUtils.get_current_datetime()
 
     def execute_command_data_zipper(self, command_type: CommandType, debug=False, ignore_filetypes: str = "java js"):
-        # TODO CDSW-new add argument to zipper to remove zipped origin files
         debug_mode = "--debug" if debug else ""
+        remove_files = "--remove-zipped-files" if self.cdsw_runner_config.remove_command_data_files else ""
         self.execute_yarndevtools_script(
             f"{debug_mode} "
             f"{CommandType.ZIP_LATEST_COMMAND_DATA.name} {command_type.name} "
             f"--dest_dir /tmp "
+            f"{remove_files} "
             f"--ignore-filetypes {ignore_filetypes}"
         )
 
@@ -365,8 +379,7 @@ class CdswRunner:
         return self.drive_cdsw_helper.upload(cmd_type, local_file, drive_filename)
 
     def _get_command_data_zip_file_path(self, cmd_type):
-        full_file_path_of_cmd_data = FileUtils.join_path(self.output_basedir, cmd_type.command_data_zip_name)
-        return full_file_path_of_cmd_data
+        return FileUtils.join_path(self.output_basedir, cmd_type.command_data_zip_name)
 
     def send_latest_command_data_in_email(
         self,

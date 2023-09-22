@@ -4,6 +4,7 @@ import sys
 
 # THESE FUNCTION DEFINITIONS AND CALL TO fix_pythonpast MUST PRECEDE THE IMPORT OF libreloader: from libreloader import reload_dependencies
 PYTHONPATH_ENV_VAR = "PYTHONPATH"
+REMOVE_COMMAND_DATA_FILES_ENV_VAR = "REMOVE_COMMAND_DATA_FILES"  # Same as CdswEnvVar.REMOVE_COMMAND_DATA_FILES
 
 
 def get_pythonpath():
@@ -12,6 +13,15 @@ def get_pythonpath():
 
 def set_env_value(env, value):
     os.environ[env] = value
+
+
+def should_remove_command_data_files():
+    v = REMOVE_COMMAND_DATA_FILES_ENV_VAR
+    if v in os.environ:
+        print("Found env {}={}".format(v, os.environ[v]))
+        if os.environ[v] == "1":
+            return True
+    return False
 
 
 def add_to_pythonpath(additional_dir):
@@ -58,4 +68,8 @@ print("YARN dev tools module root is: %s", Reloader.YARN_DEV_TOOLS_MODULE_ROOT)
 job_name = sys.argv[1]
 sys.argv.append("--config-dir")
 sys.argv.append(jobs_dir)
+if should_remove_command_data_files():
+    sys.argv.append("--remove-command-data-files")
+print(f"Arguments of the script : {sys.argv[1:]=}")
+
 exec(open(cdsw_runner_path).read())

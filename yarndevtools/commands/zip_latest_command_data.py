@@ -20,6 +20,7 @@ class Config:
         self.output_dir = args.dest_dir if "dest_dir" in args else None
         self.project_out_root = project_basedir
         self.ignore_filetypes = args.ignore_filetypes if "ignore_filetypes" in args else []
+        self.remove_zipped_files = args.remove_zipped_files if "remove_zipped_files" in args else False
         self.dest_filename = self._get_dest_filename(args, cmd_type)
 
     @staticmethod
@@ -69,6 +70,14 @@ class ZipLatestCommandData(CommandAbs):
             nargs="+",
             help="Filetype to ignore so they won't be added to the resulted zip file.",
         )
+        parser.add_argument(
+            "--remove-zipped-files",
+            dest="remove_zipped_files",
+            action="store_true",
+            default=False,
+            help="Remove command data files when zipped.",
+        )
+
         parser.set_defaults(func=ZipLatestCommandData.execute)
 
     @staticmethod
@@ -110,6 +119,7 @@ class ZipLatestCommandData(CommandAbs):
             f"Input files: {self.config.input_files}\n "
             f"Destination filename: {self.config.dest_filename}\n "
             f"Ignore file types: {self.config.ignore_filetypes}\n "
+            f"Remove zipped files: {self.config.remove_zipped_files}\n "
         )
 
         zip_file_name, temp_dir_dest = ZipFileUtils.create_zip_file_advanced(
@@ -127,3 +137,10 @@ class ZipLatestCommandData(CommandAbs):
             zip_file_name_real: str = f"{self.cmd_type.command_data_name}-real.zip"
             target_file_path = FileUtils.join_path(self.config.project_out_root, FileUtils.basename(zip_file_name_real))
             FileUtils.copy_file(zip_file_name, target_file_path)
+
+        # All operations should be successful here
+        if self.config.remove_zipped_files:
+            LOG.info("Removing zipped files as per configuration. File list: %s", self.config.input_files)
+            for f in self.config.input_files:
+                LOG.debug("Removing file: %s", f)
+                FileUtils.remove_file(f)
