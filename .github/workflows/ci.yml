@@ -47,8 +47,8 @@ jobs:
         run: |
           poetry run python -m pytest --html=report.html --self-contained-html --doctest-ignore-import-errors --doctest-modules --junitxml=junit/test-results-${{ matrix.python-version }}.xml --cov=./ --cov-report=html --cov-report=html
         env:
-          MAIL_ACC_USER: test_mail_acc_user
-          MAIL_ACC_PASSWORD: test_mail_acc_pass
+          MAIL_ACC_USER: ${{ secrets.MAIL_ACC_USER }}
+          MAIL_ACC_PASSWORD: ${{ secrets.MAIL_ACC_PASSWORD }}
           TEST_EXEC_MODE: upstream
           IGNORE_SMTP_AUTH_ERROR: 1
           PROJECT_DETERMINATION_STRATEGY: common_file
