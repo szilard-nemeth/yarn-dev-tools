@@ -1,10 +1,12 @@
 import logging
+import os
 import unittest
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Set, Dict
 from unittest.mock import _CallList, patch, Mock
 
+from dotenv import dotenv_values
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_drive import (
     DuplicateFileWriteResolutionMode,
@@ -504,9 +506,27 @@ class QuotedParamHandler:
         self.inside_param = False
 
 
+class SecretsResolver:
+    def __init__(self, github_ci_execution):
+        self.github_ci_execution = github_ci_execution
+        self.secrets = self._load_secrets()
+
+    def _load_secrets(cls):
+        return dotenv_values(verbose=True)
+
+    def get(self, name: str):
+        if self.github_ci_execution:
+            if name not in os.environ:
+                raise ValueError("Failed to resolve secret, undefined env var: {}".format(name))
+            return os.environ[name]
+        else:
+            return self.secrets[name]
+
+
 class CdswTestingCommons:
     def __init__(self):
         self.github_ci_execution: bool = GitHubUtils.is_github_ci_execution()
+        self.secrets_resolver = SecretsResolver(self.github_ci_execution)
         self.cdsw_root_dir: str = self.determine_cdsw_root_dir()
         self.setup_local_dirs()
         self.cdsw_tests_root_dir: str = self.determine_cdsw_tests_root_dir()
