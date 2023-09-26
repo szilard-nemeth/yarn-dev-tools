@@ -49,6 +49,7 @@ CACHED_DATA_FILENAME = "pickled_unit_test_reporter_data.obj"
 SECONDS_PER_DAY = 86400
 DEFAULT_REQUEST_LIMIT = 999
 JENKINS_BUILDS_EXAMINE_UNLIMITIED_VAL = "jenkins_examine_unlimited_builds"
+DAY_THRESHOLD_FOR_LAST_BUILDS = 2
 
 
 class UnitTestResultFetcherMode(Enum):
@@ -164,6 +165,10 @@ class JobBuildData:
     @property
     def build_url(self):
         return self._failed_build.url
+
+    @property
+    def job_name(self):
+        return self._failed_build.job_name
 
     @property
     def is_valid(self):
@@ -415,6 +420,7 @@ class JenkinsJobReport:
         self.jobs_by_url: Dict[str, JobBuildData] = {job.build_url: job for job in job_build_datas}
         # Sort by URL, descending
         self._job_urls = list(sorted(self.jobs_by_url.keys(), reverse=True))
+        self._sorted_build_info = self._sort_build_info(job_build_datas)
         self.all_failing_tests: Dict[str, int] = all_failing_tests
         self.total_no_of_builds: int = total_no_of_builds
         self.actual_num_builds = self._determine_actual_number_of_builds(num_builds_per_config)
@@ -422,7 +428,7 @@ class JenkinsJobReport:
 
     def start_processing(self):
         LOG.info(f"Report list contains build results: {self._job_urls}")
-        LOG.info(f"Processing {self.actual_num_builds} in Report...")
+        LOG.info(f"Processing {self.actual_num_builds} reports")
 
     def __len__(self):
         return self.actual_num_builds
@@ -478,6 +484,32 @@ class JenkinsJobReport:
         LOG.info("TESTCASE SUMMARY:")
         for tn in sorted(self.all_failing_tests, key=self.all_failing_tests.get, reverse=True):
             LOG.info(f"{self.all_failing_tests[tn]}: {tn}")
+
+    def get_latest_build_info(self) -> Tuple[str, str, int]:
+        if len(self._sorted_build_info) > 0:
+            return self._sorted_build_info[0]
+        return None
+
+    @staticmethod
+    def _sort_build_info(job_build_datas):
+        # EXAMPLE:
+        # {
+        #   '300': ('https://master-02.jenkins.cloudera.com/job/cdpd-master-Hadoop-Common-Unit/300/', 1695393655),
+        #   '299': ('https://master-02.jenkins.cloudera.com/job/cdpd-master-Hadoop-Common-Unit/299/', 1695220835),
+        #   '298': ('https://master-02.jenkins.cloudera.com/job/cdpd-master-Hadoop-Common-Unit/298/', 1694788967),
+        #   ...
+        # }
+        build_dict: Dict[str, Tuple[str, int]] = {
+            job._failed_build.build_number: (job._failed_build.url, job._failed_build.timestamp)
+            for job in job_build_datas
+        }
+
+        tmp = []
+        for build_no, tup in build_dict.items():
+            build_url = tup[0]
+            build_ts = tup[1]
+            tmp.append((build_no, build_url, build_ts))
+        return list(sorted(tmp, key=lambda x: x[0], reverse=True))
 
 
 @dataclass
@@ -799,6 +831,24 @@ class Email:
         )
         LOG.info("Finished sending report in email for job: %s", build_data.build_url)
 
+    def send_warning_mail(self, build_data: JobBuildData, ts, dt, diff_in_days):
+        LOG.info("Sending warning email for job: %s", build_data.job_name)
+
+        mail_body = (
+            "Latest build URL: {}\n"
+            "Latest build timestamp: {}\n"
+            "Latest build date: {}\n"
+            "Diff to today: {}".format(build_data.build_url, ts, dt, diff_in_days)
+        )
+        self.email_service.send_mail(
+            sender=self.config.full_email_conf.sender,
+            subject="ATTENTION: No new builds detected for job: " + build_data.job_name,
+            body=str(mail_body),
+            recipients=self.config.full_email_conf.recipients,
+            body_mimetype=EmailMimeType.PLAIN,
+        )
+        LOG.info("Finished sending warning email for job: %s", build_data.job_name)
+
     @staticmethod
     def _get_email_subject(build_data: JobBuildData):
         if build_data.is_valid:
@@ -807,7 +857,7 @@ class Email:
             email_subject = f"{EMAIL_SUBJECT_PREFIX} Error with test report, build is invalid: {build_data.build_url}"
         return email_subject
 
-    def process(self, build_data, report):
+    def process_job_data(self, build_data, report):
         if self.config.send_mail:
             if not build_data.is_mail_sent or self.config.force_send_email:
                 self.send_mail(build_data)
@@ -818,6 +868,31 @@ class Email:
                     build_data.build_url,
                     build_data.sent_date,
                 )
+
+    def process_report(self, report):
+        if self.config.send_mail:
+            latest_build: Tuple[str, str, int] = report.get_latest_build_info()
+            if latest_build:
+                now = DateUtils.now()
+                build_url = latest_build[1]
+                timestamp = latest_build[2]
+                dt = DateUtils.create_datetime_from_timestamp(timestamp)
+                formatted_date: str = DateUtils.format_unix_timestamp(timestamp)
+                timedelta = now - dt
+                job_name = report.get_job_data(build_url).job_name
+                LOG.info(
+                    "Latest build for %s: %s, current date: %s, diff in days (timedelta): %s",
+                    job_name,
+                    formatted_date,
+                    now,
+                    timedelta,
+                )
+
+                if timedelta.days >= DAY_THRESHOLD_FOR_LAST_BUILDS:
+                    job_data = report.get_job_data(build_url)
+                    self.send_warning_mail(job_data, timestamp, dt, timedelta)
+                else:
+                    LOG.debug("Latest build for %s has new builds, it is within threshold", job_name)
 
 
 class UnitTestResultFetcherConfig:
@@ -1168,9 +1243,10 @@ class UnitTestResultFetcher(CommandAbs):
         for i, build_data in enumerate(report):
             self._process_build_data_from_report(build_data, report)
             self._print_report(build_data, report)
-            self._invoke_report_processors(build_data, report)
+            self._invoke_job_data_processors(build_data, report)
             # TODO fix
             # self._save_all_reports_to_cache(i, report)
+        self._invoke_report_processort(report)
 
     def _process_build_data_from_report(self, build_data: JobBuildData, report: JenkinsJobReport):
         LOG.info(f"Processing report of build: {build_data.build_url}")
@@ -1206,8 +1282,8 @@ class UnitTestResultFetcher(CommandAbs):
         if not self.config.omit_job_summary and build_data.is_valid:
             report.print_report(build_data)
 
-    def _invoke_report_processors(self, build_data: JobBuildData, report: JenkinsJobReport):
-        self.email.process(build_data, report)
+    def _invoke_job_data_processors(self, build_data: JobBuildData, report: JenkinsJobReport):
+        self.email.process_job_data(build_data, report)
 
     def _save_all_reports_to_cache(self, i, report: JenkinsJobReport):
         log_report: bool = i == len(report) - 1
@@ -1312,3 +1388,6 @@ class UnitTestResultFetcher(CommandAbs):
             for failed_testcase in job_data.testcases:
                 LOG.info(f"Failed test: {failed_testcase}")
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
+
+    def _invoke_report_processort(self, report):
+        self.email.process_report(report)
