@@ -477,6 +477,14 @@ class JenkinsJobReport:
     def get_job_data(self, build_url: str):
         return self.jobs_by_url[build_url]
 
+    def get_job_name(self):
+        urls = list(self.known_build_urls)
+        if urls:
+            url = urls[0]
+            job_data = self.get_job_data(url)
+            return job_data.job_name
+        return "unknown job name"
+
     def print_report(self, build_data):
         LOG.info(f"\nPRINTING REPORT: \n\n{build_data}")
         LOG.info(f"\nAmong {self.total_no_of_builds} runs examined, all failed tests <#failedRuns: testName>:")
@@ -870,6 +878,7 @@ class Email:
                 )
 
     def process_report(self, report):
+        LOG.debug("Processing report: <%s>", report.get_job_name())
         if self.config.send_mail:
             latest_build: Tuple[str, str, int] = report.get_latest_build_info()
             if latest_build:
@@ -1246,7 +1255,7 @@ class UnitTestResultFetcher(CommandAbs):
             self._invoke_job_data_processors(build_data, report)
             # TODO fix
             # self._save_all_reports_to_cache(i, report)
-        self._invoke_report_processort(report)
+        self._invoke_report_processors(report)
 
     def _process_build_data_from_report(self, build_data: JobBuildData, report: JenkinsJobReport):
         LOG.info(f"Processing report of build: {build_data.build_url}")
@@ -1389,5 +1398,5 @@ class UnitTestResultFetcher(CommandAbs):
                 LOG.info(f"Failed test: {failed_testcase}")
                 tc_to_fail_count[failed_testcase] = tc_to_fail_count.get(failed_testcase, 0) + 1
 
-    def _invoke_report_processort(self, report):
+    def _invoke_report_processors(self, report):
         self.email.process_report(report)
