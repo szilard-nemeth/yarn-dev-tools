@@ -33,7 +33,6 @@ from yarndevtools.commands.unittestresultfetcher.common import (
     JobNameUtils,
 )
 from yarndevtools.commands.unittestresultfetcher.model import CachedBuild, JenkinsJobResult, CachedBuildKey
-from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import UnitTestResultFetcherConfig
 from yarndevtools.common.common_model import FailedJenkinsBuild
 from yarndevtools.common.shared_command_utils import CommandType
 from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME
@@ -85,7 +84,7 @@ class CacheAbs(ABC):
 
 
 class Cache:
-    def __init__(self, config: UnitTestResultFetcherConfig):
+    def __init__(self, config):
         self.config = config.cache
         self.file_cache = FileCache(config.cache)
         # TODO yarndevtoolsv2: Should call self.file_cache.initialize() first?
