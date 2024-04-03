@@ -33,7 +33,6 @@ class YarnDevTools:
         self.setup_dirs(execution_mode=execution_mode)
         self.init_repos()
 
-    # TODO move this to pythoncommons?
     def setup_dirs(self, execution_mode: ExecutionMode = ExecutionMode.PRODUCTION):
         strategy = None
         if execution_mode == ExecutionMode.PRODUCTION:
@@ -52,6 +51,7 @@ class YarnDevTools:
             YARNDEVTOOLS_MODULE_NAME, project_name_hint=YARNDEVTOOLS_MODULE_NAME
         )
 
+    # TODO move this to pythoncommons?
     def ensure_required_env_vars_are_present(self):
         upstream_hadoop_dir = OsUtils.get_env_value(YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value, None)
         downstream_hadoop_dir = OsUtils.get_env_value(YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value, None)
@@ -75,81 +75,83 @@ class YarnDevTools:
         YarnDevToolsConfig.DOWNSTREAM_REPO = GitWrapper(self.env[LOADED_ENV_DOWNSTREAM_DIR])
         YarnDevToolsConfig.UPSTREAM_REPO = GitWrapper(self.env[LOADED_ENV_UPSTREAM_DIR])
 
+    @staticmethod
+    def parse_args_and_execute():
+        # global args, cmd_type
+        start_time = time.time()
+        # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
+        args, parser = ArgParser.parse_args()
 
-def run():
-    global args, cmd_type
-    start_time = time.time()
-    # TODO Revisit all exception handling: ValueError vs. exit() calls
-    # Methods should throw exceptions, exit should be handled in this method
-    YarnDevTools()
-    # Parse args, commands will be mapped to YarnDevTools functions in ArgParser.parse_args
-    args, parser = ArgParser.parse_args()
+        logging_config = LoggingHelper.configure_logging(args)
 
-    logging_config = configure_logging(args)
+        cmd_type = CommandType.from_str(args.command)
+        if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
+            for log_level, log_file_path in logging_config.log_file_paths.items():
+                log_level_name = logging.getLevelName(log_level)
+                link_name = cmd_type.log_link_name + "-" + log_level_name
+                FileUtils.create_symlink_path_dir(link_name, log_file_path, YarnDevToolsConfig.PROJECT_OUT_ROOT)
+        else:
+            LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
 
-    cmd_type = CommandType.from_str(args.command)
-    if cmd_type not in IGNORE_LATEST_SYMLINK_COMMANDS:
-        for log_level, log_file_path in logging_config.log_file_paths.items():
-            log_level_name = logging.getLevelName(log_level)
-            link_name = cmd_type.log_link_name + "-" + log_level_name
-            FileUtils.create_symlink_path_dir(link_name, log_file_path, YarnDevToolsConfig.PROJECT_OUT_ROOT)
-    else:
-        LOG.info(f"Skipping to re-create symlink as command is: {args.command}")
-
-    # Call the handler function
-    args.func(args, parser=parser)
-    end_time = time.time()
-    LOG.info("Execution of script took %d seconds", end_time - start_time)
+        # Call the handler function
+        args.func(args, parser=parser)
+        end_time = time.time()
+        LOG.info("Execution of script took %d seconds", end_time - start_time)
 
 
-def configure_logging(args):
-    # TODO use this value later with SimpleLoggingSetup.init_logger instead of passing bool flags
-    # log_level = determine_logging_level(args)
-    debug = getattr(args, "logging_debug", False)
-    trace = getattr(args, "logging_trace", False)
-    logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
-        project_name=YARNDEVTOOLS_MODULE_NAME,
-        logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
-        execution_mode=ExecutionMode.PRODUCTION,
-        # TODO find 'console_debug' in project and rename
-        console_debug=debug,
-        trace=trace,
-        postfix=args.command,
-        repos=[YarnDevToolsConfig.UPSTREAM_REPO.repo, YarnDevToolsConfig.DOWNSTREAM_REPO.repo],
-        verbose_git_log=args.verbose,
-        with_trace_level=True,
-    )
-    # LOG.trace("test trace")
-    LOG.info("Logging to files: %s", logging_config.log_file_paths)
-    configure_loggers(args)
+class LoggingHelper:
+    @staticmethod
+    def configure_logging(args):
+        # TODO use this value later with SimpleLoggingSetup.init_logger instead of passing bool flags
+        # log_level = determine_logging_level(args)
+        debug = getattr(args, "logging_debug", False)
+        trace = getattr(args, "logging_trace", False)
+        logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
+            project_name=YARNDEVTOOLS_MODULE_NAME,
+            logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
+            execution_mode=ExecutionMode.PRODUCTION,
+            # TODO find 'console_debug' in project and rename
+            console_debug=debug,
+            trace=trace,
+            postfix=args.command,
+            repos=[YarnDevToolsConfig.UPSTREAM_REPO.repo, YarnDevToolsConfig.DOWNSTREAM_REPO.repo],
+            verbose_git_log=args.verbose,
+            with_trace_level=True,
+        )
+        # LOG.trace("test trace")
+        LOG.info("Logging to files: %s", logging_config.log_file_paths)
+        LoggingHelper.configure_loggers(args)
 
-    return logging_config
+        return logging_config
 
+    @staticmethod
+    def configure_loggers(args):
+        googleapiwrapper_level = getattr(args, "logging_level_googleapiwrapper", None)
+        pythoncommons_level = getattr(args, "logging_level_pythoncommons", None)
 
-def configure_loggers(args):
-    googleapiwrapper_level = getattr(args, "logging_level_googleapiwrapper", None)
-    pythoncommons_level = getattr(args, "logging_level_pythoncommons", None)
+        if googleapiwrapper_level:
+            logging.getLogger("googleapiwrapper").setLevel(googleapiwrapper_level)
+        if pythoncommons_level:
+            logging.getLogger("pythoncommons").setLevel(pythoncommons_level)
 
-    if googleapiwrapper_level:
-        logging.getLogger("googleapiwrapper").setLevel(googleapiwrapper_level)
-    if pythoncommons_level:
-        logging.getLogger("pythoncommons").setLevel(pythoncommons_level)
+    @staticmethod
+    def determine_logging_level(args):
+        log_levels = {
+            logging.DEBUG: getattr(args, "logging_debug", False),
+            # TODO
+            # logging.TRACE: getattr(args, "logging_trace", False),
+            logging.INFO: True,  # Info is always on
+        }
+        val = 99999
+        for level_value, enabled in log_levels.items():
+            if level_value < val and enabled:
+                val = level_value
 
-
-def determine_logging_level(args):
-    log_levels = {
-        logging.DEBUG: getattr(args, "logging_debug", False),
-        # TODO
-        # logging.TRACE: getattr(args, "logging_trace", False),
-        logging.INFO: True,  # Info is always on
-    }
-    val = 99999
-    for level_value, enabled in log_levels.items():
-        if level_value < val and enabled:
-            val = level_value
-
-    return logging.getLevelName(val)
+        return logging.getLevelName(val)
 
 
 if __name__ == "__main__":
-    run()
+    # TODO Revisit all exception handling: ValueError vs. exit() calls
+    # Methods should throw exceptions, exit should be handled in this method
+    ydt = YarnDevTools()
+    ydt.parse_args_and_execute()
