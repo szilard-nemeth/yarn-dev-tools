@@ -127,7 +127,7 @@ All common environment variables are used from a class called [CdswEnvVar](https
 | TEST_EXECUTION_MODE                         | Project       | No         | cloudera                              | Test execution mode. Can take values of `TestExecMode` enum. For CDSW, it should be always set to `TestExecMode.CLOUDERA`                                                                                                                         |
 | PYTHON_MODULE_MODE                         | Project       | No         | user                                  | Python module mode. Can take values of `user` and `global`. For CDSW, it should be always set to `user`.                                                                                                                                          |
 | INSTALL_REQUIREMENTS                         | Project       | No         | True                                  | Whether to run the [install-requirements.sh](https://github.com/szilard-nemeth/yarn-dev-tools/blob/fb3473ba7d92c96baf8788ef850e4527c5a0cb3a/yarndevtools/cdsw/scripts/install-requirements.sh) script. Do not modify unless absolutely necessary! |
-| RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED                         | Project       | No         | False                                 | Only used for testing                                                                                                                                                                                                                             |
+| RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED                         | Project       | No         | False                                 | Only used for testing                                                                                                                                                                                                                             | 
                                                                                                                                            |
 
 
@@ -137,72 +137,26 @@ All common environment variables are used from a class called [CdswEnvVar](https
 Corresponding class: [UnitTestResultFetcherEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L80-L83)
 Some of these env vars are declared in a class called [CdswEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L15-L32)
 
-| Name                              | Level        | Mandatory? | Description                                                                  |
-|-----------------------------------|--------------|------------|------------------------------------------------------------------------------|
-| JENKINS_USER                      | Only for job | Yes        | User name for Cloudera Jenkins API access.  |
-| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access.                                    |
-| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
-| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
-| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
-| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
-| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+| Name             | Level        | Mandatory? | Description                                                                  |
+|------------------|--------------|------------|------------------------------------------------------------------------------|
+| JENKINS_USER     | Only for job | Yes        | User name for Cloudera Jenkins API access.  |
+| JENKINS_PASSWORD | Only for job | Yes        | Password for Cloudera Jenkins API access.                                    |
+| TODO             | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+| TODO | TODO |         |                                      |
+| TODO | TODO |         |                                      |
+| TODO | TODO |         |                                      |
+| TODO | TODO |         |                                      |
 
 
-    BUILD_PROCESSING_LIMIT = "BUILD_PROCESSING_LIMIT" --request-limit
-    FORCE_SENDING_MAIL = "FORCE_SENDING_MAIL" -->  args.force_send_email
-    RESET_JOB_BUILD_DATA = "RESET_JOB_BUILD_DATA"  --reset-job-build-data-for-jobs
+### Environment variables for job: Branch comparator
 
+Corresponding class: [BranchComparatorEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L35-L38)
 
-
-## CDSW environment variables
-Unit test result reporting
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
-
-Reviewsync
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
-
-Review sheet backport updater
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
-
-Unit test result aggregator
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
-
-Downstream branchdiff reporting
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
-
-Jira umbrella checker reporting
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
-
-Jira umbrella checker reporting
-
-| Name | Value |
-|------|-------|
-| x    | y     |
-| x    | y     |
+| Name                       | Level        | Mandatory? | Default value                      | Description                           |
+|----------------------------|--------------|------------|:-----------------------------------|---------------------------------------|
+| BRANCH_COMP_FEATURE_BRANCH | Only for job | No         | origin/CDH-7.1-maint               | Name of the feature branch            |
+| BRANCH_COMP_MASTER_BRANCH  | Only for job | Yes        | origin/cdpd-master                 | Name of the master branch             |
+| BRANCH_COMP_REPO_TYPE      | Only for job | Yes        | downstream (`RepoType.DOWNSTREAM`) | Repository type. Can take a value of `RepoType` |
 
 
 
