@@ -175,17 +175,15 @@ For legacy reasons, Jenkins-related env vars are declared in the class called [C
 
 Corresponding class: [BranchComparatorEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L35-L38)
 
-| Name                       | Level        | Mandatory? | Default value                      | Description                           |
-|----------------------------|--------------|------------|:-----------------------------------|---------------------------------------|
-| BRANCH_COMP_FEATURE_BRANCH | Only for job | No         | origin/CDH-7.1-maint               | Name of the feature branch            |
-| BRANCH_COMP_MASTER_BRANCH  | Only for job | Yes        | origin/cdpd-master                 | Name of the master branch             |
-| BRANCH_COMP_REPO_TYPE      | Only for job | Yes        | downstream (`RepoType.DOWNSTREAM`) | Repository type. Can take a value of `RepoType` |
-
-
+| Name                       | Mandatory? | Default value                      | Actual value         | Description                                     |
+|----------------------------|------------|:-----------------------------------|:---------------------|-------------------------------------------------|
+| BRANCH_COMP_FEATURE_BRANCH | No         | origin/CDH-7.1-maint               | origin/CDH-7.1-maint | Name of the feature branch                      |
+| BRANCH_COMP_MASTER_BRANCH  | No         | origin/cdpd-master                 | origin/cdpd-master   | Name of the master branch                       |
+| BRANCH_COMP_REPO_TYPE      | No         | downstream (`RepoType.DOWNSTREAM`) |                      | Repository type. Can take a value of `RepoType` |
 
 ### Environment variables for job: Review sheet backport updater
 
-Corresponding class: [https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L45-L52](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L45-L52)
+Corresponding class: [ReviewSheetBackportUpdaterEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L45-L52)
 
 | Name                      | Mandatory? | Default value | Actual value                                                                                                              | Description                                                                                        |
 |---------------------------|------------|:--------------|:--------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
@@ -193,11 +191,24 @@ Corresponding class: [https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484
 | GSHEET_SPREADSHEET        | Yes        | N/A           | "YARN/MR Reviews"	                                                                                                        | Name of the Google Sheets to work on                                                               |
 | GSHEET_WORKSHEET          | Yes        | N/A           | "Reviews done"		                                                                                                          | Name of the Google Sheets worksheet to work on                                                     |
 | GSHEET_JIRA_COLUMN        | Yes        | N/A           | "JIRA"	                                                                                                                   | Name of the column that contains Jira issue IDs in the Google Sheets spreadsheet                   |
-| GSHEET_UPDATE_DATE_COLUMN | No         | N/A           | "Last Updated"		                                                                                                          | Name of the column where this script will store last updated date in the Google Sheets spreadsheet |
-| GSHEET_STATUS_INFO_COLUMN | No         | N/A           | "Backported"	                                                                                                             | Name of the column where this script will store patch status info in the Google Sheets spreadsheet |
-| BRANCHES                  | No         | N/A           | origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x origin/CDH-7.1.7.1057 origin/CDH-7.1.7.2000 origin/CDH-7.1.8.x | Check backports against these branches. Values should be separated by space.                       |
+| GSHEET_UPDATE_DATE_COLUMN | Yes         | N/A           | "Last Updated"		                                                                                                          | Name of the column where this script will store last updated date in the Google Sheets spreadsheet |
+| GSHEET_STATUS_INFO_COLUMN | Yes         | N/A           | "Backported"	                                                                                                             | Name of the column where this script will store patch status info in the Google Sheets spreadsheet |
+| BRANCHES                  | Yes         | N/A           | origin/CDH-7.1-maint origin/cdpd-master origin/CDH-7.1.6.x origin/CDH-7.1.7.1057 origin/CDH-7.1.7.2000 origin/CDH-7.1.8.x | Check backports against these branches. Values should be separated by space.                       |
 
 
+### Environment variables for job: Reviewsync
+
+Corresponding class: [ReviewSyncEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L55-L62)
+
+| Name                      | Mandatory? | Default value | Actual value                                                                                                    | Description                                                                                        |
+|---------------------------|------------|:--------------|:----------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| GSHEET_CLIENT_SECRET      | Yes        | N/A           | /home/cdsw/.secret/projects/cloudera/hadoop-reviewsync/client_secret_service_account_snemeth_cloudera_com.json	 | Path to the Google Sheets client secret file. Used for authenticating with Google Sheets.          |
+| GSHEET_SPREADSHEET        | Yes        | N/A           | "YARN/MR Reviews"	                                                                                              | Name of the Google Sheets to work on                                                               |
+| GSHEET_WORKSHEET          | Yes        | N/A           | Incoming		                                                                                                      | Name of the Google Sheets worksheet to work on                                                     |
+| GSHEET_JIRA_COLUMN        | Yes        | N/A           | "JIRA"	                                                                                                         | Name of the column that contains Jira issue IDs in the Google Sheets spreadsheet                   |
+| GSHEET_UPDATE_DATE_COLUMN | Yes        | N/A           | "Last Updated"		                                                                                                | Name of the column where this script will store last updated date in the Google Sheets spreadsheet |
+| GSHEET_STATUS_INFO_COLUMN | Yes         | N/A           | "Reviewsync"	                                                                                                   | Name of the column where this script will store patch status info in the Google Sheets spreadsheet |
+| BRANCHES                  | Yes         | N/A           | branch-3.2 branch-3.1                                                                                           | List of branches to apply patches that are targeted to trunk. Values should be separated by space. |
 
 # Use-cases
 
