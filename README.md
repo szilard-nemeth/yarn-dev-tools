@@ -108,6 +108,39 @@ Note: The individual CDSW jobs should make sure for themselves to clone the repo
 | Review sheet backport updater | scripts/start_job.py    | review-sheet-backport-updater |
 | Reviewsync                    | scripts/start_job.py    | reviewsync                    |
 
+
+### More details for the internals of the `initial-cdsw-setup.sh` script
+The two provided arguments `user` and `cloudera` corresponds to: 
+```
+PYTHON_MODULE_MODE=user
+EXEC_MODE=cloudera
+```
+
+In any case, the script that download the Hadoop repos (either upstream or downstream) are downloaded from https://github.com/szilard-nemeth/yarn-dev-tools.
+See [this code block](https://github.com/szilard-nemeth/yarn-dev-tools/blob/2b9bb40684363046b2eac35922f04ec54d9868b8/yarndevtools/cdsw/scripts/initial-cdsw-setup.sh#L49-L57) for details.
+
+`PYTHON_MODULE_MODE` can be set to `user` or `global`. It controls if the Python package should be installed globally or just for the user.
+See [this code block](https://github.com/szilard-nemeth/yarn-dev-tools/blob/2b9bb40684363046b2eac35922f04ec54d9868b8/yarndevtools/cdsw/scripts/initial-cdsw-setup.sh#L87-L100) for more details.
+
+`EXEC_MODE` controls just one thing: the downstream Hadoop repo will only be downloaded if `EXEC_MODE` is set to `cloudera`.
+
+The script called `install-requirements.sh` will be executed.
+What does the `install-requirements.sh` do?
+1. Uninstalls the `yarn-dev-tools` python package
+2. Installs the `yarn-dev-tools` python package
+
+Installation details can be found [here](https://github.com/szilard-nemeth/yarn-dev-tools/blob/bea94275ef96889c95f35855ccc6984709520902/yarndevtools/cdsw/scripts/install-requirements.sh#L48-L70)
+As you can see in this code block, the env var called `YARNDEVTOOLS_VERSION` controls how the package should be installed.
+As the current setup, `YARNDEVTOOLS_VERSION=repo` (set as env var in CDSW / Project Settings / Advanced), therefore the package will be installed from the github.com repository, with command:
+```
+pip3 install git+https://github.com/szilard-nemeth/yarn-dev-tools.git@cloudera-mirror-version
+```
+
+See https://jira.cloudera.com/browse/COMPX-17121 for detailed execution logs.
+
+
+
+
 ## CDSW environment variables
 
 ### Common environment variables for CDSW jobs
@@ -220,35 +253,6 @@ Corresponding class: [ReviewSyncEnvVar](https://github.com/szilard-nemeth/yarn-d
 | ENV_HADOOP_DEV_DIR             | Yes        | N/A           | YarnDevToolsEnvVar      | Alias of `HADOOP_DEV_DIR`, see CDSW env vars above                                                                                                                                                                                                                                                                                                                                      |
 | YARNDEVTOOLS_VERSION             | Yes        | repo          | N/A (script)            | Used by script `install-requirements.sh`. See [this function](https://github.com/szilard-nemeth/yarn-dev-tools/blob/5e40c8e626a770bce266e9596bf7c7f94ef0ece1/yarndevtools/cdsw/scripts/install-requirements.sh#L48-L70) for details. Special value of `latest` means using the most recent pypi version. Special value of `repo` means use the most recent version from the repository. |
 
-
-### More details for the internals of the `initial-cdsw-setup.sh` script
-The two provided arguments `user` and `cloudera` corresponds to: 
-```
-PYTHON_MODULE_MODE=user
-EXEC_MODE=cloudera
-```
-
-In any case, the script that download the Hadoop repos (either upstream or downstream) are downloaded from https://github.com/szilard-nemeth/yarn-dev-tools.
-See [this code block](https://github.com/szilard-nemeth/yarn-dev-tools/blob/2b9bb40684363046b2eac35922f04ec54d9868b8/yarndevtools/cdsw/scripts/initial-cdsw-setup.sh#L49-L57) for details.
-
-`PYTHON_MODULE_MODE` can be set to `user` or `global`. It controls if the Python package should be installed globally or just for the user.
-See [this code block](https://github.com/szilard-nemeth/yarn-dev-tools/blob/2b9bb40684363046b2eac35922f04ec54d9868b8/yarndevtools/cdsw/scripts/initial-cdsw-setup.sh#L87-L100) for more details.
-
-`EXEC_MODE` controls just one thing: the downstream Hadoop repo will only be downloaded if `EXEC_MODE` is set to `cloudera`.
-
-The script called `install-requirements.sh` will be executed.
-What does the `install-requirements.sh` do?
-1. Uninstalls the `yarn-dev-tools` python package
-2. Installs the `yarn-dev-tools` python package
-
-Installation details can be found [here](https://github.com/szilard-nemeth/yarn-dev-tools/blob/bea94275ef96889c95f35855ccc6984709520902/yarndevtools/cdsw/scripts/install-requirements.sh#L48-L70)
-As you can see in this code block, the env var called `YARNDEVTOOLS_VERSION` controls how the package should be installed.
-As the current setup, `YARNDEVTOOLS_VERSION=repo` (set as env var in CDSW / Project Settings / Advanced), therefore the package will be installed from the github.com repository, with command:
-```
-pip3 install git+https://github.com/szilard-nemeth/yarn-dev-tools.git@cloudera-mirror-version
-```
-
-See https://jira.cloudera.com/browse/COMPX-17121 for detailed execution logs.
 
 # Use-cases
 
