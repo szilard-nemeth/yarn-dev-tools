@@ -3,6 +3,7 @@ import os
 import sys
 
 # THESE FUNCTION DEFINITIONS AND CALL TO fix_pythonpast MUST PRECEDE THE IMPORT OF libreloader: from libreloader import reload_dependencies
+# TODO same as CdswEnvVar.PYTHONPATH --> Migrate
 PYTHONPATH_ENV_VAR = "PYTHONPATH"
 
 

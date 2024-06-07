@@ -107,6 +107,105 @@ Note: The individual CDSW jobs should make sure for themselves to clone the repo
 | Review sheet backport updater                                          | scripts/start_job.py | review-sheet-backport-updater |
 | Reviewsync                                                             | scripts/start_job.py | reviewsync                    |
 
+## CDSW environment variables
+
+### Common environment variables for CDSW jobs
+All common environment variables are used from a class called [CdswEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L15-L32)
+
+| Name                               | Level         | Mandatory? | Default value                         | Description                                                                                                                                                                                                                                       |
+|------------------------------------|---------------|------------|:--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| MAIL_ACC_USER                      | Project       | Yes        | N/A                                   | Username for the Gmail account that is being used for sending emails                                                                                                                                                                              |
+| MAIL_ACC_PASSWORD                  | Project       | Yes        | N/A                                   | Password for the Gmail account that is being used for sending emails                                                                                                                                                                              |
+| MAIL_RECIPIENTS                    | Project or Job | No         | yarn_eng_bp@cloudera.com              | Comma separated email addresses to send emails to. If not specified, the YARN mailing list is the default: yarn_eng_bp@cloudera.com<br/> Can be specified on Job-level, too                                                                       |
+| ENABLE_GOOGLE_DRIVE_INTEGRATION    | Project or Job | No         | True                                  | Whether to enable Google Drive integration for saving result files.                                                                                                                                                                               |
+| DEBUG_ENABLED                      | Project or Job | No         | Job-level default                     | Whether to enable debug mode for yarndevtools commands. Adds the `--debug` switch to CLI commands. Accepted values: True, False                                                                                                                   |
+| OVERRIDE_SCRIPT_BASEDIR            | Project       | No         | N/A                                   | Option to change the scripts dir for CDSW jobs. Do not modify unless absolutely necessary!                                                                                                                                                        |
+| ENABLE_LOGGER_HANDLER_SANITY_CHECK | Project or Job | No         | True                                  | Whether to enable sanity checking the number of loggers after first logger initialization. Can be disabled if errors come up during logger setup.                                                                                                 |
+| CLOUDERA_HADOOP_ROOT               | Project       | Yes        | <CDSW_BASEDIR>/repos/cloudera/hadoop/ | Downstream repository path for Hadoop. [Auto set for CDSW](https://github.com/szilard-nemeth/yarn-dev-tools/blob/5c1f23a0bf74c46b76efe3739920fd299fc9d6c6/yarndevtools/cdsw/cdsw_common.py#L134-L139)                                             |
+| HADOOP_DEV_DIR                     | Project       | Yes        | <CDSW_BASEDIR>/repos/apache/hadoop/   | Upstream repository path for Hadoop. [Auto set for CDSW](https://github.com/szilard-nemeth/yarn-dev-tools/blob/5c1f23a0bf74c46b76efe3739920fd299fc9d6c6/yarndevtools/cdsw/cdsw_common.py#L134-L139)                                               |
+| PYTHONPATH                         | Project       | No         | $PYTHONPATH:/home/cdsw/scripts        | Tweaked PYTHONPATH, to correctly reload python dependencies. Do not modify unless absolutely necessary!                                                                                                                                           |
+| TEST_EXECUTION_MODE                         | Project       | No         | cloudera                              | Test execution mode. Can take values of `TestExecMode` enum. For CDSW, it should be always set to `TestExecMode.CLOUDERA`                                                                                                                         |
+| PYTHON_MODULE_MODE                         | Project       | No         | user                                  | Python module mode. Can take values of `user` and `global`. For CDSW, it should be always set to `user`.                                                                                                                                          |
+| INSTALL_REQUIREMENTS                         | Project       | No         | True                                  | Whether to run the [install-requirements.sh](https://github.com/szilard-nemeth/yarn-dev-tools/blob/fb3473ba7d92c96baf8788ef850e4527c5a0cb3a/yarndevtools/cdsw/scripts/install-requirements.sh) script. Do not modify unless absolutely necessary! |
+| RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED                         | Project       | No         | False                                 | Only used for testing                                                                                                                                                                                                                             |
+                                                                                                                                           |
+
+
+
+### Environment variables for job: Unit test result reporting
+
+Corresponding class: [UnitTestResultFetcherEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L80-L83)
+Some of these env vars are declared in a class called [CdswEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L15-L32)
+
+| Name                              | Level        | Mandatory? | Description                                                                  |
+|-----------------------------------|--------------|------------|------------------------------------------------------------------------------|
+| JENKINS_USER                      | Only for job | Yes        | User name for Cloudera Jenkins API access.  |
+| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access.                                    |
+| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+| JENKINS_PASSWORD                  | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
+
+
+    BUILD_PROCESSING_LIMIT = "BUILD_PROCESSING_LIMIT" --request-limit
+    FORCE_SENDING_MAIL = "FORCE_SENDING_MAIL" -->  args.force_send_email
+    RESET_JOB_BUILD_DATA = "RESET_JOB_BUILD_DATA"  --reset-job-build-data-for-jobs
+
+
+
+## CDSW environment variables
+Unit test result reporting
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+Reviewsync
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+Review sheet backport updater
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+Unit test result aggregator
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+Downstream branchdiff reporting
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+Jira umbrella checker reporting
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+Jira umbrella checker reporting
+
+| Name | Value |
+|------|-------|
+| x    | y     |
+| x    | y     |
+
+
+
 # Use-cases
 
 
