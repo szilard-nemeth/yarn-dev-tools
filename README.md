@@ -161,18 +161,15 @@ Corresponding class: [UnitTestResultAggregatorEmailEnvVar](https://github.com/sz
 ### Environment variables for job: Unit test result fetcher
 
 Corresponding class: [UnitTestResultFetcherEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L80-L83)
-Some of these env vars are declared in a class called [CdswEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L15-L32)
+For legacy reasons, Jenkins-related env vars are declared in the class called [CdswEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L15-L32).
 
-| Name             | Level        | Mandatory? | Description                                                                  |
-|------------------|--------------|------------|------------------------------------------------------------------------------|
-| JENKINS_USER     | Only for job | Yes        | User name for Cloudera Jenkins API access.  |
-| JENKINS_PASSWORD | Only for job | Yes        | Password for Cloudera Jenkins API access.                                    |
-| TODO             | Only for job | Yes        | Password for Cloudera Jenkins API access                                     |
-| TODO | TODO |         |                                      |
-| TODO | TODO |         |                                      |
-| TODO | TODO |         |                                      |
-| TODO | TODO |         |                                      |
-
+| Name                   | Mandatory? | Default value | Actual value        | Description                                                                       |
+|------------------------|------------|:--------------|:--------------------|-----------------------------------------------------------------------------------|
+| JENKINS_USER           | Yes        | N/A           | snemeth             | User name for Cloudera Jenkins API access.                                        |
+| JENKINS_PASSWORD       | Yes        | N/A           | <password ommitted> | Password for Cloudera Jenkins API access.                                         |
+| BUILD_PROCESSING_LIMIT | No         | 999           | 999                 | Limit the number of Jenkins builds to fetch                                       |
+| FORCE_SENDING_MAIL     | No         | False         | False               | Force sending email for all Jenkins runs even they sent out earlier               |
+| RESET_JOB_BUILD_DATA   | No         | False         | False               | Reset job build data for specified jobs. Useful when job build data is corrupted. |
 
 ### Environment variables for job: Branch comparator
 

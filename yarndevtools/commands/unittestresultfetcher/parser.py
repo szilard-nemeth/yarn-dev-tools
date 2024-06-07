@@ -131,7 +131,7 @@ class UnitTestResultFetcherParser:
             "--request-limit",
             type=int,
             dest="req_limit",
-            help="Request limit",
+            help="Limiting the number of builds to fetch governed by this number",
             default=999,
         )
 
