@@ -98,14 +98,14 @@ Note: The individual CDSW jobs should make sure for themselves to clone the repo
 
 4. All you have to do in CDSW is to set up the projects and their starter scripts like this:
 
-| Project                                                                | Starter script location         | Arguments for script          |
-|------------------------------------------------------------------------|---------------------------------|-------------------------------|
-| Jira umbrella data fetcher (Formerly: Jira umbrella checker reporting) | scripts/start_job.py            | jira-umbrella-data-fetcher    |
-| Unit test result aggregator                                            | scripts/start_job.py            | unit-test-result-aggregator   |
-| Unit test result fetcher (Formerly: Unit test result reporting)        | scripts/start_job.py            | unit-test-result-fetcher      |
-| Branch comparator (Formerly: Downstream branchdiff reporting)          | scripts/start_job.py            | branch-comparator             |
-| Review sheet backport updater                                          | scripts/start_job.py | review-sheet-backport-updater |
-| Reviewsync                                                             | scripts/start_job.py | reviewsync                    |
+| Project                       | Starter script location | Arguments for script          |
+|-------------------------------|-------------------------|-------------------------------|
+| Jira umbrella data fetcher    | scripts/start_job.py    | jira-umbrella-data-fetcher    |
+| Unit test result aggregator   | scripts/start_job.py    | unit-test-result-aggregator   |
+| Unit test result fetcher      | scripts/start_job.py    | unit-test-result-fetcher      |
+| Branch comparator             | scripts/start_job.py    | branch-comparator             |
+| Review sheet backport updater | scripts/start_job.py    | review-sheet-backport-updater |
+| Reviewsync                    | scripts/start_job.py    | reviewsync                    |
 
 ## CDSW environment variables
 
@@ -130,9 +130,17 @@ All common environment variables are used from a class called [CdswEnvVar](https
 | RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED                         | Project       | No         | False                                 | Only used for testing                                                                                                                                                                                                                             | 
                                                                                                                                            |
 
+### Environment variables for job: Jira umbrella data fetcher
+
+Corresponding class: [JiraUmbrellaFetcherEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L41-L43)
+
+| Name             | Level        | Mandatory? | Description                               |
+|------------------|--------------|------------|-------------------------------------------|
+| UMBRELLA_IDS     | Only for job | Yes        | Comma separated list of umbrella Jira IDs |
 
 
-### Environment variables for job: Unit test result reporting
+
+### Environment variables for job: Unit test result fetcher
 
 Corresponding class: [UnitTestResultFetcherEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L80-L83)
 Some of these env vars are declared in a class called [CdswEnvVar](https://github.com/szilard-nemeth/yarn-dev-tools/blob/b484daffde3c6f70dc3dab71f92150738855d668/yarndevtools/cdsw/constants.py#L15-L32)
