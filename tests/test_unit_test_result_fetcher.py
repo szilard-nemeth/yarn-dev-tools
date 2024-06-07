@@ -27,7 +27,6 @@ from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import
     UnitTestResultFetcher,
     Email,
     CacheConfig,
-    UnitTestResultFetcherCacheType,
     EmailConfig,
 )
 from yarndevtools.commands.unittestresultfetcher.jenkins import JenkinsJobUrls, JenkinsApi, DownloadProgress
