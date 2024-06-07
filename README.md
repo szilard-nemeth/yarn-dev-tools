@@ -69,21 +69,22 @@ After these steps, you will have a basic set of aliases that is enough to get yo
 # Setting up yarn-dev-tools with Cloudera CDSW
 
 ## Initial setup
-1. Upload the initial setup scripts to the CDSW files, to the root directory (/home/cdsw)
+1. Check out the branch 'cloudera-mirror-version'
+2. Upload the initial setup scripts to the CDSW files, to the root directory (/home/cdsw). <br/>You can do this by drag & drop, after choosing "Files" from the left-hand side menu. 
 - [initial-cdsw-setup.sh](yarndevtools/cdsw/scripts/initial-cdsw-setup.sh)
 - [install-requirements.sh](yarndevtools/cdsw/scripts/install-requirements.sh)
 
-2. Create a new CDSW session.
+3. Create and launch new CDSW session.
 Wait for the session to be launched and open up a terminal by Clicking "Terminal access" on the top menu bar.
 
 
-3. Execute this command:
+3. Execute this command in the CLI:
 ```
 ~/initial-cdsw-setup.sh user cloudera
 ```
 
 
-The script performs the following actions: 
+The `initial-cdsw-setup.sh` script performs the following actions: 
 1. Downloads the scripts that are cloning the upstream and downstream Hadoop repositories + installing yarndevtools itself as a python module.
 The download location is: `/home/cdsw/scripts`<br>
 Please note that the files will be downloaded from the GitHub master branch of this repository!
@@ -96,7 +97,7 @@ Note: The individual CDSW jobs should make sure for themselves to clone the repo
 
 3. Copies the [python-based job configs](yarndevtools/cdsw/job_configs) for all jobs to `/home/cdsw/jobs`
 
-4. All you have to do in CDSW is to set up the projects and their starter scripts like this:
+4. After this, all you have to do in CDSW is to set up the projects and their starter scripts like this:
 
 | Project                       | Starter script location | Arguments for script          |
 |-------------------------------|-------------------------|-------------------------------|
@@ -220,6 +221,34 @@ Corresponding class: [ReviewSyncEnvVar](https://github.com/szilard-nemeth/yarn-d
 | YARNDEVTOOLS_VERSION             | Yes        | repo          | N/A (script)            | Used by script `install-requirements.sh`. See [this function](https://github.com/szilard-nemeth/yarn-dev-tools/blob/5e40c8e626a770bce266e9596bf7c7f94ef0ece1/yarndevtools/cdsw/scripts/install-requirements.sh#L48-L70) for details. Special value of `latest` means using the most recent pypi version. Special value of `repo` means use the most recent version from the repository. |
 
 
+### More details for the internals of the `initial-cdsw-setup.sh` script
+The two provided arguments `user` and `cloudera` corresponds to: 
+```
+PYTHON_MODULE_MODE=user
+EXEC_MODE=cloudera
+```
+
+In any case, the script that download the Hadoop repos (either upstream or downstream) are downloaded from https://github.com/szilard-nemeth/yarn-dev-tools.
+See [this code block](https://github.com/szilard-nemeth/yarn-dev-tools/blob/2b9bb40684363046b2eac35922f04ec54d9868b8/yarndevtools/cdsw/scripts/initial-cdsw-setup.sh#L49-L57) for details.
+
+`PYTHON_MODULE_MODE` can be set to `user` or `global`. It controls if the Python package should be installed globally or just for the user.
+See [this code block](https://github.com/szilard-nemeth/yarn-dev-tools/blob/2b9bb40684363046b2eac35922f04ec54d9868b8/yarndevtools/cdsw/scripts/initial-cdsw-setup.sh#L87-L100) for more details.
+
+`EXEC_MODE` controls just one thing: the downstream Hadoop repo will only be downloaded if `EXEC_MODE` is set to `cloudera`.
+
+The script called `install-requirements.sh` will be executed.
+What does the `install-requirements.sh` do?
+1. Uninstalls the `yarn-dev-tools` python package
+2. Installs the `yarn-dev-tools` python package
+
+Installation details can be found [here](https://github.com/szilard-nemeth/yarn-dev-tools/blob/bea94275ef96889c95f35855ccc6984709520902/yarndevtools/cdsw/scripts/install-requirements.sh#L48-L70)
+As you can see in this code block, the env var called `YARNDEVTOOLS_VERSION` controls how the package should be installed.
+As the current setup, `YARNDEVTOOLS_VERSION=repo` (set as env var in CDSW / Project Settings / Advanced), therefore the package will be installed from the github.com repository, with command:
+```
+pip3 install git+https://github.com/szilard-nemeth/yarn-dev-tools.git@cloudera-mirror-version
+```
+
+See https://jira.cloudera.com/browse/COMPX-17121 for detailed execution logs.
 
 # Use-cases
 
