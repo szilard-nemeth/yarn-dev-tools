@@ -82,7 +82,7 @@ if [[ "$EXEC_MODE" == "cloudera" ]]; then
   $CLONE_DS_REPOS_SCRIPT_PATH
 fi
 
-. $INSTALL_REQUIREMENTS_SCRIPT_PATH $EXEC_MODE
+. $INSTALL_REQUIREMENTS_SCRIPT_PATH
 
 # =================================================================
 # Set up python package root

@@ -69,22 +69,9 @@ function install-yarndevtools {
   pip3 show yarn-dev-tools
 }
 
-function parse-args {
-  echo $@
-  if [ $# -ne 1 ]; then
-      echo "Usage: $0 <execution mode>"
-      echo "Example: $0 cloudera --> Uses execution mode: 'cloudera'"
-      echo "Example: $0 upstream --> Uses execution mode: 'upstream'"
-      exit 1
-  fi
-  EXEC_MODE="$1"
-}
-
-
 
 ##################################################################################
 set -x
-parse-args "$@"
 uninstall-yarndevtools
 remove-deps
 manually-delete-yarndevtools
