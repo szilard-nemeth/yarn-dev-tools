@@ -17,7 +17,7 @@ exclude = '''
 
 [tool.poetry]
 name = "yarn-dev-tools"
-version = "2.0.2"
+version = "2.0.3"
 description = ""
 authors = ["Szilard Nemeth <szilard.nemeth88@gmail.com>"]
 keywords = ["YARN", "development", "dev environment"]
