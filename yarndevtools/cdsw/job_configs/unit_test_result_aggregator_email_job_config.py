@@ -28,7 +28,7 @@ config = {
         "SKIP_AGGREGATION_RESOURCE_FILE",
         "SKIP_AGGREGATION_RESOURCE_FILE_AUTO_DISCOVERY",
     ],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         lambda conf: f"{Include.when('True' == conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.UNIT_TEST_RESULT_AGGREGATOR.name}",
         lambda conf: f"--{conf.var('execMode')}",
@@ -86,7 +86,7 @@ config = {
                 "enabled": True,
                 "file_name": lambda conf: f"{conf.var('commandDataFileName')}",
             },
-            "yarn_dev_tools_arguments": [],
+            "main_script_arguments": [],
         }
     ],
 }

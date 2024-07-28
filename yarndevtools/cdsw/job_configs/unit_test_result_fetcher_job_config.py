@@ -15,7 +15,7 @@ config = {
     "env_sanitize_exceptions": [],
     "mandatory_env_vars": ["MAIL_ACC_USER", "MAIL_ACC_PASSWORD", "JENKINS_USER", "JENKINS_PASSWORD"],
     "optional_env_vars": ["BUILD_PROCESSING_LIMIT", "FORCE_SENDING_MAIL", "RESET_JOB_BUILD_DATA"],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.UNIT_TEST_RESULT_FETCHER.name}",
         lambda conf: f"--smtp_server {conf.var('smtp_server')}",
@@ -84,7 +84,7 @@ config = {
                 "enabled": True,
                 "file_name": lambda conf: f"{conf.var('commandDataFileName')}",
             },
-            "yarn_dev_tools_arguments": [],
+            "main_script_arguments": [],
         }
     ],
 }

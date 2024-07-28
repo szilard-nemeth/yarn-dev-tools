@@ -487,6 +487,7 @@ class GoogleFileDownloader:
             report_file_tmp_path = os.path.join(tmp, "report.json")
             FileUtils.write_bytesio_to_file(report_file_tmp_path, downloaded_file)
             report_json = JsonFileUtils.load_data_from_json_file(report_file_tmp_path)
+            # TODO unresolved attribute reference: self.file_cache
             report_file_path = self.file_cache.save_report(report_json, key)
             creation_date = DateUtils.convert_to_datetime(drive_api_file.created_date, DATEFORMAT_GOOGLE_DRIVE)
         return creation_date, report_file_path

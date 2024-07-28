@@ -27,7 +27,7 @@ def generate_runs(conf):
                 "enabled": True,
                 "file_name": f"{conf.var('commandDataFileName' + str(idx + 1))}",
             },
-            "yarn_dev_tools_arguments": [
+            "main_script_arguments": [
                 lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
                 f"{CommandType.BRANCH_COMPARATOR.name}",
                 algorithm,
@@ -52,7 +52,7 @@ config = {
         "MAIL_ACC_PASSWORD",
     ],
     "optional_env_vars": ["BRANCH_COMP_REPO_TYPE", "BRANCH_COMP_FEATURE_BRANCH", "BRANCH_COMP_MASTER_BRANCH"],
-    "yarn_dev_tools_arguments": [],
+    "main_script_arguments": [],
     "global_variables": {
         "sender": "YARN branch diff reporter",
         "debugMode": lambda conf: conf.env_or_default(CdswEnvVar.DEBUG_ENABLED.value, True),

@@ -6,7 +6,7 @@ config = {
     "command_type": CommandType.REVIEWSYNC,
     "mandatory_env_vars": [],
     "optional_env_vars": [],
-    "yarn_dev_tools_arguments": ["--debug", "REVIEWSYNC", "--gsheet"],
+    "main_script_arguments": ["--debug", "REVIEWSYNC", "--gsheet"],
     "global_variables": {
         "sender": "YARN reviewsync",
         "subject": lambda conf: f"YARN reviewsync report [start date: {conf.job_start_date()}]",
@@ -28,7 +28,7 @@ config = {
                 "enabled": True,
                 "file_name": lambda conf: f"{conf.var('commandDataFileName')}",
             },
-            "yarn_dev_tools_arguments": [],
+            "main_script_arguments": [],
         }
     ],
 }

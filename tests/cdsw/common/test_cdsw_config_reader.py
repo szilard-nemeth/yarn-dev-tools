@@ -322,13 +322,13 @@ class CdswConfigReaderTest(unittest.TestCase):
         self.assertEqual("constant1_v1_constant2_v3_constant3", drive_api_upload_settings.file_name)
         self.assertFalse(drive_api_upload_settings.enabled)
 
-    def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_env_vars(self):
+    def test_config_reader_runconfig_defined_main_script_arguments_env_vars(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_env_vars.py")
+        file = self._get_config_file("cdsw_job_config_runconfig_defined_main_script_arguments_env_vars.py")
         config = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config.runs[0])
-        self.assertIsNotNone(config.runs[0].yarn_dev_tools_arguments)
+        self.assertIsNotNone(config.runs[0].main_script_arguments)
         self.assertEqual(
             [
                 "--debug",
@@ -338,7 +338,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 '--gsheet-spreadsheet "gsheet spreadsheet"',
                 '--gsheet-jira-column "gsheet jira column"',
             ],
-            config.yarn_dev_tools_arguments,
+            config.main_script_arguments,
         )
         self.assertEqual(
             [
@@ -353,12 +353,12 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg3 param1",
                 "--arg4",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
-    def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_regular_vars(self):
+    def test_config_reader_runconfig_defined_main_script_arguments_regular_vars(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_regular_vars.py")
+        file = self._get_config_file("cdsw_job_config_runconfig_defined_main_script_arguments_regular_vars.py")
         config = CdswJobConfigReader.read_from_file(file)
         job_start_date = config.job_start_date()
 
@@ -371,7 +371,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--algo testAlgorithm",
                 f"--command-data-filename command_data_testAlgorithm_{job_start_date}.zip",
             ],
-            config.yarn_dev_tools_arguments,
+            config.main_script_arguments,
         )
         self.assertEqual(
             [
@@ -385,12 +385,12 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg3 param1",
                 "--arg4",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
-    def test_config_reader_runconfig_defined_yarn_dev_tools_arguments_overrides(self):
+    def test_config_reader_runconfig_defined_main_script_arguments_overrides(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_arguments_overrides.py")
+        file = self._get_config_file("cdsw_job_config_runconfig_defined_main_script_arguments_overrides.py")
         config = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config.runs[0])
@@ -403,7 +403,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 '--gsheet-spreadsheet "gsheet spreadsheet"',
                 '--gsheet-jira-column "gsheet jira column"',
             ],
-            config.yarn_dev_tools_arguments,
+            config.main_script_arguments,
         )
         self.assertEqual(
             [
@@ -415,12 +415,12 @@ class CdswConfigReaderTest(unittest.TestCase):
                 '--gsheet-jira-column "gsheet jira column"',
                 "--arg1",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
     def test_config_reader_runconfig_defined_yarn_dev_tools_variable_overrides(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_runconfig_defined_yarn_dev_tools_variable_overrides.py")
+        file = self._get_config_file("cdsw_job_config_runconfig_defined_main_script_arguments_variable_overrides.py")
         config = CdswJobConfigReader.read_from_file(file)
 
         self.assertIsNotNone(config.runs[0])
@@ -434,7 +434,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         ]
         self.assertEqual(
             original_yarndevtools_args,
-            config.yarn_dev_tools_arguments,
+            config.main_script_arguments,
         )
         self.assertEqual(
             original_yarndevtools_args
@@ -445,7 +445,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--testArg4 something+globalValue2",
                 "--testArg5 a new variable",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
     def test_config_reader_two_run_configs_defined_complex(self):
@@ -465,7 +465,7 @@ class CdswConfigReaderTest(unittest.TestCase):
         ]
         self.assertEqual(
             original_yarndevtools_args,
-            config.yarn_dev_tools_arguments,
+            config.main_script_arguments,
         )
         self.assertEqual(
             original_yarndevtools_args
@@ -476,7 +476,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--testArg4 something+globalValue2",
                 "--testArg5 a new variable",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
         self.assertEqual(
@@ -488,7 +488,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--testArg4 var2+globalValue4",
                 "--testArg5 var3",
             ],
-            config.runs[1].yarn_dev_tools_arguments,
+            config.runs[1].main_script_arguments,
         )
 
     def test_config_reader_two_run_configs_with_same_name_not_allowed(self):
@@ -526,12 +526,12 @@ class CdswConfigReaderTest(unittest.TestCase):
                 '--arg5 "env5 env5555"',
                 "--arg6 branch-3.2 branch-3.3",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
-    def test_config_reader_yarn_dev_tools_arguments_with_includes(self):
+    def test_config_reader_main_script_arguments_with_includes(self):
         self._set_mandatory_env_vars()
-        file = self._get_config_file("cdsw_job_config_yarn_dev_tools_arguments_with_includes.py")
+        file = self._get_config_file("cdsw_job_config_main_script_arguments_with_includes.py")
         config = CdswJobConfigReader.read_from_file(file)
 
         self.assertEqual(
@@ -545,10 +545,10 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--force-sending-email",
                 "--cache-type google_drive",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
-    def test_config_reader_yarn_dev_tools_arguments_with_conditional_env_var(self):
+    def test_config_reader_main_script_arguments_with_conditional_env_var(self):
         self._set_mandatory_env_vars()
         os.environ["ENV1"] = "envVal1"
         os.environ["ENV3"] = "envVal3"
@@ -568,7 +568,7 @@ class CdswConfigReaderTest(unittest.TestCase):
                 "--arg3 envVal3",
                 "--arg4 1999",
             ],
-            config.runs[0].yarn_dev_tools_arguments,
+            config.runs[0].main_script_arguments,
         )
 
     def _match_env_var_for_regex(self, config, env_name, regex):

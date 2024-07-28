@@ -19,7 +19,7 @@ config = {
         "BRANCHES",
     ],
     "optional_env_vars": [],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.REVIEWSYNC.name}",
         "--gsheet",
@@ -53,7 +53,7 @@ config = {
                 "enabled": True,
                 "file_name": lambda conf: f"{conf.var('commandDataFileName')}",
             },
-            "yarn_dev_tools_arguments": [],
+            "main_script_arguments": [],
         }
     ],
 }

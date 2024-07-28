@@ -6,7 +6,7 @@ config = {
     "command_type": CommandType.REVIEWSYNC,
     "mandatory_env_vars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
     "optional_env_vars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
-    "yarn_dev_tools_arguments": ["--gsheet-client-secret"],
+    "main_script_arguments": ["--gsheet-client-secret"],
     "global_variables": {"testVar1": "v1", "testVar2": "v2", "testVar3": "v3", "testVar4": "v4"},
     "runs": [
         {
@@ -24,7 +24,7 @@ config = {
                 "file_name": lambda conf: f"constant1_{conf.var('testVar1')}_constant2_{conf.var('testVar3')}_constant3",
             },
             "variables": {},
-            "yarn_dev_tools_arguments": [],
+            "main_script_arguments": [],
         }
     ],
 }

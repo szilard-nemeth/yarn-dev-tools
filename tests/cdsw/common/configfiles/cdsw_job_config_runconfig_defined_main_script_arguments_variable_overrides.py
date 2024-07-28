@@ -6,7 +6,7 @@ config = {
     "command_type": CommandType.REVIEWSYNC,
     "mandatory_env_vars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
     "optional_env_vars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         "--debug",
         "REVIEWSYNC",
         "--gsheet",
@@ -39,7 +39,7 @@ config = {
                 "testGlobal2": lambda conf: f"something+{conf.var('global2')}",
                 "testNewVar1": "a new variable",
             },
-            "yarn_dev_tools_arguments": [
+            "main_script_arguments": [
                 lambda conf: f"--testArg1 {conf.var('algorithm')}",
                 lambda conf: f"--testArg2 {conf.var('commandDataFileName')}",
                 lambda conf: f"--testArg3 {conf.var('testGlobal1')}",

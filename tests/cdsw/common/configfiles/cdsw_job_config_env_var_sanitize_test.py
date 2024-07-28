@@ -14,7 +14,7 @@ config = {
         "BRANCHES",
     ],
     "optional_env_vars": [],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         "--debug",
         "REVIEWSYNC",
         "--gsheet",
@@ -39,7 +39,7 @@ config = {
                 "subject": "subject",
             },
             "drive_api_upload_settings": {"enabled": True, "file_name": "test2"},
-            "yarn_dev_tools_arguments": [],
+            "main_script_arguments": [],
         }
     ],
 }

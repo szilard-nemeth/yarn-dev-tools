@@ -142,7 +142,7 @@ class TestCdswRunner(unittest.TestCase):
     ):
         mock_run1: CdswRun = Mock(spec=CdswRun)
         mock_run1.name = name
-        mock_run1.yarn_dev_tools_arguments = ["--arg1", "--arg2 bla", "--arg3 bla3"]
+        mock_run1.main_script_arguments = ["--arg1", "--arg2 bla", "--arg3 bla3"]
 
         mock_run1.email_settings = None
         mock_run1.drive_api_upload_settings = None

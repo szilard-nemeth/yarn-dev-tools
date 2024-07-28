@@ -6,7 +6,7 @@ config = {
     "command_type": CommandType.REVIEWSYNC,
     "mandatory_env_vars": ["GSHEET_CLIENT_SECRET", "GSHEET_SPREADSHEET", "MAIL_ACC_USER"],
     "optional_env_vars": ["BRANCHES", "GSHEET_JIRA_COLUMN"],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         "--debug",
         "REVIEWSYNC",
         "--gsheet",
@@ -30,7 +30,7 @@ config = {
             },
             "drive_api_upload_settings": {"enabled": False, "file_name": "simple"},
             "variables": {},
-            "yarn_dev_tools_arguments": ["--arg1", "--arg2 param1 param2", "--arg3 param1", "--arg4"],
+            "main_script_arguments": ["--arg1", "--arg2 param1 param2", "--arg3 param1", "--arg4"],
         }
     ],
 }

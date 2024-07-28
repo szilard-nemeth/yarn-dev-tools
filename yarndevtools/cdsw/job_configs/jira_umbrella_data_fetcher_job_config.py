@@ -22,7 +22,7 @@ def generate_runs(conf):
                 "enabled": True,
                 "file_name": f"{conf.var('commandDataFileName')}",
             },
-            "yarn_dev_tools_arguments": [umbrella_id],
+            "main_script_arguments": [umbrella_id],
         }
         for umbrella_id, title in JiraUmbrellaDataFetcherCdswUtils.fetch_umbrella_titles(
             GenericCdswConfigUtils.unquote(conf.var("jiraUmbrellaIds")).split(" ")
@@ -43,7 +43,7 @@ config = {
         "UMBRELLA_IDS",
     ],
     "optional_env_vars": [],
-    "yarn_dev_tools_arguments": [
+    "main_script_arguments": [
         lambda conf: f"{Include.when(conf.var('debugMode'), '--debug', '')}",
         f"{CommandType.JIRA_UMBRELLA_DATA_FETCHER.name}",
         lambda conf: f"--branches {conf.var('branches')}",
