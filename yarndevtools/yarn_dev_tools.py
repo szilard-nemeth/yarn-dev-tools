@@ -24,7 +24,7 @@ __author__ = "Szilard Nemeth"
 from yarndevtools.yarn_dev_tools_config import YarnDevToolsConfig
 
 LOG = logging.getLogger(__name__)
-IGNORE_LATEST_SYMLINK_COMMANDS = {CommandType.ZIP_LATEST_COMMAND_DATA}
+IGNORE_LATEST_SYMLINK_COMMANDS = {}
 
 
 class YarnDevTools:

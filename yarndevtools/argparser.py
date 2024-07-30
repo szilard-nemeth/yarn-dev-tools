@@ -21,7 +21,6 @@ from yarndevtools.commands.unittestresultfetcher.unit_test_result_fetcher import
 from yarndevtools.commands.upstream_jira_patch_differ import UpstreamJiraPatchDiffer
 from yarndevtools.commands.upstream_pr_fetcher import UpstreamPRFetcher
 from yarndevtools.commands.upstreamumbrellafetcher.upstream_jira_umbrella_fetcher import UpstreamJiraUmbrellaFetcher
-from yarndevtools.commands.zip_latest_command_data import ZipLatestCommandData
 
 LOG = logging.getLogger(__name__)
 
@@ -58,7 +57,6 @@ class ArgParser:
         UpstreamJiraPatchDiffer.create_parser(subparsers)
         UpstreamJiraUmbrellaFetcher.create_parser(subparsers)
         BranchComparator.create_parser(subparsers)
-        ZipLatestCommandData.create_parser(subparsers)
         SendLatestCommandDataInEmail.create_parser(subparsers)
         UnitTestResultFetcher.create_parser(subparsers)
         ReviewSheetBackportUpdater.create_parser(subparsers)

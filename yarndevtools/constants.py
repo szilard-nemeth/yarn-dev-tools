@@ -17,9 +17,6 @@ BRANCH_3_3 = "branch-3.3"
 YARN_JIRA_ID_PATTERN = re.compile(r"(YARN-\d+)")
 ANY_JIRA_ID_PATTERN = re.compile(r"([A-Z]+-\d+)")
 
-# Symlink names
-LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
-
 
 class SummaryFile(Enum):
     TXT = "summary.txt"

@@ -218,7 +218,6 @@ class CommandType(Enum):
         "latest-session-jira-umbrella-data-fetcher",
     )
     BRANCH_COMPARATOR = ("branch_comparator", "branch-comparator", True, "latest-session-branchcomparator")
-    ZIP_LATEST_COMMAND_DATA = ("zip_latest_command_data", "zip-latest-command-data", False)
     SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", "send-latest-command-data", False)
     UNIT_TEST_RESULT_FETCHER = ("unit_test_result_fetcher", "unit-test-result-fetcher", False)
 
