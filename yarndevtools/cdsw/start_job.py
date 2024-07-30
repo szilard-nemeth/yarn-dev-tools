@@ -108,6 +108,7 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
     append_arg_and_value("--default-email-recipients", MAIL_ADDR_YARN_ENG_BP)
     append_arg_and_value("--module-name", YARNDEVTOOLS_MODULE_NAME)
     append_arg_and_value("--main-script-name", "yarn_dev_tools.py")
+    append_arg_and_value("--job-preparation-callback", "JobPreparation.execute")
     append_arg_and_value("--env",
                          f"{YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value}={CommonDirs.HADOOP_CLOUDERA_BASEDIR}")
     append_arg_and_value("--env",

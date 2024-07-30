@@ -1,11 +1,13 @@
 import logging
+import os
 from typing import List, Dict
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.os_utils import OsUtils
 
-from yarndevtools.cdsw.constants import UnitTestResultAggregatorEmailEnvVar
+from yarndevtools.cdsw.constants import UnitTestResultAggregatorEmailEnvVar, BranchComparatorEnvVar
+from yarndevtools.common.shared_command_utils import RepoType, CommandType
 from yarndevtools.constants import UPSTREAM_JIRA_BASE_URL
 
 SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.txt"
@@ -112,3 +114,31 @@ class UnitTestResultAggregatorCdswUtils:
         else:
             found_with_auto_discovery = results[0]
         return found_with_auto_discovery
+
+
+class JobPreparation:
+    @staticmethod
+    def execute(cdsw_runner: CdswRunner, job_config: CdswJobConfig, setup_result: CdswSetupResult):
+        basedir = setup_result.basedir
+        if job_config.command_type == CommandType.JIRA_UMBRELLA_DATA_FETCHER.real_name:
+            cdsw_runner.execute_script("clone_downstream_repos.sh")
+            cdsw_runner.execute_script("clone_upstream_repos.sh")
+        elif job_config.command_type == CommandType.BRANCH_COMPARATOR.real_name:
+            repo_type_env = OsUtils.get_env_value(
+                BranchComparatorEnvVar.BRANCH_COMP_REPO_TYPE.value, RepoType.DOWNSTREAM.value
+            )
+            repo_type: RepoType = RepoType[repo_type_env.upper()]
+
+            if repo_type == RepoType.DOWNSTREAM:
+                cdsw_runner.execute_script("clone_downstream_repos.sh")
+            elif repo_type == RepoType.UPSTREAM:
+                # If we are in upstream mode, make sure downstream dir exist
+                # Currently, yarndevtools requires both repos to be present when initializing.
+                # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
+                # Git init the other repository so everything will be alright
+                # TODO cdsw-separation this is suspicious!
+                FileUtils.create_new_dir(cdsw_runner.cdsw_runner_config.hadoop_cloudera_basedir, fail_if_created=False)
+                FileUtils.change_cwd(cdsw_runner.cdsw_runner_config.hadoop_cloudera_basedir)
+                os.system("git init")
+                cdsw_runner.execute_script("clone_upstream_repos.sh")
+
