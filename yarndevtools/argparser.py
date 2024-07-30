@@ -8,7 +8,6 @@ from yarndevtools.commands.patch_saver import PatchSaver
 from yarndevtools.commands.review_branch_creator import ReviewBranchCreator
 from yarndevtools.commands.reviewsheetbackportupdater.review_sheet_backport_updater import ReviewSheetBackportUpdater
 from yarndevtools.commands.reviewsync.reviewsync import ReviewSync
-from yarndevtools.commands.send_latest_command_data_in_mail import SendLatestCommandDataInEmail
 from yarndevtools.commands.unittestresultaggregator.unit_test_result_aggregator import UnitTestResultAggregator
 
 # TODO
@@ -57,7 +56,6 @@ class ArgParser:
         UpstreamJiraPatchDiffer.create_parser(subparsers)
         UpstreamJiraUmbrellaFetcher.create_parser(subparsers)
         BranchComparator.create_parser(subparsers)
-        SendLatestCommandDataInEmail.create_parser(subparsers)
         UnitTestResultFetcher.create_parser(subparsers)
         ReviewSheetBackportUpdater.create_parser(subparsers)
         ReviewSync.create_parser(subparsers)

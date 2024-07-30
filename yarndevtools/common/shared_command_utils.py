@@ -24,9 +24,6 @@ from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME, ANY_JIRA_ID_PATTER
 LOG = logging.getLogger(__name__)
 
 
-class EnvVar(Enum):
-    IGNORE_SMTP_AUTH_ERROR = "IGNORE_SMTP_AUTH_ERROR"
-
 
 class YarnDevToolsTestEnvVar(Enum):
     FORCE_COLLECTING_ARTIFACTS = "FORCE_COLLECTING_ARTIFACTS"
@@ -218,7 +215,6 @@ class CommandType(Enum):
         "latest-session-jira-umbrella-data-fetcher",
     )
     BRANCH_COMPARATOR = ("branch_comparator", "branch-comparator", True, "latest-session-branchcomparator")
-    SEND_LATEST_COMMAND_DATA = ("send_latest_command_data", "send-latest-command-data", False)
     UNIT_TEST_RESULT_FETCHER = ("unit_test_result_fetcher", "unit-test-result-fetcher", False)
 
     UNIT_TEST_RESULT_AGGREGATOR = (
