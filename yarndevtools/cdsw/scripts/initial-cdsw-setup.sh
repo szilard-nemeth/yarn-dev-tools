@@ -53,6 +53,7 @@ SCRIPTS_ROOT="$CDSW_ROOT/scripts"
 rm "$SCRIPTS_ROOT/*"
 mkdir -p $CDSW_ROOT
 mkdir -p $SCRIPTS_ROOT
+# TODO Location of scripts will be different for CDSW
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/scripts/{clone_downstream_repos.sh,clone_upstream_repos.sh} $CDSW_ROOT/scripts
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/start_job.py $CDSW_ROOT/scripts
 cp -R $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/libreloader/ $CDSW_ROOT/scripts/libreloader

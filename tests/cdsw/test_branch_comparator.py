@@ -20,9 +20,6 @@ from pythoncommons.project_utils import (
 
 from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CDSW_DIRNAME, LocalDirs
 from yarndevtools.cdsw.cdsw_common import (
-    CommonDirs,
-    PythonModuleMode,
-    TestExecMode,
     DEFAULT_TEST_EXECUTION_MODE,
 )
 from yarndevtools.cdsw.constants import (

@@ -1,62 +1,133 @@
 #!/usr/bin/env python3
 import os
 import sys
+from argparse import ArgumentParser
+
+from pythoncommons.file_utils import FileUtils
+
+from yarndevtools.cdsw.constants import BranchComparatorEnvVar, JiraUmbrellaFetcherEnvVar, UnitTestResultFetcherEnvVar, \
+    UnitTestResultAggregatorEmailEnvVar, ReviewSheetBackportUpdaterEnvVar, ReviewSyncEnvVar
+from yarndevtools.common.shared_command_utils import CommandType, YarnDevToolsEnvVar
+from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, CDSW_JOB_LAUNCHER_MODULE_ROOT
 
 # THESE FUNCTION DEFINITIONS AND CALL TO fix_pythonpast MUST PRECEDE THE IMPORT OF libreloader: from libreloader import reload_dependencies
 # TODO same as CdswEnvVar.PYTHONPATH --> Migrate
 PYTHONPATH_ENV_VAR = "PYTHONPATH"
+MAIL_ADDR_YARN_ENG_BP = "yarn_eng_bp@cloudera.com"
+POSSIBLE_COMMAND_TYPES = [e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType]
 
 
-def get_pythonpath():
-    return os.environ[PYTHONPATH_ENV_VAR]
+class CommonDirs:
+    CDSW_BASEDIR = FileUtils.join_path("home", "cdsw")
+    HADOOP_UPSTREAM_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "apache", "hadoop")
+    HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CDSW_BASEDIR, "repos", "cloudera", "hadoop")
 
 
-def set_env_value(env, value):
-    os.environ[env] = value
+def append_arg(a):
+    sys.argv.append(a)
 
 
-def add_to_pythonpath(additional_dir):
-    pypath = PYTHONPATH_ENV_VAR
-    if pypath in os.environ:
-        print(f"Old {pypath}: {get_pythonpath()}")
-        set_env_value(pypath, f"{get_pythonpath()}:{additional_dir}")
-        print(f"New {pypath}: {get_pythonpath()}")
-    else:
-        print(f"Old {pypath}: not set")
-        set_env_value(pypath, additional_dir)
-        print(f"New {pypath}: {get_pythonpath()}")
-    sys.path.append(additional_dir)
-    print("Fixed sys.path: " + str(sys.path))
-    print("Fixed PYTHONPATH: " + str(os.environ[pypath]))
+def append_arg_and_value(a, v):
+    sys.argv.append(a)
+    sys.argv.append(v)
 
 
-# Only used script is the libreloader from /home/cdsw/scripts/
-cdsw_home_dir = os.path.join("/home", "cdsw")
-scripts_dir = os.path.join(cdsw_home_dir, "scripts")
-jobs_dir = os.path.join(cdsw_home_dir, "jobs")
-add_to_pythonpath(scripts_dir)
+class ArgParser:
+    @staticmethod
+    def parse_args():
+        parser = ArgumentParser()
+        parser.add_argument(
+            "cmd_type",
+            type=str,
+            choices=POSSIBLE_COMMAND_TYPES,
+            help="Type of command.",
+        )
 
-# NOW IT'S SAFE TO IMPORT LIBRELOADER
-# IGNORE FLAKE8: E402 module level import not at top of file
-from libreloader import reload_dependencies  # DO NOT REMOVE !! # noqa: E402
-from libreloader.reload_dependencies import YARNDEVTOOLS_MODULE_NAME, Reloader  # DO NOT REMOVE !! # noqa: E402
-
-print(f"Name of the script      : {sys.argv[0]=}")
-print(f"Arguments of the script : {sys.argv[1:]=}")
-if len(sys.argv) != 2:
-    raise ValueError("Should only have one argument, the name of the job!")
-
-reload_dependencies.Reloader.start()
-
-# Get the Python module root
-module_root = reload_dependencies.Reloader.get_python_module_root()
-yarn_dev_tools_module_root = os.path.join(module_root, YARNDEVTOOLS_MODULE_NAME)
-cdsw_runner_path = os.path.join(yarn_dev_tools_module_root, "cdsw", "cdsw_runner.py")
-print("YARN dev tools module root is: %s", Reloader.YARN_DEV_TOOLS_MODULE_ROOT)
+        args = parser.parse_args()
+        if args.verbose:
+            print("Args: " + str(args))
+        return args, parser
 
 
-# Start the CDSW runner
-job_name = sys.argv[1]
-sys.argv.append("--config-dir")
-sys.argv.append(jobs_dir)
-exec(open(cdsw_runner_path).read())
+class Config:
+    def __init__(self, parser, args,):
+        self._validate_args(parser, args)
+        self.command_type = self._parse_command_type(args)
+
+    @staticmethod
+    def _parse_command_type(args):
+        try:
+            command_type = CommandType.by_real_name(args.cmd_type)
+            if command_type:
+                return command_type
+        except ValueError:
+            pass  # Fallback to output_dir_name
+        try:
+            command_type = CommandType.by_output_dir_name(args.cmd_type)
+            if command_type:
+                return command_type
+        except ValueError:
+            pass
+        try:
+            command_type = CommandType[args.cmd_type]
+            if command_type:
+                return command_type
+        except Exception:
+            raise ValueError(
+                "Invalid command type specified: {}. Possible values are: {}".format(
+                    args.cmd_type, POSSIBLE_COMMAND_TYPES
+                )
+            )
+
+    def _validate_args(self, parser, args):
+        pass
+
+
+def get_valid_env_vars(config):
+    command_to_env_var_class = {
+        CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaFetcherEnvVar,
+        CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
+        CommandType.UNIT_TEST_RESULT_FETCHER: UnitTestResultFetcherEnvVar,
+        CommandType.UNIT_TEST_RESULT_AGGREGATOR: UnitTestResultAggregatorEmailEnvVar,
+        CommandType.REVIEW_SHEET_BACKPORT_UPDATER: ReviewSheetBackportUpdaterEnvVar,
+        CommandType.REVIEWSYNC: ReviewSyncEnvVar,
+    }
+    enum_type = command_to_env_var_class[config.command_type]
+    valid_env_vars = [e.value for e in enum_type]
+    return valid_env_vars
+
+
+def prepare_args_for_cdsw_runner(config, valid_env_vars):
+    append_arg(YARNDEVTOOLS_MODULE_NAME)
+    append_arg_and_value("--command-type-real-name", config.command_type.real_name)
+    append_arg_and_value("--command-type-name", config.command_type.name)
+    append_arg_and_value("--command-type-zip-name", config.command_type.command_data_zip_name)
+    if config.command_type.session_based:
+        append_arg("--command-type-session-based")
+    append_arg_and_value("--command-type-valid-env-vars", " ".join(valid_env_vars))
+    append_arg_and_value("--default-email-recipients", MAIL_ADDR_YARN_ENG_BP)
+    append_arg_and_value("--module-name", YARNDEVTOOLS_MODULE_NAME)
+    append_arg_and_value("--main-script-name", "yarn_dev_tools.py")
+    append_arg_and_value("--env",
+                         f"{YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value}={CommonDirs.HADOOP_CLOUDERA_BASEDIR}")
+    append_arg_and_value("--env",
+                         f"{YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value}={CommonDirs.HADOOP_UPSTREAM_BASEDIR}")
+
+
+def main():
+    module_root = Reloader.get_python_module_root()
+    cdsw_job_launcher_module_root = os.path.join(module_root, CDSW_JOB_LAUNCHER_MODULE_ROOT)
+    cdsw_runner_path = os.path.join(cdsw_job_launcher_module_root, "cdswjoblauncher", "cdsw", "cdsw_runner.py")
+    print("CDSW job launcher module root is: %s", cdsw_job_launcher_module_root)
+
+    args, parser = ArgParser.parse_args()
+    config = Config(parser, args)
+    valid_env_vars = get_valid_env_vars(config)
+
+    # Start the CDSW runner
+    prepare_args_for_cdsw_runner(config, valid_env_vars)
+    exec(open(cdsw_runner_path).read())
+
+
+if __name__ == '__main__':
+    main()

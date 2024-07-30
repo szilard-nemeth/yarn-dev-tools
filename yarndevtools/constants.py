@@ -4,6 +4,7 @@ from enum import Enum
 PYTHON3 = "python3"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
+CDSW_JOB_LAUNCHER_MODULE_ROOT = "cdsw-job-launcher"
 APACHE = "apache"
 HADOOP = "hadoop"
 CLOUDERA = "cloudera"
@@ -23,13 +24,6 @@ LATEST_DATA_ZIP_LINK_NAME = "latest-command-data-zip"
 class SummaryFile(Enum):
     TXT = "summary.txt"
     HTML = "summary.html"
-
-
-class ReportFile(Enum):
-    SHORT_TXT = "report-short.txt"
-    DETAILED_TXT = "report-detailed.txt"
-    SHORT_HTML = "report-short.html"
-    DETAILED_HTML = "report-detailed.html"
 
 
 # Do not leak bad ENV variable namings into the python code
