@@ -1,12 +1,13 @@
+from cdswjoblauncher.cdsw.cdsw_common import ReportFile
+from cdswjoblauncher.cdsw.cdsw_config import Include
+from cdswjoblauncher.cdsw.constants import CdswEnvVar
+
 from yarndevtools.cdsw.cdsw_common import (
     UnitTestResultAggregatorCdswUtils,
     GenericCdswConfigUtils,
 )
-from yarndevtools.cdsw.cdsw_config import Include
-from yarndevtools.cdsw.constants import CdswEnvVar
 from yarndevtools.commands.unittestresultaggregator.constants import OperationMode
 from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import ReportFile
 
 config = {
     "job_name": "Unit test result aggregator",
@@ -67,7 +68,7 @@ config = {
         "defaultGmailQuery": 'subject:"YARN Daily unit test report"',
         "defaultTruncateSubject": "YARN Daily unit test report: Failed tests with build: ",
         "skipLinesStartingWithCLI": lambda conf: GenericCdswConfigUtils.quote_list_items(
-            UnitTestResultAggregatorCdswUtils.determine_lines_to_skip()
+            UnitTestResultAggregatorCdswUtils.determine_lines_to_skip(conf.get_module_root())
         ),
     },
     "runs": [

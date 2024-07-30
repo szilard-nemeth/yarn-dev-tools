@@ -2,11 +2,15 @@ import logging
 import os
 from typing import List, Dict
 
+from cdswjoblauncher.cdsw.cdsw_common import CdswSetupResult
+from cdswjoblauncher.cdsw.cdsw_config import CdswJobConfig
+from cdswjoblauncher.cdsw.cdsw_runner import CdswRunner
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.jira_utils import JiraUtils
 from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.cdsw.constants import UnitTestResultAggregatorEmailEnvVar, BranchComparatorEnvVar
+from yarndevtools.cdsw.start_job import CommonDirs
 from yarndevtools.common.shared_command_utils import RepoType, CommandType
 from yarndevtools.constants import UPSTREAM_JIRA_BASE_URL
 
@@ -48,7 +52,7 @@ class UnitTestResultAggregatorCdswUtils:
     DEFAULT_SKIP_LINES_STARTING_WITH = ["Failed testcases:", "Failed testcases (", "FILTER:", "Filter expression: "]
 
     @classmethod
-    def determine_lines_to_skip(cls) -> List[str]:
+    def determine_lines_to_skip(cls, module_root: str) -> List[str]:
         skip_lines_starting_with: List[str] = cls.DEFAULT_SKIP_LINES_STARTING_WITH
         # If env var "SKIP_AGGREGATION_RESOURCE_FILE" is specified, try to read file
         # The file takes precedence over the default list of DEFAULT_SKIP_LINES_STARTING_WITH
@@ -78,7 +82,7 @@ class UnitTestResultAggregatorCdswUtils:
             )
 
         if skip_aggregation_res_file_auto_discovery:
-            found_with_auto_discovery = cls._auto_discover_skip_aggregation_result_file()
+            found_with_auto_discovery = cls._auto_discover_skip_aggregation_result_file(module_root)
             if found_with_auto_discovery:
                 LOG.info("Found Skip aggregation resource file with auto-discovery: %s", found_with_auto_discovery)
                 return FileUtils.read_file_to_list(found_with_auto_discovery)
@@ -89,11 +93,10 @@ class UnitTestResultAggregatorCdswUtils:
         return skip_lines_starting_with
 
     @classmethod
-    # TODO cdsw-separation yarndevtools specific
-    def _auto_discover_skip_aggregation_result_file(cls):
+    def _auto_discover_skip_aggregation_result_file(cls, module_root):
         found_with_auto_discovery: str or None = None
         # TODO cdsw-separation should be imported from CDSW job launcher
-        search_basedir = CommonDirs.MODULE_ROOT
+        search_basedir = module_root
         LOG.info("Looking for file '%s' in basedir: %s", SKIP_AGGREGATION_DEFAULTS_FILENAME, search_basedir)
         results = FileUtils.search_files(search_basedir, SKIP_AGGREGATION_DEFAULTS_FILENAME)
         if not results:
@@ -137,8 +140,8 @@ class JobPreparation:
                 # BranchComparator is happy with one single repository, upstream or downstream, exclusively.
                 # Git init the other repository so everything will be alright
                 # TODO cdsw-separation this is suspicious!
-                FileUtils.create_new_dir(cdsw_runner.cdsw_runner_config.hadoop_cloudera_basedir, fail_if_created=False)
-                FileUtils.change_cwd(cdsw_runner.cdsw_runner_config.hadoop_cloudera_basedir)
+                FileUtils.create_new_dir(CommonDirs.HADOOP_CLOUDERA_BASEDIR, fail_if_created=False)
+                FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
                 os.system("git init")
                 cdsw_runner.execute_script("clone_upstream_repos.sh")
 

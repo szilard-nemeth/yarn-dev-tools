@@ -26,6 +26,7 @@ from yarndevtools.cdsw.constants import (
     CdswEnvVar,
     BranchComparatorEnvVar,
 )
+from yarndevtools.cdsw.start_job import CommonDirs
 from yarndevtools.common.shared_command_utils import RepoType, EnvVar, CommandType
 from yarndevtools.constants import (
     ORIGIN_BRANCH_3_3,
