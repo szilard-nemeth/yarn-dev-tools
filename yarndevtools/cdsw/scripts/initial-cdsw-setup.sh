@@ -94,6 +94,7 @@ fi
 # YARNDEVTOOLS_MODULE_VERSION should be exported as install-requirements.sh will pick up the right version of yarndevtools and install its dependencies e.g. cdsw-job-launcher
 if [[ ! -z "$YARNDEVTOOLS_BRANCH" ]]; then
   export YARNDEVTOOLS_MODULE_VERSION=$(wget -q -O - https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/pyproject.toml | grep -A2 "name = \"yarn-dev-tools\"" | grep -m 1 version | tr -s ' ' | tr -d '"' | tr -d "'" | cut -d' ' -f3 )
+  echo "Exported YARNDEVTOOLS_MODULE_VERSION=$YARNDEVTOOLS_MODULE_VERSION before executing $INSTALL_REQUIREMENTS_SCRIPT_PATH "
 fi
 
 . $INSTALL_REQUIREMENTS_SCRIPT_PATH $EXEC_MODE
