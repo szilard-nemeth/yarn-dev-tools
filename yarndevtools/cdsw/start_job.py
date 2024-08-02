@@ -137,7 +137,9 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
         if branch:
             # TODO cdsw-separation ugly as hell :(
             version = os.system(
-                'wget -q -O - https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/pyproject.toml | grep -A2 "name = "yarn-dev-tools"" | grep -m 1 version | tr -s '
+                "wget -q -O - https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/pyproject.toml | "
+                'grep -A2 "name = "yarn-dev-tools"" | grep -m 1 version | '
+                "tr -s "
                 " | tr -d "
                 "' | tr -d "
                 '" | cut -d'
