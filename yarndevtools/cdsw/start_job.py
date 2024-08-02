@@ -154,7 +154,7 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
                 '" | cut -d'
                 " -f3"
             )
-            OsUtils.set_env_value(YarnDevToolsEnvVar.YARNDEVTOOLS_MODULE_VERSION.value, version)
+            OsUtils.set_env_value(YarnDevToolsEnvVar.YARNDEVTOOLS_MODULE_VERSION.value, str(version))
 
             append_arg_and_value("--env", f"{YarnDevToolsEnvVar.YARNDEVTOOLS_BRANCH.value}={branch}")
             append_arg_and_value("--env", f"{YarnDevToolsEnvVar.YARNDEVTOOLS_MODULE_VERSION.value}={version}")
