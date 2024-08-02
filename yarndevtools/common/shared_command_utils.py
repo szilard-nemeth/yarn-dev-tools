@@ -2,6 +2,7 @@ import logging
 from enum import Enum
 from typing import List, Dict
 
+from cdswjoblauncher.commands.cmd_type import LATEST_DATA_ZIP_LINK_NAME
 from pythoncommons.email import EmailAccount, EmailConfig
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.git_constants import ORIGIN
@@ -19,10 +20,9 @@ from yarndevtools.commands_common import (
     JiraIdChoosePreference,
 )
 
-from yarndevtools.constants import LATEST_DATA_ZIP_LINK_NAME, ANY_JIRA_ID_PATTERN
+from yarndevtools.constants import ANY_JIRA_ID_PATTERN
 
 LOG = logging.getLogger(__name__)
-
 
 
 class YarnDevToolsTestEnvVar(Enum):

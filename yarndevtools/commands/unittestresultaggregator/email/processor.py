@@ -2,6 +2,7 @@ import logging
 from pprint import pformat
 from typing import List, Iterable
 
+from cdswjoblauncher.cdsw.constants import SECRET_PROJECTS_DIR
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.gmail_api import GmailWrapper, ThreadQueryResults
 from googleapiwrapper.gmail_domain import GmailMessage
@@ -9,7 +10,6 @@ from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_sheet import GSheetWrapper
 from pythoncommons.url_utils import UrlUtils
 
-from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import (
     AggregationResults,
 )

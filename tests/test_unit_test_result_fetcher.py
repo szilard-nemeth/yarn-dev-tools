@@ -15,7 +15,6 @@ from unittest.mock import patch, Mock
 
 import httpretty as httpretty
 import mongomock
-import pytest
 from coolname import generate_slug
 from pythoncommons.date_utils import DateUtils
 from pythoncommons.project_utils import ProjectUtils

@@ -6,10 +6,20 @@ from argparse import ArgumentParser
 from cdswjoblauncher.cdsw.libreloader.reload_dependencies import Reloader
 from pythoncommons.file_utils import FileUtils
 
-from yarndevtools.cdsw.constants import BranchComparatorEnvVar, JiraUmbrellaFetcherEnvVar, UnitTestResultFetcherEnvVar, \
-    UnitTestResultAggregatorEmailEnvVar, ReviewSheetBackportUpdaterEnvVar, ReviewSyncEnvVar
+from yarndevtools.cdsw.constants import (
+    BranchComparatorEnvVar,
+    JiraUmbrellaFetcherEnvVar,
+    UnitTestResultFetcherEnvVar,
+    UnitTestResultAggregatorEmailEnvVar,
+    ReviewSheetBackportUpdaterEnvVar,
+    ReviewSyncEnvVar,
+)
 from yarndevtools.common.shared_command_utils import CommandType, YarnDevToolsEnvVar
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, CDSW_JOB_LAUNCHER_MODULE_ROOT
+from yarndevtools.constants import (
+    YARNDEVTOOLS_MODULE_NAME,
+    CDSW_JOB_LAUNCHER_MODULE_ROOT,
+    YARNDEVTOOLS_MAIN_SCRIPT_NAME,
+)
 
 # THESE FUNCTION DEFINITIONS AND CALL TO fix_pythonpast MUST PRECEDE THE IMPORT OF libreloader: from libreloader import reload_dependencies
 # TODO same as CdswEnvVar.PYTHONPATH --> Migrate
@@ -51,7 +61,11 @@ class ArgParser:
 
 
 class Config:
-    def __init__(self, parser, args,):
+    def __init__(
+        self,
+        parser,
+        args,
+    ):
         self._validate_args(parser, args)
         self.command_type = self._parse_command_type(args)
 
@@ -108,12 +122,12 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
     append_arg_and_value("--command-type-valid-env-vars", " ".join(valid_env_vars))
     append_arg_and_value("--default-email-recipients", MAIL_ADDR_YARN_ENG_BP)
     append_arg_and_value("--module-name", YARNDEVTOOLS_MODULE_NAME)
-    append_arg_and_value("--main-script-name", "yarn_dev_tools.py")
+    append_arg_and_value("--main-script-name", YARNDEVTOOLS_MAIN_SCRIPT_NAME)
     append_arg_and_value("--job-preparation-callback", "JobPreparation.execute")
-    append_arg_and_value("--env",
-                         f"{YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value}={CommonDirs.HADOOP_CLOUDERA_BASEDIR}")
-    append_arg_and_value("--env",
-                         f"{YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value}={CommonDirs.HADOOP_UPSTREAM_BASEDIR}")
+    append_arg_and_value(
+        "--env", f"{YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value}={CommonDirs.HADOOP_CLOUDERA_BASEDIR}"
+    )
+    append_arg_and_value("--env", f"{YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value}={CommonDirs.HADOOP_UPSTREAM_BASEDIR}")
 
 
 def main():
@@ -131,5 +145,5 @@ def main():
     exec(open(cdsw_runner_path).read())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

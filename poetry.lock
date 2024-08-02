@@ -137,13 +137,13 @@ files = [
 
 [[package]]
 name = "cdsw-job-launcher"
-version = "1.0.4"
+version = "1.0.16"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "cdsw_job_launcher-1.0.3-py3-none-any.whl", hash = "sha256:f1b1bc4d38f24aef3231c6379d9ec12851b38d1506d794561917b50126bab6d4"},
-    {file = "cdsw_job_launcher-1.0.3.tar.gz", hash = "sha256:3b1147ecf30fea1804c6aae4056819168e7f59a6f3b7bffd7dbd2b77fcde93b8"},
+    {file = "cdsw_job_launcher-1.0.16-py3-none-any.whl", hash = "sha256:31d04faf56fbe7418c7dbf9ae9e0a0a0ffad17528b8f68617e8f177a74d1137a"},
+    {file = "cdsw_job_launcher-1.0.16.tar.gz", hash = "sha256:509ce0ae15cedb1d8729e11d48dade8b034c4bf4f90a76301424e8b44566ea06"},
 ]
 
 [package.dependencies]
@@ -1712,4 +1712,4 @@ test = ["websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.12"
-content-hash = "177b56c5c48fab70efaf77154b737ca8e030f4c36d4d7ce14b940850387c82ae"
+content-hash = "3b401b732e7ce4bc5551e67008d7caa6c317667a8100e6f94c49367bf2656090"

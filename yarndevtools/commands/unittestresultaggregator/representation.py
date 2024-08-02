@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Sized, Callable
 
+from cdswjoblauncher.cdsw.cdsw_common import ReportFile
 from googleapiwrapper.gmail_api import ThreadQueryResults
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.html_utils import HtmlGenerator
@@ -32,9 +33,6 @@ from yarndevtools.commands.unittestresultaggregator.common.model import (
 )
 from yarndevtools.commands.unittestresultaggregator.common.aggregation import AggregationResults
 from yarndevtools.commands.unittestresultaggregator.db.model import EmailContent
-from yarndevtools.constants import (
-    ReportFile,
-)
 
 LOG = logging.getLogger(__name__)
 

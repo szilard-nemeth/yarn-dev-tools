@@ -6,7 +6,7 @@ from yarndevtools.constants import SummaryFile
 
 config = {
     "job_name": "Review sheet backport updater",
-    "command_type": CommandType.REVIEW_SHEET_BACKPORT_UPDATER,
+    "command_type": CommandType.REVIEW_SHEET_BACKPORT_UPDATER.real_name,
     "env_sanitize_exceptions": ["BRANCHES"],
     "mandatory_env_vars": [
         "GSHEET_CLIENT_SECRET",

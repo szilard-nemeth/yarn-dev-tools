@@ -11,7 +11,7 @@ from yarndevtools.common.shared_command_utils import CommandType
 
 config = {
     "job_name": "Unit test result aggregator",
-    "command_type": CommandType.UNIT_TEST_RESULT_AGGREGATOR,
+    "command_type": CommandType.UNIT_TEST_RESULT_AGGREGATOR.real_name,
     "env_sanitize_exceptions": ["MATCH_EXPRESSION", "GSHEET_COMPARE_WITH_JIRA_TABLE", "AGGREGATE_FILTERS"],
     "mandatory_env_vars": [
         "GSHEET_CLIENT_SECRET",

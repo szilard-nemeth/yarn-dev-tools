@@ -18,7 +18,6 @@ SKIP_AGGREGATION_DEFAULTS_FILENAME = "skip_aggregation_defaults.txt"
 LOG = logging.getLogger(__name__)
 
 
-
 class GenericCdswConfigUtils:
     @staticmethod
     def quote_list_items(lst):
@@ -120,6 +119,7 @@ class UnitTestResultAggregatorCdswUtils:
 
 
 class JobPreparation:
+    # TODO cdsw-separation Better way to handle this?
     @staticmethod
     def execute(cdsw_runner: CdswRunner, job_config: CdswJobConfig, setup_result: CdswSetupResult):
         basedir = setup_result.basedir
@@ -144,4 +144,3 @@ class JobPreparation:
                 FileUtils.change_cwd(CommonDirs.HADOOP_CLOUDERA_BASEDIR)
                 os.system("git init")
                 cdsw_runner.execute_script("clone_upstream_repos.sh")
-

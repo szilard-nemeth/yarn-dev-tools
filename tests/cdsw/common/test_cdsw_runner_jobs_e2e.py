@@ -4,24 +4,40 @@ import tempfile
 import unittest
 from typing import Dict
 
+from cdswjoblauncher.cdsw.cdsw_common import BASHX, CommonFiles, CdswSetup
+from cdswjoblauncher.cdsw.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter
+from cdswjoblauncher.cdsw.constants import CdswEnvVar
+from cdswjoblauncher.cdsw.testutils.test_utils import (
+    CommandExpectations,
+    CdswTestingCommons,
+    FakeCdswRunner,
+    COMMAND_ARGUMENTS_COMMON,
+    FakeGoogleDriveCdswHelper,
+)
 from httpretty import httpretty
 from pythoncommons.file_utils import FileUtils, FindResultType
 from pythoncommons.os_utils import OsUtils
 from pythoncommons.project_utils import ProjectUtils, ProjectRootDeterminationStrategy
 from pythoncommons.string_utils import StringUtils
 
-from tests.cdsw.common.test_cdsw_runner import FakeCdswRunner
-from tests.cdsw.common.testutils.cdsw_testing_common import (
-    CdswTestingCommons,
-    CommandExpectations,
-    COMMAND_ARGUMENTS_COMMON,
-)
 from tests.test_utilities import Object
-from yarndevtools.cdsw.cdsw_common import CommonFiles, CdswSetup, GenericCdswConfigUtils, BASHX
-from yarndevtools.cdsw.cdsw_runner import CdswRunnerConfig, CdswConfigReaderAdapter
-from yarndevtools.cdsw.constants import CdswEnvVar
-from yarndevtools.common.shared_command_utils import CommandType
-from yarndevtools.constants import YARNDEVTOOLS_MODULE_NAME, UPSTREAM_JIRA_BASE_URL, PYTHON3
+from yarndevtools.cdsw.cdsw_common import GenericCdswConfigUtils
+from yarndevtools.cdsw.constants import (
+    JiraUmbrellaFetcherEnvVar,
+    BranchComparatorEnvVar,
+    UnitTestResultFetcherEnvVar,
+    UnitTestResultAggregatorEmailEnvVar,
+    ReviewSheetBackportUpdaterEnvVar,
+    ReviewSyncEnvVar,
+)
+from yarndevtools.cdsw.start_job import CommonDirs
+from yarndevtools.common.shared_command_utils import CommandType, YarnDevToolsEnvVar
+from yarndevtools.constants import (
+    YARNDEVTOOLS_MODULE_NAME,
+    UPSTREAM_JIRA_BASE_URL,
+    PYTHON3,
+    YARNDEVTOOLS_MAIN_SCRIPT_NAME,
+)
 import logging
 
 USE_LIVE_JIRA_SERVER = False
@@ -48,6 +64,15 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         "MAIL_ACC_PASSWORD",
     ]
 
+    command_to_env_var_class = {
+        CommandType.JIRA_UMBRELLA_DATA_FETCHER: JiraUmbrellaFetcherEnvVar,
+        CommandType.BRANCH_COMPARATOR: BranchComparatorEnvVar,
+        CommandType.UNIT_TEST_RESULT_FETCHER: UnitTestResultFetcherEnvVar,
+        CommandType.UNIT_TEST_RESULT_AGGREGATOR: UnitTestResultAggregatorEmailEnvVar,
+        CommandType.REVIEW_SHEET_BACKPORT_UPDATER: ReviewSheetBackportUpdaterEnvVar,
+        CommandType.REVIEWSYNC: ReviewSyncEnvVar,
+    }
+
     @classmethod
     def setUpClass(cls) -> None:
         OsUtils.clear_env_vars([CdswEnvVar.MAIL_RECIPIENTS.name])
@@ -58,13 +83,15 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
 
         # We need the value of 'CommonFiles.YARN_DEV_TOOLS_SCRIPT'
-        CdswSetup._setup_python_module_root_and_yarndevtools_path()
-        cls.yarn_dev_tools_script_path = CommonFiles.YARN_DEV_TOOLS_SCRIPT
+        CdswSetup._setup_python_module_root_and_main_script_path(
+            YARNDEVTOOLS_MODULE_NAME, YARNDEVTOOLS_MAIN_SCRIPT_NAME
+        )
+        cls.yarn_dev_tools_script_path = CommonFiles.MAIN_SCRIPT
 
         COMMAND_ARGUMENTS_COMMON[cls.yarn_dev_tools_script_path] = 0
 
     def setUp(self) -> None:
-        self.cdsw_testing_commons = CdswTestingCommons()
+        self.cdsw_testing_commons = CdswTestingCommons(YARNDEVTOOLS_MODULE_NAME)
         CdswTestingCommons.mock_google_drive()
 
         self.exp_command_clone_downstream_repos = CommandExpectations(self).with_exact_command_expectation(
@@ -108,13 +135,51 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             if var in os.environ:
                 del os.environ[var]
 
+    # @staticmethod
+    # def _create_args_for_specified_file(config_file: str, cmd_type: CommandType, dry_run: bool = True):
+    #     args = Object()
+    #     args.config_file = config_file
+    #     args.logging_debug = True
+    #     args.verbose = True
+    #     args.cmd_type = cmd_type.name
+    #     args.dry_run = dry_run
+    #     return args
+
     @staticmethod
-    def _create_args_for_specified_file(config_file: str, cmd_type: CommandType, dry_run: bool = True):
+    def _create_args_for_specified_file(
+        config_file: str, cmd_type: CommandType, dry_run: bool = True, add_job_preparation_callback: bool = False
+    ):
         args = Object()
+        args.module_name = YARNDEVTOOLS_MODULE_NAME
+        args.main_script_name = YARNDEVTOOLS_MAIN_SCRIPT_NAME
         args.config_file = config_file
+        args.command_type_name = cmd_type.real_name
+        args.command_type_session_based = True
+        args.command_type_zip_name = f"latest-command-data-zip-{cmd_type.name}"
+
+        enum_type = TestCdswRunnerJobsE2E.command_to_env_var_class[cmd_type]
+        valid_env_vars = [e.value for e in enum_type]  # + [e.value for e in CdswEnvVar]
+        args.command_type_valid_env_vars = valid_env_vars
+        HADOOP_UPSTREAM_BASEDIR = FileUtils.join_path(CommonDirs.CDSW_BASEDIR, "repos", "apache", "hadoop")
+        HADOOP_CLOUDERA_BASEDIR = FileUtils.join_path(CommonDirs.CDSW_BASEDIR, "repos", "cloudera", "hadoop")
+        args.env = [
+            f"{YarnDevToolsEnvVar.ENV_CLOUDERA_HADOOP_ROOT.value}={HADOOP_UPSTREAM_BASEDIR}",
+            f"{YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value}={HADOOP_CLOUDERA_BASEDIR}",
+        ]
+        args.default_email_recipients = "snemeth@cloudera.com"
         args.logging_debug = True
         args.verbose = True
-        args.cmd_type = cmd_type.name
+
+        if add_job_preparation_callback:
+            args.job_preparation_callback = ["JobPreparation.execute"]
+
+        # TODO cdsw-separation Delete this?
+        # if override_cmd_type:
+        #     args.command_type_real_name = override_cmd_type
+        #     args.command_type_name = override_cmd_type
+        # else:
+        #     args.command_type_real_name = DEFAULT_COMMAND_TYPE
+        #     args.command_type_name = DEFAULT_COMMAND_TYPE
         args.dry_run = dry_run
         return args
 
@@ -148,9 +213,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         args = self._create_args_for_specified_file(config_file, CommandType.REVIEWSYNC, dry_run=True)
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
-        cdsw_runner.start()
+        cdsw_runner = self._start_cdsw_runner(args)
 
         exp_command_1 = (
             CommandExpectations(self)
@@ -166,37 +229,40 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--gsheet-update-date-column", "testGsheetUpdateDateColumn")
             .add_expected_arg("--gsheet-status-info-column", "testGsheetStatusInfoColumn")
             .add_expected_arg("--branches", "branch-3.2 branch-3.3")
-            .with_command_type(CommandType.REVIEWSYNC)
+            .with_command_type(CommandType.REVIEWSYNC.real_name)
         )
 
-        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.REVIEWSYNC)
+        # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+        # exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.REVIEWSYNC)
+        #
+        # job_start_date = cdsw_runner.job_config.job_start_date()
+        #
+        # wrap_d = StringUtils.wrap_to_quotes
+        # wrap_s = StringUtils.wrap_to_single_quotes
+        # expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
+        # exp_command_3 = (
+        #     CommandExpectations(self)
+        #     .add_expected_ordered_arg("python3")
+        #     .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
+        #     .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
+        #     .add_expected_arg("--debug")
+        #     .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
+        #     .add_expected_arg("--smtp_port", "465")
+        #     .add_expected_arg("--account_user", wrap_d("testMailUser"))
+        #     .add_expected_arg("--account_password", wrap_d("testMailPassword"))
+        #     .add_expected_arg("--subject", wrap_d(f"YARN reviewsync report [start date: {job_start_date}]"))
+        #     .add_expected_arg("--sender", wrap_d("YARN reviewsync"))
+        #     .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
+        #     .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
+        #     .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
+        #     .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
+        #     .add_expected_arg("--send-attachment")
+        #     .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
+        # )
 
-        job_start_date = cdsw_runner.job_config.job_start_date()
-
-        wrap_d = StringUtils.wrap_to_quotes
-        wrap_s = StringUtils.wrap_to_single_quotes
-        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
-        exp_command_3 = (
-            CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
-            .add_expected_arg("--debug")
-            .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
-            .add_expected_arg("--smtp_port", "465")
-            .add_expected_arg("--account_user", wrap_d("testMailUser"))
-            .add_expected_arg("--account_password", wrap_d("testMailPassword"))
-            .add_expected_arg("--subject", wrap_d(f"YARN reviewsync report [start date: {job_start_date}]"))
-            .add_expected_arg("--sender", wrap_d("YARN reviewsync"))
-            .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
-            .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
-            .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
-            .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
-            .add_expected_arg("--send-attachment")
-            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
-        )
-
-        expectations = [exp_command_1, exp_command_2, exp_command_3]
+        expectations = [
+            exp_command_1,
+        ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_review_sheet_backport_updater_e2e(self):
@@ -227,9 +293,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         args = self._create_args_for_specified_file(
             config_file, CommandType.REVIEW_SHEET_BACKPORT_UPDATER, dry_run=True
         )
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
-        cdsw_runner.start()
+        cdsw_runner = self._start_cdsw_runner(args)
 
         exp_command_1 = (
             CommandExpectations(self)
@@ -244,49 +308,50 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--gsheet-update-date-column", "testGsheetUpdateDateColumn")
             .add_expected_arg("--gsheet-status-info-column", "testGsheetStatusInfoColumn")
             .add_expected_arg("--branches", "branch-3.2 branch-3.3")
-            .with_command_type(CommandType.REVIEW_SHEET_BACKPORT_UPDATER)
+            .with_command_type(CommandType.REVIEW_SHEET_BACKPORT_UPDATER.real_name)
         )
 
-        exp_command_2 = (
-            CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
-            .add_expected_ordered_arg("REVIEW_SHEET_BACKPORT_UPDATER")
-            .add_expected_arg("--debug")
-            .add_expected_arg("--dest_dir", "/tmp")
-            .add_expected_arg("--ignore-filetypes", "java js")
-            .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
-        )
+        # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+        # exp_command_2 = (
+        #     CommandExpectations(self)
+        #     .add_expected_ordered_arg("python3")
+        #     .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
+        #     .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
+        #     .add_expected_ordered_arg("REVIEW_SHEET_BACKPORT_UPDATER")
+        #     .add_expected_arg("--debug")
+        #     .add_expected_arg("--dest_dir", "/tmp")
+        #     .add_expected_arg("--ignore-filetypes", "java js")
+        #     .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
+        # )
+        #
+        # job_start_date = cdsw_runner.job_config.job_start_date()
+        #
+        # wrap_d = StringUtils.wrap_to_quotes
+        # wrap_s = StringUtils.wrap_to_single_quotes
+        # expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
+        # exp_command_3 = (
+        #     CommandExpectations(self)
+        #     .add_expected_ordered_arg("python3")
+        #     .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
+        #     .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
+        #     .add_expected_arg("--debug")
+        #     .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
+        #     .add_expected_arg("--smtp_port", "465")
+        #     .add_expected_arg("--account_user", wrap_d("testMailUser"))
+        #     .add_expected_arg("--account_password", wrap_d("testMailPassword"))
+        #     .add_expected_arg(
+        #         "--subject", wrap_d(f"YARN review sheet backport updater report [start date: {job_start_date}]")
+        #     )
+        #     .add_expected_arg("--sender", wrap_d("YARN review sheet backport updater"))
+        #     .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
+        #     .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
+        #     .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
+        #     .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
+        #     .add_expected_arg("--send-attachment")
+        #     .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
+        # )
 
-        job_start_date = cdsw_runner.job_config.job_start_date()
-
-        wrap_d = StringUtils.wrap_to_quotes
-        wrap_s = StringUtils.wrap_to_single_quotes
-        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: command_data_{job_start_date}.zip</a>')
-        exp_command_3 = (
-            CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
-            .add_expected_arg("--debug")
-            .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
-            .add_expected_arg("--smtp_port", "465")
-            .add_expected_arg("--account_user", wrap_d("testMailUser"))
-            .add_expected_arg("--account_password", wrap_d("testMailPassword"))
-            .add_expected_arg(
-                "--subject", wrap_d(f"YARN review sheet backport updater report [start date: {job_start_date}]")
-            )
-            .add_expected_arg("--sender", wrap_d("YARN review sheet backport updater"))
-            .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
-            .add_expected_arg("--attachment-filename", f"command_data_{job_start_date}.zip")
-            .add_expected_arg("--file-as-email-body-from-zip", "summary.html")
-            .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
-            .add_expected_arg("--send-attachment")
-            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
-        )
-
-        expectations = [exp_command_1, exp_command_2, exp_command_3]
+        expectations = [exp_command_1]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_unit_test_result_fetcher_e2e(self):
@@ -304,13 +369,13 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             {
                 "MAIL_ACC_USER": "testMailUser",
                 "MAIL_ACC_PASSWORD": "testMailPassword",
+                "JENKINS_USER": "jenkinsUser",
+                "JENKINS_PASSWORD": "jenkinsPassword",
             }
         )
         wrap_d = StringUtils.wrap_to_quotes
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_FETCHER, dry_run=True)
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
-        cdsw_runner.start()
+        cdsw_runner = self._start_cdsw_runner(args)
 
         exp_command_1 = (
             CommandExpectations(self)
@@ -322,6 +387,8 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--smtp_port", param="465")
             .add_expected_arg("--account_user", param="testMailUser")
             .add_expected_arg("--account_password", param="testMailPassword")
+            .add_expected_arg("--jenkins-user", param="jenkinsUser")
+            .add_expected_arg("--jenkins-password", param="jenkinsPassword")
             .add_expected_arg("--sender", param=wrap_d("YARN unit test result fetcher"))
             .add_expected_arg("--recipients", param="yarn_eng_bp@cloudera.com")
             .add_expected_arg("--mode", param="jenkins_master")
@@ -335,25 +402,26 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--request-limit", param="999")
             .add_expected_arg("--num-builds", param="jenkins_examine_unlimited_builds")
             .add_expected_arg("--cache-type", param="google_drive")
-            .with_command_type(CommandType.UNIT_TEST_RESULT_FETCHER)
+            .with_command_type(CommandType.UNIT_TEST_RESULT_FETCHER.real_name)
         )
 
         expectations = [exp_command_1]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
-    def _get_expected_zip_latest_command_data_command(self, cmd_type: CommandType):
-        exp_command_2 = (
-            CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
-            .add_expected_ordered_arg(cmd_type.name)
-            .add_expected_arg("--debug")
-            .add_expected_arg("--dest_dir", "/tmp")
-            .add_expected_arg("--ignore-filetypes", "java js")
-            .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
-        )
-        return exp_command_2
+    # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+    # def _get_expected_zip_latest_command_data_command(self, cmd_type: CommandType):
+    #     exp_command_2 = (
+    #         CommandExpectations(self)
+    #         .add_expected_ordered_arg("python3")
+    #         .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
+    #         .add_expected_ordered_arg("ZIP_LATEST_COMMAND_DATA")
+    #         .add_expected_ordered_arg(cmd_type.name)
+    #         .add_expected_arg("--debug")
+    #         .add_expected_arg("--dest_dir", "/tmp")
+    #         .add_expected_arg("--ignore-filetypes", "java js")
+    #         .with_command_type(CommandType.ZIP_LATEST_COMMAND_DATA)
+    #     )
+    #     return exp_command_2
 
     def test_jira_umbrella_data_fetcher_e2e(self):
         cdsw_root_dir: str = self.cdsw_testing_commons.cdsw_root_dir
@@ -376,10 +444,10 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             }
         )
 
-        args = self._create_args_for_specified_file(config_file, CommandType.JIRA_UMBRELLA_DATA_FETCHER, dry_run=True)
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
-        cdsw_runner.start()
+        args = self._create_args_for_specified_file(
+            config_file, CommandType.JIRA_UMBRELLA_DATA_FETCHER, dry_run=True, add_job_preparation_callback=True
+        )
+        cdsw_runner = self._start_cdsw_runner(args)
 
         job_start_date = cdsw_runner.job_config.job_start_date()
         wrap_d = StringUtils.wrap_to_quotes
@@ -399,27 +467,26 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         exp_command_1 = self._get_expected_jira_umbrella_data_fetcher_main_command(
             JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS[0]
         )
-        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
-        exp_command_3 = self._get_expected_send_latest_command_data_command(
-            job_start_date, subject=subject1, sender=sender
-        )
+
+        # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+        # exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
+        # exp_command_3 = self._get_expected_send_latest_command_data_command(
+        #     job_start_date, subject=subject1, sender=sender
+        # )
         exp_command_4 = self._get_expected_jira_umbrella_data_fetcher_main_command(
             JIRA_UMBRELLA_FETCHER_UPSTREAM_UMBRELLA_IDS[1]
         )
-        exp_command_5 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
-        exp_command_6 = self._get_expected_send_latest_command_data_command(
-            job_start_date, subject=subject2, sender=sender
-        )
+        # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+        # exp_command_5 = self._get_expected_zip_latest_command_data_command(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
+        # exp_command_6 = self._get_expected_send_latest_command_data_command(
+        #     job_start_date, subject=subject2, sender=sender
+        # )
 
         expectations = [
             self.exp_command_clone_downstream_repos,
             self.exp_command_clone_upstream_repos,
             exp_command_1,
-            exp_command_2,
-            exp_command_3,
             exp_command_4,
-            exp_command_5,
-            exp_command_6,
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
@@ -462,9 +529,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
         )
 
         args = self._create_args_for_specified_file(config_file, CommandType.UNIT_TEST_RESULT_AGGREGATOR, dry_run=True)
-        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
-        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
-        cdsw_runner.start()
+        cdsw_runner = self._start_cdsw_runner(args)
 
         job_start_date = cdsw_runner.job_config.job_start_date()
         wrap_d = StringUtils.wrap_to_quotes
@@ -499,13 +564,15 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--abbreviate-testcase-package", "org.apache.hadoop.yarn.server")
             .add_expected_args("--aggregate-filters", "CDPD-7.1.x", "CDPD-7.x")
             .add_expected_arg("--gsheet-compare-with-jira-table", '"testcases with jiras"')
-            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
+            .with_command_type(CommandType.UNIT_TEST_RESULT_AGGREGATOR.real_name)
         )
-        exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
-        exp_command_3 = self._get_expected_send_latest_command_data_command(
-            job_start_date, subject=subject, sender=sender, email_file_from_zip="report-short.html"
-        )
-        expectations = [exp_command_1, exp_command_2, exp_command_3]
+
+        # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+        # exp_command_2 = self._get_expected_zip_latest_command_data_command(CommandType.UNIT_TEST_RESULT_AGGREGATOR)
+        # exp_command_3 = self._get_expected_send_latest_command_data_command(
+        #     job_start_date, subject=subject, sender=sender, email_file_from_zip="report-short.html"
+        # )
+        expectations = [exp_command_1]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
     def test_branch_comparator_e2e(self):
@@ -528,14 +595,16 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             }
         )
 
-        args = self._create_args_for_specified_file(config_file, CommandType.BRANCH_COMPARATOR, dry_run=True)
-        tmp_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
-        tmp_dir_path = tmp_dir.name
-        cdsw_runner_config = CdswRunnerConfig(
-            PARSER, args, config_reader=CdswConfigReaderAdapter(), hadoop_cloudera_basedir=tmp_dir_path
+        args = self._create_args_for_specified_file(
+            config_file, CommandType.BRANCH_COMPARATOR, dry_run=True, add_job_preparation_callback=True
         )
-        cdsw_runner = FakeCdswRunner(cdsw_runner_config)
-        cdsw_runner.start()
+        # TODO cdsw-separation: What about argument 'hadoop_cloudera_basedir=tmp_dir_path'?
+        # tmp_dir: tempfile.TemporaryDirectory = tempfile.TemporaryDirectory()
+        # tmp_dir_path = tmp_dir.name
+        # cdsw_runner_config = CdswRunnerConfig(
+        #     PARSER, args, config_reader=CdswConfigReaderAdapter(), hadoop_cloudera_basedir=tmp_dir_path
+        # )
+        cdsw_runner = self._start_cdsw_runner(args)
 
         job_start_date = cdsw_runner.job_config.job_start_date()
         wrap_d = StringUtils.wrap_to_quotes
@@ -554,7 +623,7 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--debug")
             .add_expected_arg("--repo-type", "downstream")
             .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
-            .with_command_type(CommandType.BRANCH_COMPARATOR)
+            .with_command_type(CommandType.BRANCH_COMPARATOR.real_name)
         )
         exp_command_2_1 = (
             CommandExpectations(self)
@@ -567,65 +636,72 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--debug")
             .add_expected_arg("--repo-type", "downstream")
             .add_expected_arg("--commit_author_exceptions", "rel-eng@cloudera.com")
-            .with_command_type(CommandType.BRANCH_COMPARATOR)
-        )
-        exp_command_1_2 = exp_command_2_2 = self._get_expected_zip_latest_command_data_command(
-            CommandType.BRANCH_COMPARATOR
-        )
-        exp_command_1_3 = self._get_expected_send_latest_command_data_command(
-            job_start_date,
-            subject=subject1,
-            sender=sender,
-            email_file_from_zip="summary.html",
-            command_data_filename=f"command_data_simple_{job_start_date}.zip",
+            .with_command_type(CommandType.BRANCH_COMPARATOR.real_name)
         )
 
-        exp_command_2_3 = self._get_expected_send_latest_command_data_command(
-            job_start_date,
-            subject=subject2,
-            sender=sender,
-            email_file_from_zip="summary.html",
-            command_data_filename=f"command_data_grouped_{job_start_date}.zip",
-        )
+        # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+        # exp_command_1_2 = exp_command_2_2 = self._get_expected_zip_latest_command_data_command(
+        #     CommandType.BRANCH_COMPARATOR
+        # )
+        # exp_command_1_3 = self._get_expected_send_latest_command_data_command(
+        #     job_start_date,
+        #     subject=subject1,
+        #     sender=sender,
+        #     email_file_from_zip="summary.html",
+        #     command_data_filename=f"command_data_simple_{job_start_date}.zip",
+        # )
+        #
+        # exp_command_2_3 = self._get_expected_send_latest_command_data_command(
+        #     job_start_date,
+        #     subject=subject2,
+        #     sender=sender,
+        #     email_file_from_zip="summary.html",
+        #     command_data_filename=f"command_data_grouped_{job_start_date}.zip",
+        # )
         expectations = [
             self.exp_command_clone_downstream_repos,
             exp_command_1_1,
-            exp_command_1_2,
-            exp_command_1_3,
             exp_command_2_1,
-            exp_command_2_2,
-            exp_command_2_3,
         ]
         CdswTestingCommons.verify_commands(self, expectations, cdsw_runner.executed_commands)
 
-    def _get_expected_send_latest_command_data_command(
-        self, job_start_date, subject, sender, email_file_from_zip="summary.html", command_data_filename=None
-    ):
-        if not command_data_filename:
-            command_data_filename = f"command_data_{job_start_date}.zip"
-        wrap_d = StringUtils.wrap_to_quotes
-        wrap_s = StringUtils.wrap_to_single_quotes
-        expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: {command_data_filename}</a>')
-        exp_command_3 = (
-            CommandExpectations(self)
-            .add_expected_ordered_arg("python3")
-            .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
-            .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
-            .add_expected_arg("--debug")
-            .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
-            .add_expected_arg("--smtp_port", "465")
-            .add_expected_arg("--account_user", wrap_d("testMailUser"))
-            .add_expected_arg("--account_password", wrap_d("testMailPassword"))
-            .add_expected_arg("--subject", subject)
-            .add_expected_arg("--sender", sender)
-            .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
-            .add_expected_arg("--attachment-filename", command_data_filename)
-            .add_expected_arg("--file-as-email-body-from-zip", email_file_from_zip)
-            .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
-            .add_expected_arg("--send-attachment")
-            .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
+    def _start_cdsw_runner(self, args):
+        cdsw_runner_config = CdswRunnerConfig(PARSER, args, config_reader=CdswConfigReaderAdapter())
+        cdsw_runner = FakeCdswRunner(
+            cdsw_runner_config, google_drive_cdsw_helper=FakeGoogleDriveCdswHelper(YARNDEVTOOLS_MODULE_NAME)
         )
-        return exp_command_3
+        cdsw_runner.start()
+        return cdsw_runner
+
+    # TODO cdsw-separation Zip latest command data and send latest command data validation should be performed with mocking, not CLI command
+    # def _get_expected_send_latest_command_data_command(
+    #     self, job_start_date, subject, sender, email_file_from_zip="summary.html", command_data_filename=None
+    # ):
+    #     if not command_data_filename:
+    #         command_data_filename = f"command_data_{job_start_date}.zip"
+    #     wrap_d = StringUtils.wrap_to_quotes
+    #     wrap_s = StringUtils.wrap_to_single_quotes
+    #     expected_html_link = wrap_s(f'<a href="dummy_link">Command data file: {command_data_filename}</a>')
+    #     exp_command_3 = (
+    #         CommandExpectations(self)
+    #         .add_expected_ordered_arg("python3")
+    #         .add_expected_ordered_arg(self.yarn_dev_tools_script_path)
+    #         .add_expected_ordered_arg("SEND_LATEST_COMMAND_DATA")
+    #         .add_expected_arg("--debug")
+    #         .add_expected_arg("--smtp_server", wrap_d("smtp.gmail.com"))
+    #         .add_expected_arg("--smtp_port", "465")
+    #         .add_expected_arg("--account_user", wrap_d("testMailUser"))
+    #         .add_expected_arg("--account_password", wrap_d("testMailPassword"))
+    #         .add_expected_arg("--subject", subject)
+    #         .add_expected_arg("--sender", sender)
+    #         .add_expected_arg("--recipients", wrap_d("yarn_eng_bp@cloudera.com"))
+    #         .add_expected_arg("--attachment-filename", command_data_filename)
+    #         .add_expected_arg("--file-as-email-body-from-zip", email_file_from_zip)
+    #         .add_expected_arg("--prepend_email_body_with_text", expected_html_link)
+    #         .add_expected_arg("--send-attachment")
+    #         .with_command_type(CommandType.SEND_LATEST_COMMAND_DATA)
+    #     )
+    #     return exp_command_3
 
     def _get_expected_jira_umbrella_data_fetcher_main_command(self, umbrella_id: str):
         exp_command_1 = (
@@ -638,6 +714,6 @@ class TestCdswRunnerJobsE2E(unittest.TestCase):
             .add_expected_arg("--force-mode")
             .add_expected_arg("--ignore-changes")
             .add_expected_arg(umbrella_id)
-            .with_command_type(CommandType.JIRA_UMBRELLA_DATA_FETCHER)
+            .with_command_type(CommandType.JIRA_UMBRELLA_DATA_FETCHER.real_name)
         )
         return exp_command_1

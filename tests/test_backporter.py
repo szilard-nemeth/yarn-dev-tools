@@ -1,7 +1,6 @@
 import logging
 import unittest
 
-import pytest
 from pythoncommons.git_constants import ORIGIN
 
 from tests.test_utilities import TestUtilities, Object, SANDBOX_REPO_DOWNSTREAM_HOTFIX

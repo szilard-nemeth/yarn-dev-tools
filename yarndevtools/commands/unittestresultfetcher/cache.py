@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, List, Dict, Set
 
+from cdswjoblauncher.cdsw.constants import SECRET_PROJECTS_DIR
 from googleapiwrapper.common import ServiceType
 from googleapiwrapper.google_auth import GoogleApiAuthorizer
 from googleapiwrapper.google_drive import (
@@ -26,7 +27,6 @@ from pythoncommons.project_utils import PROJECTS_BASEDIR_NAME
 from pythoncommons.string_utils import StringUtils
 from pythoncommons.url_utils import UrlUtils
 
-from yarndevtools.cdsw.constants import SECRET_PROJECTS_DIR
 from yarndevtools.commands.unittestresultfetcher.common import (
     UnitTestResultFetcherMode,
     CACHED_DATA_DIRNAME,

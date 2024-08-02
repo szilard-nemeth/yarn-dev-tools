@@ -13,7 +13,7 @@ from yarndevtools.common.shared_command_utils import CommandType
 
 config = {
     "job_name": "Unit test result fetcher",
-    "command_type": CommandType.UNIT_TEST_RESULT_FETCHER,
+    "command_type": CommandType.UNIT_TEST_RESULT_FETCHER.real_name,
     "env_sanitize_exceptions": [],
     "mandatory_env_vars": ["MAIL_ACC_USER", "MAIL_ACC_PASSWORD", "JENKINS_USER", "JENKINS_PASSWORD"],
     "optional_env_vars": ["BUILD_PROCESSING_LIMIT", "FORCE_SENDING_MAIL", "RESET_JOB_BUILD_DATA"],

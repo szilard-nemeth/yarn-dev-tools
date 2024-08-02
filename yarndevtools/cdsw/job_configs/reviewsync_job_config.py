@@ -6,7 +6,7 @@ from yarndevtools.constants import SummaryFile
 
 config = {
     "job_name": "Reviewsync",
-    "command_type": CommandType.REVIEWSYNC,
+    "command_type": CommandType.REVIEWSYNC.real_name,
     "env_sanitize_exceptions": ["BRANCHES"],
     "mandatory_env_vars": [
         "GSHEET_CLIENT_SECRET",

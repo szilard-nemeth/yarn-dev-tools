@@ -4,6 +4,7 @@ from enum import Enum
 PYTHON3 = "python3"
 REPO_ROOT_DIRNAME = "yarn-dev-tools"
 YARNDEVTOOLS_MODULE_NAME = "yarndevtools"
+YARNDEVTOOLS_MAIN_SCRIPT_NAME = "yarn_dev_tools.py"
 CDSW_JOB_LAUNCHER_MODULE_ROOT = "cdsw-job-launcher"
 APACHE = "apache"
 HADOOP = "hadoop"

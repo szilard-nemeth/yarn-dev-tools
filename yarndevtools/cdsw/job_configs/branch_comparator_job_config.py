@@ -46,7 +46,7 @@ def generate_runs(conf):
 
 config = {
     "job_name": "Branch comparator",
-    "command_type": CommandType.BRANCH_COMPARATOR,
+    "command_type": CommandType.BRANCH_COMPARATOR.real_name,
     "env_sanitize_exceptions": [],
     "mandatory_env_vars": [
         "MAIL_ACC_USER",

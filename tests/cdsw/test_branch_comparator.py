@@ -4,6 +4,10 @@ import unittest
 from enum import Enum
 from typing import Dict, List
 
+from cdswjoblauncher.cdsw.cdsw_common import TestExecMode, PythonModuleMode, DEFAULT_TEST_EXECUTION_MODE
+from cdswjoblauncher.cdsw.constants import CdswEnvVar
+from cdswjoblauncher.cdsw.testutils.test_utils import LocalDirs, CDSW_DIRNAME, CdswTestingCommons
+from cdswjoblauncher.commands.send_latest_command_data_in_mail import EnvVar
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode, DockerMountMode, DockerMount
 from pythoncommons.file_utils import FileUtils, FindResultType
@@ -17,17 +21,10 @@ from pythoncommons.project_utils import (
     ProjectUtils,
     ProjectUtilsEnvVar,
 )
-
-from tests.cdsw.common.testutils.cdsw_testing_common import CdswTestingCommons, CDSW_DIRNAME, LocalDirs
-from yarndevtools.cdsw.cdsw_common import (
-    DEFAULT_TEST_EXECUTION_MODE,
-)
-from yarndevtools.cdsw.constants import (
-    CdswEnvVar,
-    BranchComparatorEnvVar,
-)
+from cdswjoblauncher.cdsw.cdsw_common import CommonDirs as CommonDirsCdsw
+from yarndevtools.cdsw.constants import BranchComparatorEnvVar
 from yarndevtools.cdsw.start_job import CommonDirs
-from yarndevtools.common.shared_command_utils import RepoType, EnvVar, CommandType
+from yarndevtools.common.shared_command_utils import RepoType, CommandType
 from yarndevtools.constants import (
     ORIGIN_BRANCH_3_3,
     ORIGIN_TRUNK,
@@ -51,17 +48,15 @@ INITIAL_CDSW_SETUP_SCRIPT = "initial-cdsw-setup.sh"
 
 
 class ContainerFiles:
-    START_JOB_SCRIPT = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, START_JOB_PY)
-    INITIAL_CDSW_SETUP_SCRIPT = FileUtils.join_path(
-        CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, INITIAL_CDSW_SETUP_SCRIPT
-    )
+    START_JOB_SCRIPT = FileUtils.join_path(CommonDirsCdsw.SCRIPTS_BASEDIR, START_JOB_PY)
+    INITIAL_CDSW_SETUP_SCRIPT = FileUtils.join_path(CommonDirsCdsw.SCRIPTS_BASEDIR, INITIAL_CDSW_SETUP_SCRIPT)
 
 
 class ContainerDirs:
     CDSW_BASEDIR = CommonDirs.CDSW_BASEDIR
     YARN_DEV_TOOLS_OUTPUT_DIR = FileUtils.join_path(CDSW_BASEDIR, PROJECTS_BASEDIR_NAME, YARNDEVTOOLS_MODULE_NAME)
-    YARN_DEV_TOOLS_SCRIPTS_BASEDIR = CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR
-    YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS = FileUtils.join_path(CommonDirs.YARN_DEV_TOOLS_SCRIPTS_BASEDIR, "experiments")
+    YARN_DEV_TOOLS_SCRIPTS_BASEDIR = CommonDirsCdsw.SCRIPTS_BASEDIR
+    YARN_DEV_TOOLS_SCRIPTS_EXPERIMENTS = FileUtils.join_path(CommonDirsCdsw.SCRIPTS_BASEDIR, "experiments")
     HADOOP_CLOUDERA_BASEDIR = CommonDirs.HADOOP_CLOUDERA_BASEDIR
     HADOOP_UPSTREAM_BASEDIR = CommonDirs.HADOOP_UPSTREAM_BASEDIR
     CDSW_SECRET_DIR = FileUtils.join_path("/root", ".secret", "projects", "cloudera", CDSW_DIRNAME)
@@ -163,12 +158,12 @@ class DockerBasedTestConfig:
             make_key(p_exec_mode, get_str(TestExecMode.CLOUDERA)): {
                 # We need both upstream / downstream repos for Cloudera-mode
                 get_str(CdswEnvVar.CLOUDERA_HADOOP_ROOT): FileUtils.join_path(
-                    CommonDirs.USER_DEV_ROOT, CLOUDERA, HADOOP
+                    CommonDirsCdsw.USER_DEV_ROOT, CLOUDERA, HADOOP
                 ),
-                get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirs.USER_DEV_ROOT, APACHE, HADOOP),
+                get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirsCdsw.USER_DEV_ROOT, APACHE, HADOOP),
             },
             make_key(p_exec_mode, get_str(TestExecMode.UPSTREAM)): {
-                get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirs.USER_DEV_ROOT, APACHE, HADOOP),
+                get_str(CdswEnvVar.HADOOP_DEV_DIR): FileUtils.join_path(CommonDirsCdsw.USER_DEV_ROOT, APACHE, HADOOP),
                 get_str(BranchComparatorEnvVar.BRANCH_COMP_REPO_TYPE): RepoType.UPSTREAM.value,
                 get_str(BranchComparatorEnvVar.BRANCH_COMP_FEATURE_BRANCH): ORIGIN_BRANCH_3_3,
                 get_str(BranchComparatorEnvVar.BRANCH_COMP_MASTER_BRANCH): ORIGIN_TRUNK,
@@ -259,7 +254,7 @@ class DockerBasedTestConfig:
         # Mount results dir so all output files will be available on the host machine
         mounts.append(
             DockerMount(
-                host_dir=LocalDirs.YARNDEVTOOLS_RESULT_DIR,
+                host_dir=LocalDirs.TEST_MODULE_RESULT_DIR,
                 container_dir=ContainerDirs.YARN_DEV_TOOLS_OUTPUT_DIR,
                 mode=DockerMountMode.READ_WRITE,
             )
@@ -386,9 +381,9 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.docker_test_setup.cleanup()
 
     def save_latest_zip_from_container(self):
-        zip_link = FileUtils.join_path(LocalDirs.YARNDEVTOOLS_RESULT_DIR, "latest-command-data-zip")
+        zip_link = FileUtils.join_path(LocalDirs.TEST_MODULE_RESULT_DIR, "latest-command-data-zip")
         cont_src_path = os.readlink(zip_link)
-        local_target_path = FileUtils.join_path(LocalDirs.YARNDEVTOOLS_RESULT_DIR, "latest-command-data-real.zip")
+        local_target_path = FileUtils.join_path(LocalDirs.TEST_MODULE_RESULT_DIR, "latest-command-data-real.zip")
         self.docker_test_setup.docker_cp_from_container(cont_src_path, local_target_path)
 
     def copy_yarndevtools_cdsw_recursively(self):

@@ -34,7 +34,7 @@ def generate_runs(conf):
 
 config = {
     "job_name": "Jira umbrella data fetcher",
-    "command_type": CommandType.JIRA_UMBRELLA_DATA_FETCHER,
+    "command_type": CommandType.JIRA_UMBRELLA_DATA_FETCHER.real_name,
     "env_sanitize_exceptions": ["UMBRELLA_IDS"],
     "mandatory_env_vars": [
         "MAIL_ACC_USER",

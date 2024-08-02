@@ -38,7 +38,7 @@ yarndevtools = ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]
 python = "^3.8.12"
 python-common-lib = "1.0.11"
 google-api-wrapper2 = "1.0.12"
-cdsw-job-launcher = "1.0.3"
+cdsw-job-launcher = "1.0.5"
 gitpython = "*"
 humanize = "*"
 bs4 = "*"
@@ -61,6 +61,7 @@ coolname = "*"
 httpretty = "*"
 black = "*"
 autopep8 = "*"
+setuptools = "72.1.0"
 
 [tool.poetry.group.localdev.dependencies]
 python-common-lib = { path = "../python-commons/", develop = false }
@@ -70,6 +71,23 @@ google-api-wrapper2 = { path = "../google-api-wrapper", develop = false }
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
