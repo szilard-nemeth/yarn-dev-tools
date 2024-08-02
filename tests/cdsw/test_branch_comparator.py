@@ -11,6 +11,7 @@ from cdswjoblauncher.commands.send_latest_command_data_in_mail import EnvVar
 from pythoncommons.constants import ExecutionMode
 from pythoncommons.docker_wrapper import DockerTestSetup, CreatePathMode, DockerMountMode, DockerMount
 from pythoncommons.file_utils import FileUtils, FindResultType
+from pythoncommons.git_wrapper import GitWrapper
 from pythoncommons.github_utils import GitHubUtils
 from pythoncommons.logging_setup import SimpleLoggingSetupConfig, SimpleLoggingSetup
 from pythoncommons.object_utils import ObjUtils
@@ -24,7 +25,7 @@ from pythoncommons.project_utils import (
 from cdswjoblauncher.cdsw.cdsw_common import CommonDirs as CommonDirsCdsw
 from yarndevtools.cdsw.constants import BranchComparatorEnvVar
 from yarndevtools.cdsw.start_job import CommonDirs
-from yarndevtools.common.shared_command_utils import RepoType, CommandType
+from yarndevtools.common.shared_command_utils import RepoType, CommandType, YarnDevToolsEnvVar
 from yarndevtools.constants import (
     ORIGIN_BRANCH_3_3,
     ORIGIN_TRUNK,
@@ -33,6 +34,7 @@ from yarndevtools.constants import (
     HADOOP,
     CLOUDERA,
     PYTHON3,
+    REPO_ROOT_DIRNAME,
 )
 
 PROJECT_NAME = "branch-comparator"
@@ -93,7 +95,7 @@ class DockerBasedTestConfig:
         self.python_module_root = None
         self.exec_mode: TestExecMode = self.determine_execution_mode()
         self.python_module_mode_query_cmd = self.determine_python_module_mode_query_command()
-        self.cdsw_testing_commons = CdswTestingCommons()
+        self.cdsw_testing_commons = CdswTestingCommons(YARNDEVTOOLS_MODULE_NAME)
         if self.github_ci_execution:
             self.mount_cdsw_dirs_from_local = False
         self.env_dict = self.setup_env_vars()
@@ -139,6 +141,9 @@ class DockerBasedTestConfig:
         def make_key(prefix, conf_value):
             return f"{prefix}_{conf_value}"
 
+        basedir = FileUtils.find_repo_root_dir(__file__, REPO_ROOT_DIRNAME, raise_error=False)
+        repo_wrapper = GitWrapper(basedir)
+
         p_common = "common"
         p_exec_mode = "exec_mode"
         p_module_mode = "module_mode"
@@ -153,6 +158,8 @@ class DockerBasedTestConfig:
                 get_str(CdswEnvVar.RESTART_PROCESS_WHEN_REQUIREMENTS_INSTALLED): False,
                 # TODO Investigate this later to check why number of loggers are not correct
                 get_str(CdswEnvVar.ENABLE_LOGGER_HANDLER_SANITY_CHECK): False,
+                # TODO cdsw-separation Maybe this works differently on Github actions CI
+                get_str(YarnDevToolsEnvVar.YARNDEVTOOLS_BRANCH): repo_wrapper.get_current_branch_name(),
             },
             # !! WARNING: User-specific settings below !!
             make_key(p_exec_mode, get_str(TestExecMode.CLOUDERA)): {
@@ -212,6 +219,8 @@ class DockerBasedTestConfig:
         )
 
         env_dict = {env_name: OsUtils.get_env_value(env_name) for env_name in env_keys}
+        env_dict = {k: v for k, v in env_dict.items() if v is not None}
+
         return env_dict
 
     @staticmethod
@@ -280,44 +289,19 @@ class DockerBasedTestConfig:
         return mounts
 
 
-PROD_CONFIG = DockerBasedTestConfig(
-    create_image=True,
-    mount_cdsw_dirs_from_local=False,
-    run_cdsw_initial_setup_script=True,
-    container_sleep_seconds=400,
-    install_requirements=True,
-)
-DEV_CONFIG = DockerBasedTestConfig(
-    create_image=False,
-    mount_cdsw_dirs_from_local=True,
-    run_cdsw_initial_setup_script=False,
-    container_sleep_seconds=1000,
-    install_requirements=False,
-)
-QUICK_DEV_CONFIG = DockerBasedTestConfig(
-    create_image=False,
-    mount_cdsw_dirs_from_local=True,
-    run_cdsw_initial_setup_script=False,
-    container_sleep_seconds=1000,
-    install_requirements=False,
-)
-ACTIVE_CONFIG = PROD_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
-
-
 class YarnCdswBranchDiffTests(unittest.TestCase):
     docker_test_setup = None
-    config: DockerBasedTestConfig = ACTIVE_CONFIG
+    PROD_CONFIG = None
+    DEV_CONFIG = None
+    QUICK_DEV_CONFIG = None
+    config: DockerBasedTestConfig
 
     @classmethod
     def setUpClass(cls):
-        if GitHubUtils.is_github_ci_execution():
-            # Always use PROD config when GitHub CI is executed
-            LOG.info("Changing configuration to PROD as Github Actions CI is being executed...")
-            YarnCdswBranchDiffTests.config = PROD_CONFIG
-
         ProjectUtils.set_root_determine_strategy(ProjectRootDeterminationStrategy.COMMON_FILE)
         ProjectUtils.get_test_output_basedir(YARNDEVTOOLS_MODULE_NAME)
         cls._setup_logging()
+        cls.config = cls.setup_test_configs()
         cwd = os.getcwd()
         if cwd != LocalDirs.CDSW_ROOT_DIR:
             os.chdir(LocalDirs.CDSW_ROOT_DIR)
@@ -325,6 +309,36 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
             DOCKER_IMAGE, create_image=cls.config.create_image, dockerfile=cls.config.dockerfile, logger=CMD_LOG
         )
         cls.setup_default_docker_mounts()
+
+    @classmethod
+    def setup_test_configs(cls):
+        YarnCdswBranchDiffTests.PROD_CONFIG = DockerBasedTestConfig(
+            create_image=True,
+            mount_cdsw_dirs_from_local=False,
+            run_cdsw_initial_setup_script=True,
+            container_sleep_seconds=400,
+            install_requirements=True,
+        )
+        YarnCdswBranchDiffTests.DEV_CONFIG = DockerBasedTestConfig(
+            create_image=False,
+            mount_cdsw_dirs_from_local=True,
+            run_cdsw_initial_setup_script=False,
+            container_sleep_seconds=1000,
+            install_requirements=False,
+        )
+        YarnCdswBranchDiffTests.QUICK_DEV_CONFIG = DockerBasedTestConfig(
+            create_image=False,
+            mount_cdsw_dirs_from_local=True,
+            run_cdsw_initial_setup_script=False,
+            container_sleep_seconds=1000,
+            install_requirements=False,
+        )
+        if GitHubUtils.is_github_ci_execution():
+            # Always use PROD config when GitHub CI is executed
+            LOG.info("Changing configuration to PROD as Github Actions CI is being executed...")
+            return YarnCdswBranchDiffTests.PROD_CONFIG
+        else:
+            return YarnCdswBranchDiffTests.PROD_CONFIG  # <-- !!! CHANGE THE ACTIVE CONFIG HERE !!!
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -411,7 +425,7 @@ class YarnCdswBranchDiffTests(unittest.TestCase):
         self.setup_default_docker_mounts()
         self.docker_test_setup.run_container(sleep=self.config.container_sleep_seconds)
         self.exec_get_python_module_root(callback=_callback)
-        self.exec_initial_cdsw_setup_script()
+        self.exec_initial_cdsw_setup_script(env=self.config.env_dict)
         if self.config.mount_cdsw_dirs_from_local:
             # TODO Copy python-commons, google-api-wrapper as well, control this with an enum
             self.copy_yarndevtools_cdsw_recursively()

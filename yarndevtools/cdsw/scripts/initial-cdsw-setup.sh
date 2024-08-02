@@ -29,6 +29,14 @@ elif [[ "$1" == "cloudera" ]]; then
   shift
 fi
 
+branch="master"
+if [[ ! -z "$YARNDEVTOOLS_BRANCH" ]]; then
+  echo "Recognized YARNDEVTOOLS_BRANCH=$YARNDEVTOOLS_BRANCH"
+  branch=$YARNDEVTOOLS_BRANCH
+fi
+
+echo "Using branch to checkout after cloning yarndevtools: $branch"
+
 #Validations
 
 (( "$PYTHON_MODULE_MODE" != "global" || "$PYTHON_MODULE_MODE" != "user" )) && echo "Python module mode should be either 'user' or 'global'!" && exit 1
@@ -46,7 +54,7 @@ cd $REPOS_ROOT
 
 set +e
 YARNDEVTOOLS_REPO_NAME="yarn-dev-tools"
-git -C $YARNDEVTOOLS_REPO_NAME pull || git clone https://github.com/szilard-nemeth/yarn-dev-tools.git $YARNDEVTOOLS_REPO_NAME
+git -C $YARNDEVTOOLS_REPO_NAME pull || git clone https://github.com/szilard-nemeth/yarn-dev-tools.git $YARNDEVTOOLS_REPO_NAME --branch $branch
 
 CDSW_ROOT="/home/cdsw/"
 SCRIPTS_ROOT="$CDSW_ROOT/scripts"

@@ -5,6 +5,7 @@ from argparse import ArgumentParser
 
 from cdswjoblauncher.cdsw.libreloader.reload_dependencies import Reloader
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.os_utils import OsUtils
 
 from yarndevtools.cdsw.constants import (
     BranchComparatorEnvVar,
@@ -22,7 +23,7 @@ from yarndevtools.constants import (
 )
 
 # THESE FUNCTION DEFINITIONS AND CALL TO fix_pythonpast MUST PRECEDE THE IMPORT OF libreloader: from libreloader import reload_dependencies
-# TODO same as CdswEnvVar.PYTHONPATH --> Migrate
+# TODO cdsw-separation same as CdswEnvVar.PYTHONPATH --> Migrate
 PYTHONPATH_ENV_VAR = "PYTHONPATH"
 MAIL_ADDR_YARN_ENG_BP = "yarn_eng_bp@cloudera.com"
 POSSIBLE_COMMAND_TYPES = [e.real_name for e in CommandType] + [e.output_dir_name for e in CommandType]
@@ -129,6 +130,24 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
     )
     append_arg_and_value("--env", f"{YarnDevToolsEnvVar.ENV_HADOOP_DEV_DIR.value}={CommonDirs.HADOOP_UPSTREAM_BASEDIR}")
 
+    # Set module version if yarndevtools branch is defined.
+    # initial-cdsw-setup.sh and install-requirements.sh should be in sync for yarndevtools version
+    if YarnDevToolsEnvVar.YARNDEVTOOLS_BRANCH.value in os.environ:
+        branch = OsUtils.get_env_value(YarnDevToolsEnvVar.YARNDEVTOOLS_BRANCH.value, default_value=None)
+        if branch:
+            # TODO cdsw-separation ugly as hell :(
+            version = os.system(
+                'wget -q -O - https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/pyproject.toml | grep -A2 "name = "yarn-dev-tools"" | grep -m 1 version | tr -s '
+                " | tr -d "
+                "' | tr -d "
+                '" | cut -d'
+                " -f3"
+            )
+            OsUtils.set_env_value(YarnDevToolsEnvVar.YARNDEVTOOLS_MODULE_VERSION.value, version)
+
+            append_arg_and_value("--env", f"{YarnDevToolsEnvVar.YARNDEVTOOLS_BRANCH.value}={branch}")
+            append_arg_and_value("--env", f"{YarnDevToolsEnvVar.YARNDEVTOOLS_MODULE_VERSION.value}={version}")
+
 
 def main():
     module_root = Reloader.get_python_module_root()
@@ -142,6 +161,7 @@ def main():
 
     # Start the CDSW runner
     prepare_args_for_cdsw_runner(config, valid_env_vars)
+    print("Arguments for CDSW runner: " + str(sys.argv))
     exec(open(cdsw_runner_path).read())
 
 
