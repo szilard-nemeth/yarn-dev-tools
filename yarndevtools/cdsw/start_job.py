@@ -163,7 +163,7 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
 def main():
     module_root = Reloader.get_python_module_root()
     cdsw_job_launcher_module_root = os.path.join(module_root, CDSW_JOB_LAUNCHER_MODULE_ROOT)
-    cdsw_runner_path = os.path.join(cdsw_job_launcher_module_root, "cdswjoblauncher", "cdsw", "cdsw_runner.py")
+    cdsw_runner_path = os.path.join(cdsw_job_launcher_module_root, "cdsw", "cdsw_runner.py")
     print("CDSW job launcher module root is: %s", cdsw_job_launcher_module_root)
 
     args, parser = ArgParser.parse_args()
