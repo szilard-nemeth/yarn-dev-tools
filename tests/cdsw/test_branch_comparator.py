@@ -247,7 +247,7 @@ class DockerBasedTestConfig:
                     DockerMount(
                         host_dir=dir,
                         container_dir=FileUtils.join_path(ContainerDirs.CDSW_BASEDIR, FileUtils.basename(dir)),
-                        mode=DockerMountMode.READ_ONLY,
+                        mode=DockerMountMode.READ_WRITE,
                     )
                 )
         else:

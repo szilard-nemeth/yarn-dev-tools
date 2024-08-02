@@ -54,6 +54,15 @@ class ArgParser:
             choices=POSSIBLE_COMMAND_TYPES,
             help="Type of command.",
         )
+        parser.add_argument(
+            "-v",
+            "--verbose",
+            action="store_true",
+            dest="verbose",
+            default=False,
+            required=False,
+            help="More verbose log (including gitpython verbose logs)",
+        )
 
         args = parser.parse_args()
         if args.verbose:
