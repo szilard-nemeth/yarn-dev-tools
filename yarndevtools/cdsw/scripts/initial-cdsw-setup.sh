@@ -61,7 +61,7 @@ SCRIPTS_ROOT="$CDSW_ROOT/scripts"
 rm "$SCRIPTS_ROOT/*"
 mkdir -p $CDSW_ROOT
 mkdir -p $SCRIPTS_ROOT
-# TODO Location of scripts will be different for CDSW
+# TODO cdsw-separation Location of scripts will be different for CDSW launcher
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/scripts/{clone_downstream_repos.sh,clone_upstream_repos.sh} $CDSW_ROOT/scripts
 cp $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/start_job.py $CDSW_ROOT/scripts
 cp -R $REPOS_ROOT/yarn-dev-tools/yarndevtools/cdsw/libreloader/ $CDSW_ROOT/scripts/libreloader
@@ -89,6 +89,11 @@ $CLONE_US_REPOS_SCRIPT_PATH
 if [[ "$EXEC_MODE" == "cloudera" ]]; then
   echo "Cloning downstream repos..."
   $CLONE_DS_REPOS_SCRIPT_PATH
+fi
+
+# YARNDEVTOOLS_MODULE_VERSION should be exported as install-requirements.sh will pick up the right version of yarndevtools and install its dependencies e.g. cdsw-job-launcher
+if [[ ! -z "$YARNDEVTOOLS_BRANCH" ]]; then
+  export YARNDEVTOOLS_MODULE_VERSION=$(wget -q -O - https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/pyproject.toml | grep -A2 "name = \"yarn-dev-tools\"" | grep -m 1 version | tr -s ' ' | tr -d '"' | tr -d "'" | cut -d' ' -f3 )
 fi
 
 . $INSTALL_REQUIREMENTS_SCRIPT_PATH $EXEC_MODE
