@@ -18,7 +18,7 @@ function clone-fetch-hadoop-downstream() {
     git reset --hard $CDPD_MASTER_BRANCH
     else
       echo "Test exec mode set, resetting to $CDPD_MASTER_BRANCH with git reset..."
-      if [[ -z $(git status -s) ]]; then
+      if [[ ! -z $(git status -s) ]]; then
         echo "There are unstaged changes in repo `pwd`. Exiting"
         return 1
       fi

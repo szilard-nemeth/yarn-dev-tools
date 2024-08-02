@@ -18,7 +18,7 @@ function clone-fetch-hadoop() {
       git reset --hard $TRUNK_BRANCH
     else
       echo "Test exec mode set, resetting to $TRUNK_BRANCH with git reset..."
-      if [[ -z $(git status -s) ]]; then
+      if [[ ! -z $(git status -s) ]]; then
         echo "There are unstaged changes in repo `pwd`. Exiting"
         return 1
       fi
