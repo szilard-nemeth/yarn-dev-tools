@@ -137,13 +137,13 @@ files = [
 
 [[package]]
 name = "cdsw-job-launcher"
-version = "1.0.19"
+version = "1.0.20"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "cdsw_job_launcher-1.0.19-py3-none-any.whl", hash = "sha256:edd39bbb042f1be454fb03dea18dd3922e4c9aec58fc58d272bf1bd0c6fd78a2"},
-    {file = "cdsw_job_launcher-1.0.19.tar.gz", hash = "sha256:30b4722917ebae16e2b1ff6662a850c965cb22974cc06e55425f1733e6cbbb40"},
+    {file = "cdsw_job_launcher-1.0.20-py3-none-any.whl", hash = "sha256:f17e168ee297edf374f53cb7149b68ac82b039002032bf5ed46947f80113aeb9"},
+    {file = "cdsw_job_launcher-1.0.20.tar.gz", hash = "sha256:78e8911c2d9af459b5ed2585b465a42059fd0d63900b4ec9667c758777b73420"},
 ]
 
 [package.dependencies]
@@ -1765,4 +1765,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.12"
-content-hash = "8443605e8cf046fe830d8f07b344f6c8c381edd64f3e0ebc3a725eec3690d42d"
+content-hash = "d1c05c2557709021c17a0668204b52d8b63febac9cbe8042171d51d42dbce802"
