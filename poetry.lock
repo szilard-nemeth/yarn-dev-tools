@@ -137,13 +137,13 @@ files = [
 
 [[package]]
 name = "cdsw-job-launcher"
-version = "1.0.18"
+version = "1.0.19"
 description = ""
 optional = false
 python-versions = "<4.0,>=3.8"
 files = [
-    {file = "cdsw_job_launcher-1.0.18-py3-none-any.whl", hash = "sha256:cae949a99d37ad5e82f48b88aeb3173bb5b49e999b9b4cd1204a0f2bcade0f20"},
-    {file = "cdsw_job_launcher-1.0.18.tar.gz", hash = "sha256:c8c60ca39b3c27de0ca18e7cf9b07377f0af8d5b4e19a5d2375536316832f9eb"},
+    {file = "cdsw_job_launcher-1.0.19-py3-none-any.whl", hash = "sha256:edd39bbb042f1be454fb03dea18dd3922e4c9aec58fc58d272bf1bd0c6fd78a2"},
+    {file = "cdsw_job_launcher-1.0.19.tar.gz", hash = "sha256:30b4722917ebae16e2b1ff6662a850c965cb22974cc06e55425f1733e6cbbb40"},
 ]
 
 [package.dependencies]
@@ -153,6 +153,7 @@ google-api-wrapper2 = "1.0.13"
 pytest = ">=6.2.3,<6.3.0"
 python-common-lib = "1.0.12"
 requests = ">=2.28.1,<3.0.0"
+rich = ">=13.7.1,<14.0.0"
 
 [[package]]
 name = "certifi"
@@ -802,6 +803,30 @@ opt = ["PyJWT", "filemagic (>=1.6)", "requests-jwt", "requests-kerberos"]
 test = ["MarkupSafe (>=0.23)", "PyYAML (>=5.1)", "docutils (>=0.12)", "flaky", "oauthlib", "parameterized (>=0.8.1)", "pytest (>=6.0.0)", "pytest-cache", "pytest-cov", "pytest-instafail", "pytest-sugar", "pytest-timeout (>=1.3.1)", "pytest-xdist (>=2.2)", "requests-mock", "requires.io", "tenacity", "wheel (>=0.24.0)", "yanc (>=0.3.3)"]
 
 [[package]]
+name = "markdown-it-py"
+version = "3.0.0"
+description = "Python port of markdown-it. Markdown parsing, done right!"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "markdown-it-py-3.0.0.tar.gz", hash = "sha256:e3f60a94fa066dc52ec76661e37c851cb232d92f9886b15cb560aaada2df8feb"},
+    {file = "markdown_it_py-3.0.0-py3-none-any.whl", hash = "sha256:355216845c60bd96232cd8d8c40e8f9765cc86f46880e43a8fd22dc1a1a8cab1"},
+]
+
+[package.dependencies]
+mdurl = ">=0.1,<1.0"
+
+[package.extras]
+benchmarking = ["psutil", "pytest", "pytest-benchmark"]
+code-style = ["pre-commit (>=3.0,<4.0)"]
+compare = ["commonmark (>=0.9,<1.0)", "markdown (>=3.4,<4.0)", "mistletoe (>=1.0,<2.0)", "mistune (>=2.0,<3.0)", "panflute (>=2.3,<3.0)"]
+linkify = ["linkify-it-py (>=1,<3)"]
+plugins = ["mdit-py-plugins"]
+profiling = ["gprof2dot"]
+rtd = ["jupyter_sphinx", "mdit-py-plugins", "myst-parser", "pyyaml", "sphinx", "sphinx-copybutton", "sphinx-design", "sphinx_book_theme"]
+testing = ["coverage", "pytest", "pytest-cov", "pytest-regressions"]
+
+[[package]]
 name = "marshmallow"
 version = "3.21.3"
 description = "A lightweight library for converting complex datatypes to and from native Python datatypes."
@@ -843,6 +868,17 @@ python-versions = ">=3.6"
 files = [
     {file = "mccabe-0.7.0-py2.py3-none-any.whl", hash = "sha256:6c2d30ab6be0e4a46919781807b4f0d834ebdd6c6e3dca0bda5a15f863427b6e"},
     {file = "mccabe-0.7.0.tar.gz", hash = "sha256:348e0240c33b60bbdf4e523192ef919f28cb2c3d7d5c7794f74009290f236325"},
+]
+
+[[package]]
+name = "mdurl"
+version = "0.1.2"
+description = "Markdown URL utilities"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"},
+    {file = "mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba"},
 ]
 
 [[package]]
@@ -1180,6 +1216,20 @@ files = [
 ]
 
 [[package]]
+name = "pygments"
+version = "2.18.0"
+description = "Pygments is a syntax highlighting package written in Python."
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "pygments-2.18.0-py3-none-any.whl", hash = "sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a"},
+    {file = "pygments-2.18.0.tar.gz", hash = "sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199"},
+]
+
+[package.extras]
+windows-terminal = ["colorama (>=0.4.6)"]
+
+[[package]]
 name = "pymongo"
 version = "4.8.0"
 description = "Python driver for MongoDB <http://www.mongodb.org>"
@@ -1501,6 +1551,25 @@ files = [
 requests = ">=2.0.1,<3.0.0"
 
 [[package]]
+name = "rich"
+version = "13.7.1"
+description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
+optional = false
+python-versions = ">=3.7.0"
+files = [
+    {file = "rich-13.7.1-py3-none-any.whl", hash = "sha256:4edbae314f59eb482f54e9e30bf00d33350aaa94f4bfcd4e9e3110e64d0d7222"},
+    {file = "rich-13.7.1.tar.gz", hash = "sha256:9be308cb1fe2f1f57d67ce99e95af38a1e2bc71ad9813b0e247cf7ffbcc3a432"},
+]
+
+[package.dependencies]
+markdown-it-py = ">=2.2.0"
+pygments = ">=2.13.0,<3.0.0"
+typing-extensions = {version = ">=4.0.0,<5.0", markers = "python_version < \"3.9\""}
+
+[package.extras]
+jupyter = ["ipywidgets (>=7.5.1,<9)"]
+
+[[package]]
 name = "rsa"
 version = "4.9"
 description = "Pure-Python RSA implementation"
@@ -1696,4 +1765,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.12"
-content-hash = "0fce397c91518c66a5171ec7f20cb434ff51df151519ddbd695b3a2c2913530d"
+content-hash = "8443605e8cf046fe830d8f07b344f6c8c381edd64f3e0ebc3a725eec3690d42d"
