@@ -147,7 +147,7 @@ def prepare_args_for_cdsw_runner(config, valid_env_vars):
             # TODO cdsw-separation ugly as hell :(
             version = os.system(
                 "wget -q -O - https://raw.githubusercontent.com/szilard-nemeth/yarn-dev-tools/master/pyproject.toml | "
-                'grep -A2 "name = "yarn-dev-tools"" | grep -m 1 version | '
+                'grep -A2 "name = "yarn-dev-tools" | grep -m 1 version | '
                 "tr -s "
                 " | tr -d "
                 "' | tr -d "
@@ -165,6 +165,7 @@ def main():
     cdsw_job_launcher_module_root = os.path.join(module_root, CDSW_JOB_LAUNCHER_MODULE_ROOT)
     cdsw_runner_path = os.path.join(cdsw_job_launcher_module_root, "cdsw", "cdsw_runner.py")
     print("CDSW job launcher module root is: %s", cdsw_job_launcher_module_root)
+    print("CDSW runner path: %s", cdsw_runner_path)
 
     args, parser = ArgParser.parse_args()
     config = Config(parser, args)
