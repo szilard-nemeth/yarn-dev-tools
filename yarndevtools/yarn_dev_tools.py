@@ -106,6 +106,11 @@ class LoggingHelper:
         # log_level = determine_logging_level(args)
         debug = getattr(args, "logging_debug", False)
         trace = getattr(args, "logging_trace", False)
+
+        sanity_check_number_of_handlers = OsUtils.is_env_var_true(
+            YarnDevToolsEnvVar.ENABLE_LOGGER_HANDLER_SANITY_CHECK.value, default_val=True
+        )
+
         logging_config: SimpleLoggingSetupConfig = SimpleLoggingSetup.init_logger(
             project_name=YARNDEVTOOLS_MODULE_NAME,
             logger_name_prefix=YARNDEVTOOLS_MODULE_NAME,
@@ -117,6 +122,7 @@ class LoggingHelper:
             repos=[YarnDevToolsConfig.UPSTREAM_REPO.repo, YarnDevToolsConfig.DOWNSTREAM_REPO.repo],
             verbose_git_log=args.verbose,
             with_trace_level=True,
+            sanity_check_number_of_handlers=sanity_check_number_of_handlers,
         )
         # LOG.trace("test trace")
         LOG.info("Logging to files: %s", logging_config.log_file_paths)
