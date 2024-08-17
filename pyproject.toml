@@ -17,7 +17,7 @@ exclude = '''
 
 [tool.poetry]
 name = "yarn-dev-tools"
-version = "2.0.10"
+version = "2.0.12"
 description = ""
 authors = ["Szilard Nemeth <szilard.nemeth88@gmail.com>"]
 keywords = ["YARN", "development", "dev environment"]
@@ -36,8 +36,8 @@ yarndevtools = ["cdsw/unit-test-result-aggregator/*.txt", "cdsw/scripts/*.sh"]
 
 [tool.poetry.dependencies]
 python = "^3.8.12"
-python-common-lib = "1.0.12"
-google-api-wrapper2 = "1.0.13"
+python-common-lib = "^1.0.13"
+google-api-wrapper2 = "^1.0.14"
 cdsw-job-launcher = "1.0.19"
 gitpython = "*"
 humanize = "*"
